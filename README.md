@@ -36,11 +36,28 @@ it as such. Parks: `magic-kingdom`, `epcot`, `hollywood-studios`, `animal-kingdo
 
 | Env var | Purpose |
 |---|---|
-| `PORT` | Listen port (default 3000) |
+| `PORT` | Listen port (default 3000; Railway sets this automatically) |
 | `PAYMENT_LINK` | Stripe Payment Link URL for checkout. Until it's set, pricing buttons capture emails ("lock in this price") instead — a pre-launch waitlist. |
+| `LEADS_FILE` | Where captured emails are appended (default `data/leads.jsonl`, gitignored). On Railway, point this at a mounted volume. |
 
-Leads land in `data/leads.jsonl` (gitignored). Replace with a real ESP
-(ConvertKit/Loops) in v1.
+Replace the flat-file leads with a real ESP (ConvertKit/Loops) in v1.
+
+## Deploy to Railway
+
+The repo ships with `railway.json` (Nixpacks build, `node server.js` start,
+healthcheck on `/api/config`). To deploy:
+
+1. [railway.com/new](https://railway.com/new) → **Deploy from GitHub repo** →
+   pick this repo and the `claude/disney-fastpass-wait-times-9nn7ym` branch
+   (or `main` after merging).
+2. Railway detects the config and deploys — no settings needed.
+3. **Settings → Networking → Generate Domain** to get a public URL.
+4. Optional, to persist waitlist emails across deploys: add a **Volume**
+   mounted at `/data`, then set `LEADS_FILE=/data/leads.jsonl` in Variables.
+5. When ready to charge: create a Stripe Payment Link and set `PAYMENT_LINK`
+   in Variables.
+
+Every push to the connected branch auto-deploys from then on.
 
 ## v0 limitations (deliberate)
 

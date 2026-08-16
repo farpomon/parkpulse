@@ -10,7 +10,9 @@ const path = require('node:path');
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DATA_DIR = path.join(__dirname, 'data');
-const LEADS_FILE = path.join(DATA_DIR, 'leads.jsonl');
+// On Railway, mount a volume (e.g. at /data) and set LEADS_FILE=/data/leads.jsonl
+// so captured emails survive redeploys — the default path is ephemeral there.
+const LEADS_FILE = process.env.LEADS_FILE || path.join(DATA_DIR, 'leads.jsonl');
 // Stripe Payment Link for the Trip Pass — set in the hosting env, no backend needed for v0.
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 
