@@ -1,0 +1,240 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wait Less, Ride More</title>
+<style>
+  :root {
+    --bg: #f7f5ff;
+    --card: #ffffff;
+    --ink: #251d3d;
+    --muted: #6b6485;
+    --brand: #4f3ac9;
+    --brand-soft: #eceaff;
+    --gold: #b8860b;
+    --gold-soft: #fdf3d7;
+    --green: #1d7a4f;
+    --green-soft: #e2f5ea;
+    --red: #b23a48;
+    --red-soft: #fbe9ec;
+    --border: #e3dff2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  header.hero {
+    background: linear-gradient(135deg, #2c2154 0%, #4f3ac9 60%, #7b5fe0 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 2.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+  header.hero h1 { margin: 0 0 .5rem; font-size: 2rem; line-height: 1.2; }
+  header.hero p { margin: 0; max-width: 60ch; color: #e6e1ff; }
+  .pill {
+    display: inline-block;
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 999px;
+    padding: .15rem .75rem;
+    font-size: .8rem;
+    margin-bottom: 1rem;
+    letter-spacing: .04em;
+  }
+  h2 { font-size: 1.45rem; margin: 2.5rem 0 .75rem; }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 .5rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .notice {
+    background: var(--gold-soft);
+    border: 1px solid #ecd9a0;
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+  }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .tier {
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    margin: .5rem 0;
+  }
+  .tier strong { display: block; margin-bottom: .25rem; }
+  .tier.hot { background: var(--red-soft); border-left: 4px solid var(--red); }
+  .tier.warm { background: var(--gold-soft); border-left: 4px solid var(--gold); }
+  .tier.cool { background: var(--green-soft); border-left: 4px solid var(--green); }
+  .tier ul { margin: .25rem 0 0; padding-left: 1.2rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  .table-scroll { overflow-x: auto; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding: .35rem 0 .35rem 3rem;
+    margin: .5rem 0;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: .35rem;
+    width: 2rem; height: 2rem;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+  }
+  .timeblocks { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: .75rem; }
+  .tb { border-radius: 12px; padding: .9rem 1rem; border: 1px solid var(--border); background: var(--card); }
+  .tb .when { font-weight: 700; display: block; }
+  .tb .verdict { font-size: .8rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .tb.low .verdict { color: var(--green); }
+  .tb.mid .verdict { color: var(--gold); }
+  .tb.high .verdict { color: var(--red); }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+  a { color: var(--brand); }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="pill">WALT DISNEY WORLD &middot; UPDATED AUGUST 2026</span>
+    <h1>Wait Less, Ride More</h1>
+    <p>The complete guide to skipping lines at Walt Disney World — what replaced FastPass, what it costs, which rides to book first, and when waits actually drop.</p>
+  </header>
+
+  <div class="notice">
+    <strong>Heads up: FastPass is gone.</strong> Disney retired FastPass, FastPass+, and MaxPass in 2021. The paid replacement is the <strong>Lightning Lane</strong> system. Everything below reflects how it works in 2026.
+  </div>
+
+  <h2>The three ways to skip lines</h2>
+  <div class="table-scroll"><table>
+    <tr><th>Option</th><th>What you get</th><th>2026 price range</th></tr>
+    <tr>
+      <td>Multi Pass</td>
+      <td>Book return-time windows for a set of attractions all day (start with 3, rebook as you redeem). The everyday workhorse for most families.</td>
+      <td>$15–$45 per person, per day. Floats daily with demand; Magic Kingdom prices highest, Animal Kingdom lowest.</td>
+    </tr>
+    <tr>
+      <td>Single Pass</td>
+      <td>One-time paid access to a single headliner attraction that is excluded from Multi Pass (e.g., Rise of the Resistance).</td>
+      <td>Roughly $12–$24 per ride, varying by attraction, park, and date.</td>
+    </tr>
+    <tr>
+      <td>Premier Pass</td>
+      <td>One-time Lightning Lane entry to every eligible attraction in a park, no return windows. Premium convenience product with limited daily availability.</td>
+      <td>Premium pricing well above Multi Pass — worth it only on the most crowded days or shortest trips.</td>
+    </tr>
+  </table></div>
+  <p class="muted">Prices change daily with demand, so check the My Disney Experience app for your exact dates. Free options still exist too: standby lines and free virtual queues on select new attractions.</p>
+
+  <h2>Booking windows — set an alarm</h2>
+  <div class="card">
+    <ul class="steps">
+      <li><strong>7 days before</strong> your visit at 7:00 AM ET: Disney resort guests can book Lightning Lane for their whole stay (up to 14 days).</li>
+      <li><strong>3 days before</strong> at 7:00 AM ET: off-site guests get their turn — the hottest rides may already be thin by then.</li>
+      <li><strong>Book the sell-out rides first.</strong> Slinky Dog Dash, Rise of the Resistance, Tiana's Bayou Adventure, and Rock 'n' Roller Coaster can vanish in under a minute. Grab your must-do headliner before anything else, then fill in the rest.</li>
+      <li><strong>Rebook all day.</strong> With Multi Pass, the moment you tap into a ride, open the app and book your next one. Efficient rebooking is where Multi Pass earns its price.</li>
+    </ul>
+  </div>
+
+  <h2>Park-by-park priorities</h2>
+
+  <div class="card">
+    <h3>&#127984; Magic Kingdom</h3>
+    <div class="tier hot"><strong>Book first / hardest to get</strong>
+      <ul><li>Tiana's Bayou Adventure</li><li>Seven Dwarfs Mine Train</li><li>TRON Lightcycle / Run</li><li>Big Thunder Mountain Railroad</li></ul></div>
+    <div class="tier warm"><strong>High-value second picks</strong>
+      <ul><li>Peter Pan's Flight</li><li>Jungle Cruise</li><li>Space Mountain</li><li>Haunted Mansion</li><li>Buzz Lightyear's Space Ranger Spin</li><li>Winnie the Pooh &middot; Pirates of the Caribbean</li></ul></div>
+    <div class="tier cool"><strong>Usually fine standby</strong>
+      <ul><li>"it's a small world"</li><li>Mad Tea Party</li><li>Carousel of Progress &middot; PeopleMover</li></ul></div>
+  </div>
+
+  <div class="card">
+    <h3>&#127909; Hollywood Studios</h3>
+    <p class="muted">Highest average standby waits of any WDW park — this is where line-skipping pays off most, and the only park with <em>two</em> Single Pass attractions.</p>
+    <div class="tier hot"><strong>Book first / hardest to get</strong>
+      <ul><li>Star Wars: Rise of the Resistance <em>(Single Pass)</em></li><li>Slinky Dog Dash <em>(Single Pass)</em></li><li>Rock 'n' Roller Coaster Starring The Muppets</li></ul></div>
+    <div class="tier warm"><strong>High-value second picks</strong>
+      <ul><li>Millennium Falcon: Smugglers Run</li><li>Tower of Terror</li><li>Toy Story Mania!</li><li>Mickey &amp; Minnie's Runaway Railway</li></ul></div>
+    <div class="tier cool"><strong>Usually fine standby</strong>
+      <ul><li>Star Tours</li><li>Alien Swirling Saucers (early or late)</li></ul></div>
+  </div>
+
+  <div class="card">
+    <h3>&#127760; EPCOT</h3>
+    <div class="tier hot"><strong>Book first / hardest to get</strong>
+      <ul><li>Guardians of the Galaxy: Cosmic Rewind</li><li>Remy's Ratatouille Adventure</li><li>Frozen Ever After</li></ul></div>
+    <div class="tier warm"><strong>High-value second picks</strong>
+      <ul><li>Test Track</li><li>Soarin' Around the World</li></ul></div>
+    <div class="tier cool"><strong>Usually fine standby</strong>
+      <ul><li>Spaceship Earth</li><li>The Seas with Nemo &amp; Friends</li><li>Living with the Land</li></ul></div>
+  </div>
+
+  <div class="card">
+    <h3>&#129418; Animal Kingdom</h3>
+    <p class="muted">Lightest Lightning Lane value in 2026 — the lineup shrank when DINOSAUR closed permanently in February. Many visitors can skip paid passes here entirely.</p>
+    <div class="tier hot"><strong>Book first / hardest to get</strong>
+      <ul><li>Avatar Flight of Passage</li><li>Expedition Everest</li></ul></div>
+    <div class="tier warm"><strong>High-value second picks</strong>
+      <ul><li>Kilimanjaro Safaris (morning slots)</li><li>Na'vi River Journey</li></ul></div>
+    <div class="tier cool"><strong>Usually fine standby</strong>
+      <ul><li>Kali River Rapids (off-peak)</li><li>Shows: Festival of the Lion King, Finding Nemo</li></ul></div>
+  </div>
+
+  <h2>When waits actually drop</h2>
+  <p>Wait-time data is remarkably consistent across parks. Plan headliners for the green windows and save shows, meals, and shopping for the red one.</p>
+  <div class="timeblocks">
+    <div class="tb low"><span class="when">Rope drop (first hour)</span><span class="verdict">Lowest waits</span> Walk on to one or two headliners before crowds build. Arrive 45–60 min before official open.</div>
+    <div class="tb high"><span class="when">Midday, 11 AM – 4 PM</span><span class="verdict">Peak waits</span> The worst stretch of the day. Use Lightning Lane windows, eat lunch, see shows, or break at the hotel.</div>
+    <div class="tb mid"><span class="when">Parade &amp; fireworks windows</span><span class="verdict">30–50% shorter</span> While crowds watch the show, major attractions quietly shrink. These ~45-minute windows are gold.</div>
+    <div class="tb low"><span class="when">Final hour of operation</span><span class="verdict">Lowest waits</span> Often the shortest waits of the entire day on major attractions. If you're in line at close, you ride.</div>
+  </div>
+
+  <h2>Is Multi Pass worth it for you?</h2>
+  <div class="grid">
+    <div class="card">
+      <h3 style="margin-top:0">Worth it when&hellip;</h3>
+      <ul>
+        <li>You're at Hollywood Studios or Magic Kingdom on a moderate-to-busy day</li>
+        <li>Your party can't do rope drop or stay to close</li>
+        <li>You have one day per park and want every headliner</li>
+        <li>Traveling with kids who can't handle 60+ minute lines</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Skip it when&hellip;</h3>
+      <ul>
+        <li>You're at Animal Kingdom — standby plus rope drop covers it</li>
+        <li>Visiting on a genuinely low-crowd day</li>
+        <li>You're happy to rope-drop and use the last-hour lull</li>
+        <li>Your must-dos are shows, character meets, and low-wait classics</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Cheat sheet</h2>
+  <div class="card">
+    <ul>
+      <li><strong>7 AM ET, 7 days out</strong> (3 for off-site): book your sell-out ride first, everything else second.</li>
+      <li><strong>Rope drop</strong> a headliner you couldn't book; stack Lightning Lane windows across the midday peak.</li>
+      <li><strong>Rebook immediately</strong> after every tap-in — the refill loop is the whole game.</li>
+      <li><strong>Ride during parades and fireworks</strong> if you've seen them before.</li>
+      <li><strong>Stay to close</strong> for the day's shortest lines — the last hour routinely beats the morning.</li>
+      <li><strong>Check prices for your date</strong> in the app — they float daily, from $15 (Animal Kingdom, off-peak) to $45 (Magic Kingdom, holidays).</li>
+    </ul>
+  </div>
+
+  <footer>
+    Unofficial fan guide. Not affiliated with or endorsed by The Walt Disney Company. Prices and attraction lineups verified August 2026 and subject to change — always confirm current details in the My Disney Experience app.
+  </footer>
+</div>
