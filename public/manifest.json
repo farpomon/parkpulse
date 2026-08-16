@@ -1,0 +1,12 @@
+{
+  "name": "ParkPulse — Disney World Wait Times",
+  "short_name": "ParkPulse",
+  "description": "Live Disney World wait times and smart touring plans",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#2c2154",
+  "theme_color": "#2c2154",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

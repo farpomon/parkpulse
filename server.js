@@ -18,6 +18,13 @@ const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 
 const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json'), 'utf8'));
 
+// Typical waits indexed by normalized ride name, so live rides can carry a
+// "vs typical" comparison even when queue-times names differ in punctuation.
+const normName = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+const TYPICAL = Object.fromEntries(
+  Object.entries(SAMPLE).map(([slug, d]) => [slug, new Map(d.rides.map((r) => [normName(r.name), r.wait]))])
+);
+
 // queue-times.com park IDs for Walt Disney World.
 const PARKS = {
   'magic-kingdom': { id: 6, name: 'Magic Kingdom' },
@@ -46,7 +53,7 @@ async function getWaits(slug) {
       source: 'live',
       attribution: 'Powered by Queue-Times.com',
       updatedAt: new Date().toISOString(),
-      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open })),
+      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, typical: TYPICAL[slug].get(normName(r.name)) ?? null })),
     };
     waitsCache.set(slug, { at: Date.now(), data });
     return data;
@@ -56,7 +63,7 @@ async function getWaits(slug) {
       source: 'sample',
       attribution: 'Typical waits shown — live feed unavailable',
       updatedAt: new Date().toISOString(),
-      rides: SAMPLE[slug].rides,
+      rides: SAMPLE[slug].rides.map((r) => ({ ...r, typical: r.wait })),
     };
   }
 }

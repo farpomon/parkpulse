@@ -1,88 +1,141 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2c2154">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <title>ParkPulse Live</title>
 <style>
   :root {
     --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
     --brand: #4f3ac9; --brand-soft: #eceaff; --border: #e3dff2;
-    --green: #1d7a4f; --green-soft: #e2f5ea; --gold: #b8860b; --gold-soft: #fdf3d7;
-    --red: #b23a48; --red-soft: #fbe9ec;
+    --green: #1d7a4f; --green-soft: #e2f5ea; --gold: #a06f00; --gold-soft: #fdf3d7;
+    --red: #b23a48; --red-soft: #fbe9ec; --star: #e8a800; --skeleton: #ece8f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4;
+      --brand: #8f7bf0; --brand-soft: #2e2455; --border: #362c5c;
+      --green: #5ecb96; --green-soft: #1c3a2c; --gold: #e5b955; --gold-soft: #3d331f;
+      --red: #ef8b96; --red-soft: #46242a; --skeleton: #2b2350;
+    }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Segoe UI", system-ui, sans-serif; }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
-  nav { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0 1.25rem; }
-  nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--brand); text-decoration: none; }
-  nav a.plain { color: var(--ink); text-decoration: none; font-weight: 500; }
-  .tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
-  .tabs button { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: .45rem 1rem; font-size: .95rem; font-weight: 600; cursor: pointer; color: var(--ink); }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 1rem 7rem; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: .75rem 0 .5rem; }
+  .topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; }
+  .logo { font-weight: 800; font-size: 1.15rem; color: var(--brand); text-decoration: none; }
+  .topline .right { display: flex; align-items: center; gap: .6rem; }
+  .updated { color: var(--muted); font-size: .78rem; }
+  .iconbtn { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 10px; padding: .4rem .6rem; font-size: 1rem; cursor: pointer; }
+  .iconbtn:active { transform: scale(.94); }
+  .iconbtn.spinning { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tabs { display: flex; gap: .45rem; overflow-x: auto; padding-bottom: .4rem; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: .45rem 1rem; font-size: .9rem; font-weight: 600; cursor: pointer; color: var(--ink); }
   .tabs button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
-  .tabs button .lock { opacity: .6; }
-  .meta { color: var(--muted); font-size: .85rem; margin-bottom: .75rem; }
-  .ride { display: flex; align-items: center; gap: .75rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: .7rem 1rem; margin: .5rem 0; }
-  .ride input { width: 1.15rem; height: 1.15rem; accent-color: var(--brand); }
-  .ride .name { flex: 1; font-weight: 600; }
-  .wait { font-weight: 800; border-radius: 8px; padding: .2rem .7rem; min-width: 4.2rem; text-align: center; }
+  .searchrow { position: relative; margin: .25rem 0 .6rem; }
+  .searchrow input { width: 100%; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .6rem 2.4rem .6rem 1rem; font-size: 1rem; }
+  .searchrow .clear { position: absolute; right: .4rem; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; display: none; padding: .3rem; }
+  .crowdline { color: var(--muted); font-size: .82rem; margin: 0 0 .5rem; }
+  .crowdline b { color: var(--ink); }
+  .ride { display: flex; align-items: center; gap: .6rem; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: .65rem .8rem; margin: .5rem 0; }
+  .ride input[type=checkbox] { width: 1.2rem; height: 1.2rem; accent-color: var(--brand); flex-shrink: 0; }
+  .ride .mid { flex: 1; min-width: 0; }
+  .ride .name { font-weight: 600; font-size: .95rem; line-height: 1.3; }
+  .delta { font-size: .75rem; font-weight: 700; margin-top: .1rem; }
+  .delta.below { color: var(--green); }
+  .delta.above { color: var(--red); }
+  .delta.even { color: var(--muted); font-weight: 500; }
+  .star { border: none; background: none; font-size: 1.25rem; cursor: pointer; color: var(--border); padding: .2rem; flex-shrink: 0; }
+  .star.on { color: var(--star); }
+  .wait { font-weight: 800; border-radius: 9px; padding: .3rem .55rem; min-width: 3.9rem; text-align: center; font-size: .9rem; flex-shrink: 0; }
   .wait.low { background: var(--green-soft); color: var(--green); }
   .wait.mid { background: var(--gold-soft); color: var(--gold); }
   .wait.high { background: var(--red-soft); color: var(--red); }
-  .wait.closed { background: #eee; color: var(--muted); font-weight: 600; }
-  .planbar { position: sticky; bottom: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .9rem 1.25rem; display: none; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.5rem -1.25rem 0; }
-  .planbar.visible { display: flex; }
-  .planbar select { border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; font-size: .95rem; }
-  .btn { border: none; border-radius: 10px; padding: .6rem 1.25rem; font-weight: 700; font-size: .95rem; cursor: pointer; background: var(--brand); color: #fff; }
-  .plan { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
-  .plan h2 { margin: 0 0 .75rem; font-size: 1.25rem; }
-  .step { display: flex; gap: .9rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+  .wait.closed { background: var(--skeleton); color: var(--muted); font-weight: 600; }
+  .skeleton .sk { height: 3.4rem; border-radius: 14px; background: linear-gradient(90deg, var(--skeleton) 25%, var(--card) 50%, var(--skeleton) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; margin: .5rem 0; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+  .btn { border: none; border-radius: 12px; padding: .65rem 1.3rem; font-weight: 700; font-size: .95rem; cursor: pointer; background: var(--brand); color: #fff; }
+  .planbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); display: none; z-index: 20; }
+  .planbar.visible { display: block; }
+  .planbar .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .9rem; }
+  .planbar select { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .4rem .5rem; font-size: .9rem; }
+  .planbar label.lunch { display: flex; align-items: center; gap: .3rem; color: var(--muted); }
+  .plan, .upsell { border-radius: 14px; padding: 1.1rem 1.25rem; margin-top: 1rem; }
+  .plan { background: var(--card); border: 1px solid var(--border); }
+  .plan h2 { margin: 0 0 .35rem; font-size: 1.15rem; }
+  .plan .savings { color: var(--green); font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
+  .step { display: flex; gap: .8rem; padding: .55rem 0; border-bottom: 1px solid var(--border); }
   .step:last-child { border-bottom: none; }
-  .step .time { font-weight: 800; color: var(--brand); min-width: 5.5rem; }
-  .step .why { color: var(--muted); font-size: .85rem; }
-  .upsell { background: linear-gradient(135deg, #2c2154, #4f3ac9); color: #fff; border-radius: 14px; padding: 1.5rem; text-align: center; margin-top: 1.25rem; }
-  .upsell a { color: #fff; }
-  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+  .step .time { font-weight: 800; color: var(--brand); min-width: 4.9rem; font-size: .9rem; }
+  .step .what { font-size: .92rem; }
+  .step .why { color: var(--muted); font-size: .8rem; }
+  .upsell { background: linear-gradient(135deg, #2c2154, #4f3ac9); color: #fff; text-align: center; }
+  .upsell a { color: #ffd75e; font-weight: 700; }
+  footer { margin-top: 2.5rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+  footer a { color: var(--muted); }
 </style>
 
 <div class="wrap">
-  <nav>
-    <a class="logo" href="/">⚡ ParkPulse</a>
-    <a class="plain" href="/guide">Free guide</a>
-  </nav>
+  <header>
+    <div class="topline">
+      <a class="logo" href="/">⚡ ParkPulse</a>
+      <span class="right">
+        <span class="updated" id="updated"></span>
+        <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
+      </span>
+    </div>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="searchrow">
+      <input type="search" id="search" placeholder="Search rides…" aria-label="Search rides">
+      <button class="clear" id="clear-search" aria-label="Clear search">✕</button>
+    </div>
+  </header>
 
-  <div class="tabs" id="tabs"></div>
-  <div class="meta" id="meta">Loading waits…</div>
-  <div id="rides"></div>
-
-  <div class="planbar" id="planbar">
-    <strong id="picked-count"></strong>
-    <label>In park from
-      <select id="start-hour"></select>
-      to
-      <select id="end-hour"></select>
-    </label>
-    <button class="btn" id="build">Build my plan</button>
-  </div>
-
+  <p class="crowdline" id="crowdline"></p>
+  <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
   <div id="plan-out"></div>
 
   <footer>
     Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
     Unofficial fan tool — not affiliated with The Walt Disney Company.
+    <a href="/guide">Free strategy guide</a>
   </footer>
+</div>
+
+<div class="planbar" id="planbar">
+  <div class="inner">
+    <strong id="picked-count"></strong>
+    <select id="start-hour" aria-label="Start time"></select>
+    <span>→</span>
+    <select id="end-hour" aria-label="End time"></select>
+    <label class="lunch"><input type="checkbox" id="lunch"> lunch</label>
+    <button class="btn" id="build" style="margin-left:auto">Plan it</button>
+  </div>
 </div>
 
 <script>
   const FREE_PARK = 'magic-kingdom';
-  // Crowd curve: multiplier on current wait by hour of day (guide's pattern:
-  // low at rope drop, peak 11-16, dip during evening shows, lowest last hour).
+  // Crowd multiplier on current wait by hour (rope drop low, midday peak, last hour lowest).
   const HOURLY = { 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35 };
-  const RIDE_MINUTES = 15; // avg experience length incl. walking
+  const RIDE_MINUTES = 15;
 
   let parks = {};
   let current = FREE_PARK;
   let rides = [];
+  let lastData = null;
+  let query = '';
   const isPro = localStorage.getItem('pp-pro') === '1';
+  const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
+  const pickedNames = new Set();
 
   const $ = (id) => document.getElementById(id);
+
+  function saveFavs() { localStorage.setItem('pp-favs', JSON.stringify([...favs])); }
 
   function waitClass(r) {
     if (!r.open) return 'closed';
@@ -91,47 +144,91 @@
     return 'low';
   }
 
+  function deltaHtml(r) {
+    if (!r.open || r.typical == null || lastData.source !== 'live') return '';
+    const d = r.wait - r.typical;
+    if (d <= -10) return `<div class="delta below">▼ ${-d} min below typical — go now</div>`;
+    if (d >= 10) return `<div class="delta above">▲ ${d} min above typical</div>`;
+    return `<div class="delta even">≈ typical for this ride</div>`;
+  }
+
+  function crowdNow() {
+    const h = new Date().getHours();
+    const m = HOURLY[h];
+    if (m == null) return 'Park likely closed right now — showing daytime waits.';
+    if (m <= 0.6) return '<b>Light crowds right now</b> — best time to hit a headliner.';
+    if (m >= 1.05) return '<b>Peak crowds right now</b> — good time for shows, food, or short lines.';
+    return '<b>Moderate crowds right now</b> — pick your battles.';
+  }
+
   function renderTabs() {
-    $('tabs').innerHTML = Object.entries(parks).map(([slug, name]) => {
-      const locked = !isPro && slug !== FREE_PARK;
-      return `<button data-slug="${slug}" class="${slug === current ? 'active' : ''}">${name}${locked ? ' <span class="lock">🔒</span>' : ''}</button>`;
-    }).join('');
+    $('tabs').innerHTML = Object.entries(parks).map(([slug, name]) =>
+      `<button role="tab" data-slug="${slug}" class="${slug === current ? 'active' : ''}">${name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</button>`
+    ).join('');
     $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       const slug = b.dataset.slug;
       if (!isPro && slug !== FREE_PARK) { showUpsell(); return; }
+      if (slug === current) return;
       current = slug;
+      localStorage.setItem('pp-park', slug);
+      pickedNames.clear();
       load();
     }));
   }
 
   function showUpsell() {
-    $('plan-out').innerHTML = `<div class="upsell"><strong>All four parks + the smart plan builder are in the Trip Pass.</strong><br>
+    $('plan-out').innerHTML = `<div class="upsell"><strong>All four parks + the plan builder are in the Trip Pass.</strong><br>
       $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
-      <a href="/#pricing"><b>Get your Trip Pass →</b></a></div>`;
-    $('plan-out').scrollIntoView({ behavior: 'smooth' });
+      <a href="/#pricing">Get your Trip Pass →</a></div>`;
+    $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  function renderRides(data) {
-    $('meta').textContent = `${data.park} · ${data.source === 'live' ? 'live' : 'typical waits (demo data)'} · updated ${new Date(data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ${data.attribution}`;
-    rides = [...data.rides].sort((a, b) => (b.open - a.open) || (b.wait - a.wait));
-    $('rides').innerHTML = rides.map((r, i) => `
-      <label class="ride">
-        <input type="checkbox" data-i="${i}">
-        <span class="name">${r.name}</span>
+  function visibleRides() {
+    const q = query.trim().toLowerCase();
+    const list = q ? rides.filter((r) => r.name.toLowerCase().includes(q)) : rides;
+    return [...list].sort((a, b) =>
+      (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)
+    );
+  }
+
+  function renderRides() {
+    const list = visibleRides();
+    $('rides').classList.remove('skeleton');
+    if (!list.length) {
+      $('rides').innerHTML = `<div class="state">No rides match “${query}”.</div>`;
+      return;
+    }
+    $('rides').innerHTML = list.map((r) => `
+      <div class="ride">
+        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${r.name} to plan">
+        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
+        <span class="mid"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' min' : 'Closed'}</span>
-      </label>`).join('');
-    $('rides').querySelectorAll('input').forEach((cb) => cb.addEventListener('change', updatePlanbar));
-    updatePlanbar();
-  }
-
-  function picked() {
-    return [...$('rides').querySelectorAll('input:checked')].map((cb) => rides[+cb.dataset.i]);
+      </div>`).join('');
+    $('rides').querySelectorAll('input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
+      const name = decodeURIComponent(cb.dataset.name);
+      cb.checked ? pickedNames.add(name) : pickedNames.delete(name);
+      updatePlanbar();
+    }));
+    $('rides').querySelectorAll('.star').forEach((btn) => btn.addEventListener('click', () => {
+      const name = decodeURIComponent(btn.dataset.name);
+      favs.has(name) ? favs.delete(name) : favs.add(name);
+      saveFavs();
+      renderRides();
+    }));
   }
 
   function updatePlanbar() {
-    const n = picked().length;
+    const n = pickedNames.size;
     $('planbar').classList.toggle('visible', n > 0);
-    $('picked-count').textContent = `${n} ride${n === 1 ? '' : 's'} picked`;
+    $('picked-count').textContent = `${n} ride${n === 1 ? '' : 's'}`;
+  }
+
+  function updatedLabel() {
+    if (!lastData) return '';
+    const mins = Math.round((Date.now() - new Date(lastData.updatedAt)) / 60000);
+    const age = mins <= 0 ? 'just now' : `${mins} min ago`;
+    return `${lastData.source === 'live' ? 'Live' : 'Typical (demo)'} · ${age}`;
   }
 
   function hourLabel(h) {
@@ -144,53 +241,101 @@
 
   function buildPlan() {
     if (!isPro) { showUpsell(); return; }
-    const start = +$('start-hour').value;
+    let t = $('start-hour').value === 'now'
+      ? new Date().getHours() + Math.ceil(new Date().getMinutes() / 30) * 0.5
+      : +$('start-hour').value;
+    if (t < 8) t = 8;
     const end = +$('end-hour').value;
-    if (end <= start) { alert('End time must be after start time.'); return; }
-    // Greedy: at each moment, ride the pick whose predicted wait is highest
-    // relative to its daily average — i.e. do rides now if now is their best hour.
-    let t = start;
-    const remaining = picked().filter((r) => r.open);
+    if (end <= t) { alert('End time must be after start time.'); return; }
+    const remaining = rides.filter((r) => pickedNames.has(r.name) && r.open);
+    if (!remaining.length) return;
+    const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
+    let lunchDone = !$('lunch').checked;
     const steps = [];
     while (remaining.length && t < end) {
+      if (!lunchDone && t >= 12) {
+        steps.push({ time: t, lunch: true });
+        t += 0.75;
+        lunchDone = true;
+        continue;
+      }
       const mult = HOURLY[Math.floor(t)] ?? 1;
-      // Cheapest predicted wait right now, longest rides get priority early/late.
-      remaining.sort((a, b) => (a.wait * mult) - (b.wait * mult) || b.wait - a.wait);
       const bestIdx = (mult <= 0.6)
-        ? remaining.reduce((m, r, i, arr) => (r.wait > arr[m].wait ? i : m), 0) // low-crowd hour: burn the biggest headliner
-        : 0; // peak hour: knock out the cheapest
+        ? remaining.reduce((m, r, i, arr) => (r.wait > arr[m].wait ? i : m), 0)
+        : remaining.reduce((m, r, i, arr) => (r.wait < arr[m].wait ? i : m), 0);
       const ride = remaining.splice(bestIdx, 1)[0];
       const predicted = Math.max(5, Math.round(ride.wait * mult / 5) * 5);
       steps.push({ time: t, ride, predicted, mult });
       t += (predicted + RIDE_MINUTES) / 60;
     }
-    const saved = steps.reduce((sum, s) => sum + Math.max(0, s.ride.wait - s.predicted), 0);
+    const planned = steps.filter((s) => s.ride).reduce((s, x) => s + x.predicted, 0);
+    const saved = Math.max(0, standbyNow - planned - remaining.reduce((s, r) => s + r.wait, 0));
     $('plan-out').innerHTML = `<div class="plan">
-      <h2>Your plan${saved > 0 ? ` — about ${saved} minutes less waiting` : ''}</h2>
-      ${steps.map((s) => `<div class="step">
-        <span class="time">${hourLabel(s.time)}</span>
-        <span><b>${s.ride.name}</b> · ~${s.predicted} min wait<br>
-        <span class="why">${s.mult <= 0.6 ? 'Low-crowd window — best time for a headliner' : s.mult >= 1.05 ? 'Peak hours — knocking out a shorter line' : 'Moderate crowds'}</span></span>
-      </div>`).join('')}
+      <h2>Your plan</h2>
+      ${saved > 0 ? `<div class="savings">≈ ${saved} min less waiting than riding them all right now</div>` : ''}
+      ${steps.map((s) => s.lunch
+        ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">🍔 Lunch break<br><span class="why">Peak-crowd hour — perfect time to be out of line</span></span></div>`
+        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b> · ~${s.predicted} min wait<br>
+           <span class="why">${s.mult <= 0.6 ? 'Low-crowd window — headliner time' : s.mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds'}</span></span></div>`
+      ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
     </div>`;
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
-  async function load() {
+  async function load(opts = {}) {
     renderTabs();
-    $('meta').textContent = 'Loading waits…';
-    $('rides').innerHTML = '';
-    const data = await fetch(`/api/waits/${current}`).then((r) => r.json());
-    renderRides(data);
+    if (!opts.silent) {
+      $('rides').classList.add('skeleton');
+      $('rides').innerHTML = '<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>';
+    }
+    try {
+      const res = await fetch(`/api/waits/${current}`);
+      if (!res.ok) throw new Error(res.status);
+      lastData = await res.json();
+      rides = lastData.rides;
+      $('crowdline').innerHTML = crowdNow();
+      $('updated').textContent = updatedLabel();
+      renderRides();
+      updatePlanbar();
+    } catch {
+      $('rides').classList.remove('skeleton');
+      $('rides').innerHTML = `<div class="state">Couldn't load wait times — check your connection.<br><br><button class="btn" id="retry">Try again</button></div>`;
+      $('retry').addEventListener('click', () => load());
+    }
   }
 
-  for (const sel of ['start-hour', 'end-hour']) {
-    $(sel).innerHTML = Object.keys(HOURLY).map((h) => `<option value="${h}">${hourLabel(+h)}</option>`).join('');
-  }
-  $('start-hour').value = '9';
-  $('end-hour').value = '21';
+  // Controls
+  $('refresh').addEventListener('click', async () => {
+    $('refresh').classList.add('spinning');
+    await load({ silent: true });
+    $('refresh').classList.remove('spinning');
+  });
+  $('search').addEventListener('input', (e) => {
+    query = e.target.value;
+    $('clear-search').style.display = query ? 'block' : 'none';
+    renderRides();
+  });
+  $('clear-search').addEventListener('click', () => {
+    query = '';
+    $('search').value = '';
+    $('clear-search').style.display = 'none';
+    renderRides();
+  });
   $('build').addEventListener('click', buildPlan);
 
-  fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; load(); });
+  const hourOpts = Object.keys(HOURLY).map((h) => `<option value="${h}">${hourLabel(+h)}</option>`).join('');
+  $('start-hour').innerHTML = `<option value="now">Now</option>` + hourOpts;
+  $('end-hour').innerHTML = hourOpts;
+  $('end-hour').value = '21';
+
+  // Boot: restore park, load, auto-refresh every 5 min, keep "x min ago" honest.
+  const savedPark = localStorage.getItem('pp-park');
+  if (savedPark && (isPro || savedPark === FREE_PARK)) current = savedPark;
+  fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; load(); })
+    .catch(() => { parks = { [FREE_PARK]: 'Magic Kingdom' }; load(); });
+  setInterval(() => load({ silent: true }), 5 * 60 * 1000);
+  setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 </script>

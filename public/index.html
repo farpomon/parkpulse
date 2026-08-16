@@ -2,10 +2,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ParkPulse</title>
 <meta name="description" content="Live Disney World wait times and a smart touring plan that saves hours in line.">
+<meta name="theme-color" content="#2c2154">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
   :root {
     --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
     --brand: #4f3ac9; --brand-soft: #eceaff; --green: #1d7a4f; --border: #e3dff2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4;
+      --brand: #8f7bf0; --brand-soft: #2e2455; --green: #5ecb96; --border: #362c5c;
+    }
+    .price-card .price { color: #a794f5; }
+    form.capture input { background: var(--card); color: var(--ink); }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Segoe UI", system-ui, sans-serif; }
