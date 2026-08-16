@@ -1,0 +1,59 @@
+{
+  "magic-kingdom": {
+    "rides": [
+      { "name": "Seven Dwarfs Mine Train", "wait": 75, "open": true },
+      { "name": "Tiana's Bayou Adventure", "wait": 85, "open": true },
+      { "name": "TRON Lightcycle / Run", "wait": 70, "open": true },
+      { "name": "Big Thunder Mountain Railroad", "wait": 60, "open": true },
+      { "name": "Peter Pan's Flight", "wait": 55, "open": true },
+      { "name": "Jungle Cruise", "wait": 50, "open": true },
+      { "name": "Space Mountain", "wait": 45, "open": true },
+      { "name": "Haunted Mansion", "wait": 40, "open": true },
+      { "name": "Pirates of the Caribbean", "wait": 30, "open": true },
+      { "name": "Buzz Lightyear's Space Ranger Spin", "wait": 30, "open": true },
+      { "name": "The Many Adventures of Winnie the Pooh", "wait": 30, "open": true },
+      { "name": "Tomorrowland Speedway", "wait": 25, "open": true },
+      { "name": "\"it's a small world\"", "wait": 15, "open": true },
+      { "name": "Mad Tea Party", "wait": 10, "open": true },
+      { "name": "PeopleMover", "wait": 10, "open": true }
+    ]
+  },
+  "epcot": {
+    "rides": [
+      { "name": "Guardians of the Galaxy: Cosmic Rewind", "wait": 80, "open": true },
+      { "name": "Remy's Ratatouille Adventure", "wait": 60, "open": true },
+      { "name": "Frozen Ever After", "wait": 55, "open": true },
+      { "name": "Test Track", "wait": 50, "open": true },
+      { "name": "Soarin' Around the World", "wait": 35, "open": true },
+      { "name": "Mission: SPACE", "wait": 20, "open": true },
+      { "name": "Spaceship Earth", "wait": 15, "open": true },
+      { "name": "The Seas with Nemo & Friends", "wait": 10, "open": true },
+      { "name": "Living with the Land", "wait": 10, "open": true },
+      { "name": "Journey Into Imagination", "wait": 10, "open": true }
+    ]
+  },
+  "hollywood-studios": {
+    "rides": [
+      { "name": "Slinky Dog Dash", "wait": 90, "open": true },
+      { "name": "Star Wars: Rise of the Resistance", "wait": 85, "open": true },
+      { "name": "Rock 'n' Roller Coaster", "wait": 70, "open": true },
+      { "name": "Tower of Terror", "wait": 55, "open": true },
+      { "name": "Millennium Falcon: Smugglers Run", "wait": 45, "open": true },
+      { "name": "Mickey & Minnie's Runaway Railway", "wait": 45, "open": true },
+      { "name": "Toy Story Mania!", "wait": 40, "open": true },
+      { "name": "Star Tours", "wait": 20, "open": true },
+      { "name": "Alien Swirling Saucers", "wait": 25, "open": true }
+    ]
+  },
+  "animal-kingdom": {
+    "rides": [
+      { "name": "Avatar Flight of Passage", "wait": 80, "open": true },
+      { "name": "Expedition Everest", "wait": 45, "open": true },
+      { "name": "Kilimanjaro Safaris", "wait": 40, "open": true },
+      { "name": "Na'vi River Journey", "wait": 50, "open": true },
+      { "name": "Kali River Rapids", "wait": 30, "open": true },
+      { "name": "TriceraTop Spin", "wait": 10, "open": true },
+      { "name": "Gorilla Falls Exploration Trail", "wait": 0, "open": true }
+    ]
+  }
+}

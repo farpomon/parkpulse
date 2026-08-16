@@ -1,0 +1,132 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ParkPulse</title>
+<meta name="description" content="Live Disney World wait times and a smart touring plan that saves hours in line.">
+<style>
+  :root {
+    --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
+    --brand: #4f3ac9; --brand-soft: #eceaff; --green: #1d7a4f; --border: #e3dff2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0 1.5rem; }
+  nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--brand); text-decoration: none; }
+  nav .links a { color: var(--ink); text-decoration: none; margin-left: 1.25rem; font-weight: 500; }
+  .hero { background: linear-gradient(135deg, #2c2154 0%, #4f3ac9 60%, #7b5fe0 100%); color: #fff; border-radius: 18px; padding: 3rem 2rem; text-align: center; }
+  .hero h1 { font-size: 2.3rem; margin: 0 0 .75rem; line-height: 1.15; }
+  .hero p { margin: 0 auto 1.5rem; max-width: 54ch; color: #e6e1ff; font-size: 1.1rem; }
+  .btn { display: inline-block; border-radius: 10px; padding: .7rem 1.5rem; font-weight: 700; text-decoration: none; cursor: pointer; border: none; font-size: 1rem; }
+  .btn.primary { background: #fff; color: var(--brand); }
+  .btn.brand { background: var(--brand); color: #fff; }
+  .btn.ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); margin-left: .75rem; }
+  h2 { text-align: center; font-size: 1.6rem; margin: 3rem 0 1.5rem; }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+  .card h3 { margin-top: 0; }
+  .price-card { text-align: center; position: relative; }
+  .price-card .price { font-size: 2.2rem; font-weight: 800; color: var(--brand); margin: .25rem 0; }
+  .price-card .per { color: var(--muted); font-size: .9rem; }
+  .price-card ul { text-align: left; padding-left: 1.2rem; margin: 1rem 0 1.5rem; }
+  .price-card.featured { border: 2px solid var(--brand); box-shadow: 0 8px 30px rgba(79,58,201,.15); }
+  .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--brand); color: #fff; font-size: .75rem; font-weight: 700; padding: .2rem .9rem; border-radius: 999px; letter-spacing: .05em; }
+  form.capture { display: flex; gap: .5rem; max-width: 440px; margin: 1rem auto 0; }
+  form.capture input { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: .7rem 1rem; font-size: 1rem; }
+  .fine { text-align: center; color: var(--muted); font-size: .85rem; }
+  footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; text-align: center; }
+  #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: .6rem 1.25rem; border-radius: 10px; display: none; }
+</style>
+
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">⚡ ParkPulse</a>
+    <span class="links"><a href="/app">Live waits</a><a href="/guide">Free guide</a><a href="#pricing">Pricing</a></span>
+  </nav>
+
+  <header class="hero">
+    <h1>Stop standing in line at Disney World</h1>
+    <p>Live wait times for all four parks and a smart touring plan that reorders your day around real conditions — so you ride more and wait less.</p>
+    <a class="btn primary" href="/app">See live waits free</a><a class="btn ghost" href="#pricing">Get a Trip Pass</a>
+  </header>
+
+  <h2>How it works</h2>
+  <div class="grid">
+    <div class="card"><h3>📡 Live waits</h3>Real-time standby waits for every ride at Magic Kingdom, EPCOT, Hollywood Studios, and Animal Kingdom, refreshed every few minutes.</div>
+    <div class="card"><h3>🧭 Smart plan</h3>Pick your must-do rides and your hours in the park. ParkPulse sequences them against hourly crowd curves — headliners at rope drop and close, shows at peak.</div>
+    <div class="card"><h3>💸 Spend less on Lightning Lane</h3>Know which rides you can walk onto before paying $15–$45 a head. Most days, a good plan replaces half the passes you'd have bought.</div>
+  </div>
+
+  <h2 id="pricing">Pricing</h2>
+  <div class="grid">
+    <div class="card price-card">
+      <h3>Free</h3>
+      <div class="price">$0</div><div class="per">forever</div>
+      <ul><li>Complete strategy guide</li><li>Live waits for one park</li><li>Trip-countdown email tips</li></ul>
+      <a class="btn brand" href="/app">Start free</a>
+    </div>
+    <div class="card price-card featured">
+      <span class="badge">MOST POPULAR</span>
+      <h3>Trip Pass</h3>
+      <div class="price">$19.99</div><div class="per">30 days · one trip, everything included</div>
+      <ul><li>All four parks, live</li><li>Smart plan builder</li><li>Wait-drop alerts <em>(coming soon)</em></li><li>Works for your whole party</li></ul>
+      <button class="btn brand" data-plan="trip-pass">Get Trip Pass</button>
+    </div>
+    <div class="card price-card">
+      <h3>Pro Annual</h3>
+      <div class="price">$49</div><div class="per">per year · for passholders</div>
+      <ul><li>Everything in Trip Pass</li><li>All year long</li><li>Early access to new parks</li></ul>
+      <button class="btn brand" data-plan="pro-annual">Go Pro</button>
+    </div>
+  </div>
+
+  <h2>Planning a trip?</h2>
+  <p class="fine">Get the 7-days-out checklist — exactly what to book the morning your Lightning Lane window opens.</p>
+  <form class="capture" id="capture">
+    <input type="email" name="email" placeholder="you@example.com" required>
+    <button class="btn brand" type="submit">Send it</button>
+  </form>
+
+  <footer>
+    Unofficial fan tool. Not affiliated with or endorsed by The Walt Disney Company.<br>
+    Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
+  </footer>
+</div>
+<div id="toast">You're on the list! 🎉</div>
+
+<script>
+  let paymentLink = '';
+  fetch('/api/config').then(r => r.json()).then(c => { paymentLink = c.paymentLink; }).catch(() => {});
+
+  function capture(email, plan) {
+    return fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, plan }),
+    });
+  }
+
+  document.getElementById('capture').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    await capture(email, 'free').catch(() => {});
+    e.target.reset();
+    const toast = document.getElementById('toast');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3000);
+  });
+
+  document.querySelectorAll('button[data-plan]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (paymentLink) { location.href = paymentLink; return; }
+      // Pre-launch: no payment link configured yet, capture intent instead.
+      const email = prompt("We're launching soon! Leave your email and lock in this price:");
+      if (email) {
+        capture(email, btn.dataset.plan).catch(() => {});
+        const toast = document.getElementById('toast');
+        toast.textContent = "Price locked — we'll email you at launch! 🎉";
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3500);
+      }
+    });
+  });
+</script>

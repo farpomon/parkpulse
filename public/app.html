@@ -1,0 +1,196 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ParkPulse Live</title>
+<style>
+  :root {
+    --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
+    --brand: #4f3ac9; --brand-soft: #eceaff; --border: #e3dff2;
+    --green: #1d7a4f; --green-soft: #e2f5ea; --gold: #b8860b; --gold-soft: #fdf3d7;
+    --red: #b23a48; --red-soft: #fbe9ec;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0 1.25rem; }
+  nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--brand); text-decoration: none; }
+  nav a.plain { color: var(--ink); text-decoration: none; font-weight: 500; }
+  .tabs { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .tabs button { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: .45rem 1rem; font-size: .95rem; font-weight: 600; cursor: pointer; color: var(--ink); }
+  .tabs button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .tabs button .lock { opacity: .6; }
+  .meta { color: var(--muted); font-size: .85rem; margin-bottom: .75rem; }
+  .ride { display: flex; align-items: center; gap: .75rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: .7rem 1rem; margin: .5rem 0; }
+  .ride input { width: 1.15rem; height: 1.15rem; accent-color: var(--brand); }
+  .ride .name { flex: 1; font-weight: 600; }
+  .wait { font-weight: 800; border-radius: 8px; padding: .2rem .7rem; min-width: 4.2rem; text-align: center; }
+  .wait.low { background: var(--green-soft); color: var(--green); }
+  .wait.mid { background: var(--gold-soft); color: var(--gold); }
+  .wait.high { background: var(--red-soft); color: var(--red); }
+  .wait.closed { background: #eee; color: var(--muted); font-weight: 600; }
+  .planbar { position: sticky; bottom: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .9rem 1.25rem; display: none; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.5rem -1.25rem 0; }
+  .planbar.visible { display: flex; }
+  .planbar select { border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; font-size: .95rem; }
+  .btn { border: none; border-radius: 10px; padding: .6rem 1.25rem; font-weight: 700; font-size: .95rem; cursor: pointer; background: var(--brand); color: #fff; }
+  .plan { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+  .plan h2 { margin: 0 0 .75rem; font-size: 1.25rem; }
+  .step { display: flex; gap: .9rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+  .step:last-child { border-bottom: none; }
+  .step .time { font-weight: 800; color: var(--brand); min-width: 5.5rem; }
+  .step .why { color: var(--muted); font-size: .85rem; }
+  .upsell { background: linear-gradient(135deg, #2c2154, #4f3ac9); color: #fff; border-radius: 14px; padding: 1.5rem; text-align: center; margin-top: 1.25rem; }
+  .upsell a { color: #fff; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+</style>
+
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">⚡ ParkPulse</a>
+    <a class="plain" href="/guide">Free guide</a>
+  </nav>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="meta" id="meta">Loading waits…</div>
+  <div id="rides"></div>
+
+  <div class="planbar" id="planbar">
+    <strong id="picked-count"></strong>
+    <label>In park from
+      <select id="start-hour"></select>
+      to
+      <select id="end-hour"></select>
+    </label>
+    <button class="btn" id="build">Build my plan</button>
+  </div>
+
+  <div id="plan-out"></div>
+
+  <footer>
+    Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
+    Unofficial fan tool — not affiliated with The Walt Disney Company.
+  </footer>
+</div>
+
+<script>
+  const FREE_PARK = 'magic-kingdom';
+  // Crowd curve: multiplier on current wait by hour of day (guide's pattern:
+  // low at rope drop, peak 11-16, dip during evening shows, lowest last hour).
+  const HOURLY = { 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35 };
+  const RIDE_MINUTES = 15; // avg experience length incl. walking
+
+  let parks = {};
+  let current = FREE_PARK;
+  let rides = [];
+  const isPro = localStorage.getItem('pp-pro') === '1';
+
+  const $ = (id) => document.getElementById(id);
+
+  function waitClass(r) {
+    if (!r.open) return 'closed';
+    if (r.wait >= 60) return 'high';
+    if (r.wait >= 30) return 'mid';
+    return 'low';
+  }
+
+  function renderTabs() {
+    $('tabs').innerHTML = Object.entries(parks).map(([slug, name]) => {
+      const locked = !isPro && slug !== FREE_PARK;
+      return `<button data-slug="${slug}" class="${slug === current ? 'active' : ''}">${name}${locked ? ' <span class="lock">🔒</span>' : ''}</button>`;
+    }).join('');
+    $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      const slug = b.dataset.slug;
+      if (!isPro && slug !== FREE_PARK) { showUpsell(); return; }
+      current = slug;
+      load();
+    }));
+  }
+
+  function showUpsell() {
+    $('plan-out').innerHTML = `<div class="upsell"><strong>All four parks + the smart plan builder are in the Trip Pass.</strong><br>
+      $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
+      <a href="/#pricing"><b>Get your Trip Pass →</b></a></div>`;
+    $('plan-out').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function renderRides(data) {
+    $('meta').textContent = `${data.park} · ${data.source === 'live' ? 'live' : 'typical waits (demo data)'} · updated ${new Date(data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ${data.attribution}`;
+    rides = [...data.rides].sort((a, b) => (b.open - a.open) || (b.wait - a.wait));
+    $('rides').innerHTML = rides.map((r, i) => `
+      <label class="ride">
+        <input type="checkbox" data-i="${i}">
+        <span class="name">${r.name}</span>
+        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' min' : 'Closed'}</span>
+      </label>`).join('');
+    $('rides').querySelectorAll('input').forEach((cb) => cb.addEventListener('change', updatePlanbar));
+    updatePlanbar();
+  }
+
+  function picked() {
+    return [...$('rides').querySelectorAll('input:checked')].map((cb) => rides[+cb.dataset.i]);
+  }
+
+  function updatePlanbar() {
+    const n = picked().length;
+    $('planbar').classList.toggle('visible', n > 0);
+    $('picked-count').textContent = `${n} ride${n === 1 ? '' : 's'} picked`;
+  }
+
+  function hourLabel(h) {
+    const whole = Math.floor(h) % 24;
+    const mins = Math.round((h - Math.floor(h)) * 60);
+    const ampm = whole >= 12 ? 'PM' : 'AM';
+    const disp = whole % 12 === 0 ? 12 : whole % 12;
+    return `${disp}:${String(mins).padStart(2, '0')} ${ampm}`;
+  }
+
+  function buildPlan() {
+    if (!isPro) { showUpsell(); return; }
+    const start = +$('start-hour').value;
+    const end = +$('end-hour').value;
+    if (end <= start) { alert('End time must be after start time.'); return; }
+    // Greedy: at each moment, ride the pick whose predicted wait is highest
+    // relative to its daily average — i.e. do rides now if now is their best hour.
+    let t = start;
+    const remaining = picked().filter((r) => r.open);
+    const steps = [];
+    while (remaining.length && t < end) {
+      const mult = HOURLY[Math.floor(t)] ?? 1;
+      // Cheapest predicted wait right now, longest rides get priority early/late.
+      remaining.sort((a, b) => (a.wait * mult) - (b.wait * mult) || b.wait - a.wait);
+      const bestIdx = (mult <= 0.6)
+        ? remaining.reduce((m, r, i, arr) => (r.wait > arr[m].wait ? i : m), 0) // low-crowd hour: burn the biggest headliner
+        : 0; // peak hour: knock out the cheapest
+      const ride = remaining.splice(bestIdx, 1)[0];
+      const predicted = Math.max(5, Math.round(ride.wait * mult / 5) * 5);
+      steps.push({ time: t, ride, predicted, mult });
+      t += (predicted + RIDE_MINUTES) / 60;
+    }
+    const saved = steps.reduce((sum, s) => sum + Math.max(0, s.ride.wait - s.predicted), 0);
+    $('plan-out').innerHTML = `<div class="plan">
+      <h2>Your plan${saved > 0 ? ` — about ${saved} minutes less waiting` : ''}</h2>
+      ${steps.map((s) => `<div class="step">
+        <span class="time">${hourLabel(s.time)}</span>
+        <span><b>${s.ride.name}</b> · ~${s.predicted} min wait<br>
+        <span class="why">${s.mult <= 0.6 ? 'Low-crowd window — best time for a headliner' : s.mult >= 1.05 ? 'Peak hours — knocking out a shorter line' : 'Moderate crowds'}</span></span>
+      </div>`).join('')}
+      ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
+    </div>`;
+    $('plan-out').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function load() {
+    renderTabs();
+    $('meta').textContent = 'Loading waits…';
+    $('rides').innerHTML = '';
+    const data = await fetch(`/api/waits/${current}`).then((r) => r.json());
+    renderRides(data);
+  }
+
+  for (const sel of ['start-hour', 'end-hour']) {
+    $(sel).innerHTML = Object.keys(HOURLY).map((h) => `<option value="${h}">${hourLabel(+h)}</option>`).join('');
+  }
+  $('start-hour').value = '9';
+  $('end-hour').value = '21';
+  $('build').addEventListener('click', buildPlan);
+
+  fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; load(); });
+</script>
