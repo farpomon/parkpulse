@@ -379,6 +379,18 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Aggregate page-view counting for HTML pages (a number per page per day —
+  // no cookies, no identifiers). API and asset requests are not counted.
+  if (req.method === 'GET' && /^\/(app|guide|welcome|reset|terms|privacy|parks\/[a-z-]+)?$/.test(url.pathname)) {
+    try { db.hits.bump(url.pathname || '/'); } catch {}
+  }
+
+  // Traffic stats for the operator — requires a dev pass token.
+  if (url.pathname === '/api/stats') {
+    if (passFromReq(req)?.plan !== 'dev') return sendJson(res, 403, { error: 'dev pass required' });
+    return sendJson(res, 200, { totals30d: db.hits.totals(30), daily14d: db.hits.since(14) });
+  }
+
   // SEO surface: server-rendered park pages + sitemap + robots.
   const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
   if (parkPage) {

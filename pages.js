@@ -85,13 +85,13 @@ ${passStrategy(park)}
 <li><strong>Live data:</strong> a wait that's 15+ minutes below its typical level is a "go now" signal &mdash; ParkPulse flags these automatically.</li>
 </ul></div>
 <h2>More parks</h2><p>${others}</p>
-<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/guide">Free strategy guide</a></footer>
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/guide">Free strategy guide</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
 </div></body></html>`;
 }
 
 const renderSitemap = (origin, slugs) => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', '/app', '/guide', ...slugs.map((s) => `/parks/${s}`)].map((p) => `  <url><loc>${origin}${p}</loc></url>`).join('\n')}
+${['', '/app', '/guide', '/terms', '/privacy', ...slugs.map((s) => `/parks/${s}`)].map((p) => `  <url><loc>${origin}${p}</loc></url>`).join('\n')}
 </urlset>`;
 
 const renderRobots = (origin) => `User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`;

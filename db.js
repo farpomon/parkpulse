@@ -56,6 +56,12 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS hits (
+    day TEXT NOT NULL,
+    path TEXT NOT NULL,
+    n INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, path)
+  );
 `);
 
 // --- Legacy flat-file import (runs once per empty table) ---------------------
@@ -161,6 +167,16 @@ const leads = {
     db.prepare('INSERT INTO leads (email, plan, at) VALUES (?, ?, ?)').run(email, plan ?? null, new Date().toISOString()),
 };
 
+// Aggregate page-view counts — one number per page per day, nothing about who.
+const hits = {
+  bump: (p) => db.prepare('INSERT INTO hits (day, path, n) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET n = n + 1')
+    .run(new Date().toISOString().slice(0, 10), p),
+  since: (days) => db.prepare('SELECT day, path, n FROM hits WHERE day >= ? ORDER BY day DESC, n DESC')
+    .all(new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)),
+  totals: (days) => db.prepare('SELECT path, SUM(n) AS n FROM hits WHERE day >= ? GROUP BY path ORDER BY n DESC')
+    .all(new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)),
+};
+
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, DB_FILE };
+module.exports = { kv, users, alerts, passes, leads, hits, DB_FILE };
