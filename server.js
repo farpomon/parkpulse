@@ -9,6 +9,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const webpush = require('web-push');
 const consultant = require('./consultant');
+const pages = require('./pages');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -313,6 +314,21 @@ const server = http.createServer(async (req, res) => {
       exp: active ? s.user.pass.exp : null,
       passToken: active ? signPass(s.user.pass.plan, s.user.pass.exp) : null,
     });
+  }
+
+  // SEO surface: server-rendered park pages + sitemap + robots.
+  const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
+  if (parkPage) {
+    const park = PARKS[parkPage[1]];
+    if (!park) return sendJson(res, 404, { error: 'unknown park' });
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY));
+  }
+  if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') {
+    const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+    const isMap = url.pathname === '/sitemap.xml';
+    res.writeHead(200, { 'content-type': isMap ? 'application/xml' : 'text/plain', 'cache-control': 'public, max-age=86400' });
+    return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug)) : pages.renderRobots(origin));
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);

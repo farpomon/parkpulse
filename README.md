@@ -20,6 +20,7 @@ Node 18+, zero dependencies.
 | `public/index.html` | Landing page: positioning, pricing (Free / Trip Pass $19.99 / Pro $49), email capture |
 | `public/app.html` | The product: live waits per park + smart plan builder (Pro-gated demo) |
 | `public/guide.html` | The original free strategy guide — the SEO/content top of funnel |
+| `pages.js` | Server-rendered SEO pages: `/parks/<slug>` per-park wait-time & pass-strategy guides (16 pages), plus `/sitemap.xml` and `/robots.txt` |
 | `server.js` | Zero-dep Node server: static hosting, wait-times API proxy, lead capture |
 | `data/sample-waits.json` | Typical-day fallback data when the live feed is unreachable |
 | `BUSINESS_PLAN.md` | Wedge, pricing, break-even (~2 Trip Passes/mo), distribution, legal, roadmap |
