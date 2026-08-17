@@ -51,6 +51,16 @@
   .delta.even { color: var(--muted); font-weight: 500; }
   .star { border: none; background: none; font-size: 1.25rem; cursor: pointer; color: var(--border); padding: .2rem; flex-shrink: 0; }
   .star.on { color: var(--star); }
+  .bell { border: none; background: none; font-size: 1.05rem; cursor: pointer; padding: .2rem; flex-shrink: 0; filter: grayscale(1); opacity: .45; }
+  .bell.on { filter: none; opacity: 1; }
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: none; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-radius: 18px 18px 0 0; padding: 1.25rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom)); z-index: 31; display: none; max-width: 640px; margin: 0 auto; }
+  .sheet.open, .sheet-bg.open { display: block; }
+  .sheet h3 { margin: 0 0 .25rem; font-size: 1.05rem; }
+  .sheet p { margin: 0 0 .8rem; color: var(--muted); font-size: .88rem; }
+  .sheet-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+  .sheet-opts button { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .6rem .2rem; font-weight: 700; cursor: pointer; font-size: .9rem; }
+  .sheet .cancel { margin-top: .8rem; width: 100%; border: none; background: none; color: var(--muted); cursor: pointer; padding: .5rem; font-size: .9rem; }
   .wait { font-weight: 800; border-radius: 9px; padding: .3rem .55rem; min-width: 3.9rem; text-align: center; font-size: .9rem; flex-shrink: 0; }
   .wait.low { background: var(--green-soft); color: var(--green); }
   .wait.mid { background: var(--gold-soft); color: var(--gold); }
@@ -114,8 +124,17 @@
     <span>→</span>
     <select id="end-hour" aria-label="End time"></select>
     <label class="lunch"><input type="checkbox" id="lunch"> lunch</label>
+    <label class="lunch" id="show-wrap" style="display:none"><input type="checkbox" id="show-cb"> <span id="show-short">show</span></label>
     <button class="btn" id="build" style="margin-left:auto">Plan it</button>
   </div>
+</div>
+
+<div class="sheet-bg" id="sheet-bg"></div>
+<div class="sheet" id="sheet">
+  <h3 id="sheet-title"></h3>
+  <p>Get a push alert when the wait drops under:</p>
+  <div class="sheet-opts" id="sheet-opts"></div>
+  <button class="cancel" id="sheet-cancel">Cancel</button>
 </div>
 
 <script>
@@ -125,17 +144,38 @@
   const RIDE_MINUTES = 15;
 
   let parks = {};
+  let pushKey = '';
   let current = FREE_PARK;
   let rides = [];
   let lastData = null;
   let query = '';
   const isPro = localStorage.getItem('pp-pro') === '1';
   const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
+  const myAlerts = JSON.parse(localStorage.getItem('pp-alerts') || '{}'); // rideName -> threshold
   const pickedNames = new Set();
 
   const $ = (id) => document.getElementById(id);
 
   function saveFavs() { localStorage.setItem('pp-favs', JSON.stringify([...favs])); }
+  function saveAlerts() { localStorage.setItem('pp-alerts', JSON.stringify(myAlerts)); }
+
+  const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+  function urlB64ToU8(b64) {
+    const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+  }
+
+  async function getPushSubscription() {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      if ((await Notification.requestPermission()) !== 'granted') throw new Error('denied');
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(pushKey) });
+    }
+    return sub;
+  }
 
   function waitClass(r) {
     if (!r.open) return 'closed';
@@ -153,17 +193,39 @@
   }
 
   function crowdNow() {
+    const p = parks[current] || {};
+    const hoursTxt = p.open != null ? `Typical hours ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
+    const showTxt = p.show ? ` · 🎆 ${p.show.name} ~${hourLabel(p.show.hour)}` : '';
     const h = new Date().getHours();
     const m = HOURLY[h];
-    if (m == null) return 'Park likely closed right now — showing daytime waits.';
-    if (m <= 0.6) return '<b>Light crowds right now</b> — best time to hit a headliner.';
-    if (m >= 1.05) return '<b>Peak crowds right now</b> — good time for shows, food, or short lines.';
-    return '<b>Moderate crowds right now</b> — pick your battles.';
+    let crowd;
+    if (p.open != null && (h < p.open || h >= p.close)) crowd = 'Park likely closed right now.';
+    else if (m == null) crowd = '';
+    else if (m <= 0.6) crowd = '<b>Light crowds right now</b> — best time to hit a headliner.';
+    else if (m >= 1.05) crowd = '<b>Peak crowds right now</b> — good time for shows, food, or short lines.';
+    else crowd = '<b>Moderate crowds right now</b> — pick your battles.';
+    return `${crowd} ${hoursTxt}${showTxt}`;
+  }
+
+  function setupPlanner() {
+    const p = parks[current] || { open: 9, close: 21 };
+    const hours = [];
+    for (let h = p.open; h <= p.close; h++) hours.push(h);
+    $('start-hour').innerHTML = `<option value="now">Now</option>` + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+    $('end-hour').innerHTML = hours.slice(1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+    $('end-hour').value = String(p.close);
+    if (p.show) {
+      $('show-wrap').style.display = 'flex';
+      $('show-short').textContent = '🎆 ' + p.show.name.split(' ')[0];
+      $('show-cb').checked = true;
+    } else {
+      $('show-wrap').style.display = 'none';
+    }
   }
 
   function renderTabs() {
-    $('tabs').innerHTML = Object.entries(parks).map(([slug, name]) =>
-      `<button role="tab" data-slug="${slug}" class="${slug === current ? 'active' : ''}">${name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</button>`
+    $('tabs').innerHTML = Object.entries(parks).map(([slug, p]) =>
+      `<button role="tab" data-slug="${slug}" class="${slug === current ? 'active' : ''}">${p.name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</button>`
     ).join('');
     $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       const slug = b.dataset.slug;
@@ -203,6 +265,7 @@
         <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${r.name} to plan">
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
         <span class="mid"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
+        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' min' : 'Closed'}</span>
       </div>`).join('');
     $('rides').querySelectorAll('input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
@@ -216,6 +279,59 @@
       saveFavs();
       renderRides();
     }));
+    $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
+  }
+
+  // --- Wait-drop alerts ---
+  let sheetRide = null;
+
+  async function bellTap(name) {
+    if (!isPro) { showUpsell(); return; }
+    if (!pushSupported()) { alert('Push alerts need a browser with notification support. On iPhone, add ParkPulse to your Home Screen first (Share → Add to Home Screen).'); return; }
+    if (myAlerts[name]) {
+      try {
+        const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+        if (sub) await fetch('/api/push/alerts/cancel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint, ride: name }) });
+      } catch {}
+      delete myAlerts[name];
+      saveAlerts();
+      renderRides();
+      return;
+    }
+    sheetRide = name;
+    $('sheet-title').textContent = name;
+    const r = rides.find((x) => x.name === name);
+    const opts = [20, 30, 45, 60].filter((t) => !r || !r.open || t < r.wait);
+    $('sheet-opts').innerHTML = (opts.length ? opts : [20]).map((t) => `<button data-t="${t}">${t} min</button>`).join('');
+    $('sheet-opts').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => setAlert(+b.dataset.t)));
+    $('sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  }
+
+  function closeSheet() {
+    $('sheet').classList.remove('open');
+    $('sheet-bg').classList.remove('open');
+  }
+
+  async function setAlert(threshold) {
+    const name = sheetRide;
+    closeSheet();
+    try {
+      const sub = await getPushSubscription();
+      const res = await fetch('/api/push/alerts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), park: current, ride: name, threshold }),
+      });
+      if (!res.ok) throw new Error();
+      myAlerts[name] = threshold;
+      saveAlerts();
+      renderRides();
+    } catch (e) {
+      alert(e.message === 'denied'
+        ? 'Notifications are blocked for this site — enable them in your browser settings to use alerts.'
+        : "Couldn't set the alert — check your connection and try again.");
+    }
   }
 
   function updatePlanbar() {
@@ -241,50 +357,71 @@
 
   function buildPlan() {
     if (!isPro) { showUpsell(); return; }
+    const p = parks[current] || { open: 9, close: 21 };
     let t = $('start-hour').value === 'now'
       ? new Date().getHours() + Math.ceil(new Date().getMinutes() / 30) * 0.5
       : +$('start-hour').value;
-    if (t < 8) t = 8;
+    if (t < p.open) t = p.open;
     const end = +$('end-hour').value;
     if (end <= t) { alert('End time must be after start time.'); return; }
     const remaining = rides.filter((r) => pickedNames.has(r.name) && r.open);
     if (!remaining.length) return;
     const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
     let lunchDone = !$('lunch').checked;
+    const show = p.show;
+    const attendShow = !!(show && $('show-cb').checked && end > show.hour);
+    let showDone = !attendShow;
     const steps = [];
     while (remaining.length && t < end) {
       if (!lunchDone && t >= 12) {
-        steps.push({ time: t, lunch: true });
+        steps.push({ time: t, break: '🍔 Lunch break', why: 'Peak-crowd hour — perfect time to be out of line' });
         t += 0.75;
         lunchDone = true;
         continue;
       }
-      const mult = HOURLY[Math.floor(t)] ?? 1;
+      if (!showDone && t >= show.hour - 0.25) {
+        steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: 'Grab a spot a few minutes early' });
+        t = show.hour + show.duration;
+        showDone = true;
+        continue;
+      }
+      let mult = HOURLY[Math.floor(t)] ?? 1;
+      let why;
+      if (show && !attendShow && t >= show.hour && t < show.hour + 1) {
+        mult *= 0.6; // crowds are at the show — the guide's 30-50% dip
+        why = `Crowds are at ${show.name} — lines plummet`;
+      }
       const bestIdx = (mult <= 0.6)
         ? remaining.reduce((m, r, i, arr) => (r.wait > arr[m].wait ? i : m), 0)
         : remaining.reduce((m, r, i, arr) => (r.wait < arr[m].wait ? i : m), 0);
       const ride = remaining.splice(bestIdx, 1)[0];
       const predicted = Math.max(5, Math.round(ride.wait * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, mult });
+      steps.push({ time: t, ride, predicted, why: why || (mult <= 0.6 ? 'Low-crowd window — headliner time' : mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds') });
       t += (predicted + RIDE_MINUTES) / 60;
+    }
+    if (!showDone && end > show.hour) {
+      steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: 'Cap off the night' });
     }
     const planned = steps.filter((s) => s.ride).reduce((s, x) => s + x.predicted, 0);
     const saved = Math.max(0, standbyNow - planned - remaining.reduce((s, r) => s + r.wait, 0));
     $('plan-out').innerHTML = `<div class="plan">
       <h2>Your plan</h2>
       ${saved > 0 ? `<div class="savings">≈ ${saved} min less waiting than riding them all right now</div>` : ''}
-      ${steps.map((s) => s.lunch
-        ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">🍔 Lunch break<br><span class="why">Peak-crowd hour — perfect time to be out of line</span></span></div>`
+      ${steps.map((s) => s.break
+        ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
         : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b> · ~${s.predicted} min wait<br>
-           <span class="why">${s.mult <= 0.6 ? 'Low-crowd window — headliner time' : s.mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds'}</span></span></div>`
+           <span class="why">${s.why}</span></span></div>`
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
     </div>`;
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
+  let plannerPark = null;
+
   async function load(opts = {}) {
     renderTabs();
+    if (plannerPark !== current) { setupPlanner(); plannerPark = current; }
     if (!opts.silent) {
       $('rides').classList.add('skeleton');
       $('rides').innerHTML = '<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>';
@@ -323,17 +460,14 @@
     renderRides();
   });
   $('build').addEventListener('click', buildPlan);
-
-  const hourOpts = Object.keys(HOURLY).map((h) => `<option value="${h}">${hourLabel(+h)}</option>`).join('');
-  $('start-hour').innerHTML = `<option value="now">Now</option>` + hourOpts;
-  $('end-hour').innerHTML = hourOpts;
-  $('end-hour').value = '21';
+  $('sheet-bg').addEventListener('click', closeSheet);
+  $('sheet-cancel').addEventListener('click', closeSheet);
 
   // Boot: restore park, load, auto-refresh every 5 min, keep "x min ago" honest.
   const savedPark = localStorage.getItem('pp-park');
   if (savedPark && (isPro || savedPark === FREE_PARK)) current = savedPark;
-  fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; load(); })
-    .catch(() => { parks = { [FREE_PARK]: 'Magic Kingdom' }; load(); });
+  fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; pushKey = c.pushKey || ''; load(); })
+    .catch(() => { parks = { [FREE_PARK]: { name: 'Magic Kingdom', open: 9, close: 22, show: null } }; load(); });
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
   setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);
 

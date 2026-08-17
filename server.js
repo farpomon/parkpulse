@@ -6,6 +6,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const webpush = require('web-push');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -32,6 +33,58 @@ const PARKS = {
   'hollywood-studios': { id: 7, name: 'Hollywood Studios' },
   'animal-kingdom': { id: 8, name: 'Animal Kingdom' },
 };
+
+// Typical park hours and headline evening shows for the plan builder.
+const PARK_INFO = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-info.json'), 'utf8'));
+
+// --- Web Push (wait-drop alerts) ---------------------------------------------
+// VAPID keys from env, or generated once and persisted next to the data files.
+// On Railway, set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY (or mount a volume) so
+// subscriptions survive redeploys.
+const VAPID_FILE = process.env.VAPID_FILE || path.join(DATA_DIR, 'vapid.json');
+let vapidKeys;
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  vapidKeys = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+} else if (fs.existsSync(VAPID_FILE)) {
+  vapidKeys = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'));
+} else {
+  vapidKeys = webpush.generateVAPIDKeys();
+  fs.writeFileSync(VAPID_FILE, JSON.stringify(vapidKeys));
+}
+webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:alerts@parkpulse.example', vapidKeys.publicKey, vapidKeys.privateKey);
+
+const ALERTS_FILE = process.env.ALERTS_FILE || path.join(DATA_DIR, 'alerts.json');
+let alerts = [];
+try { alerts = JSON.parse(fs.readFileSync(ALERTS_FILE, 'utf8')); } catch { alerts = []; }
+const saveAlerts = () => fs.writeFileSync(ALERTS_FILE, JSON.stringify(alerts));
+let alertSeq = alerts.reduce((m, a) => Math.max(m, a.id), 0);
+
+const ALERT_CHECK_MS = 5 * 60 * 1000;
+async function checkAlerts() {
+  const parksWithAlerts = [...new Set(alerts.map((a) => a.park))];
+  for (const slug of parksWithAlerts) {
+    const data = await getWaits(slug);
+    if (data.source !== 'live') continue; // never alert off demo data
+    for (const alert of alerts.filter((a) => a.park === slug)) {
+      const ride = data.rides.find((r) => normName(r.name) === normName(alert.ride));
+      if (!ride || !ride.open || ride.wait > alert.threshold) continue;
+      const payload = JSON.stringify({
+        title: `${ride.name}: ${ride.wait} min`,
+        body: `Dropped below your ${alert.threshold} min alert${ride.typical ? ` (typical ${ride.typical} min)` : ''} — go now!`,
+      });
+      try {
+        await webpush.sendNotification(alert.subscription, payload);
+        alerts = alerts.filter((a) => a.id !== alert.id); // fire once
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          alerts = alerts.filter((a) => a.subscription.endpoint !== alert.subscription.endpoint);
+        } // transient errors: keep and retry next cycle
+      }
+    }
+  }
+  saveAlerts();
+}
+setInterval(() => checkAlerts().catch(() => {}), ALERT_CHECK_MS);
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const waitsCache = new Map();
@@ -106,7 +159,11 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   if (url.pathname === '/api/config') {
-    return sendJson(res, 200, { paymentLink: PAYMENT_LINK, parks: Object.fromEntries(Object.entries(PARKS).map(([slug, p]) => [slug, p.name])) });
+    return sendJson(res, 200, {
+      paymentLink: PAYMENT_LINK,
+      pushKey: vapidKeys.publicKey,
+      parks: Object.fromEntries(Object.entries(PARKS).map(([slug, p]) => [slug, { name: p.name, ...PARK_INFO[slug] }])),
+    });
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
@@ -116,20 +173,46 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, await getWaits(slug));
   }
 
-  if (url.pathname === '/api/subscribe' && req.method === 'POST') {
+  if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
     let body = '';
-    req.on('data', (chunk) => { body += chunk; if (body.length > 4096) req.destroy(); });
+    req.on('data', (chunk) => { body += chunk; if (body.length > 8192) req.destroy(); });
     req.on('end', () => {
-      try {
-        const { email, plan } = JSON.parse(body || '{}');
+      let parsed;
+      try { parsed = JSON.parse(body || '{}'); } catch { return sendJson(res, 400, { error: 'bad request' }); }
+
+      if (url.pathname === '/api/subscribe') {
+        const { email, plan } = parsed;
         if (typeof email !== 'string' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
           return sendJson(res, 400, { error: 'invalid email' });
         }
         saveLead(email.slice(0, 254), typeof plan === 'string' ? plan.slice(0, 40) : 'free');
-        sendJson(res, 200, { ok: true });
-      } catch {
-        sendJson(res, 400, { error: 'bad request' });
+        return sendJson(res, 200, { ok: true });
       }
+
+      if (url.pathname === '/api/push/alerts') {
+        const { subscription, park, ride, threshold } = parsed;
+        if (!subscription || typeof subscription.endpoint !== 'string' || !PARKS[park] ||
+            typeof ride !== 'string' || !Number.isFinite(threshold) || threshold < 5 || threshold > 240) {
+          return sendJson(res, 400, { error: 'invalid alert' });
+        }
+        // One alert per ride per device — replace an existing one.
+        alerts = alerts.filter((a) => !(a.subscription.endpoint === subscription.endpoint && normName(a.ride) === normName(ride)));
+        const alert = { id: ++alertSeq, subscription, park, ride: ride.slice(0, 120), threshold: Math.round(threshold), createdAt: new Date().toISOString() };
+        alerts.push(alert);
+        saveAlerts();
+        return sendJson(res, 200, { ok: true, id: alert.id });
+      }
+
+      if (url.pathname === '/api/push/alerts/cancel') {
+        const { endpoint, ride } = parsed;
+        if (typeof endpoint !== 'string') return sendJson(res, 400, { error: 'invalid' });
+        const before = alerts.length;
+        alerts = alerts.filter((a) => !(a.subscription.endpoint === endpoint && (!ride || normName(a.ride) === normName(ride))));
+        saveAlerts();
+        return sendJson(res, 200, { ok: true, removed: before - alerts.length });
+      }
+
+      sendJson(res, 404, { error: 'not found' });
     });
     return;
   }

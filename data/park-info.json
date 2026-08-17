@@ -1,0 +1,18 @@
+{
+  "magic-kingdom": {
+    "open": 9, "close": 22,
+    "show": { "name": "Happily Ever After fireworks", "hour": 21, "duration": 0.5 }
+  },
+  "epcot": {
+    "open": 9, "close": 21,
+    "show": { "name": "Luminous nighttime spectacular", "hour": 20.5, "duration": 0.5 }
+  },
+  "hollywood-studios": {
+    "open": 9, "close": 21,
+    "show": { "name": "Fantasmic!", "hour": 20.5, "duration": 0.5 }
+  },
+  "animal-kingdom": {
+    "open": 8, "close": 19,
+    "show": null
+  }
+}

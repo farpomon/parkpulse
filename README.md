@@ -39,6 +39,22 @@ it as such. Parks: `magic-kingdom`, `epcot`, `hollywood-studios`, `animal-kingdo
 | `PORT` | Listen port (default 3000; Railway sets this automatically) |
 | `PAYMENT_LINK` | Stripe Payment Link URL for checkout. Until it's set, pricing buttons capture emails ("lock in this price") instead — a pre-launch waitlist. |
 | `LEADS_FILE` | Where captured emails are appended (default `data/leads.jsonl`, gitignored). On Railway, point this at a mounted volume. |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys for wait-drop alerts. Auto-generated to `data/vapid.json` on first boot if unset — but set them (or mount a volume) in production so existing push subscriptions survive redeploys. Generate once with `npx web-push generate-vapid-keys`. |
+| `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
+
+### Wait-drop alerts
+
+Tap the 🔔 on any ride (Pro) and pick a threshold; the server checks live waits
+every 5 minutes and sends one Web Push notification when the ride drops below
+it, then clears the alert. Alerts never fire off sample/demo data. On iOS the
+app must be added to the Home Screen (iOS 16.4+) for push to work.
+
+### Park hours & shows
+
+`data/park-info.json` holds typical hours and the headline evening show per
+park. The plan builder uses them for its time range, schedules the show if you
+keep it checked, and otherwise exploits the show window — waits drop 30–50%
+while crowds watch — to slot in headliners.
 
 Replace the flat-file leads with a real ESP (ConvertKit/Loops) in v1.
 

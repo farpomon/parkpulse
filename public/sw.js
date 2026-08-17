@@ -1,7 +1,7 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v2';
+const CACHE = 'parkpulse-v3';
 const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -14,6 +14,25 @@ self.addEventListener('activate', (e) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('push', (e) => {
+  let data = { title: 'ParkPulse', body: 'Wait time update' };
+  try { data = e.data.json(); } catch {}
+  e.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    tag: 'parkpulse-alert',
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+    const existing = wins.find((w) => new URL(w.url).pathname === '/app');
+    return existing ? existing.focus() : clients.openWindow('/app');
+  }));
 });
 
 self.addEventListener('fetch', (e) => {
