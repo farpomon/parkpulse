@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const webpush = require('web-push');
+const consultant = require('./consultant');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -291,6 +292,7 @@ const server = http.createServer(async (req, res) => {
       paymentLink: PAYMENT_LINK,
       proGate: PRO_GATE,
       checkout: CHECKOUT_ENABLED,
+      consultant: consultant.enabled(),
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, open: p.open, close: p.close, show: p.show }])),
     });
@@ -423,6 +425,27 @@ const server = http.createServer(async (req, res) => {
         }
         saveLead(email.slice(0, 254), typeof plan === 'string' ? plan.slice(0, 40) : 'free');
         return sendJson(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/consultant') {
+        if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
+        if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+        const { park, messages } = parsed;
+        if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
+        // Throttle per pass/session identity, falling back to IP.
+        const throttleKey = req.headers['x-pass'] || req.headers['x-session'] || req.socket.remoteAddress || 'anon';
+        if (consultant.throttled(String(throttleKey).slice(0, 64))) {
+          return sendJson(res, 429, { error: "You've hit the consultant limit for now — try again in a few hours." });
+        }
+        try {
+          const waits = await getWaits(park);
+          const reply = await consultant.consult({ park: PARKS[park], waits, messages });
+          return sendJson(res, 200, { reply });
+        } catch (err) {
+          if (err.code === 'bad_request') return sendJson(res, 400, { error: 'invalid messages' });
+          console.log(`consultant error: ${err.message}`);
+          return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
+        }
       }
 
       if (url.pathname === '/api/push/alerts') {

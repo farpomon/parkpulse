@@ -57,6 +57,19 @@ where we have baseline data).
 | `DEV_PASS_CODE` | Developer bypass code. Redeeming it via "Have a pass code?" in the app grants a 10-year pass through the same token system — full access on any device, regardless of the paywall. Unset = redemption disabled. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys for wait-drop alerts. Auto-generated to `data/vapid.json` on first boot if unset — but set them (or mount a volume) in production so existing push subscriptions survive redeploys. Generate once with `npx web-push generate-vapid-keys`. |
 | `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
+| `ANTHROPIC_API_KEY` | Enables the AI Park Consultant (💬 in the app). Unset = feature hidden entirely. |
+
+### AI Park Consultant
+
+Pro feature: a chat advisor for line-skipping decisions — "is Lightning Lane
+worth it today?", "how do I do Universal without Express Pass?" — grounded in
+the live wait data for the park the user is viewing. Server-side
+(`consultant.js`): Claude Opus 5 via the official SDK, with the stable
+strategy knowledge base prompt-cached (only the per-request live-waits block
+is re-billed), server-side refusal fallbacks enabled, and a 30-messages-per-
+6-hours throttle per user. Rough unit cost ~$0.02-0.04 per message; the
+throttle caps worst-case spend near $1/user/day — comfortably inside the
+Trip Pass margin.
 
 ### Wait-drop alerts
 

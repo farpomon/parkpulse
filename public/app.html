@@ -70,6 +70,19 @@
   .sheet .switch a { color: var(--brand); cursor: pointer; }
   .acct-status { font-size: .95rem; margin-bottom: 1rem; }
   .acct-status b { display: block; }
+  #chat-sheet { display: none; flex-direction: column; height: 78vh; padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
+  #chat-sheet.open { display: flex; }
+  .chat-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
+  .chat-head h3 { margin: 0; font-size: 1.05rem; }
+  .chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .6rem; padding: .25rem 0 .75rem; }
+  .bubble { max-width: 85%; border-radius: 14px; padding: .6rem .9rem; font-size: .93rem; line-height: 1.45; white-space: pre-wrap; }
+  .bubble.user { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 4px; }
+  .bubble.bot { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble.typing { color: var(--muted); font-style: italic; }
+  .chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .chips button { border: 1px solid var(--border); background: var(--bg); color: var(--brand); border-radius: 999px; padding: .4rem .8rem; font-size: .82rem; font-weight: 600; cursor: pointer; }
+  .chat-input { display: flex; gap: .5rem; }
+  .chat-input input { flex: 1; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 12px; padding: .65rem .9rem; font-size: 1rem; }
   .wait { font-weight: 800; border-radius: 9px; padding: .3rem .55rem; min-width: 3.9rem; text-align: center; font-size: .9rem; flex-shrink: 0; }
   .wait.low { background: var(--green-soft); color: var(--green); }
   .wait.mid { background: var(--gold-soft); color: var(--gold); }
@@ -106,6 +119,7 @@
       <span class="right">
         <span class="updated" id="updated"></span>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
+        <button class="iconbtn" id="chat-btn" title="Ask the consultant" aria-label="Ask the consultant" style="display:none">💬</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
       </span>
     </div>
@@ -166,6 +180,23 @@
     <button class="btn wide" id="acct-logout">Log out</button>
   </div>
   <button class="cancel" id="acct-cancel">Close</button>
+</div>
+
+<div class="sheet" id="chat-sheet">
+  <div class="chat-head">
+    <h3>💬 Park Consultant</h3>
+    <button class="cancel" id="chat-close" style="width:auto;margin:0">Close</button>
+  </div>
+  <div class="chat-msgs" id="chat-msgs"></div>
+  <div class="chips" id="chat-chips">
+    <button data-q="Is it worth buying line-skipping passes here today?">Worth buying today?</button>
+    <button data-q="What's the smartest plan for the rest of my day here?">Plan my day</button>
+    <button data-q="How do I do this park well without paying for any passes?">Do it free</button>
+  </div>
+  <form class="chat-input" id="chat-form">
+    <input type="text" id="chat-text" placeholder="Ask about passes, plans, strategy…" autocomplete="off" maxlength="500">
+    <button class="btn" type="submit">Send</button>
+  </form>
 </div>
 
 <script>
@@ -537,7 +568,7 @@
     renderRides();
   });
   $('build').addEventListener('click', buildPlan);
-  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); closeChat(); });
   $('sheet-cancel').addEventListener('click', closeSheet);
 
   // --- Account sheet ---
@@ -583,6 +614,75 @@
       isPro = true;
     }
   }
+
+  // --- Consultant chat ---
+  const chatHistory = [];
+  let chatBusy = false;
+  let consultantOn = false;
+
+  function chatBubble(role, text) {
+    const div = document.createElement('div');
+    div.className = `bubble ${role}`;
+    div.textContent = text;
+    $('chat-msgs').appendChild(div);
+    $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
+    return div;
+  }
+
+  function openChat() {
+    if (!isPro) { showUpsell(); return; }
+    $('chat-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+    if (!chatHistory.length && !$('chat-msgs').children.length) {
+      chatBubble('bot', `Hi! I'm your park consultant. I can see today's waits at ${parks[current]?.name || 'the park'} — ask me whether Lightning Lane or Express Pass is worth it, or how to plan your day.`);
+    }
+    $('chat-text').focus();
+  }
+
+  function closeChat() {
+    $('chat-sheet').classList.remove('open');
+    if (!$('sheet').classList.contains('open') && !$('acct-sheet').classList.contains('open')) {
+      $('sheet-bg').classList.remove('open');
+    }
+  }
+
+  async function sendChat(text) {
+    if (chatBusy || !text.trim()) return;
+    chatBusy = true;
+    $('chat-chips').style.display = 'none';
+    chatBubble('user', text);
+    chatHistory.push({ role: 'user', content: text });
+    const typing = chatBubble('bot', 'Thinking…');
+    typing.classList.add('typing');
+    try {
+      const res = await api('/api/consultant', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ park: current, messages: chatHistory.slice(-12) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'error');
+      typing.classList.remove('typing');
+      typing.textContent = data.reply;
+      chatHistory.push({ role: 'assistant', content: data.reply });
+    } catch (e) {
+      typing.textContent = e.message.length < 120 ? e.message : 'The consultant is having a moment — try again shortly.';
+      chatHistory.pop(); // let them resend
+    } finally {
+      chatBusy = false;
+      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
+    }
+  }
+
+  $('chat-btn').addEventListener('click', openChat);
+  $('chat-close').addEventListener('click', closeChat);
+  $('chat-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('chat-text').value;
+    $('chat-text').value = '';
+    sendChat(text);
+  });
+  $('chat-chips').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => sendChat(b.dataset.q)));
 
   $('acct-btn').addEventListener('click', openAcct);
   $('acct-cancel').addEventListener('click', closeAcct);
@@ -645,6 +745,8 @@
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;
       pushKey = c.pushKey || '';
+      consultantOn = Boolean(c.consultant);
+      $('chat-btn').style.display = consultantOn ? '' : 'none';
       if (sessionToken()) {
         // Refresh account state; re-issues the pass token if the account has one.
         try {
