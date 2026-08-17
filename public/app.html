@@ -32,6 +32,8 @@
   .iconbtn:active { transform: scale(.94); }
   .iconbtn.spinning { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .destrow { margin-bottom: .5rem; }
+  .destrow select { width: 100%; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .5rem .8rem; font-size: .95rem; font-weight: 600; }
   .tabs { display: flex; gap: .45rem; overflow-x: auto; padding-bottom: .4rem; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tabs button { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: .45rem 1rem; font-size: .9rem; font-weight: 600; cursor: pointer; color: var(--ink); }
@@ -99,6 +101,7 @@
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
       </span>
     </div>
+    <div class="destrow"><select id="dest" aria-label="Choose destination"></select></div>
     <div class="tabs" id="tabs" role="tablist"></div>
     <div class="searchrow">
       <input type="search" id="search" placeholder="Search rides…" aria-label="Search rides">
@@ -140,7 +143,7 @@
 <script>
   const FREE_PARK = 'magic-kingdom';
   // Crowd multiplier on current wait by hour (rope drop low, midday peak, last hour lowest).
-  const HOURLY = { 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35 };
+  const HOURLY = { 7: .45, 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35, 23: .3 };
   const RIDE_MINUTES = 15;
 
   let parks = {};
@@ -223,8 +226,13 @@
     }
   }
 
+  let dest = null;
+
   function renderTabs() {
-    $('tabs').innerHTML = Object.entries(parks).map(([slug, p]) =>
+    const groups = [...new Set(Object.values(parks).map((p) => p.group))];
+    if (!dest || !groups.includes(dest)) dest = parks[current]?.group || groups[0];
+    $('dest').innerHTML = groups.map((g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`).join('');
+    $('tabs').innerHTML = Object.entries(parks).filter(([, p]) => p.group === dest).map(([slug, p]) =>
       `<button role="tab" data-slug="${slug}" class="${slug === current ? 'active' : ''}">${p.name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</button>`
     ).join('');
     $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
@@ -239,7 +247,7 @@
   }
 
   function showUpsell() {
-    $('plan-out').innerHTML = `<div class="upsell"><strong>All four parks + the plan builder are in the Trip Pass.</strong><br>
+    $('plan-out').innerHTML = `<div class="upsell"><strong>Every Disney &amp; Universal park worldwide + the plan builder are in the Trip Pass.</strong><br>
       $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
       <a href="/#pricing">Get your Trip Pass →</a></div>`;
     $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -433,6 +441,13 @@
       rides = lastData.rides;
       $('crowdline').innerHTML = crowdNow();
       $('updated').textContent = updatedLabel();
+      if (lastData.source === 'unavailable') {
+        $('rides').classList.remove('skeleton');
+        $('rides').innerHTML = `<div class="state">Live waits for ${lastData.park} aren't available right now — try again in a bit.<br><br><button class="btn" id="retry">Retry</button></div>`;
+        $('retry').addEventListener('click', () => load());
+        updatePlanbar();
+        return;
+      }
       renderRides();
       updatePlanbar();
     } catch {
@@ -462,12 +477,26 @@
   $('build').addEventListener('click', buildPlan);
   $('sheet-bg').addEventListener('click', closeSheet);
   $('sheet-cancel').addEventListener('click', closeSheet);
+  $('dest').addEventListener('change', (e) => {
+    dest = e.target.value;
+    const first = Object.entries(parks).find(([, p]) => p.group === dest);
+    if (!first) return;
+    if (!isPro && first[0] !== FREE_PARK && !Object.entries(parks).some(([s, p]) => p.group === dest && s === FREE_PARK)) {
+      renderTabs(); // show the locked tabs for this destination
+      showUpsell();
+      return;
+    }
+    current = isPro ? first[0] : FREE_PARK;
+    localStorage.setItem('pp-park', current);
+    pickedNames.clear();
+    load();
+  });
 
   // Boot: restore park, load, auto-refresh every 5 min, keep "x min ago" honest.
   const savedPark = localStorage.getItem('pp-park');
   if (savedPark && (isPro || savedPark === FREE_PARK)) current = savedPark;
   fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; pushKey = c.pushKey || ''; load(); })
-    .catch(() => { parks = { [FREE_PARK]: { name: 'Magic Kingdom', open: 9, close: 22, show: null } }; load(); });
+    .catch(() => { parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } }; load(); });
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
   setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);
 

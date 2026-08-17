@@ -29,8 +29,19 @@ Node 18+, zero dependencies.
 `GET /api/waits/:park` proxies [queue-times.com](https://queue-times.com)'s free
 JSON API with a 5-minute in-memory cache (their license requires the visible
 "Powered by Queue-Times.com" attribution, which the frontend shows). If the live
-feed is unreachable, it falls back to bundled typical-day sample data and labels
-it as such. Parks: `magic-kingdom`, `epcot`, `hollywood-studios`, `animal-kingdom`.
+feed is unreachable, WDW parks fall back to bundled typical-day sample data
+(labeled as such); other parks return a clean "unavailable" state.
+
+**Coverage: 15 parks across 8 destinations** — Walt Disney World (4),
+Disneyland California (2), Universal Orlando (3, incl. Epic Universe),
+Universal Hollywood, Disneyland Paris (2), Tokyo Disney Resort (2), Hong Kong
+Disneyland, Shanghai Disneyland. The registry lives in `data/parks.json`
+(slugs, destination groups, typical hours, evening shows, and queue-times
+matching tokens). Queue-times park ids are **resolved dynamically by name**
+from their `/parks.json` directory at boot and daily thereafter — the static
+ids in the registry are only fallbacks, so a wrong or changed upstream id
+self-corrects. "vs typical" deltas currently exist for WDW parks only (that's
+where we have baseline data).
 
 ## Configuration
 

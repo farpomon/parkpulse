@@ -26,16 +26,34 @@ const TYPICAL = Object.fromEntries(
   Object.entries(SAMPLE).map(([slug, d]) => [slug, new Map(d.rides.map((r) => [normName(r.name), r.wait]))])
 );
 
-// queue-times.com park IDs for Walt Disney World.
-const PARKS = {
-  'magic-kingdom': { id: 6, name: 'Magic Kingdom' },
-  'epcot': { id: 5, name: 'EPCOT' },
-  'hollywood-studios': { id: 7, name: 'Hollywood Studios' },
-  'animal-kingdom': { id: 8, name: 'Animal Kingdom' },
-};
+// Park registry: display data, typical hours/shows, and queue-times matching
+// hints. Static ids are fallbacks — resolveParkIds() corrects them against
+// queue-times' live parks directory by name, so we never hardcode a wrong id.
+const REGISTRY = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'parks.json'), 'utf8'));
+const PARKS = Object.fromEntries(REGISTRY.map((p) => [p.slug, p]));
 
-// Typical park hours and headline evening shows for the plan builder.
-const PARK_INFO = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-info.json'), 'utf8'));
+async function resolveParkIds() {
+  try {
+    const res = await fetch('https://queue-times.com/parks.json', { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error(`upstream ${res.status}`);
+    const companies = await res.json();
+    const all = companies.flatMap((c) => (c.parks || []).map((p) => ({ id: p.id, haystack: normName(`${c.name} ${p.name}`) })));
+    for (const entry of REGISTRY) {
+      const candidates = all.filter((p) =>
+        entry.tokens.every((t) => p.haystack.includes(normName(t))) &&
+        !(entry.exclude || []).some((t) => p.haystack.includes(normName(t)))
+      );
+      if (candidates.length) {
+        entry.id = candidates.sort((a, b) => a.haystack.length - b.haystack.length)[0].id;
+      }
+    }
+    console.log('Park ids resolved from queue-times directory');
+  } catch (err) {
+    console.log(`Park id resolution skipped (${err.message}) — using static ids`);
+  }
+}
+resolveParkIds();
+setInterval(resolveParkIds, 24 * 60 * 60 * 1000);
 
 // --- Web Push (wait-drop alerts) ---------------------------------------------
 // VAPID keys from env, or generated once and persisted next to the data files.
@@ -94,6 +112,7 @@ async function getWaits(slug) {
   const cached = waitsCache.get(slug);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
   try {
+    if (park.id == null) throw new Error('park id unresolved');
     const res = await fetch(`https://queue-times.com/parks/${park.id}/queue_times.json`, {
       signal: AbortSignal.timeout(8000),
       headers: { 'user-agent': 'ParkPulse/0.1 (wait-time display with attribution)' },
@@ -106,11 +125,14 @@ async function getWaits(slug) {
       source: 'live',
       attribution: 'Powered by Queue-Times.com',
       updatedAt: new Date().toISOString(),
-      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, typical: TYPICAL[slug].get(normName(r.name)) ?? null })),
+      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, typical: TYPICAL[slug]?.get(normName(r.name)) ?? null })),
     };
     waitsCache.set(slug, { at: Date.now(), data });
     return data;
   } catch (err) {
+    if (!SAMPLE[slug]) {
+      return { park: park.name, source: 'unavailable', attribution: '', updatedAt: new Date().toISOString(), rides: [] };
+    }
     return {
       park: park.name,
       source: 'sample',
@@ -162,7 +184,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       paymentLink: PAYMENT_LINK,
       pushKey: vapidKeys.publicKey,
-      parks: Object.fromEntries(Object.entries(PARKS).map(([slug, p]) => [slug, { name: p.name, ...PARK_INFO[slug] }])),
+      parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, open: p.open, close: p.close, show: p.show }])),
     });
   }
 
