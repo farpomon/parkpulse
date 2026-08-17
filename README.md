@@ -50,7 +50,11 @@ where we have baseline data).
 | `PORT` | Listen port (default 3000; Railway sets this automatically) |
 | `PAYMENT_LINK` | Stripe Payment Link URL for checkout. Until it's set, pricing buttons capture emails ("lock in this price") instead — a pre-launch waitlist. |
 | `LEADS_FILE` | Where captured emails are appended (default `data/leads.jsonl`, gitignored). On Railway, point this at a mounted volume. |
-| `PRO_GATE` | `on` re-locks Pro features (all parks beyond Magic Kingdom, plan builder, alerts) behind the upsell. Unset/anything else = launch preview, everything free. Flip it in Railway Variables when you're ready to charge — no code change needed. |
+| `PRO_GATE` | `on` re-locks Pro features (all parks beyond Magic Kingdom, plan builder, alerts) behind the paywall — enforced server-side (402s), not just in the UI. Unset/anything else = launch preview, everything free. |
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_…`). With both price IDs set, the landing page's buy buttons open real Stripe Checkout. |
+| `STRIPE_PRICE_TRIP` / `STRIPE_PRICE_ANNUAL` | Stripe Price IDs (`price_…`) for the $19.99 Trip Pass and $49 Pro Annual one-time payments. Create the two products in the Stripe dashboard. |
+| `PASS_SECRET` | HMAC secret for signing pass tokens. **Set it in production** (any long random string) — the ephemeral default invalidates all sold passes on restart. |
+| `DEV_PASS_CODE` | Developer bypass code. Redeeming it via "Have a pass code?" in the app grants a 10-year pass through the same token system — full access on any device, regardless of the paywall. Unset = redemption disabled. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys for wait-drop alerts. Auto-generated to `data/vapid.json` on first boot if unset — but set them (or mount a volume) in production so existing push subscriptions survive redeploys. Generate once with `npx web-push generate-vapid-keys`. |
 | `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
 
@@ -87,12 +91,22 @@ healthcheck on `/api/config`). To deploy:
 
 Every push to the connected branch auto-deploys from then on.
 
-## v0 limitations (deliberate)
+## How payments work (no accounts, v1)
 
-- **No auth** — "Pro" gating is a client-side demo flag (`localStorage pp-pro=1`).
-  v1 wires real entitlements via Stripe webhooks + Clerk/Supabase.
-- **No alerts yet** — the roadmap's retention feature (v2 in the business plan).
-- Leads in a flat file — fine for a waitlist, replace before scale.
+1. Buy button → `POST /api/checkout` creates a Stripe Checkout session →
+   Stripe-hosted payment page.
+2. Success redirects to `/welcome?session_id=…`, which calls
+   `POST /api/pass/claim`. The server verifies the session is **paid** directly
+   with Stripe's API (no webhook needed) and issues a signed pass token
+   (`{plan, exp}`, HMAC'd with `PASS_SECRET`) stored in the browser.
+3. The app sends the token as an `x-pass` header; gated endpoints verify the
+   signature and expiry. Re-opening the receipt link activates additional
+   devices — deliberate and fine for a consumer travel product.
+4. Purchases are appended to `data/passes.jsonl` for reconciliation.
+
+Deliberate v1 trade-offs: no accounts or password recovery (the Stripe receipt
+link *is* the credential), no refund-revocation (tokens expire on their own),
+flat-file lead/pass storage.
 
 ## Legal
 

@@ -153,8 +153,10 @@
   let lastData = null;
   let query = '';
   // Everything is unlocked while the server's PRO_GATE is off (launch preview);
-  // once it's on, only the demo flag (or, later, a real entitlement) unlocks Pro.
-  let isPro = localStorage.getItem('pp-pro') === '1';
+  // once it's on, a valid pass token (purchased or dev code) unlocks Pro.
+  let isPro = false;
+  const passToken = () => localStorage.getItem('pp-pass') || '';
+  const api = (path, opts = {}) => fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...(passToken() && { 'x-pass': passToken() }) } });
   const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
   const myAlerts = JSON.parse(localStorage.getItem('pp-alerts') || '{}'); // rideName -> threshold
   const pickedNames = new Set();
@@ -251,7 +253,22 @@
   function showUpsell() {
     $('plan-out').innerHTML = `<div class="upsell"><strong>Every Disney &amp; Universal park worldwide + the plan builder are in the Trip Pass.</strong><br>
       $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
-      <a href="/#pricing">Get your Trip Pass →</a></div>`;
+      <a href="/#pricing">Get your Trip Pass →</a><br>
+      <a href="#" id="redeem-link" style="font-weight:400;font-size:.85rem;opacity:.85">Have a pass code?</a></div>`;
+    $('redeem-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const code = prompt('Enter your pass code:');
+      if (!code) return;
+      try {
+        const res = await fetch('/api/pass/redeem', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error();
+        localStorage.setItem('pp-pass', data.token);
+        isPro = true;
+        $('plan-out').innerHTML = '';
+        load();
+      } catch { alert("That code didn't work."); }
+    });
     $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -328,7 +345,7 @@
     closeSheet();
     try {
       const sub = await getPushSubscription();
-      const res = await fetch('/api/push/alerts', {
+      const res = await api('/api/push/alerts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ subscription: sub.toJSON(), park: current, ride: name, threshold }),
@@ -437,7 +454,14 @@
       $('rides').innerHTML = '<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>';
     }
     try {
-      const res = await fetch(`/api/waits/${current}`);
+      const res = await api(`/api/waits/${current}`);
+      if (res.status === 402) { // pass expired mid-session
+        isPro = false;
+        current = FREE_PARK;
+        renderTabs();
+        showUpsell();
+        return load({ silent: true });
+      }
       if (!res.ok) throw new Error(res.status);
       lastData = await res.json();
       rides = lastData.rides;
@@ -494,18 +518,29 @@
     load();
   });
 
-  // Boot: restore park, load, auto-refresh every 5 min, keep "x min ago" honest.
-  const savedPark = localStorage.getItem('pp-park');
-  if (savedPark && (isPro || savedPark === FREE_PARK)) current = savedPark;
-  fetch('/api/config').then((r) => r.json()).then((c) => {
-    parks = c.parks;
-    pushKey = c.pushKey || '';
-    if (!c.proGate) isPro = true;
-    const saved = localStorage.getItem('pp-park');
-    if (isPro && saved && parks[saved]) current = saved;
+  // Boot: resolve access (launch preview or a valid pass), restore park, load.
+  (async () => {
+    try {
+      const c = await (await fetch('/api/config')).json();
+      parks = c.parks;
+      pushKey = c.pushKey || '';
+      if (!c.proGate) {
+        isPro = true;
+      } else if (passToken()) {
+        try {
+          const v = await (await api('/api/pass/verify')).json();
+          isPro = Boolean(v.valid);
+          if (!v.valid) localStorage.removeItem('pp-pass'); // expired — clean up
+        } catch { isPro = false; }
+      }
+      const saved = localStorage.getItem('pp-park');
+      if (saved && parks[saved] && (isPro || saved === FREE_PARK)) current = saved;
+      else if (!isPro) current = FREE_PARK;
+    } catch {
+      parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } };
+    }
     load();
-  })
-    .catch(() => { parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } }; load(); });
+  })();
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
   setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);
 

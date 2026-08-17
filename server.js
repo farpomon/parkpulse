@@ -6,6 +6,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const webpush = require('web-push');
 
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,60 @@ const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 // Launch-preview switch: everything is free until PRO_GATE=on is set in the
 // hosting env, which re-locks Pro features (all parks, planner, alerts).
 const PRO_GATE = process.env.PRO_GATE === 'on';
+const FREE_PARK = 'magic-kingdom';
+
+// --- Passes & Stripe checkout ------------------------------------------------
+// A pass is a self-contained HMAC-signed token {plan, exp} issued after a paid
+// Stripe Checkout session (or via the developer code). No accounts needed.
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_PRICES = { 'trip-pass': process.env.STRIPE_PRICE_TRIP || '', 'pro-annual': process.env.STRIPE_PRICE_ANNUAL || '' };
+const CHECKOUT_ENABLED = Boolean(STRIPE_KEY && STRIPE_PRICES['trip-pass'] && STRIPE_PRICES['pro-annual']);
+// MUST be set in production — the ephemeral default invalidates all passes on restart.
+const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.PASS_SECRET) console.log('WARNING: PASS_SECRET not set — issued passes will not survive a restart');
+// Developer bypass: redeeming this exact code in the app grants a 10-year pass.
+const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
+const PLAN_DAYS = { 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
+const PASSES_FILE = process.env.PASSES_FILE || path.join(DATA_DIR, 'passes.jsonl');
+
+function signPass(plan) {
+  const body = Buffer.from(JSON.stringify({ plan, exp: Date.now() + PLAN_DAYS[plan] * 86400000 })).toString('base64url');
+  const sig = crypto.createHmac('sha256', PASS_SECRET).update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+
+function verifyPass(token) {
+  if (typeof token !== 'string' || !token.includes('.')) return null;
+  const [body, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', PASS_SECRET).update(body).digest('base64url');
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const pass = JSON.parse(Buffer.from(body, 'base64url').toString());
+    return PLAN_DAYS[pass.plan] && pass.exp > Date.now() ? pass : null;
+  } catch { return null; }
+}
+
+const passFromReq = (req) => verifyPass(req.headers['x-pass']);
+const hasAccess = (req) => !PRO_GATE || Boolean(passFromReq(req));
+
+async function stripeApi(endpoint, params) {
+  const res = await fetch(`https://api.stripe.com${endpoint}`, {
+    method: params ? 'POST' : 'GET',
+    headers: {
+      authorization: `Bearer ${STRIPE_KEY}`,
+      ...(params && { 'content-type': 'application/x-www-form-urlencoded' }),
+    },
+    body: params ? new URLSearchParams(params) : undefined,
+    signal: AbortSignal.timeout(15000),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message || `stripe ${res.status}`);
+  return json;
+}
+
+function recordPass(entry) {
+  try { fs.appendFileSync(PASSES_FILE, JSON.stringify({ ...entry, at: new Date().toISOString() }) + '\n'); } catch {}
+}
 
 const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json'), 'utf8'));
 
@@ -187,24 +242,81 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       paymentLink: PAYMENT_LINK,
       proGate: PRO_GATE,
+      checkout: CHECKOUT_ENABLED,
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, open: p.open, close: p.close, show: p.show }])),
     });
+  }
+
+  if (url.pathname === '/api/pass/verify') {
+    const pass = passFromReq(req);
+    return sendJson(res, 200, pass ? { valid: true, plan: pass.plan, exp: pass.exp } : { valid: false });
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
   if (waitsMatch) {
     const slug = waitsMatch[1];
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
     return sendJson(res, 200, await getWaits(slug));
   }
 
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
     let body = '';
     req.on('data', (chunk) => { body += chunk; if (body.length > 8192) req.destroy(); });
-    req.on('end', () => {
+    req.on('end', async () => {
       let parsed;
       try { parsed = JSON.parse(body || '{}'); } catch { return sendJson(res, 400, { error: 'bad request' }); }
+
+      if (url.pathname === '/api/checkout') {
+        if (!CHECKOUT_ENABLED) return sendJson(res, 503, { error: 'checkout not configured' });
+        const plan = parsed.plan;
+        if (!STRIPE_PRICES[plan]) return sendJson(res, 400, { error: 'unknown plan' });
+        const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+        try {
+          const session = await stripeApi('/v1/checkout/sessions', {
+            mode: 'payment',
+            'line_items[0][price]': STRIPE_PRICES[plan],
+            'line_items[0][quantity]': '1',
+            'metadata[plan]': plan,
+            success_url: `${origin}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/#pricing`,
+          });
+          return sendJson(res, 200, { url: session.url });
+        } catch (err) {
+          return sendJson(res, 502, { error: 'checkout failed' });
+        }
+      }
+
+      if (url.pathname === '/api/pass/claim') {
+        if (!CHECKOUT_ENABLED) return sendJson(res, 503, { error: 'checkout not configured' });
+        const sessionId = parsed.session_id;
+        if (typeof sessionId !== 'string' || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return sendJson(res, 400, { error: 'invalid session' });
+        try {
+          const session = await stripeApi(`/v1/checkout/sessions/${sessionId}`);
+          const plan = session.metadata?.plan;
+          if (session.payment_status !== 'paid' || !PLAN_DAYS[plan] || plan === 'dev') {
+            return sendJson(res, 402, { error: 'payment not completed' });
+          }
+          // Idempotent by design: re-claiming the same paid session re-issues a
+          // pass, which is how a buyer activates a second device.
+          const token = signPass(plan);
+          recordPass({ plan, session: sessionId, email: session.customer_details?.email || null });
+          return sendJson(res, 200, { token, plan, exp: verifyPass(token).exp });
+        } catch (err) {
+          return sendJson(res, 502, { error: 'could not verify payment' });
+        }
+      }
+
+      if (url.pathname === '/api/pass/redeem') {
+        const code = typeof parsed.code === 'string' ? parsed.code : '';
+        const ok = DEV_PASS_CODE && code.length === DEV_PASS_CODE.length &&
+          crypto.timingSafeEqual(Buffer.from(code), Buffer.from(DEV_PASS_CODE));
+        if (!ok) return sendJson(res, 403, { error: 'invalid code' });
+        const token = signPass('dev');
+        recordPass({ plan: 'dev' });
+        return sendJson(res, 200, { token, plan: 'dev', exp: verifyPass(token).exp });
+      }
 
       if (url.pathname === '/api/subscribe') {
         const { email, plan } = parsed;
@@ -216,6 +328,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (url.pathname === '/api/push/alerts') {
+        if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
         const { subscription, park, ride, threshold } = parsed;
         if (!subscription || typeof subscription.endpoint !== 'string' || !PARKS[park] ||
             typeof ride !== 'string' || !Number.isFinite(threshold) || threshold < 5 || threshold > 240) {
