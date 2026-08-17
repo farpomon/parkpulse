@@ -10,6 +10,7 @@ const crypto = require('node:crypto');
 const webpush = require('web-push');
 const consultant = require('./consultant');
 const pages = require('./pages');
+const history = require('./history');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -134,6 +135,26 @@ const TYPICAL = Object.fromEntries(
   Object.entries(SAMPLE).map(([slug, d]) => [slug, new Map(d.rides.map((r) => [normName(r.name), r.wait]))])
 );
 
+// Measured baselines from collected history take precedence over the static
+// hand-built samples; static values remain the fallback until data accrues.
+let MEASURED = {};
+function refreshBaselines() {
+  try {
+    MEASURED = history.computeBaselines(normName);
+    const parks = Object.keys(MEASURED).length;
+    if (parks) console.log(`Baselines refreshed from history: ${parks} parks`);
+  } catch (err) {
+    console.log(`Baseline refresh failed: ${err.message}`);
+  }
+}
+refreshBaselines();
+setInterval(refreshBaselines, 6 * 60 * 60 * 1000);
+
+const typicalFor = (slug, rideName) => {
+  const key = normName(rideName);
+  return MEASURED[slug]?.get(key) ?? TYPICAL[slug]?.get(key) ?? null;
+};
+
 // Park registry: display data, typical hours/shows, and queue-times matching
 // hints. Static ids are fallbacks — resolveParkIds() corrects them against
 // queue-times' live parks directory by name, so we never hardcode a wrong id.
@@ -215,6 +236,29 @@ setInterval(() => checkAlerts().catch(() => {}), ALERT_CHECK_MS);
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const waitsCache = new Map();
 
+// --- History collection ------------------------------------------------------
+// Snapshot every park's live waits every 15 minutes. Parks are fetched
+// sequentially with a courtesy gap (this also keeps the user-facing waits
+// cache warm). Disable with HISTORY=off.
+const COLLECT_MS = 15 * 60 * 1000;
+async function collectHistory() {
+  let recorded = 0;
+  for (const park of REGISTRY) {
+    if (park.id == null) continue;
+    try {
+      const waits = await getWaits(park.slug);
+      if (history.record(park.slug, waits)) recorded += 1;
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  if (recorded) console.log(`History: recorded ${recorded}/${REGISTRY.length} parks`);
+  history.prune();
+}
+if (process.env.HISTORY !== 'off') {
+  setTimeout(collectHistory, 20 * 1000); // first pass shortly after boot
+  setInterval(collectHistory, COLLECT_MS);
+}
+
 async function getWaits(slug) {
   const park = PARKS[slug];
   const cached = waitsCache.get(slug);
@@ -233,7 +277,7 @@ async function getWaits(slug) {
       source: 'live',
       attribution: 'Powered by Queue-Times.com',
       updatedAt: new Date().toISOString(),
-      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, typical: TYPICAL[slug]?.get(normName(r.name)) ?? null })),
+      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, typical: typicalFor(slug, r.name) })),
     };
     waitsCache.set(slug, { at: Date.now(), data });
     return data;

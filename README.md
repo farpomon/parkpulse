@@ -59,6 +59,17 @@ where we have baseline data).
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys for wait-drop alerts. Auto-generated to `data/vapid.json` on first boot if unset — but set them (or mount a volume) in production so existing push subscriptions survive redeploys. Generate once with `npx web-push generate-vapid-keys`. |
 | `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
 | `ANTHROPIC_API_KEY` | Enables the AI Park Consultant (💬 in the app). Unset = feature hidden entirely. |
+| `HISTORY_DIR` | Where wait-time history accumulates (default `data/history/`). **Point at the mounted volume in production** (e.g. `/data/history`) — this archive is the long-term moat. `HISTORY=off` disables collection. |
+
+### Wait-time history & measured baselines
+
+Every 15 minutes the server snapshots live waits for all parks into daily
+JSONL files (~1 MB/day across 16 parks; 60-day retention, oldest pruned).
+Per-ride **median baselines** are computed from the last 14 days (minimum 12
+samples per ride) and take precedence over the hand-built static samples for
+the app's "vs typical" deltas — so within a day or two of running, delta
+chips appear for every park, not just WDW, and improve as data accrues. The
+archive is also the raw material for future per-hour wait predictions.
 
 ### AI Park Consultant
 

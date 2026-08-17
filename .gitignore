@@ -3,5 +3,6 @@ data/alerts.json
 data/vapid.json
 data/passes.jsonl
 data/users.json
+data/history/
 node_modules/
 .env
