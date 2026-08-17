@@ -1,33 +1,265 @@
 [
-  { "slug": "magic-kingdom", "name": "Magic Kingdom", "group": "Walt Disney World", "id": 6, "tokens": ["magic", "kingdom"], "open": 9, "close": 22,
-    "show": { "name": "Happily Ever After fireworks", "hour": 21, "duration": 0.5 } },
-  { "slug": "epcot", "name": "EPCOT", "group": "Walt Disney World", "id": 5, "tokens": ["epcot"], "open": 9, "close": 21,
-    "show": { "name": "Luminous nighttime spectacular", "hour": 20.5, "duration": 0.5 } },
-  { "slug": "hollywood-studios", "name": "Hollywood Studios", "group": "Walt Disney World", "id": 7, "tokens": ["hollywood", "studios"], "open": 9, "close": 21,
-    "show": { "name": "Fantasmic!", "hour": 20.5, "duration": 0.5 } },
-  { "slug": "animal-kingdom", "name": "Animal Kingdom", "group": "Walt Disney World", "id": 8, "tokens": ["animal", "kingdom"], "open": 8, "close": 19, "show": null },
-
-  { "slug": "disneyland", "name": "Disneyland", "group": "Disneyland (California)", "id": 16, "tokens": ["disneyland"],
-    "exclude": ["paris", "tokyo", "hong", "shanghai"], "open": 8, "close": 23,
-    "show": { "name": "Fireworks spectacular", "hour": 21.5, "duration": 0.5 } },
-  { "slug": "california-adventure", "name": "California Adventure", "group": "Disneyland (California)", "id": 17, "tokens": ["california", "adventure"], "open": 8, "close": 22,
-    "show": { "name": "World of Color", "hour": 21, "duration": 0.5 } },
-
-  { "slug": "universal-studios-florida", "name": "Universal Studios", "group": "Universal Orlando", "id": 65, "tokens": ["universal", "studios", "florida"], "open": 9, "close": 21,
-    "show": { "name": "CineSational lagoon show", "hour": 20.5, "duration": 0.5 } },
-  { "slug": "islands-of-adventure", "name": "Islands of Adventure", "group": "Universal Orlando", "id": 64, "tokens": ["islands", "adventure"], "open": 9, "close": 21, "show": null },
-  { "slug": "epic-universe", "name": "Epic Universe", "group": "Universal Orlando", "id": null, "tokens": ["epic", "universe"], "open": 9, "close": 21, "show": null },
-
-  { "slug": "universal-studios-hollywood", "name": "Universal Hollywood", "group": "Universal Hollywood", "id": 66, "tokens": ["universal", "studios", "hollywood"], "open": 9, "close": 22, "show": null },
-
-  { "slug": "disneyland-paris", "name": "Disneyland Park", "group": "Disneyland Paris", "id": 4, "tokens": ["disneyland", "paris"], "open": 9, "close": 23,
-    "show": { "name": "Disney Tales of Magic", "hour": 22, "duration": 0.5 } },
-  { "slug": "walt-disney-studios-paris", "name": "Walt Disney Studios", "group": "Disneyland Paris", "id": 28, "tokens": ["disney", "studios", "paris"], "open": 9, "close": 21, "show": null },
-
-  { "slug": "tokyo-disneyland", "name": "Tokyo Disneyland", "group": "Tokyo Disney Resort", "id": 274, "tokens": ["tokyo", "disneyland"], "open": 9, "close": 21, "show": null },
-  { "slug": "tokyo-disneysea", "name": "Tokyo DisneySea", "group": "Tokyo Disney Resort", "id": 275, "tokens": ["disneysea"], "open": 9, "close": 21, "show": null },
-
-  { "slug": "hong-kong-disneyland", "name": "Hong Kong Disneyland", "group": "Hong Kong Disneyland", "id": null, "tokens": ["hong", "kong", "disneyland"], "open": 10, "close": 21,
-    "show": { "name": "Momentous nighttime spectacular", "hour": 20.5, "duration": 0.5 } },
-  { "slug": "shanghai-disneyland", "name": "Shanghai Disneyland", "group": "Shanghai Disneyland", "id": null, "tokens": ["shanghai", "disneyland"], "open": 9, "close": 21, "show": null }
+  {
+    "slug": "magic-kingdom",
+    "name": "Magic Kingdom",
+    "group": "Walt Disney World",
+    "id": 6,
+    "tokens": [
+      "magic",
+      "kingdom"
+    ],
+    "open": 9,
+    "close": 22,
+    "show": {
+      "name": "Happily Ever After fireworks",
+      "hour": 21,
+      "duration": 0.5
+    },
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "epcot",
+    "name": "EPCOT",
+    "group": "Walt Disney World",
+    "id": 5,
+    "tokens": [
+      "epcot"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": {
+      "name": "Luminous nighttime spectacular",
+      "hour": 20.5,
+      "duration": 0.5
+    },
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "hollywood-studios",
+    "name": "Hollywood Studios",
+    "group": "Walt Disney World",
+    "id": 7,
+    "tokens": [
+      "hollywood",
+      "studios"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": {
+      "name": "Fantasmic!",
+      "hour": 20.5,
+      "duration": 0.5
+    },
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "animal-kingdom",
+    "name": "Animal Kingdom",
+    "group": "Walt Disney World",
+    "id": 8,
+    "tokens": [
+      "animal",
+      "kingdom"
+    ],
+    "open": 8,
+    "close": 19,
+    "show": null,
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "disneyland",
+    "name": "Disneyland",
+    "group": "Disneyland (California)",
+    "id": 16,
+    "tokens": [
+      "disneyland"
+    ],
+    "exclude": [
+      "paris",
+      "tokyo",
+      "hong",
+      "shanghai"
+    ],
+    "open": 8,
+    "close": 23,
+    "show": {
+      "name": "Fireworks spectacular",
+      "hour": 21.5,
+      "duration": 0.5
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "slug": "california-adventure",
+    "name": "California Adventure",
+    "group": "Disneyland (California)",
+    "id": 17,
+    "tokens": [
+      "california",
+      "adventure"
+    ],
+    "open": 8,
+    "close": 22,
+    "show": {
+      "name": "World of Color",
+      "hour": 21,
+      "duration": 0.5
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "slug": "universal-studios-florida",
+    "name": "Universal Studios",
+    "group": "Universal Orlando",
+    "id": 65,
+    "tokens": [
+      "universal",
+      "studios",
+      "florida"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": {
+      "name": "CineSational lagoon show",
+      "hour": 20.5,
+      "duration": 0.5
+    },
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "islands-of-adventure",
+    "name": "Islands of Adventure",
+    "group": "Universal Orlando",
+    "id": 64,
+    "tokens": [
+      "islands",
+      "adventure"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "epic-universe",
+    "name": "Epic Universe",
+    "group": "Universal Orlando",
+    "id": null,
+    "tokens": [
+      "epic",
+      "universe"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York"
+  },
+  {
+    "slug": "universal-studios-hollywood",
+    "name": "Universal Hollywood",
+    "group": "Universal Hollywood",
+    "id": 66,
+    "tokens": [
+      "universal",
+      "studios",
+      "hollywood"
+    ],
+    "open": 9,
+    "close": 22,
+    "show": null,
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "slug": "disneyland-paris",
+    "name": "Disneyland Park",
+    "group": "Disneyland Paris",
+    "id": 4,
+    "tokens": [
+      "disneyland",
+      "paris"
+    ],
+    "open": 9,
+    "close": 23,
+    "show": {
+      "name": "Disney Tales of Magic",
+      "hour": 22,
+      "duration": 0.5
+    },
+    "tz": "Europe/Paris"
+  },
+  {
+    "slug": "walt-disney-studios-paris",
+    "name": "Walt Disney Studios",
+    "group": "Disneyland Paris",
+    "id": 28,
+    "tokens": [
+      "disney",
+      "studios",
+      "paris"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "Europe/Paris"
+  },
+  {
+    "slug": "tokyo-disneyland",
+    "name": "Tokyo Disneyland",
+    "group": "Tokyo Disney Resort",
+    "id": 274,
+    "tokens": [
+      "tokyo",
+      "disneyland"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "Asia/Tokyo"
+  },
+  {
+    "slug": "tokyo-disneysea",
+    "name": "Tokyo DisneySea",
+    "group": "Tokyo Disney Resort",
+    "id": 275,
+    "tokens": [
+      "disneysea"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "Asia/Tokyo"
+  },
+  {
+    "slug": "hong-kong-disneyland",
+    "name": "Hong Kong Disneyland",
+    "group": "Hong Kong Disneyland",
+    "id": null,
+    "tokens": [
+      "hong",
+      "kong",
+      "disneyland"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": {
+      "name": "Momentous nighttime spectacular",
+      "hour": 20.5,
+      "duration": 0.5
+    },
+    "tz": "Asia/Hong_Kong"
+  },
+  {
+    "slug": "shanghai-disneyland",
+    "name": "Shanghai Disneyland",
+    "group": "Shanghai Disneyland",
+    "id": null,
+    "tokens": [
+      "shanghai",
+      "disneyland"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "Asia/Shanghai"
+  }
 ]

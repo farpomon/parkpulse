@@ -647,27 +647,116 @@
     }
   }
 
+  async function pushSubscriptionOrNull() {
+    try {
+      if (!('serviceWorker' in navigator)) return null;
+      const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 600))]);
+      const sub = reg && await reg.pushManager.getSubscription();
+      return sub ? sub.toJSON() : null;
+    } catch { return null; }
+  }
+
+  async function applyPlan(action) {
+    if (action.park !== current) {
+      current = action.park;
+      dest = parks[current]?.group || dest;
+      await load();
+    }
+    pickedNames.clear();
+    const known = new Set(rides.map((r) => r.name));
+    for (const name of action.rides) if (known.has(name)) pickedNames.add(name);
+    renderRides();
+    updatePlanbar();
+    closeChat();
+  }
+
+  function renderAction(action) {
+    if (action.type === 'alert') {
+      myAlerts[action.ride] = action.threshold;
+      saveAlerts();
+      renderRides();
+      chatBubble('bot', `🔔 Alert set: ${action.ride} under ${action.threshold} min.`);
+    } else if (action.type === 'plan') {
+      const div = document.createElement('div');
+      div.className = 'bubble bot';
+      div.textContent = `🧭 Plan ready: ${action.rides.join(', ')} `;
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.style.cssText = 'display:block;margin-top:.5rem;font-size:.85rem;padding:.45rem 1rem';
+      btn.textContent = 'Apply to plan builder';
+      btn.addEventListener('click', () => applyPlan(action));
+      div.appendChild(btn);
+      $('chat-msgs').appendChild(div);
+      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
+    }
+  }
+
   async function sendChat(text) {
     if (chatBusy || !text.trim()) return;
     chatBusy = true;
     $('chat-chips').style.display = 'none';
     chatBubble('user', text);
     chatHistory.push({ role: 'user', content: text });
-    const typing = chatBubble('bot', 'Thinking…');
-    typing.classList.add('typing');
+    const bubble = chatBubble('bot', 'Thinking…');
+    bubble.classList.add('typing');
+    let replyText = '';
+    const appendDelta = (t) => {
+      if (!replyText) { bubble.classList.remove('typing'); bubble.textContent = ''; }
+      replyText += t;
+      bubble.textContent = replyText;
+      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
+    };
     try {
       const res = await api('/api/consultant', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ park: current, messages: chatHistory.slice(-12) }),
+        body: JSON.stringify({
+          park: current,
+          messages: chatHistory.slice(-12),
+          favorites: [...favs],
+          planPicks: [...pickedNames],
+          subscription: await pushSubscriptionOrNull(),
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'error');
-      typing.classList.remove('typing');
-      typing.textContent = data.reply;
-      chatHistory.push({ role: 'assistant', content: data.reply });
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'error');
+      }
+      // Parse the SSE stream: delta / action / error / done events.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let streamError = null;
+      const pendingActions = [];
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) !== -1) {
+          const frame = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          let event = 'message', data = '';
+          for (const line of frame.split('\n')) {
+            if (line.startsWith('event: ')) event = line.slice(7);
+            else if (line.startsWith('data: ')) data += line.slice(6);
+          }
+          if (!data) continue;
+          const payload = JSON.parse(data);
+          if (event === 'delta' && payload.text) appendDelta(payload.text);
+          else if (event === 'action') pendingActions.push(payload);
+          else if (event === 'error') streamError = payload.error;
+        }
+      }
+      if (streamError && !replyText) throw new Error(streamError);
+      if (!replyText) throw new Error('empty reply');
+      chatHistory.push({ role: 'assistant', content: replyText });
+      pendingActions.forEach(renderAction);
     } catch (e) {
-      typing.textContent = e.message.length < 120 ? e.message : 'The consultant is having a moment — try again shortly.';
+      bubble.classList.remove('typing');
+      bubble.textContent = (e.message && e.message.length < 120 && e.message !== 'empty reply')
+        ? e.message
+        : 'The consultant is having a moment — try again shortly.';
       chatHistory.pop(); // let them resend
     } finally {
       chatBusy = false;

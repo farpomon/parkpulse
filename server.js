@@ -348,6 +348,15 @@ function serveStatic(res, urlPath) {
   sendJson(res, 404, { error: 'not found' });
 }
 
+// Give the consultant its tools: the park registry, live waits, and the
+// ability to create real wait-drop alerts (with the user's own subscription).
+consultant.init({
+  registry: REGISTRY,
+  parks: PARKS,
+  getWaits,
+  createAlert: (subscription, park, ride, threshold) => db.alerts.add(subscription, park, ride, threshold),
+});
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
@@ -559,7 +568,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/consultant') {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
         if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
-        const { park, messages } = parsed;
+        const { park, messages, favorites, planPicks, subscription } = parsed;
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per pass/session identity, falling back to IP.
         const throttleKey = req.headers['x-pass'] || req.headers['x-session'] || req.socket.remoteAddress || 'anon';
@@ -568,10 +577,21 @@ const server = http.createServer(async (req, res) => {
         }
         try {
           const waits = await getWaits(park);
-          const reply = await consultant.consult({ park: PARKS[park], waits, messages });
-          return sendJson(res, 200, { reply });
+          // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
+          res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+          const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          try {
+            await consultant.consult({
+              park: PARKS[park], waits, messages, favorites, planPicks,
+              subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
+              send,
+            });
+          } catch (err) {
+            console.log(`consultant error: ${err.message}`);
+            send('error', { error: err.code === 'bad_request' ? 'invalid messages' : 'The consultant is having a moment — try again shortly.' });
+          }
+          return res.end();
         } catch (err) {
-          if (err.code === 'bad_request') return sendJson(res, 400, { error: 'invalid messages' });
           console.log(`consultant error: ${err.message}`);
           return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
         }
