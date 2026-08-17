@@ -173,6 +173,7 @@
       <button class="btn wide" type="submit" id="acct-submit">Log in</button>
     </form>
     <p class="switch" id="acct-switch">New here? <a id="acct-toggle">Create an account</a></p>
+    <p class="switch"><a id="acct-forgot">Forgot password?</a></p>
   </div>
   <div id="acct-logged-in" style="display:none">
     <h3>Account</h3>
@@ -686,6 +687,18 @@
 
   $('acct-btn').addEventListener('click', openAcct);
   $('acct-cancel').addEventListener('click', closeAcct);
+  $('acct-forgot').addEventListener('click', async () => {
+    const email = $('acct-email').value.trim();
+    if (!email) { $('acct-err').textContent = 'Enter your email above first, then tap "Forgot password?".'; return; }
+    try {
+      await fetch('/api/auth/forgot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }) });
+      $('acct-err').style.color = 'var(--green)';
+      $('acct-err').textContent = 'If that account exists, a reset link is on its way.';
+      setTimeout(() => { $('acct-err').style.color = ''; $('acct-err').textContent = ''; }, 6000);
+    } catch {
+      $('acct-err').textContent = 'Connection trouble — try again.';
+    }
+  });
   $('acct-toggle').addEventListener('click', () => {
     acctMode = acctMode === 'login' ? 'signup' : 'login';
     $('acct-title').textContent = acctMode === 'login' ? 'Log in' : 'Create account';

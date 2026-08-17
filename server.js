@@ -1,7 +1,7 @@
 // ParkPulse — minimal zero-dependency server.
 // Serves the static frontend, proxies live wait times from queue-times.com
 // (5-minute cache, attribution required by their API license), and captures
-// email leads to data/leads.jsonl. Node 18+ (built-in fetch).
+// email leads. SQLite storage via node:sqlite (Node 22.5+).
 
 const http = require('node:http');
 const fs = require('node:fs');
@@ -11,13 +11,12 @@ const webpush = require('web-push');
 const consultant = require('./consultant');
 const pages = require('./pages');
 const history = require('./history');
+const db = require('./db');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DATA_DIR = path.join(__dirname, 'data');
-// On Railway, mount a volume (e.g. at /data) and set LEADS_FILE=/data/leads.jsonl
-// so captured emails survive redeploys — the default path is ephemeral there.
-const LEADS_FILE = process.env.LEADS_FILE || path.join(DATA_DIR, 'leads.jsonl');
+
 // Stripe Payment Link for the Trip Pass — set in the hosting env, no backend needed for v0.
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 // Launch-preview switch: everything is free until PRO_GATE=on is set in the
@@ -37,7 +36,6 @@ if (!process.env.PASS_SECRET) console.log('WARNING: PASS_SECRET not set — issu
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 const PLAN_DAYS = { 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
-const PASSES_FILE = process.env.PASSES_FILE || path.join(DATA_DIR, 'passes.jsonl');
 
 function signToken(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -63,28 +61,61 @@ function verifyPass(token) {
 }
 
 // --- Accounts ----------------------------------------------------------------
-// scrypt-hashed passwords in a flat file; sessions are HMAC tokens {email, exp}.
+// scrypt-hashed passwords in SQLite; sessions are HMAC tokens {email, exp}.
 // A purchase or dev-code redemption made while logged in attaches the pass to
 // the account, so entitlements follow the login rather than the browser.
-const USERS_FILE = process.env.USERS_FILE || path.join(DATA_DIR, 'users.json');
-let users = {};
-try { users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { users = {}; }
-const saveUsers = () => fs.writeFileSync(USERS_FILE, JSON.stringify(users));
-
 const SESSION_DAYS = 30;
 const hashPassword = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 const signSession = (email) => signToken({ email, exp: Date.now() + SESSION_DAYS * 86400000 });
 function sessionUser(req) {
   const p = verifyToken(req.headers['x-session']);
-  return p?.email && users[p.email] ? { email: p.email, user: users[p.email] } : null;
+  if (!p?.email) return null;
+  const user = db.users.get(p.email);
+  return user ? { email: p.email, user } : null;
 }
-const accountPassActive = (user) => Boolean(user.pass && PLAN_DAYS[user.pass.plan] && user.pass.exp > Date.now());
+const accountPassActive = (user) => Boolean(user.plan && PLAN_DAYS[user.plan] && user.plan_exp > Date.now());
 
 // Attach an entitlement to an account, keeping whichever expires later.
 function grantToUser(email, plan, exp) {
-  const u = users[email];
+  const u = db.users.get(email);
   if (!u) return;
-  if (!accountPassActive(u) || exp > u.pass.exp) { u.pass = { plan, exp }; saveUsers(); }
+  if (!accountPassActive(u) || exp > u.plan_exp) db.users.grant(email, plan, exp);
+}
+
+// --- Password reset ----------------------------------------------------------
+// Reset emails go through Resend when RESEND_API_KEY is set; otherwise the
+// link is logged server-side so an operator can help manually.
+const RESEND_KEY = process.env.RESEND_API_KEY || '';
+const MAIL_FROM = process.env.MAIL_FROM || 'ParkPulse <onboarding@resend.dev>';
+
+async function sendResetEmail(origin, email, token) {
+  const link = `${origin}/reset?email=${encodeURIComponent(email)}&token=${token}`;
+  if (!RESEND_KEY) {
+    console.log(`Password reset requested for ${email} (no RESEND_API_KEY set) — link: ${link}`);
+    return;
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${RESEND_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      from: MAIL_FROM,
+      to: [email],
+      subject: 'Reset your ParkPulse password',
+      html: `<p>Someone (hopefully you) asked to reset the password for this ParkPulse account.</p>
+<p><a href="${link}">Reset your password</a> — the link is valid for 1 hour.</p>
+<p>If this wasn't you, ignore this email; your password is unchanged.</p>`,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`resend ${res.status}`);
+}
+
+const forgotFails = new Map();
+function forgotBlocked(key) {
+  const f = forgotFails.get(key);
+  if (!f || Date.now() > f.resetAt) { forgotFails.set(key, { n: 1, resetAt: Date.now() + 3600000 }); return false; }
+  f.n += 1;
+  return f.n > 3;
 }
 
 // Brute-force damper: 5 failed logins per email per 15 minutes.
@@ -123,7 +154,7 @@ async function stripeApi(endpoint, params) {
 }
 
 function recordPass(entry) {
-  try { fs.appendFileSync(PASSES_FILE, JSON.stringify({ ...entry, at: new Date().toISOString() }) + '\n'); } catch {}
+  try { db.passes.add(entry.plan, entry.session, entry.email); } catch {}
 }
 
 const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json'), 'utf8'));
@@ -188,31 +219,23 @@ setInterval(resolveParkIds, 24 * 60 * 60 * 1000);
 // VAPID keys from env, or generated once and persisted next to the data files.
 // On Railway, set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY (or mount a volume) so
 // subscriptions survive redeploys.
-const VAPID_FILE = process.env.VAPID_FILE || path.join(DATA_DIR, 'vapid.json');
 let vapidKeys;
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   vapidKeys = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
-} else if (fs.existsSync(VAPID_FILE)) {
-  vapidKeys = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'));
+} else if (db.kv.get('vapid')) {
+  vapidKeys = JSON.parse(db.kv.get('vapid'));
 } else {
   vapidKeys = webpush.generateVAPIDKeys();
-  fs.writeFileSync(VAPID_FILE, JSON.stringify(vapidKeys));
+  db.kv.set('vapid', JSON.stringify(vapidKeys));
 }
 webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:alerts@parkpulse.example', vapidKeys.publicKey, vapidKeys.privateKey);
 
-const ALERTS_FILE = process.env.ALERTS_FILE || path.join(DATA_DIR, 'alerts.json');
-let alerts = [];
-try { alerts = JSON.parse(fs.readFileSync(ALERTS_FILE, 'utf8')); } catch { alerts = []; }
-const saveAlerts = () => fs.writeFileSync(ALERTS_FILE, JSON.stringify(alerts));
-let alertSeq = alerts.reduce((m, a) => Math.max(m, a.id), 0);
-
 const ALERT_CHECK_MS = 5 * 60 * 1000;
 async function checkAlerts() {
-  const parksWithAlerts = [...new Set(alerts.map((a) => a.park))];
-  for (const slug of parksWithAlerts) {
+  for (const slug of db.alerts.parks()) {
     const data = await getWaits(slug);
     if (data.source !== 'live') continue; // never alert off demo data
-    for (const alert of alerts.filter((a) => a.park === slug)) {
+    for (const alert of db.alerts.byPark(slug)) {
       const ride = data.rides.find((r) => normName(r.name) === normName(alert.ride));
       if (!ride || !ride.open || ride.wait > alert.threshold) continue;
       const payload = JSON.stringify({
@@ -220,16 +243,15 @@ async function checkAlerts() {
         body: `Dropped below your ${alert.threshold} min alert${ride.typical ? ` (typical ${ride.typical} min)` : ''} — go now!`,
       });
       try {
-        await webpush.sendNotification(alert.subscription, payload);
-        alerts = alerts.filter((a) => a.id !== alert.id); // fire once
+        await webpush.sendNotification(JSON.parse(alert.subscription), payload);
+        db.alerts.remove(alert.id); // fire once
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
-          alerts = alerts.filter((a) => a.subscription.endpoint !== alert.subscription.endpoint);
+          db.alerts.removeByEndpoint(alert.endpoint);
         } // transient errors: keep and retry next cycle
       }
     }
   }
-  saveAlerts();
 }
 setInterval(() => checkAlerts().catch(() => {}), ALERT_CHECK_MS);
 
@@ -295,10 +317,7 @@ async function getWaits(slug) {
   }
 }
 
-function saveLead(email, plan) {
-  const record = { email, plan, at: new Date().toISOString() };
-  fs.appendFileSync(LEADS_FILE, JSON.stringify(record) + '\n');
-}
+const saveLead = (email, plan) => db.leads.add(email, plan);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -354,9 +373,9 @@ const server = http.createServer(async (req, res) => {
     const active = accountPassActive(s.user);
     return sendJson(res, 200, {
       email: s.email,
-      plan: active ? s.user.pass.plan : null,
-      exp: active ? s.user.pass.exp : null,
-      passToken: active ? signPass(s.user.pass.plan, s.user.pass.exp) : null,
+      plan: active ? s.user.plan : null,
+      exp: active ? s.user.plan_exp : null,
+      passToken: active ? signPass(s.user.plan, s.user.plan_exp) : null,
     });
   }
 
@@ -397,12 +416,12 @@ const server = http.createServer(async (req, res) => {
 
         if (url.pathname === '/api/auth/signup') {
           if (password.length < 8) return sendJson(res, 400, { error: 'password must be at least 8 characters' });
-          if (users[email]) return sendJson(res, 409, { error: 'account already exists — log in instead' });
+          if (db.users.get(email)) return sendJson(res, 409, { error: 'account already exists — log in instead' });
           const salt = crypto.randomBytes(16).toString('hex');
-          users[email] = { salt, hash: hashPassword(password, salt), createdAt: new Date().toISOString(), pass: null };
+          db.users.create(email, salt, hashPassword(password, salt));
         } else {
           if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
-          const u = users[email];
+          const u = db.users.get(email);
           const ok = u && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u.salt)), Buffer.from(u.hash));
           if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
           loginFails.delete(email);
@@ -413,14 +432,52 @@ const server = http.createServer(async (req, res) => {
         const held = passFromReq(req);
         if (held) grantToUser(email, held.plan, held.exp);
 
-        const u = users[email];
+        const u = db.users.get(email);
         const active = accountPassActive(u);
         return sendJson(res, 200, {
           session: signSession(email),
           email,
-          plan: active ? u.pass.plan : null,
-          exp: active ? u.pass.exp : null,
-          passToken: active ? signPass(u.pass.plan, u.pass.exp) : null,
+          plan: active ? u.plan : null,
+          exp: active ? u.plan_exp : null,
+          passToken: active ? signPass(u.plan, u.plan_exp) : null,
+        });
+      }
+
+      if (url.pathname === '/api/auth/forgot') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return sendJson(res, 400, { error: 'invalid email' });
+        if (forgotBlocked(email)) return sendJson(res, 429, { error: 'too many reset requests — try again later' });
+        // Always answer ok — never reveal whether an account exists.
+        if (db.users.get(email)) {
+          const token = crypto.randomBytes(32).toString('hex');
+          db.users.setResetToken(email, token, Date.now() + 3600000);
+          const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+          sendResetEmail(origin, email, token).catch((err) => console.log(`reset email failed: ${err.message}`));
+        }
+        return sendJson(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/auth/reset') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        const token = typeof parsed.token === 'string' ? parsed.token : '';
+        const password = typeof parsed.password === 'string' ? parsed.password : '';
+        if (password.length < 8) return sendJson(res, 400, { error: 'password must be at least 8 characters' });
+        const u = db.users.get(email);
+        const valid = u && u.reset_token && u.reset_exp > Date.now() &&
+          token.length === u.reset_token.length &&
+          crypto.timingSafeEqual(Buffer.from(token), Buffer.from(u.reset_token));
+        if (!valid) return sendJson(res, 403, { error: 'invalid or expired reset link — request a new one' });
+        const salt = crypto.randomBytes(16).toString('hex');
+        db.users.resetPassword(email, salt, hashPassword(password, salt));
+        loginFails.delete(email);
+        const fresh = db.users.get(email);
+        const active = accountPassActive(fresh);
+        return sendJson(res, 200, {
+          session: signSession(email),
+          email,
+          plan: active ? fresh.plan : null,
+          exp: active ? fresh.plan_exp : null,
+          passToken: active ? signPass(fresh.plan, fresh.plan_exp) : null,
         });
       }
 
@@ -515,21 +572,16 @@ const server = http.createServer(async (req, res) => {
             typeof ride !== 'string' || !Number.isFinite(threshold) || threshold < 5 || threshold > 240) {
           return sendJson(res, 400, { error: 'invalid alert' });
         }
-        // One alert per ride per device — replace an existing one.
-        alerts = alerts.filter((a) => !(a.subscription.endpoint === subscription.endpoint && normName(a.ride) === normName(ride)));
-        const alert = { id: ++alertSeq, subscription, park, ride: ride.slice(0, 120), threshold: Math.round(threshold), createdAt: new Date().toISOString() };
-        alerts.push(alert);
-        saveAlerts();
-        return sendJson(res, 200, { ok: true, id: alert.id });
+        // One alert per ride per device — add replaces any existing one.
+        const id = db.alerts.add(subscription, park, ride.slice(0, 120), Math.round(threshold));
+        return sendJson(res, 200, { ok: true, id: Number(id) });
       }
 
       if (url.pathname === '/api/push/alerts/cancel') {
         const { endpoint, ride } = parsed;
         if (typeof endpoint !== 'string') return sendJson(res, 400, { error: 'invalid' });
-        const before = alerts.length;
-        alerts = alerts.filter((a) => !(a.subscription.endpoint === endpoint && (!ride || normName(a.ride) === normName(ride))));
-        saveAlerts();
-        return sendJson(res, 200, { ok: true, removed: before - alerts.length });
+        const removed = db.alerts.removeByEndpoint(endpoint, typeof ride === 'string' ? ride : null);
+        return sendJson(res, 200, { ok: true, removed });
       }
 
       sendJson(res, 404, { error: 'not found' });

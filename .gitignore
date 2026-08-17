@@ -4,5 +4,7 @@ data/vapid.json
 data/passes.jsonl
 data/users.json
 data/history/
+data/*.db
+data/*.db-*
 node_modules/
 .env

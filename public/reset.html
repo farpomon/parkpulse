@@ -1,0 +1,59 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2c2154">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Reset password — ParkPulse</title>
+<style>
+  :root { --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485; --brand: #4f3ac9; --border: #e3dff2; --red: #b23a48; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4; --brand: #8f7bf0; --border: #362c5c; --red: #ef8b96; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Segoe UI", system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 2.25rem 2rem; max-width: 400px; width: calc(100% - 2rem); margin: 1rem; }
+  h1 { font-size: 1.35rem; margin: 0 0 .35rem; }
+  p { color: var(--muted); margin: 0 0 1rem; font-size: .95rem; }
+  input { width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .7rem .9rem; font-size: 1rem; margin-bottom: .75rem; }
+  .btn { width: 100%; background: var(--brand); color: #fff; border: none; border-radius: 12px; padding: .8rem; font-weight: 700; font-size: 1rem; cursor: pointer; }
+  .err { color: var(--red); font-size: .88rem; min-height: 1.2em; margin: 0 0 .5rem; }
+</style>
+<div class="card">
+  <h1>⚡ Choose a new password</h1>
+  <p id="who"></p>
+  <form id="form">
+    <input type="password" id="pw" placeholder="New password (8+ characters)" minlength="8" required autocomplete="new-password">
+    <input type="password" id="pw2" placeholder="Repeat it" minlength="8" required autocomplete="new-password">
+    <p class="err" id="err"></p>
+    <button class="btn" type="submit">Set password &amp; log in</button>
+  </form>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const email = params.get('email') || '';
+  const token = params.get('token') || '';
+  document.getElementById('who').textContent = email ? `for ${email}` : '';
+  if (!email || !token) {
+    document.getElementById('err').textContent = 'This reset link is incomplete — request a new one from the app.';
+  }
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = document.getElementById('err');
+    err.textContent = '';
+    const pw = document.getElementById('pw').value;
+    if (pw !== document.getElementById('pw2').value) { err.textContent = "Passwords don't match."; return; }
+    try {
+      const res = await fetch('/api/auth/reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, token, password: pw }),
+      });
+      const data = await res.json();
+      if (!res.ok) { err.textContent = data.error || 'Something went wrong.'; return; }
+      localStorage.setItem('pp-session', data.session);
+      localStorage.setItem('pp-email', data.email);
+      if (data.passToken) localStorage.setItem('pp-pass', data.passToken);
+      location.href = '/app';
+    } catch {
+      err.textContent = 'Connection trouble — try again.';
+    }
+  });
+</script>

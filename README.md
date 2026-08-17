@@ -50,7 +50,8 @@ where we have baseline data).
 |---|---|
 | `PORT` | Listen port (default 3000; Railway sets this automatically) |
 | `PAYMENT_LINK` | Stripe Payment Link URL for checkout. Until it's set, pricing buttons capture emails ("lock in this price") instead — a pre-launch waitlist. |
-| `LEADS_FILE` | Where captured emails are appended (default `data/leads.jsonl`, gitignored). On Railway, point this at a mounted volume. |
+| `DB_FILE` | SQLite database path (default `data/parkpulse.db`) holding users, passes, alerts, leads, and config. **Point at the mounted volume in production** (e.g. `/data/parkpulse.db`). On first boot with an empty DB, legacy flat files (`users.json`, `alerts.json`, `passes.jsonl`, `leads.jsonl`, `vapid.json`) are imported automatically. Requires Node ≥ 22.5 (`node:sqlite`). |
+| `RESEND_API_KEY` / `MAIL_FROM` | Enables password-reset emails via [Resend](https://resend.com). Without a key, reset links are logged server-side so an operator can assist manually. |
 | `PRO_GATE` | `on` re-locks Pro features (all parks beyond Magic Kingdom, plan builder, alerts) behind the paywall — enforced server-side (402s), not just in the UI. Unset/anything else = launch preview, everything free. |
 | `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_…`). With both price IDs set, the landing page's buy buttons open real Stripe Checkout. |
 | `STRIPE_PRICE_TRIP` / `STRIPE_PRICE_ANNUAL` | Stripe Price IDs (`price_…`) for the $19.99 Trip Pass and $49 Pro Annual one-time payments. Create the two products in the Stripe dashboard. |
@@ -119,9 +120,10 @@ Every push to the connected branch auto-deploys from then on.
 ## Accounts
 
 Optional but recommended: 👤 in the app opens login/signup (email + password,
-min 8 chars). Passwords are scrypt-hashed into `data/users.json` (`USERS_FILE`
-env to relocate — point at a volume in production); sessions are 30-day HMAC
-tokens; failed logins are rate-limited (5 per email per 15 min). A purchase or
+min 8 chars). Passwords are scrypt-hashed into SQLite (`DB_FILE`); sessions
+are 30-day HMAC tokens; failed logins are rate-limited (5 per email per 15
+min). **Password reset**: "Forgot password?" in the login sheet emails a
+single-use, 1-hour reset link (via Resend when configured). A purchase or
 pass-code redemption made while logged in attaches the entitlement to the
 account, and any later login — on any device — re-issues the pass
 automatically. Logging in while holding a device pass adopts it onto the
