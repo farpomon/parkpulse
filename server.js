@@ -16,6 +16,9 @@ const DATA_DIR = path.join(__dirname, 'data');
 const LEADS_FILE = process.env.LEADS_FILE || path.join(DATA_DIR, 'leads.jsonl');
 // Stripe Payment Link for the Trip Pass — set in the hosting env, no backend needed for v0.
 const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
+// Launch-preview switch: everything is free until PRO_GATE=on is set in the
+// hosting env, which re-locks Pro features (all parks, planner, alerts).
+const PRO_GATE = process.env.PRO_GATE === 'on';
 
 const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json'), 'utf8'));
 
@@ -183,6 +186,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {
       paymentLink: PAYMENT_LINK,
+      proGate: PRO_GATE,
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, open: p.open, close: p.close, show: p.show }])),
     });

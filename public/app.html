@@ -152,7 +152,9 @@
   let rides = [];
   let lastData = null;
   let query = '';
-  const isPro = localStorage.getItem('pp-pro') === '1';
+  // Everything is unlocked while the server's PRO_GATE is off (launch preview);
+  // once it's on, only the demo flag (or, later, a real entitlement) unlocks Pro.
+  let isPro = localStorage.getItem('pp-pro') === '1';
   const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
   const myAlerts = JSON.parse(localStorage.getItem('pp-alerts') || '{}'); // rideName -> threshold
   const pickedNames = new Set();
@@ -495,7 +497,14 @@
   // Boot: restore park, load, auto-refresh every 5 min, keep "x min ago" honest.
   const savedPark = localStorage.getItem('pp-park');
   if (savedPark && (isPro || savedPark === FREE_PARK)) current = savedPark;
-  fetch('/api/config').then((r) => r.json()).then((c) => { parks = c.parks; pushKey = c.pushKey || ''; load(); })
+  fetch('/api/config').then((r) => r.json()).then((c) => {
+    parks = c.parks;
+    pushKey = c.pushKey || '';
+    if (!c.proGate) isPro = true;
+    const saved = localStorage.getItem('pp-park');
+    if (isPro && saved && parks[saved]) current = saved;
+    load();
+  })
     .catch(() => { parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } }; load(); });
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
   setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);

@@ -50,6 +50,7 @@ where we have baseline data).
 | `PORT` | Listen port (default 3000; Railway sets this automatically) |
 | `PAYMENT_LINK` | Stripe Payment Link URL for checkout. Until it's set, pricing buttons capture emails ("lock in this price") instead — a pre-launch waitlist. |
 | `LEADS_FILE` | Where captured emails are appended (default `data/leads.jsonl`, gitignored). On Railway, point this at a mounted volume. |
+| `PRO_GATE` | `on` re-locks Pro features (all parks beyond Magic Kingdom, plan builder, alerts) behind the upsell. Unset/anything else = launch preview, everything free. Flip it in Railway Variables when you're ready to charge — no code change needed. |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys for wait-drop alerts. Auto-generated to `data/vapid.json` on first boot if unset — but set them (or mount a volume) in production so existing push subscriptions survive redeploys. Generate once with `npx web-push generate-vapid-keys`. |
 | `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
 
