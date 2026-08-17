@@ -1,7 +1,7 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v4';
+const CACHE = 'parkpulse-v5';
 const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', (e) => {

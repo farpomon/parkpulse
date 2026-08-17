@@ -2,5 +2,6 @@ data/leads.jsonl
 data/alerts.json
 data/vapid.json
 data/passes.jsonl
+data/users.json
 node_modules/
 .env

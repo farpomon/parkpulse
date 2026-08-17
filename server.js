@@ -36,25 +36,73 @@ const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 const PLAN_DAYS = { 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
 const PASSES_FILE = process.env.PASSES_FILE || path.join(DATA_DIR, 'passes.jsonl');
 
-function signPass(plan) {
-  const body = Buffer.from(JSON.stringify({ plan, exp: Date.now() + PLAN_DAYS[plan] * 86400000 })).toString('base64url');
+function signToken(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = crypto.createHmac('sha256', PASS_SECRET).update(body).digest('base64url');
   return `${body}.${sig}`;
 }
 
-function verifyPass(token) {
+function verifyToken(token) {
   if (typeof token !== 'string' || !token.includes('.')) return null;
   const [body, sig] = token.split('.');
   const expected = crypto.createHmac('sha256', PASS_SECRET).update(body).digest('base64url');
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   try {
-    const pass = JSON.parse(Buffer.from(body, 'base64url').toString());
-    return PLAN_DAYS[pass.plan] && pass.exp > Date.now() ? pass : null;
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    return payload.exp > Date.now() ? payload : null;
   } catch { return null; }
 }
 
+const signPass = (plan, exp) => signToken({ plan, exp: exp ?? Date.now() + PLAN_DAYS[plan] * 86400000 });
+function verifyPass(token) {
+  const p = verifyToken(token);
+  return p && PLAN_DAYS[p.plan] ? p : null;
+}
+
+// --- Accounts ----------------------------------------------------------------
+// scrypt-hashed passwords in a flat file; sessions are HMAC tokens {email, exp}.
+// A purchase or dev-code redemption made while logged in attaches the pass to
+// the account, so entitlements follow the login rather than the browser.
+const USERS_FILE = process.env.USERS_FILE || path.join(DATA_DIR, 'users.json');
+let users = {};
+try { users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { users = {}; }
+const saveUsers = () => fs.writeFileSync(USERS_FILE, JSON.stringify(users));
+
+const SESSION_DAYS = 30;
+const hashPassword = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
+const signSession = (email) => signToken({ email, exp: Date.now() + SESSION_DAYS * 86400000 });
+function sessionUser(req) {
+  const p = verifyToken(req.headers['x-session']);
+  return p?.email && users[p.email] ? { email: p.email, user: users[p.email] } : null;
+}
+const accountPassActive = (user) => Boolean(user.pass && PLAN_DAYS[user.pass.plan] && user.pass.exp > Date.now());
+
+// Attach an entitlement to an account, keeping whichever expires later.
+function grantToUser(email, plan, exp) {
+  const u = users[email];
+  if (!u) return;
+  if (!accountPassActive(u) || exp > u.pass.exp) { u.pass = { plan, exp }; saveUsers(); }
+}
+
+// Brute-force damper: 5 failed logins per email per 15 minutes.
+const loginFails = new Map();
+function loginBlocked(email) {
+  const f = loginFails.get(email);
+  return f && f.n >= 5 && Date.now() < f.resetAt;
+}
+function noteLoginFail(email) {
+  const f = loginFails.get(email);
+  if (!f || Date.now() > f.resetAt) loginFails.set(email, { n: 1, resetAt: Date.now() + 15 * 60000 });
+  else f.n += 1;
+}
+
 const passFromReq = (req) => verifyPass(req.headers['x-pass']);
-const hasAccess = (req) => !PRO_GATE || Boolean(passFromReq(req));
+function hasAccess(req) {
+  if (!PRO_GATE) return true;
+  if (passFromReq(req)) return true;
+  const s = sessionUser(req);
+  return Boolean(s && accountPassActive(s.user));
+}
 
 async function stripeApi(endpoint, params) {
   const res = await fetch(`https://api.stripe.com${endpoint}`, {
@@ -253,6 +301,18 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, pass ? { valid: true, plan: pass.plan, exp: pass.exp } : { valid: false });
   }
 
+  if (url.pathname === '/api/auth/me') {
+    const s = sessionUser(req);
+    if (!s) return sendJson(res, 401, { error: 'not logged in' });
+    const active = accountPassActive(s.user);
+    return sendJson(res, 200, {
+      email: s.email,
+      plan: active ? s.user.pass.plan : null,
+      exp: active ? s.user.pass.exp : null,
+      passToken: active ? signPass(s.user.pass.plan, s.user.pass.exp) : null,
+    });
+  }
+
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
   if (waitsMatch) {
     const slug = waitsMatch[1];
@@ -267,6 +327,40 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       let parsed;
       try { parsed = JSON.parse(body || '{}'); } catch { return sendJson(res, 400, { error: 'bad request' }); }
+
+      if (url.pathname === '/api/auth/signup' || url.pathname === '/api/auth/login') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        const password = typeof parsed.password === 'string' ? parsed.password : '';
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return sendJson(res, 400, { error: 'invalid email' });
+
+        if (url.pathname === '/api/auth/signup') {
+          if (password.length < 8) return sendJson(res, 400, { error: 'password must be at least 8 characters' });
+          if (users[email]) return sendJson(res, 409, { error: 'account already exists — log in instead' });
+          const salt = crypto.randomBytes(16).toString('hex');
+          users[email] = { salt, hash: hashPassword(password, salt), createdAt: new Date().toISOString(), pass: null };
+        } else {
+          if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
+          const u = users[email];
+          const ok = u && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u.salt)), Buffer.from(u.hash));
+          if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
+          loginFails.delete(email);
+        }
+
+        // If this browser already holds a pass token, bind it to the account
+        // so the purchase follows the login from now on.
+        const held = passFromReq(req);
+        if (held) grantToUser(email, held.plan, held.exp);
+
+        const u = users[email];
+        const active = accountPassActive(u);
+        return sendJson(res, 200, {
+          session: signSession(email),
+          email,
+          plan: active ? u.pass.plan : null,
+          exp: active ? u.pass.exp : null,
+          passToken: active ? signPass(u.pass.plan, u.pass.exp) : null,
+        });
+      }
 
       if (url.pathname === '/api/checkout') {
         if (!CHECKOUT_ENABLED) return sendJson(res, 503, { error: 'checkout not configured' });
@@ -301,7 +395,9 @@ const server = http.createServer(async (req, res) => {
           // Idempotent by design: re-claiming the same paid session re-issues a
           // pass, which is how a buyer activates a second device.
           const token = signPass(plan);
-          recordPass({ plan, session: sessionId, email: session.customer_details?.email || null });
+          const s = sessionUser(req);
+          if (s) grantToUser(s.email, plan, verifyPass(token).exp);
+          recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null });
           return sendJson(res, 200, { token, plan, exp: verifyPass(token).exp });
         } catch (err) {
           return sendJson(res, 502, { error: 'could not verify payment' });
@@ -314,7 +410,9 @@ const server = http.createServer(async (req, res) => {
           crypto.timingSafeEqual(Buffer.from(code), Buffer.from(DEV_PASS_CODE));
         if (!ok) return sendJson(res, 403, { error: 'invalid code' });
         const token = signPass('dev');
-        recordPass({ plan: 'dev' });
+        const s = sessionUser(req);
+        if (s) grantToUser(s.email, 'dev', verifyPass(token).exp);
+        recordPass({ plan: 'dev', email: s?.email || null });
         return sendJson(res, 200, { token, plan: 'dev', exp: verifyPass(token).exp });
       }
 

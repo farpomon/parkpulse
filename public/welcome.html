@@ -28,18 +28,21 @@
       return;
     }
     try {
+      const session = localStorage.getItem('pp-session');
       const res = await fetch('/api/pass/claim', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...(session && { 'x-session': session }) },
         body: JSON.stringify({ session_id: sessionId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'claim failed');
       localStorage.setItem('pp-pass', data.token);
       const until = new Date(data.exp).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+      const hasAccount = Boolean(localStorage.getItem('pp-email'));
       card.innerHTML = `<h1>You're in! 🎉</h1>
         <p class="ok">${data.plan === 'trip-pass' ? 'Trip Pass' : 'Pro Annual'} active until ${until}</p>
-        <p>Every park, the plan builder, and wait-drop alerts are unlocked on this device. Open this same receipt link on another phone to activate it there too.</p>
+        <p>Every park, the plan builder, and wait-drop alerts are unlocked${hasAccount ? ' on your account' : ' on this device'}.</p>
+        ${hasAccount ? '' : '<p>Tip: create a free account (👤 in the app) and your pass will follow your login onto any device.</p>'}
         <a class="btn" href="/app">Open ParkPulse →</a>`;
     } catch {
       card.innerHTML = `<h1>Almost there</h1>

@@ -91,7 +91,18 @@ healthcheck on `/api/config`). To deploy:
 
 Every push to the connected branch auto-deploys from then on.
 
-## How payments work (no accounts, v1)
+## Accounts
+
+Optional but recommended: 👤 in the app opens login/signup (email + password,
+min 8 chars). Passwords are scrypt-hashed into `data/users.json` (`USERS_FILE`
+env to relocate — point at a volume in production); sessions are 30-day HMAC
+tokens; failed logins are rate-limited (5 per email per 15 min). A purchase or
+pass-code redemption made while logged in attaches the entitlement to the
+account, and any later login — on any device — re-issues the pass
+automatically. Logging in while holding a device pass adopts it onto the
+account. No email verification or password reset yet (next auth iteration).
+
+## How payments work (v1)
 
 1. Buy button → `POST /api/checkout` creates a Stripe Checkout session →
    Stripe-hosted payment page.

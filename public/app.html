@@ -63,6 +63,13 @@
   .sheet-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
   .sheet-opts button { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .6rem .2rem; font-weight: 700; cursor: pointer; font-size: .9rem; }
   .sheet .cancel { margin-top: .8rem; width: 100%; border: none; background: none; color: var(--muted); cursor: pointer; padding: .5rem; font-size: .9rem; }
+  .sheet input[type=email], .sheet input[type=password] { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .65rem .9rem; font-size: 1rem; margin-bottom: .6rem; }
+  .sheet .wide { width: 100%; }
+  .sheet .err { color: var(--red); font-size: .85rem; min-height: 1.2em; margin: 0 0 .4rem; }
+  .sheet .switch { text-align: center; margin-top: .6rem; font-size: .88rem; color: var(--muted); }
+  .sheet .switch a { color: var(--brand); cursor: pointer; }
+  .acct-status { font-size: .95rem; margin-bottom: 1rem; }
+  .acct-status b { display: block; }
   .wait { font-weight: 800; border-radius: 9px; padding: .3rem .55rem; min-width: 3.9rem; text-align: center; font-size: .9rem; flex-shrink: 0; }
   .wait.low { background: var(--green-soft); color: var(--green); }
   .wait.mid { background: var(--gold-soft); color: var(--gold); }
@@ -99,6 +106,7 @@
       <span class="right">
         <span class="updated" id="updated"></span>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
+        <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
       </span>
     </div>
     <div class="destrow"><select id="dest" aria-label="Choose destination"></select></div>
@@ -140,6 +148,26 @@
   <button class="cancel" id="sheet-cancel">Cancel</button>
 </div>
 
+<div class="sheet" id="acct-sheet">
+  <div id="acct-logged-out">
+    <h3 id="acct-title">Log in</h3>
+    <p id="acct-sub">Your pass follows your account onto any device.</p>
+    <form id="acct-form">
+      <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email" required>
+      <input type="password" id="acct-pw" placeholder="Password" autocomplete="current-password" required minlength="8">
+      <p class="err" id="acct-err"></p>
+      <button class="btn wide" type="submit" id="acct-submit">Log in</button>
+    </form>
+    <p class="switch" id="acct-switch">New here? <a id="acct-toggle">Create an account</a></p>
+  </div>
+  <div id="acct-logged-in" style="display:none">
+    <h3>Account</h3>
+    <p class="acct-status"><b id="acct-who"></b><span id="acct-plan"></span></p>
+    <button class="btn wide" id="acct-logout">Log out</button>
+  </div>
+  <button class="cancel" id="acct-cancel">Close</button>
+</div>
+
 <script>
   const FREE_PARK = 'magic-kingdom';
   // Crowd multiplier on current wait by hour (rope drop low, midday peak, last hour lowest).
@@ -156,7 +184,15 @@
   // once it's on, a valid pass token (purchased or dev code) unlocks Pro.
   let isPro = false;
   const passToken = () => localStorage.getItem('pp-pass') || '';
-  const api = (path, opts = {}) => fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...(passToken() && { 'x-pass': passToken() }) } });
+  const sessionToken = () => localStorage.getItem('pp-session') || '';
+  const api = (path, opts = {}) => fetch(path, {
+    ...opts,
+    headers: {
+      ...(opts.headers || {}),
+      ...(passToken() && { 'x-pass': passToken() }),
+      ...(sessionToken() && { 'x-session': sessionToken() }),
+    },
+  });
   const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
   const myAlerts = JSON.parse(localStorage.getItem('pp-alerts') || '{}'); // rideName -> threshold
   const pickedNames = new Set();
@@ -260,7 +296,7 @@
       const code = prompt('Enter your pass code:');
       if (!code) return;
       try {
-        const res = await fetch('/api/pass/redeem', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) });
+        const res = await api('/api/pass/redeem', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) });
         const data = await res.json();
         if (!res.ok) throw new Error();
         localStorage.setItem('pp-pass', data.token);
@@ -501,8 +537,93 @@
     renderRides();
   });
   $('build').addEventListener('click', buildPlan);
-  $('sheet-bg').addEventListener('click', closeSheet);
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
   $('sheet-cancel').addEventListener('click', closeSheet);
+
+  // --- Account sheet ---
+  let acctMode = 'login';
+
+  function planLabel(plan, exp) {
+    if (!plan) return 'Free plan';
+    const until = new Date(exp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const names = { 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer' };
+    return `${names[plan] || plan} · active until ${until}`;
+  }
+
+  function openAcct() {
+    const email = localStorage.getItem('pp-email');
+    $('acct-logged-out').style.display = email ? 'none' : 'block';
+    $('acct-logged-in').style.display = email ? 'block' : 'none';
+    if (email) {
+      $('acct-who').textContent = email;
+      $('acct-plan').textContent = planLabel(localStorage.getItem('pp-plan'), Number(localStorage.getItem('pp-plan-exp')));
+    }
+    $('acct-err').textContent = '';
+    $('acct-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  }
+
+  function closeAcct() {
+    $('acct-sheet').classList.remove('open');
+    if (!$('sheet').classList.contains('open')) $('sheet-bg').classList.remove('open');
+  }
+
+  function applyAuth(data) {
+    localStorage.setItem('pp-session', data.session ?? sessionToken());
+    localStorage.setItem('pp-email', data.email);
+    if (data.plan) {
+      localStorage.setItem('pp-plan', data.plan);
+      localStorage.setItem('pp-plan-exp', String(data.exp));
+    } else {
+      localStorage.removeItem('pp-plan');
+      localStorage.removeItem('pp-plan-exp');
+    }
+    if (data.passToken) {
+      localStorage.setItem('pp-pass', data.passToken);
+      isPro = true;
+    }
+  }
+
+  $('acct-btn').addEventListener('click', openAcct);
+  $('acct-cancel').addEventListener('click', closeAcct);
+  $('acct-toggle').addEventListener('click', () => {
+    acctMode = acctMode === 'login' ? 'signup' : 'login';
+    $('acct-title').textContent = acctMode === 'login' ? 'Log in' : 'Create account';
+    $('acct-submit').textContent = acctMode === 'login' ? 'Log in' : 'Create account';
+    $('acct-switch').firstChild.textContent = acctMode === 'login' ? 'New here? ' : 'Already have an account? ';
+    $('acct-toggle').textContent = acctMode === 'login' ? 'Create an account' : 'Log in';
+    $('acct-pw').autocomplete = acctMode === 'login' ? 'current-password' : 'new-password';
+    $('acct-err').textContent = '';
+  });
+
+  $('acct-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('acct-err').textContent = '';
+    $('acct-submit').disabled = true;
+    try {
+      const res = await api(`/api/auth/${acctMode}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value }),
+      });
+      const data = await res.json();
+      if (!res.ok) { $('acct-err').textContent = data.error || 'Something went wrong.'; return; }
+      applyAuth(data);
+      $('acct-pw').value = '';
+      closeAcct();
+      load();
+    } catch {
+      $('acct-err').textContent = 'Connection trouble — try again.';
+    } finally {
+      $('acct-submit').disabled = false;
+    }
+  });
+
+  $('acct-logout').addEventListener('click', () => {
+    ['pp-session', 'pp-email', 'pp-plan', 'pp-plan-exp', 'pp-pass'].forEach((k) => localStorage.removeItem(k));
+    closeAcct();
+    location.reload(); // re-resolve access from a clean slate
+  });
   $('dest').addEventListener('change', (e) => {
     dest = e.target.value;
     const first = Object.entries(parks).find(([, p]) => p.group === dest);
@@ -524,9 +645,20 @@
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;
       pushKey = c.pushKey || '';
+      if (sessionToken()) {
+        // Refresh account state; re-issues the pass token if the account has one.
+        try {
+          const meRes = await api('/api/auth/me');
+          if (meRes.status === 401) {
+            ['pp-session', 'pp-email', 'pp-plan', 'pp-plan-exp'].forEach((k) => localStorage.removeItem(k));
+          } else if (meRes.ok) {
+            applyAuth(await meRes.json());
+          }
+        } catch {}
+      }
       if (!c.proGate) {
         isPro = true;
-      } else if (passToken()) {
+      } else if (!isPro && passToken()) {
         try {
           const v = await (await api('/api/pass/verify')).json();
           isPro = Boolean(v.valid);
@@ -544,5 +676,6 @@
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
   setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);
 
+  if (location.hash === '#account') setTimeout(openAcct, 100);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 </script>
