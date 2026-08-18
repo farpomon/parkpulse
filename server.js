@@ -425,7 +425,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
     let body = '';
-    req.on('data', (chunk) => { body += chunk; if (body.length > 8192) req.destroy(); });
+    req.on('data', (chunk) => { body += chunk; if (body.length > 65536) req.destroy(); });
     req.on('end', async () => {
       let parsed;
       try { parsed = JSON.parse(body || '{}'); } catch { return sendJson(res, 400, { error: 'bad request' }); }

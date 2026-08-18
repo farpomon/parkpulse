@@ -132,21 +132,22 @@ async function runTool(block, ctx) {
     if (block.name === 'set_alert') {
       const park = deps.parks[input.park];
       const threshold = Math.round(Number(input.threshold));
-      if (!park || typeof input.ride !== 'string' || !Number.isFinite(threshold) || threshold < 5 || threshold > 240) {
+      const ride = typeof input.ride === 'string' ? input.ride.slice(0, 120) : null;
+      if (!park || !ride || !Number.isFinite(threshold) || threshold < 5 || threshold > 240) {
         return { text: 'Invalid alert parameters (need a valid park slug, exact ride name, and a threshold of 5-240 minutes).', isError: true };
       }
       if (!ctx.subscription) {
         return { text: 'The user has not enabled push notifications on this device, so no alert can be created. Tell them to tap the bell icon next to the ride to enable notifications first.', isError: true };
       }
-      deps.createAlert(ctx.subscription, park.slug, input.ride.slice(0, 120), threshold);
-      ctx.actions.push({ type: 'alert', park: park.slug, ride: input.ride, threshold });
-      return { text: `Alert created: the user will get a push notification when ${input.ride} drops to ${threshold} minutes or less.` };
+      deps.createAlert(ctx.subscription, park.slug, ride, threshold);
+      ctx.send('action', { type: 'alert', park: park.slug, ride, threshold });
+      return { text: `Alert created: the user will get a push notification when ${ride} drops to ${threshold} minutes or less.` };
     }
     if (block.name === 'propose_plan') {
       const park = deps.parks[input.park];
       const rides = Array.isArray(input.rides) ? input.rides.filter((r) => typeof r === 'string').slice(0, 20) : [];
       if (!park || !rides.length) return { text: 'Invalid plan (need a valid park slug and at least one ride name).', isError: true };
-      ctx.actions.push({ type: 'plan', park: park.slug, rides });
+      ctx.send('action', { type: 'plan', park: park.slug, rides });
       return { text: 'Plan sent to the app — the user now sees an Apply button for it. Briefly summarize the plan and the reasoning in your reply.' };
     }
     return { text: `Unknown tool ${block.name}.`, isError: true };
@@ -165,7 +166,10 @@ function validateMessages(messages) {
     if (!content) return null;
     clean.push({ role: m.role, content });
   }
-  if (clean[clean.length - 1].role !== 'user') return null;
+  // A client-trimmed window can start mid-conversation on an assistant turn;
+  // the API requires the first message to be from the user, so drop leaders.
+  while (clean.length && clean[0].role !== 'user') clean.shift();
+  if (!clean.length || clean[clean.length - 1].role !== 'user') return null;
   return clean;
 }
 
@@ -210,7 +214,11 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
       content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription })}\n</user_context>\n\n${last.content}`,
     },
   ];
-  const ctx = { subscription, actions: [] };
+  // Actions are emitted the moment their side effect happens, so a later
+  // turn failing (or the client disconnecting) can't orphan a created alert.
+  const ctx = { subscription, send };
+  let emittedText = false;
+  let turnEmitted = false;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const stream = client.beta.messages.stream({
@@ -224,8 +232,12 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
       messages: convo,
     });
 
+    turnEmitted = false;
     for await (const ev of stream) {
       if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta' && ev.delta.text) {
+        if (!turnEmitted && emittedText) send('delta', { text: '\n\n' }); // separate pre-tool preamble from post-tool answer
+        turnEmitted = true;
+        emittedText = true;
         send('delta', { text: ev.delta.text });
       }
     }
@@ -252,7 +264,6 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     break; // end_turn / max_tokens
   }
 
-  for (const action of ctx.actions) send('action', action);
   send('done', {});
 }
 

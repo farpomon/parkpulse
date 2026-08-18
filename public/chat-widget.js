@@ -55,6 +55,22 @@
     }
   `;
 
+  // Trim the outgoing history window: newest messages first, capped by count
+  // and total characters (the server rejects oversized bodies), and always
+  // starting on a user turn (the API requires it).
+  function historyWindow() {
+    const out = [];
+    let chars = 0;
+    for (let i = state.history.length - 1; i >= 0 && out.length < 12; i--) {
+      const m = state.history[i];
+      if (chars + m.content.length > 9000 && out.length) break;
+      out.unshift(m);
+      chars += m.content.length;
+    }
+    while (out.length && out[0].role !== 'user') out.shift();
+    return out;
+  }
+
   const authHeaders = () => {
     const h = { 'content-type': 'application/json' };
     const pass = localStorage.getItem('pp-pass');
@@ -166,7 +182,7 @@
       const res = await fetch('/api/consultant', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ park: state.opts.getPark(), messages: state.history.slice(-12), ...context }),
+        body: JSON.stringify({ park: state.opts.getPark(), messages: historyWindow(), ...context }),
       });
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         const data = await res.json().catch(() => ({}));
@@ -199,6 +215,15 @@
       }
       if (streamError && !replyText) throw new Error(streamError);
       if (!replyText) throw new Error('empty reply');
+      if (streamError) {
+        // Partial reply then a mid-stream failure: show it honestly and do
+        // not save the dangling half-answer as conversation context.
+        out.textContent = replyText + '\n\n⚠️ ' + streamError;
+        state.history.pop();
+        saveHistory();
+        actions.forEach(renderAction); // actions already happened server-side
+        return;
+      }
       state.history.push({ role: 'assistant', content: replyText });
       saveHistory();
       actions.forEach(renderAction);
