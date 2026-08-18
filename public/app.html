@@ -70,19 +70,6 @@
   .sheet .switch a { color: var(--brand); cursor: pointer; }
   .acct-status { font-size: .95rem; margin-bottom: 1rem; }
   .acct-status b { display: block; }
-  #chat-sheet { display: none; flex-direction: column; height: 78vh; padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
-  #chat-sheet.open { display: flex; }
-  .chat-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
-  .chat-head h3 { margin: 0; font-size: 1.05rem; }
-  .chat-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .6rem; padding: .25rem 0 .75rem; }
-  .bubble { max-width: 85%; border-radius: 14px; padding: .6rem .9rem; font-size: .93rem; line-height: 1.45; white-space: pre-wrap; }
-  .bubble.user { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 4px; }
-  .bubble.bot { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-  .bubble.typing { color: var(--muted); font-style: italic; }
-  .chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-bottom: .5rem; }
-  .chips button { border: 1px solid var(--border); background: var(--bg); color: var(--brand); border-radius: 999px; padding: .4rem .8rem; font-size: .82rem; font-weight: 600; cursor: pointer; }
-  .chat-input { display: flex; gap: .5rem; }
-  .chat-input input { flex: 1; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 12px; padding: .65rem .9rem; font-size: 1rem; }
   .wait { font-weight: 800; border-radius: 9px; padding: .3rem .55rem; min-width: 3.9rem; text-align: center; font-size: .9rem; flex-shrink: 0; }
   .wait.low { background: var(--green-soft); color: var(--green); }
   .wait.mid { background: var(--gold-soft); color: var(--gold); }
@@ -119,7 +106,6 @@
       <span class="right">
         <span class="updated" id="updated"></span>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
-        <button class="iconbtn" id="chat-btn" title="Ask the consultant" aria-label="Ask the consultant" style="display:none">💬</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
       </span>
     </div>
@@ -183,24 +169,8 @@
   <button class="cancel" id="acct-cancel">Close</button>
 </div>
 
-<div class="sheet" id="chat-sheet">
-  <div class="chat-head">
-    <h3>💬 Park Consultant</h3>
-    <button class="cancel" id="chat-close" style="width:auto;margin:0">Close</button>
-  </div>
-  <div class="chat-msgs" id="chat-msgs"></div>
-  <div class="chips" id="chat-chips">
-    <button data-q="Is it worth buying line-skipping passes here today?">Worth buying today?</button>
-    <button data-q="What's the smartest plan for the rest of my day here?">Plan my day</button>
-    <button data-q="How do I do this park well without paying for any passes?">Do it free</button>
-  </div>
-  <form class="chat-input" id="chat-form">
-    <input type="text" id="chat-text" placeholder="Ask about passes, plans, strategy…" autocomplete="off" maxlength="500">
-    <button class="btn" type="submit">Send</button>
-  </form>
-</div>
-
 <script>
+  window.PP_CHAT_MANUAL = true;
   const FREE_PARK = 'magic-kingdom';
   // Crowd multiplier on current wait by hour (rope drop low, midday peak, last hour lowest).
   const HOURLY = { 7: .45, 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35, 23: .3 };
@@ -569,7 +539,7 @@
     renderRides();
   });
   $('build').addEventListener('click', buildPlan);
-  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); closeChat(); });
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
   $('sheet-cancel').addEventListener('click', closeSheet);
 
   // --- Account sheet ---
@@ -616,37 +586,6 @@
     }
   }
 
-  // --- Consultant chat ---
-  const chatHistory = [];
-  let chatBusy = false;
-  let consultantOn = false;
-
-  function chatBubble(role, text) {
-    const div = document.createElement('div');
-    div.className = `bubble ${role}`;
-    div.textContent = text;
-    $('chat-msgs').appendChild(div);
-    $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
-    return div;
-  }
-
-  function openChat() {
-    if (!isPro) { showUpsell(); return; }
-    $('chat-sheet').classList.add('open');
-    $('sheet-bg').classList.add('open');
-    if (!chatHistory.length && !$('chat-msgs').children.length) {
-      chatBubble('bot', `Hi! I'm your park consultant. I can see today's waits at ${parks[current]?.name || 'the park'} — ask me whether Lightning Lane or Express Pass is worth it, or how to plan your day.`);
-    }
-    $('chat-text').focus();
-  }
-
-  function closeChat() {
-    $('chat-sheet').classList.remove('open');
-    if (!$('sheet').classList.contains('open') && !$('acct-sheet').classList.contains('open')) {
-      $('sheet-bg').classList.remove('open');
-    }
-  }
-
   async function pushSubscriptionOrNull() {
     try {
       if (!('serviceWorker' in navigator)) return null;
@@ -667,112 +606,8 @@
     for (const name of action.rides) if (known.has(name)) pickedNames.add(name);
     renderRides();
     updatePlanbar();
-    closeChat();
   }
 
-  function renderAction(action) {
-    if (action.type === 'alert') {
-      myAlerts[action.ride] = action.threshold;
-      saveAlerts();
-      renderRides();
-      chatBubble('bot', `🔔 Alert set: ${action.ride} under ${action.threshold} min.`);
-    } else if (action.type === 'plan') {
-      const div = document.createElement('div');
-      div.className = 'bubble bot';
-      div.textContent = `🧭 Plan ready: ${action.rides.join(', ')} `;
-      const btn = document.createElement('button');
-      btn.className = 'btn';
-      btn.style.cssText = 'display:block;margin-top:.5rem;font-size:.85rem;padding:.45rem 1rem';
-      btn.textContent = 'Apply to plan builder';
-      btn.addEventListener('click', () => applyPlan(action));
-      div.appendChild(btn);
-      $('chat-msgs').appendChild(div);
-      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
-    }
-  }
-
-  async function sendChat(text) {
-    if (chatBusy || !text.trim()) return;
-    chatBusy = true;
-    $('chat-chips').style.display = 'none';
-    chatBubble('user', text);
-    chatHistory.push({ role: 'user', content: text });
-    const bubble = chatBubble('bot', 'Thinking…');
-    bubble.classList.add('typing');
-    let replyText = '';
-    const appendDelta = (t) => {
-      if (!replyText) { bubble.classList.remove('typing'); bubble.textContent = ''; }
-      replyText += t;
-      bubble.textContent = replyText;
-      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
-    };
-    try {
-      const res = await api('/api/consultant', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          park: current,
-          messages: chatHistory.slice(-12),
-          favorites: [...favs],
-          planPicks: [...pickedNames],
-          subscription: await pushSubscriptionOrNull(),
-        }),
-      });
-      if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'error');
-      }
-      // Parse the SSE stream: delta / action / error / done events.
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-      let streamError = null;
-      const pendingActions = [];
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buf.indexOf('\n\n')) !== -1) {
-          const frame = buf.slice(0, idx);
-          buf = buf.slice(idx + 2);
-          let event = 'message', data = '';
-          for (const line of frame.split('\n')) {
-            if (line.startsWith('event: ')) event = line.slice(7);
-            else if (line.startsWith('data: ')) data += line.slice(6);
-          }
-          if (!data) continue;
-          const payload = JSON.parse(data);
-          if (event === 'delta' && payload.text) appendDelta(payload.text);
-          else if (event === 'action') pendingActions.push(payload);
-          else if (event === 'error') streamError = payload.error;
-        }
-      }
-      if (streamError && !replyText) throw new Error(streamError);
-      if (!replyText) throw new Error('empty reply');
-      chatHistory.push({ role: 'assistant', content: replyText });
-      pendingActions.forEach(renderAction);
-    } catch (e) {
-      bubble.classList.remove('typing');
-      bubble.textContent = (e.message && e.message.length < 120 && e.message !== 'empty reply')
-        ? e.message
-        : 'The consultant is having a moment — try again shortly.';
-      chatHistory.pop(); // let them resend
-    } finally {
-      chatBusy = false;
-      $('chat-msgs').scrollTop = $('chat-msgs').scrollHeight;
-    }
-  }
-
-  $('chat-btn').addEventListener('click', openChat);
-  $('chat-close').addEventListener('click', closeChat);
-  $('chat-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const text = $('chat-text').value;
-    $('chat-text').value = '';
-    sendChat(text);
-  });
-  $('chat-chips').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => sendChat(b.dataset.q)));
 
   $('acct-btn').addEventListener('click', openAcct);
   $('acct-cancel').addEventListener('click', closeAcct);
@@ -847,8 +682,16 @@
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;
       pushKey = c.pushKey || '';
-      consultantOn = Boolean(c.consultant);
-      $('chat-btn').style.display = consultantOn ? '' : 'none';
+      ParkPulseChat.init({
+        enabled: Boolean(c.consultant),
+        getPark: () => current,
+        getParkName: () => parks[current]?.name,
+        getContext: async () => ({ favorites: [...favs], planPicks: [...pickedNames], subscription: await pushSubscriptionOrNull() }),
+        onPlan: async (action) => { await applyPlan(action); document.getElementById('ppc-panel')?.classList.remove('ppc-open'); },
+        onAlert: (action) => { myAlerts[action.ride] = action.threshold; saveAlerts(); renderRides(); },
+        requireAccess: () => { if (isPro) return true; showUpsell(); return false; },
+        offsetBottom: '5.2rem',
+      });
       if (sessionToken()) {
         // Refresh account state; re-issues the pass token if the account has one.
         try {
@@ -883,3 +726,4 @@
   if (location.hash === '#account') setTimeout(openAcct, 100);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 </script>
+<script src="/chat-widget.js"></script>

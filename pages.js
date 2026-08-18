@@ -86,7 +86,7 @@ ${passStrategy(park)}
 </ul></div>
 <h2>More parks</h2><p>${others}</p>
 <footer>Unofficial fan guide &mdash; not affiliated with the park operators. Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/guide">Free strategy guide</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
-</div></body></html>`;
+</div><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
 }
 
 const renderSitemap = (origin, slugs) => `<?xml version="1.0" encoding="UTF-8"?>
