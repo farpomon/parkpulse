@@ -84,6 +84,16 @@ is re-billed), server-side refusal fallbacks enabled, and a 30-messages-per-
 throttle caps worst-case spend near $1/user/day — comfortably inside the
 Trip Pass margin.
 
+The consultant is a persistent advisor for logged-in users: a `remember`
+tool lets it save durable trip notes (dates, party, budget, constraints) to
+the account, which are injected into every future conversation; the
+conversation itself is saved server-side (`/api/advisor/history`) so the
+chat follows the account across devices; and every reply carries 👍/👎
+feedback buttons whose votes land in SQLite and surface in `/api/stats`
+(dev pass) as `advisorFeedback30d` — your quality signal for prompt tuning.
+Anonymous users still get the full advisor, minus memory and cross-device
+history.
+
 ### Wait-drop alerts
 
 Tap the 🔔 on any ride (Pro) and pick a threshold; the server checks live waits

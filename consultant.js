@@ -55,8 +55,10 @@ YOUR TOOLS:
 - get_waits: live waits, hours, show, and local time for any covered park. Use it whenever the user asks about a park other than the one in their live data, or wants a comparison. Never guess another park's waits.
 - set_alert: creates a real wait-drop push alert on the user's device. Use it when they ask to be told when a ride's wait drops. If it fails because notifications are off, tell them to tap the bell icon on the ride instead.
 - propose_plan: sends a concrete ride plan to the app with a one-tap Apply button. Use it when you've settled on a set of rides for the park the user is viewing; ride names must exactly match the wait data. Still summarize the plan briefly in words.
+- remember: saves durable notes about this traveler (trip dates, party size and ages, hotel, budget, must-dos, constraints) so future conversations start already informed. Works only for logged-in users. Use it quietly whenever a lasting trip fact comes up — no need to announce it beyond a brief aside.
 
 ADVICE STYLE:
+- You are a continuing advisor, not a one-off chatbot. If saved traveler notes are provided, use them — greet returning context naturally ("since you're going with two kids under 8…") instead of re-asking. When the user shares new durable facts, update your notes with remember.
 - Use the live data provided or fetched. If today's waits are short, say so and tell them to keep their money. Recommending "don't buy" builds trust.
 - Be concrete: name rides, name times, name dollar amounts and the per-person math for their party size. Ask party size if it matters and they haven't said.
 - The user's local park time is in the live data — anchor "rest of the day" advice to it.
@@ -101,6 +103,17 @@ const TOOL_DEFS = [
         rides: { type: 'array', items: { type: 'string' }, description: 'Exact ride names, in no particular order' },
       },
       required: ['park', 'rides'],
+    },
+  },
+  {
+    name: 'remember',
+    description: "Save durable notes about this traveler for future conversations: trip dates, party size and ages, hotel, budget, must-do rides, height or mobility constraints, preferences. The notes REPLACE all previously saved notes, so restate the still-true old facts along with the new ones. Only works when the user is logged in; if it errors, briefly suggest a free ParkPulse account so you can remember their trip.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        notes: { type: 'string', description: 'Complete, compact traveler notes (facts only, no advice), max ~1200 characters' },
+      },
+      required: ['notes'],
     },
   },
 ];
@@ -150,6 +163,16 @@ async function runTool(block, ctx) {
       ctx.send('action', { type: 'plan', park: park.slug, rides });
       return { text: 'Plan sent to the app — the user now sees an Apply button for it. Briefly summarize the plan and the reasoning in your reply.' };
     }
+    if (block.name === 'remember') {
+      const notes = typeof input.notes === 'string' ? input.notes.trim().slice(0, 1200) : '';
+      if (!notes) return { text: 'Invalid notes (need a non-empty string).', isError: true };
+      if (!ctx.email) {
+        return { text: 'The user is not logged in, so nothing can be saved. Briefly suggest creating a free ParkPulse account (the 👤 button in the app) so you can remember their trip.', isError: true };
+      }
+      deps.saveMemory(ctx.email, notes);
+      ctx.send('action', { type: 'memory' });
+      return { text: 'Traveler notes saved — future conversations will start with them.' };
+    }
     return { text: `Unknown tool ${block.name}.`, isError: true };
   } catch (err) {
     return { text: `Tool failed: ${err.message}`, isError: true };
@@ -173,12 +196,14 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, planPicks, subscription }) {
+function userContextBlock({ favorites, planPicks, subscription, email, memory }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const lines = [];
+  if (memory) lines.push(`Saved traveler notes from earlier conversations (kept current via your remember tool):\n${memory}`);
   if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}`);
   if (picks.length) lines.push(`Rides currently checked in their plan builder: ${picks.join(', ')}`);
+  lines.push(`Logged in: ${email ? 'yes (remember will work)' : 'no (remember will fail)'}`);
   lines.push(`Push notifications on this device: ${subscription ? 'enabled (set_alert will work)' : 'not enabled (set_alert will fail)'}`);
   return lines.join('\n');
 }
@@ -199,7 +224,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, planPicks, subscription, send }) {
+async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, send }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -211,12 +236,12 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     ...clean.slice(0, -1),
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription })}\n</user_context>\n\n${last.content}`,
+      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory })}\n</user_context>\n\n${last.content}`,
     },
   ];
   // Actions are emitted the moment their side effect happens, so a later
   // turn failing (or the client disconnecting) can't orphan a created alert.
-  const ctx = { subscription, send };
+  const ctx = { subscription, email: email || null, send };
   let emittedText = false;
   let turnEmitted = false;
 

@@ -39,6 +39,11 @@
     .ppc-bubble a { color: #7b5fe0; font-weight: 700; }
     .ppc-bubble button { display: block; margin-top: .5rem; border: none; border-radius: 9px; padding: .45rem .9rem;
       background: #4f3ac9; color: #fff; font-weight: 700; font-size: .85rem; cursor: pointer; }
+    .ppc-fb { display: flex; gap: .35rem; align-self: flex-start; margin: -.25rem 0 0 .25rem; }
+    .ppc-fb button { border: 1px solid var(--ppc-border); background: var(--ppc-bg); border-radius: 999px;
+      padding: .15rem .55rem; font-size: .8rem; cursor: pointer; opacity: .75; }
+    .ppc-fb button:hover { opacity: 1; }
+    .ppc-fb span { color: var(--ppc-muted); font-size: .75rem; align-self: center; }
     #ppc-chips { display: flex; gap: .4rem; flex-wrap: wrap; padding: 0 .85rem .5rem; }
     #ppc-chips button { border: 1px solid var(--ppc-border); background: var(--ppc-bg); color: #7b5fe0;
       border-radius: 999px; padding: .35rem .75rem; font-size: .8rem; font-weight: 600; cursor: pointer; }
@@ -140,8 +145,36 @@
     $id('ppc-input').focus();
   }
 
+  // Thumbs under a finished reply. A vote stores the reply text (as quality
+  // context) server-side and the row collapses to a thank-you.
+  function feedbackRow(replyText) {
+    const row = document.createElement('div');
+    row.className = 'ppc-fb';
+    for (const vote of ['up', 'down']) {
+      const b = document.createElement('button');
+      b.textContent = vote === 'up' ? '👍' : '👎';
+      b.setAttribute('aria-label', vote === 'up' ? 'Helpful' : 'Not helpful');
+      b.addEventListener('click', () => {
+        fetch('/api/advisor/feedback', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ vote, park: state.opts.getPark(), message: replyText.slice(0, 500) }),
+        }).catch(() => {});
+        row.innerHTML = '';
+        const s = document.createElement('span');
+        s.textContent = vote === 'up' ? 'Thanks!' : "Thanks — I'll do better.";
+        row.appendChild(s);
+      });
+      row.appendChild(b);
+    }
+    msgs.appendChild(row);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
   function renderAction(action) {
-    if (action.type === 'alert' && state.opts.onAlert) {
+    if (action.type === 'memory') {
+      bubble('bot', "📝 Noted — I'll remember that for next time.");
+    } else if (action.type === 'alert' && state.opts.onAlert) {
       state.opts.onAlert(action);
       bubble('bot', `🔔 Alert set: ${action.ride} under ${action.threshold} min.`);
     } else if (action.type === 'plan') {
@@ -227,6 +260,7 @@
       state.history.push({ role: 'assistant', content: replyText });
       saveHistory();
       actions.forEach(renderAction);
+      feedbackRow(replyText);
     } catch (e) {
       out.classList.remove('ppc-typing');
       out.textContent = (e.message && e.message.length < 130 && e.message !== 'empty reply')
@@ -252,6 +286,17 @@
     };
     if (!document.body) await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
     mount();
+    // Logged-in users get their saved conversation back on any device; the
+    // tab's own sessionStorage history (if any) is fresher, so it wins.
+    if (!state.history.length && localStorage.getItem('pp-session')) {
+      try {
+        const r = await fetch('/api/advisor/history', { headers: authHeaders() });
+        if (r.ok) {
+          const d = await r.json();
+          if (Array.isArray(d.messages) && d.messages.length) { state.history = d.messages.slice(-24); saveHistory(); }
+        }
+      } catch {}
+    }
     if (state.opts.offsetBottom) $id('ppc-fab').style.bottom = `calc(${state.opts.offsetBottom} + env(safe-area-inset-bottom))`;
     let enabled = opts.enabled;
     if (enabled === undefined) {

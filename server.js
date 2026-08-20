@@ -118,6 +118,15 @@ function forgotBlocked(key) {
   return f.n > 3;
 }
 
+// Feedback flood damper: 30 votes per IP per hour.
+const feedbackHits = new Map();
+function feedbackBlocked(key) {
+  const f = feedbackHits.get(key);
+  if (!f || Date.now() > f.resetAt) { feedbackHits.set(key, { n: 1, resetAt: Date.now() + 3600000 }); return false; }
+  f.n += 1;
+  return f.n > 30;
+}
+
 // Brute-force damper: 5 failed logins per email per 15 minutes.
 const loginFails = new Map();
 function loginBlocked(email) {
@@ -355,6 +364,7 @@ consultant.init({
   parks: PARKS,
   getWaits,
   createAlert: (subscription, park, ride, threshold) => db.alerts.add(subscription, park, ride, threshold),
+  saveMemory: (email, notes) => db.advisor.setMemory(email, notes),
 });
 
 const server = http.createServer(async (req, res) => {
@@ -388,6 +398,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // The advisor's saved conversation for the logged-in account, so the chat
+  // widget can restore it on any device.
+  if (url.pathname === '/api/advisor/history') {
+    const s = sessionUser(req);
+    if (!s) return sendJson(res, 401, { error: 'not logged in' });
+    let messages = [];
+    try { messages = JSON.parse(db.advisor.getChat(s.email) || '[]'); } catch {}
+    return sendJson(res, 200, { messages: Array.isArray(messages) ? messages : [] });
+  }
+
   // Aggregate page-view counting for HTML pages (a number per page per day —
   // no cookies, no identifiers). API and asset requests are not counted.
   if (req.method === 'GET' && /^\/(app|guide|welcome|reset|terms|privacy|parks\/[a-z-]+)?$/.test(url.pathname)) {
@@ -397,7 +417,7 @@ const server = http.createServer(async (req, res) => {
   // Traffic stats for the operator — requires a dev pass token.
   if (url.pathname === '/api/stats') {
     if (passFromReq(req)?.plan !== 'dev') return sendJson(res, 403, { error: 'dev pass required' });
-    return sendJson(res, 200, { totals30d: db.hits.totals(30), daily14d: db.hits.since(14) });
+    return sendJson(res, 200, { totals30d: db.hits.totals(30), daily14d: db.hits.since(14), advisorFeedback30d: db.advisor.feedbackSummary(30) });
   }
 
   // SEO surface: server-rendered park pages + sitemap + robots.
@@ -577,24 +597,55 @@ const server = http.createServer(async (req, res) => {
         }
         try {
           const waits = await getWaits(park);
+          const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-          const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          let replyText = '';
+          const send = (event, data) => {
+            if (event === 'delta' && data.text) replyText += data.text;
+            res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          };
+          let failed = false;
           try {
             await consultant.consult({
               park: PARKS[park], waits, messages, favorites, planPicks,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
+              email: s?.email || null,
+              memory: s ? db.advisor.getMemory(s.email) : null,
               send,
             });
           } catch (err) {
+            failed = true;
             console.log(`consultant error: ${err.message}`);
             send('error', { error: err.code === 'bad_request' ? 'invalid messages' : 'The consultant is having a moment — try again shortly.' });
+          }
+          // Persist the conversation for logged-in users so it follows the
+          // account across devices (mirrors the client's own history rules).
+          if (s && !failed && replyText) {
+            try {
+              const window = (Array.isArray(messages) ? messages : [])
+                .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+                .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
+              window.push({ role: 'assistant', content: replyText.slice(0, 4000) });
+              db.advisor.saveChat(s.email, JSON.stringify(window.slice(-24)));
+            } catch {}
           }
           return res.end();
         } catch (err) {
           console.log(`consultant error: ${err.message}`);
           return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
         }
+      }
+
+      if (url.pathname === '/api/advisor/feedback') {
+        const vote = parsed.vote === 'up' || parsed.vote === 'down' ? parsed.vote : null;
+        if (!vote) return sendJson(res, 400, { error: 'invalid vote' });
+        if (feedbackBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+        const s = sessionUser(req);
+        const park = typeof parsed.park === 'string' && PARKS[parsed.park] ? parsed.park : null;
+        const message = typeof parsed.message === 'string' ? parsed.message.slice(0, 500) : null;
+        db.advisor.addFeedback(s?.email || null, park, vote, message);
+        return sendJson(res, 200, { ok: true });
       }
 
       if (url.pathname === '/api/push/alerts') {

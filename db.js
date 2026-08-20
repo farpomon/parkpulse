@@ -62,6 +62,24 @@ db.exec(`
     n INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (day, path)
   );
+  CREATE TABLE IF NOT EXISTS advisor_memory (
+    email TEXT PRIMARY KEY,
+    notes TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS advisor_chats (
+    email TEXT PRIMARY KEY,
+    messages TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS advisor_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT,
+    park TEXT,
+    vote TEXT NOT NULL,
+    message TEXT,
+    at TEXT NOT NULL
+  );
 `);
 
 // --- Legacy flat-file import (runs once per empty table) ---------------------
@@ -177,6 +195,29 @@ const hits = {
     .all(new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)),
 };
 
+// Advisor state: per-account trip notes (the agent's `remember` tool), the
+// saved conversation, and reply feedback votes.
+const advisor = {
+  getMemory: (email) => db.prepare('SELECT notes FROM advisor_memory WHERE email = ?').get(email)?.notes ?? null,
+  setMemory: (email, notes) =>
+    db.prepare('INSERT INTO advisor_memory (email, notes, updated_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET notes = excluded.notes, updated_at = excluded.updated_at')
+      .run(email, notes, new Date().toISOString()),
+  getChat: (email) => db.prepare('SELECT messages FROM advisor_chats WHERE email = ?').get(email)?.messages ?? null,
+  saveChat: (email, messages) =>
+    db.prepare('INSERT INTO advisor_chats (email, messages, updated_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET messages = excluded.messages, updated_at = excluded.updated_at')
+      .run(email, messages, new Date().toISOString()),
+  addFeedback: (email, park, vote, message) =>
+    db.prepare('INSERT INTO advisor_feedback (email, park, vote, message, at) VALUES (?, ?, ?, ?, ?)')
+      .run(email ?? null, park ?? null, vote, message ?? null, new Date().toISOString()),
+  feedbackSummary: (days) => {
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    return {
+      votes: db.prepare('SELECT vote, COUNT(*) AS n FROM advisor_feedback WHERE at >= ? GROUP BY vote').all(since),
+      recentDown: db.prepare("SELECT park, message, at FROM advisor_feedback WHERE vote = 'down' AND at >= ? ORDER BY id DESC LIMIT 10").all(since),
+    };
+  },
+};
+
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, hits, DB_FILE };
+module.exports = { kv, users, alerts, passes, leads, hits, advisor, DB_FILE };
