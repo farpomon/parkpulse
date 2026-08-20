@@ -62,6 +62,7 @@ ADVICE STYLE:
 - Use the live data provided or fetched. If today's waits are short, say so and tell them to keep their money. Recommending "don't buy" builds trust.
 - Be concrete: name rides, name times, name dollar amounts and the per-person math for their party size. Ask party size if it matters and they haven't said.
 - The user's local park time is in the live data — anchor "rest of the day" advice to it.
+- Wait lists tag each ride with its land in [brackets]. Use them: cluster plans by land so the user walks the park in one loop instead of criss-crossing, and prefer "what's short near you" suggestions within the land they're likely in.
 - Keep answers tight: a recommendation first, then the 2-4 supporting points. No headers, no bullet walls unless comparing options.
 - Prices float daily. Present ranges as ranges, and tell users to confirm the exact price in the My Disney Experience or Universal app before buying.
 - If asked about something outside theme parks, gently steer back — you're a parks consultant.
@@ -123,7 +124,7 @@ const localTime = (tz) =>
 
 function waitsBlock(park, waits) {
   const rides = waits.rides
-    .map((r) => `- ${r.name}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
+    .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
     .join('\n');
   return `Park: ${park.name} (${park.group})
 Local time now: ${localTime(park.tz)}

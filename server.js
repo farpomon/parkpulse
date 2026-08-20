@@ -318,13 +318,18 @@ async function getWaits(slug) {
     });
     if (!res.ok) throw new Error(`upstream ${res.status}`);
     const json = await res.json();
-    const rides = [...(json.lands || []).flatMap((l) => l.rides || []), ...(json.rides || [])];
+    // Keep each ride's land (park area) — it drives land-clustered plans and
+    // geographically sane advisor advice.
+    const rides = [
+      ...(json.lands || []).flatMap((l) => (l.rides || []).map((r) => ({ ...r, land: l.name || null }))),
+      ...(json.rides || []).map((r) => ({ ...r, land: null })),
+    ];
     const data = {
       park: park.name,
       source: 'live',
       attribution: 'Powered by Queue-Times.com',
       updatedAt: new Date().toISOString(),
-      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, typical: typicalFor(slug, r.name) })),
+      rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, land: r.land, typical: typicalFor(slug, r.name) })),
     };
     waitsCache.set(slug, { at: Date.now(), data });
     return data;
@@ -337,7 +342,7 @@ async function getWaits(slug) {
       source: 'sample',
       attribution: 'Typical waits shown — live feed unavailable',
       updatedAt: new Date().toISOString(),
-      rides: SAMPLE[slug].rides.map((r) => ({ ...r, typical: r.wait })),
+      rides: SAMPLE[slug].rides.map((r) => ({ ...r, land: null, typical: r.wait })),
     };
   }
 }

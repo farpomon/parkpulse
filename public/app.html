@@ -79,6 +79,8 @@
   @keyframes shimmer { to { background-position: -200% 0; } }
   .state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
   .btn { border: none; border-radius: 12px; padding: .65rem 1.3rem; font-weight: 700; font-size: .95rem; cursor: pointer; background: var(--brand); color: #fff; }
+  .landhead { margin: 1.1rem 0 .3rem; font-size: .78rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+  #rides > .landhead:first-child { margin-top: .4rem; }
   .planbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); display: none; z-index: 20; }
   .planbar.visible { display: block; }
   .planbar .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .9rem; }
@@ -319,21 +321,42 @@
     );
   }
 
-  function renderRides() {
-    const list = visibleRides();
-    $('rides').classList.remove('skeleton');
-    if (!list.length) {
-      $('rides').innerHTML = `<div class="state">No rides match “${query}”.</div>`;
-      return;
-    }
-    $('rides').innerHTML = list.map((r) => `
+  function rideRow(r) {
+    return `
       <div class="ride">
         <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${r.name} to plan">
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
         <span class="mid"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' min' : 'Closed'}</span>
-      </div>`).join('');
+      </div>`;
+  }
+
+  function renderRides() {
+    $('rides').classList.remove('skeleton');
+    const searching = Boolean(query.trim());
+    const hasLands = rides.some((r) => r.land);
+    if (searching || !hasLands) {
+      const list = visibleRides();
+      if (!list.length) {
+        $('rides').innerHTML = `<div class="state">No rides match “${query}”.</div>`;
+        return;
+      }
+      $('rides').innerHTML = list.map(rideRow).join('');
+    } else {
+      // Group by land, in feed order (queue-times lists lands geographically),
+      // so "what's short near me" reads at a glance.
+      const lands = new Map();
+      for (const r of rides) {
+        const key = r.land || 'Elsewhere in the park';
+        if (!lands.has(key)) lands.set(key, []);
+        lands.get(key).push(r);
+      }
+      $('rides').innerHTML = [...lands.entries()].map(([land, list]) =>
+        `<div class="landhead">${land}</div>` +
+        [...list].sort((a, b) => (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
+      ).join('');
+    }
     $('rides').querySelectorAll('input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
       const name = decodeURIComponent(cb.dataset.name);
       cb.checked ? pickedNames.add(name) : pickedNames.delete(name);
@@ -434,6 +457,10 @@
     if (!remaining.length) return;
     const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
     let lunchDone = !$('lunch').checked;
+    // Land clustering: switching lands costs real walking time, so a slightly
+    // longer wait in the land you're already in usually beats crossing the park.
+    const LAND_WALK = 12;
+    let lastLand = null;
     const show = p.show;
     const attendShow = !!(show && $('show-cb').checked && end > show.hour);
     let showDone = !attendShow;
@@ -457,12 +484,22 @@
         mult *= 0.6; // crowds are at the show — the guide's 30-50% dip
         why = `Crowds are at ${show.name} — lines plummet`;
       }
-      const bestIdx = (mult <= 0.6)
-        ? remaining.reduce((m, r, i, arr) => (r.wait > arr[m].wait ? i : m), 0)
-        : remaining.reduce((m, r, i, arr) => (r.wait < arr[m].wait ? i : m), 0);
+      // Leaving a land that still has picked rides costs the walk out AND the
+      // walk back later — count both, or the plan zig-zags back for stragglers.
+      const switchCost = (r) => {
+        if (!lastLand || !r.land || r.land === lastLand) return 0;
+        const unfinished = remaining.some((o) => o !== r && o.land === lastLand);
+        return LAND_WALK + (unfinished ? LAND_WALK : 0);
+      };
+      // Low-crowd window: grab the biggest headliner (walk cost eats savings).
+      // Otherwise: shortest effective wait, where changing lands adds a walk.
+      const score = (r) => (mult <= 0.6 ? -(r.wait - switchCost(r)) : r.wait + switchCost(r));
+      const bestIdx = remaining.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
       const ride = remaining.splice(bestIdx, 1)[0];
+      const stayed = Boolean(ride.land && ride.land === lastLand);
+      lastLand = ride.land || lastLand;
       const predicted = Math.max(5, Math.round(ride.wait * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, why: why || (mult <= 0.6 ? 'Low-crowd window — headliner time' : mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds') });
+      steps.push({ time: t, ride, predicted, why: (why || (mult <= 0.6 ? 'Low-crowd window — headliner time' : mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds')) + (stayed ? ' · short walk, same land' : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
     if (!showDone && end > show.hour) {
@@ -475,7 +512,7 @@
       ${saved > 0 ? `<div class="savings">≈ ${saved} min less waiting than riding them all right now</div>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b> · ~${s.predicted} min wait<br>
+        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} min wait<br>
            <span class="why">${s.why}</span></span></div>`
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
