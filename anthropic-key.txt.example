@@ -1,0 +1,11 @@
+# Copy this file to anthropic-key.txt and paste your Anthropic API key on
+# its own line (it starts with sk-ant-). Lines starting with # are ignored.
+#
+#   cp anthropic-key.txt.example anthropic-key.txt
+#
+# anthropic-key.txt is gitignored ON PURPOSE — never commit a real key:
+# GitHub auto-revokes leaked Anthropic keys, and anyone with repo access
+# could spend on your account. This file works for LOCAL runs only; the
+# live Railway deployment reads the ANTHROPIC_API_KEY service variable.
+#
+# sk-ant-your-key-here

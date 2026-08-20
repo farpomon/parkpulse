@@ -8,6 +8,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const webpush = require('web-push');
+
+// Local-run convenience: if ANTHROPIC_API_KEY isn't set, read it from a
+// gitignored anthropic-key.txt next to this file (see the .example copy).
+// Must happen before consultant.js loads, which creates the client. The
+// live deployment should keep using the Railway ANTHROPIC_API_KEY variable.
+if (!process.env.ANTHROPIC_API_KEY) {
+  try {
+    const line = require('node:fs').readFileSync(require('node:path').join(__dirname, 'anthropic-key.txt'), 'utf8')
+      .split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
+    if (line) {
+      process.env.ANTHROPIC_API_KEY = line;
+      console.log('Anthropic key loaded from anthropic-key.txt');
+    }
+  } catch {}
+}
+
 const consultant = require('./consultant');
 const pages = require('./pages');
 const history = require('./history');

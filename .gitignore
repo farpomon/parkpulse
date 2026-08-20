@@ -8,3 +8,4 @@ data/*.db
 data/*.db-*
 node_modules/
 .env
+anthropic-key.txt
