@@ -61,6 +61,22 @@ where we have baseline data).
 | `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
 | `ANTHROPIC_API_KEY` | Enables the AI Park Consultant (💬 in the app). Unset = feature hidden entirely. |
 | `HISTORY_DIR` | Where wait-time history accumulates (default `data/history/`). **Point at the mounted volume in production** (e.g. `/data/history`) — this archive is the long-term moat. `HISTORY=off` disables collection. |
+| `APP_ENV` | `dev` marks a deployment as the dev environment: a red DEV badge in the app header, and robots.txt/sitemap block search indexing so the dev URL never competes with production in Google. Unset/anything else = production. |
+
+## Environments & branches
+
+Two Railway environments deploy from two long-lived branches:
+
+| Environment | Branch | `APP_ENV` | Purpose |
+|---|---|---|---|
+| **production** | `main` | unset | The live site. Deploys only when `dev` is merged into `main`. |
+| **dev** | `dev` | `dev` | Staging. Every push to `dev` deploys here for testing before release. |
+
+Workflow: feature work lands on `dev` → test on the dev URL → merge `dev`
+into `main` (`git checkout main && git merge dev && git push`) → production
+deploys. The dev environment should use its own `DB_FILE`/volume and its own
+`PASS_SECRET` so test accounts and passes never mix with production, and can
+run `HISTORY=off` to keep the history archive production-only.
 
 ### Wait-time history & measured baselines
 

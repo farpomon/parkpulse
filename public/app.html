@@ -744,6 +744,10 @@
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;
       pushKey = c.pushKey || '';
+      if (c.env === 'dev') {
+        document.querySelector('.logo').insertAdjacentHTML('beforeend',
+          ' <span style="font-size:.62rem;font-weight:800;letter-spacing:.08em;background:#e5484d;color:#fff;border-radius:6px;padding:.12rem .4rem;vertical-align:middle">DEV</span>');
+      }
       if (window.ParkPulseChat) ParkPulseChat.init({
         enabled: Boolean(c.consultant),
         getPark: () => current,

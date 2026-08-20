@@ -30,6 +30,10 @@ const history = require('./history');
 const db = require('./db');
 
 const PORT = process.env.PORT || 3000;
+// Environment tag: 'production' (default) or 'dev'. Dev deployments show a
+// DEV badge in the app and are hidden from search engines so the dev URL
+// never competes with production in Google.
+const APP_ENV = process.env.APP_ENV === 'dev' ? 'dev' : 'production';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DATA_DIR = path.join(__dirname, 'data');
 
@@ -393,6 +397,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {
+      env: APP_ENV,
       paymentLink: PAYMENT_LINK,
       proGate: PRO_GATE,
       checkout: CHECKOUT_ENABLED,
@@ -453,6 +458,9 @@ const server = http.createServer(async (req, res) => {
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
     const isMap = url.pathname === '/sitemap.xml';
     res.writeHead(200, { 'content-type': isMap ? 'application/xml' : 'text/plain', 'cache-control': 'public, max-age=86400' });
+    if (APP_ENV !== 'production') {
+      return res.end(isMap ? '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' : 'User-agent: *\nDisallow: /\n');
+    }
     return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug)) : pages.renderRobots(origin));
   }
 
