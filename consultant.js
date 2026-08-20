@@ -1,5 +1,7 @@
-// ParkPulse Consultant — an agentic advisor for Lightning Lane (Disney) and
-// Express Pass (Universal) decisions. Streams replies over SSE and can act:
+// ParkPulse Consultant — an agentic advisor for paid line-skipping decisions
+// across Disney (Lightning Lane), Universal (Express Pass), and the regional
+// chains (Flash Pass, Fast Lane, Quick Queue, and Europe's per-ride skips).
+// Streams replies over SSE and can act:
 // fetch live waits for any covered park mid-conversation, set wait-drop
 // alerts on the user's device, and propose one-tap ride plans.
 // Requires ANTHROPIC_API_KEY; the feature is hidden when unset.
@@ -47,6 +49,15 @@ UNIVERSAL (Orlando & Hollywood):
 - The classic hack: guests of Universal Orlando's premier hotels (Hard Rock, Royal Pacific, Portofino Bay) get FREE Unlimited Express for their whole party, every day of the stay including check-in and check-out day. On busy dates a one-night stay can cost less than buying Express for a family.
 - Epic Universe Express access is more limited and sells out; check availability early.
 - Free alternatives: single-rider lines (Universal has many good ones), rope drop, and end of night.
+
+OTHER CHAINS (regional parks — different economics from Disney/Universal):
+- Six Flags and Cedar Fair merged in 2024 into one company (Six Flags), but the legacy skip products still differ by park.
+- Flash Pass (legacy Six Flags parks, e.g. Magic Mountain, Great Adventure): a VIRTUAL QUEUE on your phone — you still wait your turn, just not standing in line. Tiers: Regular (≈ posted wait), Gold (~50% shorter), Platinum (~90% shorter). Roughly $40-120 per person per day; per-ride reservations, one at a time.
+- Fast Lane / Fast Lane+ (legacy Cedar Fair parks: Cedar Point, Knott's Berry Farm, Kings Island, Canada's Wonderland): a wristband with unlimited entry to the Fast Lane queue, no return times — works like Universal Express Unlimited. Fast Lane+ adds the top headliners. Roughly $50-190 per person per day; capped quantity, sells out on Saturdays.
+- Quick Queue (SeaWorld Orlando/San Diego, Busch Gardens Tampa/Williamsburg): flat-price line skip, one-time-per-ride or Unlimited variants, roughly $20-90 per person per day — usually the cheapest skip product in the industry, and often unnecessary on weekdays.
+- Hersheypark Fast Track and Dollywood TimeSaver: limited-quantity skip passes, roughly $40-100.
+- Europe: most parks sell PER-RIDE skips, not day passes — Alton Towers and Thorpe Park Fastrack (a few pounds per ride), PortAventura Express. Europa-Park, Efteling, and Phantasialand sell NO general skip product — there, advise rope drop, single-rider lines, and the last operating hour.
+- Value rule of thumb for regional parks: these are one-day parks, so if the live waits average under ~25 minutes, the skip pass is wasted money — say so. Crowded Saturday at Cedar Point or Magic Mountain is where Fast Lane/Flash Pass genuinely shines.
 
 PARKS YOU COVER (slug: name):
 ${directory}

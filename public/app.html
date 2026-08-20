@@ -278,7 +278,15 @@
   function renderTabs() {
     const groups = [...new Set(Object.values(parks).map((p) => p.group))];
     if (!dest || !groups.includes(dest)) dest = parks[current]?.group || groups[0];
-    $('dest').innerHTML = groups.map((g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`).join('');
+    // Destinations grouped by region so a long park list stays navigable.
+    const regionOf = {};
+    for (const p of Object.values(parks)) if (!(p.group in regionOf)) regionOf[p.group] = p.region || 'More parks';
+    const regions = [...new Set(Object.values(regionOf))];
+    $('dest').innerHTML = regions.map((reg) =>
+      `<optgroup label="${reg}">` +
+      groups.filter((g) => regionOf[g] === reg).map((g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`).join('') +
+      '</optgroup>'
+    ).join('');
     $('tabs').innerHTML = Object.entries(parks).filter(([, p]) => p.group === dest).map(([slug, p]) =>
       `<button role="tab" data-slug="${slug}" class="${slug === current ? 'active' : ''}">${p.name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</button>`
     ).join('');
@@ -294,7 +302,7 @@
   }
 
   function showUpsell() {
-    $('plan-out').innerHTML = `<div class="upsell"><strong>Every Disney &amp; Universal park worldwide + the plan builder are in the Trip Pass.</strong><br>
+    $('plan-out').innerHTML = `<div class="upsell"><strong>36 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in the Trip Pass.</strong><br>
       $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
       <a href="/#pricing">Get your Trip Pass →</a><br>
       <a href="#" id="redeem-link" style="font-weight:400;font-size:.85rem;opacity:.85">Have a pass code?</a></div>`;

@@ -15,7 +15,8 @@
       "hour": 21,
       "duration": 0.5
     },
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "epcot",
@@ -32,7 +33,8 @@
       "hour": 20.5,
       "duration": 0.5
     },
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "hollywood-studios",
@@ -50,7 +52,8 @@
       "hour": 20.5,
       "duration": 0.5
     },
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "animal-kingdom",
@@ -64,7 +67,8 @@
     "open": 8,
     "close": 19,
     "show": null,
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "disneyland",
@@ -87,7 +91,8 @@
       "hour": 21.5,
       "duration": 0.5
     },
-    "tz": "America/Los_Angeles"
+    "tz": "America/Los_Angeles",
+    "region": "California"
   },
   {
     "slug": "california-adventure",
@@ -105,7 +110,8 @@
       "hour": 21,
       "duration": 0.5
     },
-    "tz": "America/Los_Angeles"
+    "tz": "America/Los_Angeles",
+    "region": "California"
   },
   {
     "slug": "universal-studios-florida",
@@ -124,7 +130,8 @@
       "hour": 20.5,
       "duration": 0.5
     },
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "islands-of-adventure",
@@ -138,7 +145,8 @@
     "open": 9,
     "close": 21,
     "show": null,
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "epic-universe",
@@ -152,7 +160,8 @@
     "open": 9,
     "close": 21,
     "show": null,
-    "tz": "America/New_York"
+    "tz": "America/New_York",
+    "region": "Florida"
   },
   {
     "slug": "universal-studios-hollywood",
@@ -167,7 +176,8 @@
     "open": 9,
     "close": 22,
     "show": null,
-    "tz": "America/Los_Angeles"
+    "tz": "America/Los_Angeles",
+    "region": "California"
   },
   {
     "slug": "disneyland-paris",
@@ -185,7 +195,8 @@
       "hour": 22,
       "duration": 0.5
     },
-    "tz": "Europe/Paris"
+    "tz": "Europe/Paris",
+    "region": "Europe"
   },
   {
     "slug": "walt-disney-studios-paris",
@@ -200,7 +211,8 @@
     "open": 9,
     "close": 21,
     "show": null,
-    "tz": "Europe/Paris"
+    "tz": "Europe/Paris",
+    "region": "Europe"
   },
   {
     "slug": "tokyo-disneyland",
@@ -214,7 +226,8 @@
     "open": 9,
     "close": 21,
     "show": null,
-    "tz": "Asia/Tokyo"
+    "tz": "Asia/Tokyo",
+    "region": "Asia"
   },
   {
     "slug": "tokyo-disneysea",
@@ -227,7 +240,8 @@
     "open": 9,
     "close": 21,
     "show": null,
-    "tz": "Asia/Tokyo"
+    "tz": "Asia/Tokyo",
+    "region": "Asia"
   },
   {
     "slug": "hong-kong-disneyland",
@@ -246,7 +260,8 @@
       "hour": 20.5,
       "duration": 0.5
     },
-    "tz": "Asia/Hong_Kong"
+    "tz": "Asia/Hong_Kong",
+    "region": "Asia"
   },
   {
     "slug": "shanghai-disneyland",
@@ -260,6 +275,296 @@
     "open": 9,
     "close": 21,
     "show": null,
-    "tz": "Asia/Shanghai"
+    "tz": "Asia/Shanghai",
+    "region": "Asia"
+  },
+  {
+    "slug": "knotts-berry-farm",
+    "name": "Knott's Berry Farm",
+    "group": "Knott's Berry Farm",
+    "id": null,
+    "tokens": [
+      "knott"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "America/Los_Angeles",
+    "region": "California"
+  },
+  {
+    "slug": "six-flags-magic-mountain",
+    "name": "Six Flags Magic Mountain",
+    "group": "Six Flags Magic Mountain",
+    "id": null,
+    "tokens": [
+      "six flags",
+      "magic mountain"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Los_Angeles",
+    "region": "California"
+  },
+  {
+    "slug": "busch-gardens-tampa",
+    "name": "Busch Gardens Tampa",
+    "group": "Busch Gardens Tampa",
+    "id": null,
+    "tokens": [
+      "busch",
+      "tampa"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "Florida"
+  },
+  {
+    "slug": "seaworld-orlando",
+    "name": "SeaWorld Orlando",
+    "group": "SeaWorld Orlando",
+    "id": null,
+    "tokens": [
+      "seaworld",
+      "orlando"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "Florida"
+  },
+  {
+    "slug": "cedar-point",
+    "name": "Cedar Point",
+    "group": "Cedar Point",
+    "id": null,
+    "tokens": [
+      "cedar point"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "kings-island",
+    "name": "Kings Island",
+    "group": "Kings Island",
+    "id": null,
+    "tokens": [
+      "kings island"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "six-flags-great-adventure",
+    "name": "Six Flags Great Adventure",
+    "group": "Six Flags Great Adventure",
+    "id": null,
+    "tokens": [
+      "great adventure"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "canadas-wonderland",
+    "name": "Canada's Wonderland",
+    "group": "Canada's Wonderland",
+    "id": null,
+    "tokens": [
+      "canada",
+      "wonderland"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "America/Toronto",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "hersheypark",
+    "name": "Hersheypark",
+    "group": "Hersheypark",
+    "id": null,
+    "tokens": [
+      "hershey"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "dollywood",
+    "name": "Dollywood",
+    "group": "Dollywood",
+    "id": null,
+    "tokens": [
+      "dollywood"
+    ],
+    "open": 10,
+    "close": 20,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "busch-gardens-williamsburg",
+    "name": "Busch Gardens Williamsburg",
+    "group": "Busch Gardens Williamsburg",
+    "id": null,
+    "tokens": [
+      "busch",
+      "williamsburg"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada"
+  },
+  {
+    "slug": "seaworld-san-diego",
+    "name": "SeaWorld San Diego",
+    "group": "SeaWorld San Diego",
+    "id": null,
+    "tokens": [
+      "seaworld",
+      "san diego"
+    ],
+    "open": 10,
+    "close": 20,
+    "show": null,
+    "tz": "America/Los_Angeles",
+    "region": "California"
+  },
+  {
+    "slug": "europa-park",
+    "name": "Europa-Park",
+    "group": "Europa-Park",
+    "id": null,
+    "tokens": [
+      "europa park"
+    ],
+    "open": 9,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/Berlin",
+    "region": "Europe"
+  },
+  {
+    "slug": "efteling",
+    "name": "Efteling",
+    "group": "Efteling",
+    "id": null,
+    "tokens": [
+      "efteling"
+    ],
+    "open": 10,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/Amsterdam",
+    "region": "Europe"
+  },
+  {
+    "slug": "alton-towers",
+    "name": "Alton Towers",
+    "group": "Alton Towers",
+    "id": null,
+    "tokens": [
+      "alton"
+    ],
+    "open": 10,
+    "close": 17,
+    "show": null,
+    "tz": "Europe/London",
+    "region": "Europe"
+  },
+  {
+    "slug": "thorpe-park",
+    "name": "Thorpe Park",
+    "group": "Thorpe Park",
+    "id": null,
+    "tokens": [
+      "thorpe"
+    ],
+    "open": 10,
+    "close": 17,
+    "show": null,
+    "tz": "Europe/London",
+    "region": "Europe"
+  },
+  {
+    "slug": "portaventura",
+    "name": "PortAventura",
+    "group": "PortAventura",
+    "id": null,
+    "tokens": [
+      "portaventura"
+    ],
+    "exclude": [
+      "ferrari"
+    ],
+    "open": 10,
+    "close": 20,
+    "show": null,
+    "tz": "Europe/Madrid",
+    "region": "Europe"
+  },
+  {
+    "slug": "phantasialand",
+    "name": "Phantasialand",
+    "group": "Phantasialand",
+    "id": null,
+    "tokens": [
+      "phantasialand"
+    ],
+    "open": 9,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/Berlin",
+    "region": "Europe"
+  },
+  {
+    "slug": "parc-asterix",
+    "name": "Parc Astérix",
+    "group": "Parc Astérix",
+    "id": null,
+    "tokens": [
+      "asterix"
+    ],
+    "open": 10,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/Paris",
+    "region": "Europe"
+  },
+  {
+    "slug": "liseberg",
+    "name": "Liseberg",
+    "group": "Liseberg",
+    "id": null,
+    "tokens": [
+      "liseberg"
+    ],
+    "open": 11,
+    "close": 20,
+    "show": null,
+    "tz": "Europe/Stockholm",
+    "region": "Europe"
   }
 ]

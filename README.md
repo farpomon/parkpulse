@@ -20,7 +20,7 @@ Node 18+, zero dependencies.
 | `public/index.html` | Landing page: positioning, pricing (Free / Trip Pass $19.99 / Pro $49), email capture |
 | `public/app.html` | The product: live waits per park + smart plan builder (Pro-gated demo) |
 | `public/guide.html` | The original free strategy guide — the SEO/content top of funnel |
-| `pages.js` | Server-rendered SEO pages: `/parks/<slug>` per-park wait-time & pass-strategy guides (16 pages), plus `/sitemap.xml` and `/robots.txt` |
+| `pages.js` | Server-rendered SEO pages: `/parks/<slug>` per-park wait-time & pass-strategy guides (one per covered park), plus `/sitemap.xml` and `/robots.txt` |
 | `server.js` | Zero-dep Node server: static hosting, wait-times API proxy, lead capture |
 | `data/sample-waits.json` | Typical-day fallback data when the live feed is unreachable |
 | `BUSINESS_PLAN.md` | Wedge, pricing, break-even (~2 Trip Passes/mo), distribution, legal, roadmap |
@@ -33,11 +33,15 @@ JSON API with a 5-minute in-memory cache (their license requires the visible
 feed is unreachable, WDW parks fall back to bundled typical-day sample data
 (labeled as such); other parks return a clean "unavailable" state.
 
-**Coverage: 15 parks across 8 destinations** — Walt Disney World (4),
-Disneyland California (2), Universal Orlando (3, incl. Epic Universe),
-Universal Hollywood, Disneyland Paris (2), Tokyo Disney Resort (2), Hong Kong
-Disneyland, Shanghai Disneyland. The registry lives in `data/parks.json`
-(slugs, destination groups, typical hours, evening shows, and queue-times
+**Coverage: 36 parks across 5 regions** — Florida (WDW ×4, Universal Orlando
+×3, Busch Gardens Tampa, SeaWorld Orlando), California (Disneyland ×2,
+Universal Hollywood, Knott's, Six Flags Magic Mountain, SeaWorld San Diego),
+US & Canada regionals (Cedar Point, Kings Island, Six Flags Great Adventure,
+Canada's Wonderland, Hersheypark, Dollywood, Busch Gardens Williamsburg),
+Europe (Disneyland Paris ×2, Europa-Park, Efteling, Alton Towers, Thorpe
+Park, PortAventura, Phantasialand, Parc Astérix, Liseberg), and Asia (Tokyo
+×2, Hong Kong, Shanghai). The registry lives in `data/parks.json` (slugs,
+destination groups, regions, typical hours, evening shows, and queue-times
 matching tokens). Queue-times park ids are **resolved dynamically by name**
 from their `/parks.json` directory at boot and daily thereafter — the static
 ids in the registry are only fallbacks, so a wrong or changed upstream id
@@ -81,7 +85,7 @@ run `HISTORY=off` to keep the history archive production-only.
 ### Wait-time history & measured baselines
 
 Every 15 minutes the server snapshots live waits for all parks into daily
-JSONL files (~1 MB/day across 16 parks; 60-day retention, oldest pruned).
+JSONL files (~2 MB/day across all 36 parks; 60-day retention, oldest pruned).
 Per-ride **median baselines** are computed from the last 14 days (minimum 12
 samples per ride) and take precedence over the hand-built static samples for
 the app's "vs typical" deltas — so within a day or two of running, delta
