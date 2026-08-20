@@ -79,6 +79,7 @@
   @keyframes shimmer { to { background-position: -200% 0; } }
   .state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
   .btn { border: none; border-radius: 12px; padding: .65rem 1.3rem; font-weight: 700; font-size: .95rem; cursor: pointer; background: var(--brand); color: #fff; }
+  .planday { width: 100%; margin-top: .6rem; padding: .7rem 1rem; font-size: .95rem; }
   .landhead { margin: 1.1rem 0 .3rem; font-size: .78rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
   #rides > .landhead:first-child { margin-top: .4rem; }
   .planbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); display: none; z-index: 20; }
@@ -117,6 +118,7 @@
       <input type="search" id="search" placeholder="Search rides…" aria-label="Search rides">
       <button class="clear" id="clear-search" aria-label="Clear search">✕</button>
     </div>
+    <button class="btn planday" id="plan-day">🗓️ Plan my day</button>
   </header>
 
   <p class="crowdline" id="crowdline"></p>
@@ -452,6 +454,8 @@
       : +$('start-hour').value;
     if (t < p.open) t = p.open;
     const end = +$('end-hour').value;
+    // "Now" after closing means the day is over — plan a fresh day from open.
+    if ($('start-hour').value === 'now' && t >= end) t = p.open;
     if (end <= t) { alert('End time must be after start time.'); return; }
     const remaining = rides.filter((r) => pickedNames.has(r.name) && r.open);
     if (!remaining.length) return;
@@ -577,6 +581,26 @@
     renderRides();
   });
   $('build').addEventListener('click', buildPlan);
+  // One-tap day plan from the top of the page: uses the rides you've checked;
+  // with nothing checked it starts from your starred favorites, or the park's
+  // biggest open headliners.
+  $('plan-day').addEventListener('click', () => {
+    if (!isPro) { showUpsell(); return; }
+    if (!rides.length) return;
+    if (!pickedNames.size) {
+      const open = rides.filter((r) => r.open);
+      const starters = open.filter((r) => favs.has(r.name));
+      (starters.length ? starters : [...open].sort((a, b) => b.wait - a.wait).slice(0, 6))
+        .forEach((r) => pickedNames.add(r.name));
+      renderRides();
+      updatePlanbar();
+    }
+    buildPlan();
+  });
+  // Minute-fresh waits: silently re-pull while the tab is visible, and
+  // immediately when the user returns to the tab.
+  setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('#rides.skeleton')) load({ silent: true }); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load({ silent: true }); });
   $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
   $('sheet-cancel').addEventListener('click', closeSheet);
 
