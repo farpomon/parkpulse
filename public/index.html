@@ -12,6 +12,9 @@
 <meta name="theme-color" content="#2c2154">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
@@ -26,19 +29,35 @@
     form.capture input { background: var(--card); color: var(--ink); }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Segoe UI", system-ui, sans-serif; }
-  .wrap { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
-  nav { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0 1.5rem; }
-  nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--brand); text-decoration: none; }
-  nav .links a { color: var(--ink); text-decoration: none; margin-left: 1.25rem; font-weight: 500; }
-  .hero { background: linear-gradient(135deg, #2c2154 0%, #4f3ac9 60%, #7b5fe0 100%); color: #fff; border-radius: 18px; padding: 3rem 2rem; text-align: center; }
-  .hero h1 { font-size: 2.3rem; margin: 0 0 .75rem; line-height: 1.15; }
-  .hero p { margin: 0 auto 1.5rem; max-width: 54ch; color: #e6e1ff; font-size: 1.1rem; }
-  .btn { display: inline-block; border-radius: 10px; padding: .7rem 1.5rem; font-weight: 700; text-decoration: none; cursor: pointer; border: none; font-size: 1rem; }
-  .btn.primary { background: #fff; color: var(--brand); }
-  .btn.brand { background: var(--brand); color: #fff; }
-  .btn.ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); margin-left: .75rem; }
-  h2 { text-align: center; font-size: 1.6rem; margin: 3rem 0 1.5rem; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Nunito", "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: .9rem 1.1rem 4rem; }
+  nav { display: flex; align-items: center; gap: .9rem; padding: .4rem 0 1.1rem; }
+  nav .logo { font-weight: 900; font-size: 1.2rem; text-decoration: none; white-space: nowrap;
+    background: linear-gradient(120deg, var(--brand), #9b6bf0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  nav .links { margin-left: auto; display: flex; gap: 1rem; align-items: center; }
+  nav .links a { color: var(--ink); text-decoration: none; font-weight: 700; font-size: .92rem; white-space: nowrap; }
+  nav .btn.small { padding: .5rem .95rem; font-size: .88rem; border-radius: 999px; }
+  .hero { background: linear-gradient(135deg, #2c2154 0%, #4f3ac9 60%, #7b5fe0 100%); color: #fff; border-radius: 20px;
+    padding: clamp(1.7rem, 5vw, 3rem) clamp(1.1rem, 4vw, 2rem); text-align: center; }
+  .hero h1 { font-size: clamp(1.85rem, 7.5vw, 2.6rem); margin: 0 0 .6rem; line-height: 1.12; letter-spacing: -.02em; }
+  .hero p { margin: 0 auto 1.1rem; max-width: 42ch; color: #e6e1ff; font-size: clamp(.98rem, 3.6vw, 1.1rem); }
+  .chiprow { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin: 0 0 1.4rem; }
+  .chiprow span { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.3); border-radius: 999px;
+    padding: .3rem .8rem; font-size: .8rem; font-weight: 700; }
+  .cta { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; border-radius: 12px; padding: .72rem 1.5rem; font-weight: 800; text-decoration: none; cursor: pointer; border: none; font-size: 1rem; transition: transform .12s ease, filter .12s ease; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: #fff; color: var(--brand); box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+  .btn.brand { background: linear-gradient(135deg, var(--brand), #7b5fe0); color: #fff; box-shadow: 0 4px 14px rgba(79,58,201,.30); }
+  .btn.ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
+  h2 { text-align: center; font-size: clamp(1.35rem, 4.5vw, 1.6rem); margin: clamp(2rem, 6vw, 3rem) 0 1.2rem; letter-spacing: -.01em; }
+  @media (max-width: 560px) {
+    nav .links { gap: .7rem; }
+    nav .links a { font-size: .85rem; }
+    nav .btn.small { display: none; } /* the hero CTA is right below */
+    .cta .btn { flex: 1 1 100%; text-align: center; }
+  }
+  @media (max-width: 380px) { nav .links a.hide-tiny { display: none; } }
   .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
   .card h3 { margin-top: 0; }
@@ -48,8 +67,9 @@
   .price-card ul { text-align: left; padding-left: 1.2rem; margin: 1rem 0 1.5rem; }
   .price-card.featured { border: 2px solid var(--brand); box-shadow: 0 8px 30px rgba(79,58,201,.15); }
   .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--brand); color: #fff; font-size: .75rem; font-weight: 700; padding: .2rem .9rem; border-radius: 999px; letter-spacing: .05em; }
-  form.capture { display: flex; gap: .5rem; max-width: 440px; margin: 1rem auto 0; }
-  form.capture input { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: .7rem 1rem; font-size: 1rem; }
+  form.capture { display: flex; gap: .5rem; max-width: 440px; margin: 1rem auto 0; flex-wrap: wrap; }
+  form.capture input { flex: 1 1 12rem; min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: .7rem 1rem; font-size: 1rem; }
+  form.capture .btn { flex: 1 1 auto; }
   .fine { text-align: center; color: var(--muted); font-size: .85rem; }
   footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; text-align: center; }
   #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: .6rem 1.25rem; border-radius: 10px; display: none; }
@@ -58,14 +78,18 @@
 <div class="wrap">
   <nav>
     <a class="logo" href="/">⚡ ParkPulse</a>
-    <span class="links"><a href="/app">Live waits</a><a href="/guide">Free guide</a><a href="#pricing">Pricing</a><a href="/app#account">Sign in</a></span>
+    <span class="links">
+      <a href="/guide" class="hide-tiny">Guide</a><a href="#pricing">Pricing</a><a href="/app#account">Sign in</a>
+      <a class="btn brand small" href="/app">Open app</a>
+    </span>
   </nav>
 
   <header class="hero">
-    <div style="display:inline-block;background:rgba(255,215,94,.18);border:1px solid rgba(255,215,94,.55);color:#ffd75e;border-radius:999px;padding:.25rem 1rem;font-size:.85rem;font-weight:700;margin-bottom:1rem">🎉 Launch preview — everything is free right now</div>
+    <div style="display:inline-block;background:rgba(255,215,94,.18);border:1px solid rgba(255,215,94,.55);color:#ffd75e;border-radius:999px;padding:.25rem 1rem;font-size:.82rem;font-weight:700;margin-bottom:1rem">🎉 Launch preview — everything is free</div>
     <h1>Stop standing in line at the parks</h1>
-    <p>Live wait times for 56 parks worldwide — Disney, Universal, Six Flags, Cedar Point, Europa-Park and more — a smart touring plan, and an AI consultant that tells you whether Lightning Lane, Express Pass, Fast Lane, or Flash Pass is actually worth it today.</p>
-    <a class="btn primary" href="/app">See live waits free</a><a class="btn ghost" href="#pricing">Get a Trip Pass</a>
+    <p>Live waits, a smart day plan, and an AI advisor that tells you when a skip pass is worth it — and when to keep your money.</p>
+    <div class="chiprow"><span>56 parks worldwide</span><span>Disney · Universal · Six Flags &amp; more</span><span>Works in your browser</span></div>
+    <div class="cta"><a class="btn primary" href="/app">See live waits free</a><a class="btn ghost" href="#pricing">Get a Trip Pass</a></div>
   </header>
 
   <h2>How it works</h2>
@@ -116,7 +140,8 @@
     <a href="/parks/universal-studios-hollywood">Universal Hollywood</a> ·
     <a href="/parks/disneyland-paris">Disneyland Paris</a> · <a href="/parks/walt-disney-studios-paris">Walt Disney Studios</a> ·
     <a href="/parks/tokyo-disneyland">Tokyo Disneyland</a> · <a href="/parks/tokyo-disneysea">Tokyo DisneySea</a> ·
-    <a href="/parks/hong-kong-disneyland">Hong Kong Disneyland</a> · <a href="/parks/shanghai-disneyland">Shanghai Disneyland</a>
+    <a href="/parks/hong-kong-disneyland">Hong Kong Disneyland</a> · <a href="/parks/shanghai-disneyland">Shanghai Disneyland</a> ·
+    <a href="/parks/cedar-point">Cedar Point</a> · <a href="/parks/six-flags-magic-mountain">Six Flags Magic Mountain</a> · <a href="/parks/europa-park">Europa-Park</a> · <a href="/parks/efteling">Efteling</a> · <a href="/app">…and 36 more in the app →</a>
   </p>
 
   <footer>
