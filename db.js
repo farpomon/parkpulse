@@ -318,6 +318,22 @@ const trips = {
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
+// Aggregate queries for the operator dashboard (/admin). Counts only — no
+// passwords, hashes, or chat contents ever leave this module.
+const daysAgoIso = (days) => new Date(Date.now() - days * 86400000).toISOString();
+const admin = {
+  userTotals: () => db.prepare('SELECT COUNT(*) AS total, COALESCE(SUM(verified), 0) AS verified FROM users').get(),
+  newUsers: (days) => db.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?').get(daysAgoIso(days)).n,
+  signupsByDay: (days) => db.prepare('SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM users WHERE created_at >= ? GROUP BY day ORDER BY day').all(daysAgoIso(days)),
+  recentUsers: (limit) => db.prepare('SELECT email, created_at, verified, plan, plan_exp FROM users ORDER BY created_at DESC LIMIT ?').all(limit),
+  activeAccounts: (days) => db.prepare('SELECT COUNT(DISTINCT email) AS n FROM sessions WHERE last_seen >= ?').get(daysAgoIso(days)).n,
+  liveSessions: () => db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n,
+  counts: () => Object.fromEntries(['alerts', 'leads', 'passes', 'trips', 'advisor_chats', 'advisor_feedback'].map(
+    (t) => [t, db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n],
+  )),
+  recentLeads: (limit) => db.prepare('SELECT email, plan, at FROM leads ORDER BY id DESC LIMIT ?').all(limit),
+};
+
 migrateLegacy();
 
-module.exports = { kv, users, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, DB_FILE };
+module.exports = { kv, users, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, DB_FILE };

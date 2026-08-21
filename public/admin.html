@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ParkPulse Admin</title>
+<style>
+  :root {
+    --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
+    --brand: #4f3ac9; --brand-soft: #eceaff; --border: #e3dff2;
+    --good: #1a7f4e; --bad: #b3324a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4;
+      --brand: #8f7bf0; --brand-soft: #2e2455; --border: #362c5c;
+      --good: #4fc98a; --bad: #f07a92;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "Nunito", "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 1rem 1rem 4rem; }
+  header { display: flex; align-items: center; gap: .75rem; padding: .5rem 0 1rem; }
+  h1 { font-size: 1.35rem; margin: 0; font-weight: 800;
+    background: linear-gradient(120deg, var(--brand), #9b6bf0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .envtag { font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: .15rem .6rem; }
+  header .spacer { flex: 1; }
+  button, .btn { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 10px; padding: .45rem .8rem; font: inherit; font-weight: 700; cursor: pointer; }
+  button.primary { background: linear-gradient(135deg, var(--brand), #7b5fe0); border-color: transparent; color: #fff; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem 1.1rem; margin: .8rem 0; }
+  .card h2 { font-size: .8rem; margin: 0 0 .6rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
+  .tile { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: .8rem 1rem; }
+  .tile .num { font-size: 1.7rem; font-weight: 800; line-height: 1.15; }
+  .tile .lbl { font-size: .78rem; color: var(--muted); font-weight: 700; }
+  .tile .sub { font-size: .74rem; color: var(--muted); }
+  /* Single-series bar chart: thin marks, rounded data-end, hover tooltip. */
+  .chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; margin-top: .4rem; }
+  .chart .bar { flex: 1; position: relative; background: var(--brand); border-radius: 4px 4px 0 0; min-height: 2px; opacity: .85; }
+  .chart .bar:hover { opacity: 1; }
+  .chart .bar::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px;
+    background: var(--ink); color: var(--bg); font-size: .72rem; font-weight: 700; padding: .2rem .5rem; border-radius: 8px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .1s; }
+  .chart .bar:hover::after { opacity: 1; }
+  .axis { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: .3rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { text-align: left; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: .25rem .4rem; }
+  td { padding: .3rem .4rem; border-top: 1px solid var(--border); }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .meter { height: 6px; border-radius: 4px; background: var(--brand); opacity: .8; min-width: 2px; }
+  .ok { color: var(--good); font-weight: 700; }
+  .no { color: var(--bad); font-weight: 700; }
+  .muted { color: var(--muted); }
+  .fb { display: flex; gap: 1.5rem; font-size: 1.05rem; font-weight: 800; }
+  .quote { border-left: 3px solid var(--border); margin: .5rem 0; padding: .1rem .7rem; font-size: .85rem; color: var(--muted); }
+  /* Login */
+  #login { max-width: 360px; margin: 3rem auto; }
+  #login input { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .6rem .8rem; font: inherit; margin: .3rem 0; }
+  #login .err { color: var(--bad); font-size: .85rem; min-height: 1.2em; }
+  #login .hint { font-size: .8rem; color: var(--muted); }
+  a { color: var(--brand); }
+  .overflow { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ParkPulse Admin</h1><span class="envtag" id="env" hidden></span>
+    <span class="spacer"></span>
+    <button id="refresh" hidden>↻ Refresh</button>
+    <button id="logout" hidden>Log out</button>
+  </header>
+
+  <div id="login" class="card">
+    <h2>Admin sign-in</h2>
+    <div id="step-cred">
+      <input id="email" type="email" placeholder="Email" autocomplete="username">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <div class="err" id="err"></div>
+      <button class="primary" id="go" style="width:100%">Sign in</button>
+      <p class="hint">No account yet? <a href="#" id="mk">Create it with this email</a> — admin access is granted by email address.</p>
+    </div>
+    <div id="step-code" hidden>
+      <p class="hint">We emailed a 6-digit code to <b id="code-email"></b>. (If email sending isn't configured, the code is in the Railway deploy logs.)</p>
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code">
+      <div class="err" id="err2"></div>
+      <button class="primary" id="verify" style="width:100%">Verify</button>
+    </div>
+  </div>
+
+  <div id="dash" hidden>
+    <div class="tiles" id="tiles"></div>
+    <div class="card"><h2>Page views · last 14 days</h2><div class="chart" id="views-chart"></div><div class="axis" id="views-axis"></div></div>
+    <div class="card"><h2>Signups · last 30 days</h2><div class="chart" id="signup-chart"></div><div class="axis" id="signup-axis"></div></div>
+    <div class="card"><h2>Park demand · live-wait requests, 30 days</h2><div class="overflow"><table id="parks-table"></table></div></div>
+    <div class="card"><h2>Top pages · 30 days</h2><div class="overflow"><table id="pages-table"></table></div></div>
+    <div class="card"><h2>AI advisor feedback · 30 days</h2><div class="fb" id="fb"></div><div id="fb-down"></div></div>
+    <div class="card"><h2>Newest accounts</h2><div class="overflow"><table id="users-table"></table></div></div>
+    <div class="card"><h2>Login-sharing signals</h2><p class="muted" style="font-size:.82rem;margin:.2rem 0 .5rem">Accounts pulling wait times at parks &gt;500 km apart within an hour (since last server restart).</p><div id="sharing"></div></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const KEY = 'pp-admin-session';
+const device = (() => {
+  let d = localStorage.getItem('pp-device');
+  if (!d) { d = crypto.randomUUID(); localStorage.setItem('pp-device', d); }
+  return d;
+})();
+const api = (path, body) => fetch(path, {
+  method: body ? 'POST' : 'GET',
+  headers: { 'content-type': 'application/json', 'x-session': localStorage.getItem(KEY) || '' },
+  body: body ? JSON.stringify(body) : undefined,
+}).then(async (r) => ({ status: r.status, data: await r.json().catch(() => ({})) }));
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtDay = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+function barChart(el, axisEl, series) { // series: [{day, n}] ascending
+  el.innerHTML = ''; axisEl.innerHTML = '';
+  const max = Math.max(1, ...series.map((s) => s.n));
+  for (const s of series) {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.height = `${Math.max(2, Math.round(s.n / max * 100))}%`;
+    if (!s.n) b.style.opacity = '.25';
+    b.dataset.tip = `${fmtDay(s.day)} · ${s.n}`;
+    el.appendChild(b);
+  }
+  if (series.length) axisEl.innerHTML = `<span>${fmtDay(series[0].day)}</span><span>${fmtDay(series[series.length - 1].day)}</span>`;
+}
+
+// Fill missing days with zeros so gaps read as quiet days, not missing bars.
+function fillDays(rows, days) {
+  const byDay = {};
+  for (const r of rows) byDay[r.day] = (byDay[r.day] || 0) + r.n;
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    out.push({ day, n: byDay[day] || 0 });
+  }
+  return out;
+}
+
+function meterTable(el, rows, nameKey, header) {
+  const max = Math.max(1, ...rows.map((r) => r.n));
+  el.innerHTML = `<tr><th>${header}</th><th class="n">Requests</th><th style="width:40%"></th></tr>` +
+    (rows.length ? rows.map((r) => `<tr><td>${esc(r[nameKey])}</td><td class="n">${r.n.toLocaleString()}</td><td><div class="meter" style="width:${Math.round(r.n / max * 100)}%"></div></td></tr>`).join('') : '<tr><td colspan="3" class="muted">No data yet</td></tr>');
+}
+
+function render(d) {
+  $('env').textContent = d.env; $('env').hidden = false;
+  const pct = d.users.total ? Math.round(d.users.verified / d.users.total * 100) : 0;
+  $('tiles').innerHTML = [
+    { num: d.users.total, lbl: 'Accounts', sub: `${pct}% verified` },
+    { num: d.users.new7d, lbl: 'New this week', sub: `${d.users.new30d} in 30 days` },
+    { num: d.users.active7d, lbl: 'Active accounts (7d)', sub: `${d.users.liveSessions} live sessions` },
+    { num: d.counts.alerts, lbl: 'Wait alerts set' },
+    { num: d.counts.trips, lbl: 'Trip plans saved' },
+    { num: d.counts.advisor_chats, lbl: 'Advisor conversations' },
+    { num: d.counts.passes, lbl: 'Passes sold', sub: `${d.counts.leads} email leads` },
+  ].map((t) => `<div class="tile"><div class="num">${Number(t.num).toLocaleString()}</div><div class="lbl">${t.lbl}</div>${t.sub ? `<div class="sub">${t.sub}</div>` : ''}</div>`).join('');
+
+  barChart($('views-chart'), $('views-axis'), fillDays(d.traffic.pagesByDay14d, 14));
+  barChart($('signup-chart'), $('signup-axis'), fillDays(d.users.signupsByDay30d, 30));
+  meterTable($('parks-table'), d.traffic.topParks30d, 'park', 'Park');
+  meterTable($('pages-table'), d.traffic.pages30d.slice(0, 10).map((r) => ({ path: r.path, n: r.n })), 'path', 'Page');
+
+  const votes = Object.fromEntries((d.advisorFeedback30d.votes || []).map((v) => [v.vote, v.n]));
+  $('fb').innerHTML = `<span class="ok">👍 ${votes.up || 0}</span><span class="no">👎 ${votes.down || 0}</span>`;
+  $('fb-down').innerHTML = (d.advisorFeedback30d.recentDown || []).map((f) =>
+    `<div class="quote">${esc(f.message || '(no comment)')} <span class="muted">— ${esc(f.park || 'unknown park')}, ${fmtDay(f.at.slice(0, 10))}</span></div>`).join('');
+
+  $('users-table').innerHTML = '<tr><th>Email</th><th>Joined</th><th>Status</th></tr>' +
+    d.users.recent.map((u) => `<tr><td>${esc(u.email)}</td><td>${fmtDay(u.created_at.slice(0, 10))}</td><td>${u.verified ? '<span class="ok">verified</span>' : '<span class="muted">pending</span>'}${u.plan && u.plan_exp > Date.now() ? ` · ${esc(u.plan)}` : ''}</td></tr>`).join('');
+
+  $('sharing').innerHTML = d.sharingSignals.length
+    ? d.sharingSignals.map((s) => `<div class="quote"><b>${esc(s.email)}</b> — ${esc(s.parkA)} ↔ ${esc(s.parkB)} (${Math.round(s.km)} km apart)</div>`).join('')
+    : '<p class="muted" style="font-size:.85rem">None detected. 🎉</p>';
+}
+
+async function load() {
+  const { status, data } = await api('/api/admin/stats');
+  if (status === 200) {
+    $('login').hidden = true; $('dash').hidden = false; $('refresh').hidden = false; $('logout').hidden = false;
+    render(data);
+    return true;
+  }
+  if (status === 403 && localStorage.getItem(KEY)) $('err').textContent = 'This account does not have admin access.';
+  localStorage.removeItem(KEY);
+  $('login').hidden = false;
+  return false;
+}
+
+async function afterAuth(data) {
+  if (data.pending) {
+    $('code-email').textContent = data.email;
+    $('step-cred').hidden = true; $('step-code').hidden = false;
+    return;
+  }
+  if (data.session) { localStorage.setItem(KEY, data.session); await load(); }
+}
+
+$('go').onclick = async () => {
+  $('err').textContent = '';
+  const { status, data } = await api('/api/auth/login', { email: $('email').value.trim(), password: $('password').value, device });
+  if (status !== 200) { $('err').textContent = data.error || 'Sign-in failed'; return; }
+  afterAuth(data);
+};
+$('mk').onclick = async (e) => {
+  e.preventDefault(); $('err').textContent = '';
+  const { status, data } = await api('/api/auth/signup', { email: $('email').value.trim(), password: $('password').value, device });
+  if (status !== 200) { $('err').textContent = data.error || 'Signup failed'; return; }
+  afterAuth(data);
+};
+$('verify').onclick = async () => {
+  $('err2').textContent = '';
+  const { status, data } = await api('/api/auth/verify', { email: $('email').value.trim().toLowerCase(), code: $('code').value.trim(), device });
+  if (status !== 200) { $('err2').textContent = data.error || 'Verification failed'; return; }
+  afterAuth(data);
+};
+$('refresh').onclick = load;
+$('logout').onclick = () => { localStorage.removeItem(KEY); location.reload(); };
+load();
+</script>
+</body>
+</html>

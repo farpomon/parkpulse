@@ -113,6 +113,15 @@ function sessionUser(req) {
 }
 const accountPassActive = (user) => Boolean(user.plan && PLAN_DAYS[user.plan] && user.plan_exp > Date.now());
 
+// Operator dashboard access — a normal verified account whose email is on the
+// admin list. Extend with a comma-separated ADMIN_EMAILS env var.
+const ADMIN_EMAILS = new Set((process.env.ADMIN_EMAILS || 'lfaria@mabenconsulting.ca')
+  .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean));
+function adminUser(req) {
+  const s = sessionUser(req);
+  return s && s.user.verified && ADMIN_EMAILS.has(s.email) ? s : null;
+}
+
 // Attach an entitlement to an account, keeping whichever expires later.
 function grantToUser(email, plan, exp) {
   const u = db.users.get(email);
@@ -582,6 +591,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       email: s.email,
       verified: Boolean(s.user.verified),
+      admin: ADMIN_EMAILS.has(s.email),
       devices: db.sessions.devices(s.email).length,
       plan: active ? s.user.plan : null,
       exp: active ? s.user.plan_exp : null,
@@ -624,6 +634,36 @@ const server = http.createServer(async (req, res) => {
       daily14d: db.hits.since(14),
       advisorFeedback30d: db.advisor.feedbackSummary(30),
       sharingSignals: { note: 'accounts using two parks >500km apart within an hour (since last restart)', events: sharingSignals.slice(-20).map(({ ts, ...rest }) => rest) },
+    });
+  }
+
+  // Key analytics for the /admin dashboard — admin account required.
+  if (url.pathname === '/api/admin/stats') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const totals = db.hits.totals(30);
+    const daily = db.hits.since(14);
+    const parkName = (p) => PARKS[p.path.slice(5)]?.name || p.path.slice(5);
+    return sendJson(res, 200, {
+      env: APP_ENV,
+      users: {
+        ...db.admin.userTotals(),
+        new7d: db.admin.newUsers(7),
+        new30d: db.admin.newUsers(30),
+        signupsByDay30d: db.admin.signupsByDay(30),
+        recent: db.admin.recentUsers(15),
+        active7d: db.admin.activeAccounts(7),
+        liveSessions: db.admin.liveSessions(),
+      },
+      counts: db.admin.counts(),
+      traffic: {
+        pages30d: totals.filter((r) => !r.path.startsWith('park:')),
+        pagesByDay14d: daily.filter((r) => !r.path.startsWith('park:')),
+        topParks30d: totals.filter((r) => r.path.startsWith('park:')).slice(0, 15)
+          .map((r) => ({ park: parkName(r), n: r.n })),
+      },
+      advisorFeedback30d: db.advisor.feedbackSummary(30),
+      recentLeads: db.admin.recentLeads(10),
+      sharingSignals: sharingSignals.slice(-20).map(({ ts, ...rest }) => rest),
     });
   }
 
@@ -744,6 +784,7 @@ const server = http.createServer(async (req, res) => {
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
     const su = sessionUser(req);
     if (su) noteParkUse(su.email, slug);
+    try { db.hits.bump(`park:${slug}`); } catch {} // per-park demand counter for /admin
     return sendJson(res, 200, await getWaits(slug));
   }
 
