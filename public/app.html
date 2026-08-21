@@ -80,6 +80,17 @@
   .state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
   .btn { border: none; border-radius: 12px; padding: .65rem 1.3rem; font-weight: 700; font-size: .95rem; cursor: pointer; background: var(--brand); color: #fff; }
   .planday { width: 100%; margin-top: .6rem; padding: .7rem 1rem; font-size: .95rem; }
+  .onboard-bg { position: fixed; inset: 0; background: rgba(18,12,40,.6); z-index: 60; display: none; }
+  .onboard { position: fixed; inset: 0; z-index: 61; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  .onboard.open { display: flex; }
+  .onboard-bg.open { display: block; }
+  .onboard .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; max-width: 430px; width: 100%; padding: 1.5rem 1.4rem calc(1.4rem + env(safe-area-inset-bottom)); max-height: 92dvh; overflow-y: auto; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+  .onboard h2 { margin: 0 0 .2rem; font-size: 1.35rem; }
+  .onboard .sub { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
+  .ob-step { display: flex; gap: .75rem; align-items: flex-start; margin: .85rem 0; font-size: .92rem; line-height: 1.45; }
+  .ob-step > span { font-size: 1.45rem; flex-shrink: 0; margin-top: .05rem; }
+  .ob-step b { display: block; }
+  .onboard .btn.wide { width: 100%; margin-top: 1.1rem; padding: .8rem 1rem; font-size: 1rem; }
   .landhead { margin: 1.1rem 0 .3rem; font-size: .78rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
   #rides > .landhead:first-child { margin-top: .4rem; }
   .planbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); display: none; z-index: 20; }
@@ -128,7 +139,7 @@
   <footer>
     Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
     Unofficial fan tool — not affiliated with The Walt Disney Company.
-    <a href="/guide">Free strategy guide</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
+    <a href="#" id="howworks">How it works</a> · <a href="/guide">Free strategy guide</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
   </footer>
 </div>
 
@@ -141,6 +152,19 @@
     <label class="lunch"><input type="checkbox" id="lunch"> lunch</label>
     <label class="lunch" id="show-wrap" style="display:none"><input type="checkbox" id="show-cb"> <span id="show-short">show</span></label>
     <button class="btn" id="build" style="margin-left:auto">Plan it</button>
+  </div>
+</div>
+
+<div class="onboard-bg" id="onboard-bg"></div>
+<div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="How ParkPulse works">
+  <div class="card">
+    <h2>Welcome to ParkPulse 🎢</h2>
+    <p class="sub">Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:</p>
+    <div class="ob-step"><span>📡</span><div><b>See every wait, live</b>Pick your park up top. Waits refresh every minute, grouped by land, with hints like <i>"▼ 20 min below typical — go now"</i> so you catch the steals.</div></div>
+    <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b>Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</div></div>
+    <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b>One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</div></div>
+    <div class="ob-step"><span>💬</span><div><b>Ask the AI consultant</b>"Is Lightning Lane worth it today?" Honest advice from live data — including when to keep your money. Log in and it remembers your trip.</div></div>
+    <button class="btn wide" id="onboard-go">Let's beat the lines →</button>
   </div>
 </div>
 
@@ -618,6 +642,15 @@
   setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('#rides.skeleton')) load({ silent: true }); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load({ silent: true }); });
   $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
+  // First-run welcome: shown once, reopenable from the footer link.
+  function toggleOnboard(open) {
+    $('onboard').classList.toggle('open', open);
+    $('onboard-bg').classList.toggle('open', open);
+  }
+  $('onboard-go').addEventListener('click', () => { try { localStorage.setItem('pp-onboarded', '1'); } catch {} toggleOnboard(false); });
+  $('onboard-bg').addEventListener('click', () => { try { localStorage.setItem('pp-onboarded', '1'); } catch {} toggleOnboard(false); });
+  $('howworks').addEventListener('click', (e) => { e.preventDefault(); toggleOnboard(true); });
+  try { if (!localStorage.getItem('pp-onboarded')) toggleOnboard(true); } catch {}
   $('sheet-cancel').addEventListener('click', closeSheet);
 
   // --- Account sheet ---
