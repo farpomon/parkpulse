@@ -217,6 +217,21 @@
   </div>
 </div>
 
+<div class="sheet" id="trip-sheet">
+  <h3>🧳 Plan a trip</h3>
+  <p>Pick your destination and dates — each day gets the park our forecast expects to be lightest.</p>
+  <form id="trip-form">
+    <select id="trip-dest" style="width:100%;margin-bottom:.6rem;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.6rem;font-size:1rem"></select>
+    <div style="display:flex;gap:.5rem;margin-bottom:.6rem">
+      <input type="date" id="trip-start" required style="flex:1;min-width:0;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem">
+      <select id="trip-days" style="border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem"></select>
+    </div>
+    <button class="btn wide" type="submit">Build my trip</button>
+  </form>
+  <div id="trip-out"></div>
+  <button class="cancel" id="trip-cancel">Close</button>
+</div>
+
 <div class="onboard-bg" id="onboard-bg"></div>
 <div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="How ParkPulse works">
   <div class="card">
@@ -416,13 +431,15 @@
       if (!res.ok) { el.innerHTML = ''; return; }
       const f = await res.json();
       el.innerHTML = `<div class="fcast">
-        <div class="fc-head"><b>${tr('Next 7 days')}</b><span>${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
+        <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 Trip</a> · ${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.map((d) => `
           <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
             ${d.dow}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
           </div>`).join('')}
         </div>
       </div>`;
+      const tl = document.getElementById('trip-link');
+      if (tl) tl.addEventListener('click', (e) => { e.preventDefault(); openTripSheet(); });
     } catch { el.innerHTML = ''; }
   }
 
@@ -735,7 +752,11 @@
       if (!res.ok) throw new Error(res.status);
       lastData = await res.json();
       rides = lastData.rides;
-      $('crowdline').innerHTML = crowdNow();
+      let crowdHtml = crowdNow();
+      if (tripToday && tripToday.park !== current) crowdHtml = `🧳 Today on your trip: <a href=\"#\" id=\"trip-jump\"><b>${parks[tripToday.park].name}</b></a> · ` + crowdHtml;
+      $('crowdline').innerHTML = crowdHtml;
+      const tj = document.getElementById('trip-jump');
+      if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); pickedNames.clear(); load(); });
       renderSkip();
       if (!opts.silent || !$('forecast').innerHTML) renderForecast();
       $('updated').textContent = updatedLabel();
@@ -828,6 +849,102 @@
     }
     buildPlan();
   });
+  // --- Multi-day trip planner ------------------------------------------------
+  // Assigns each trip day the park the forecast expects to be lightest,
+  // using day-of-week levels so dates beyond the 7-day window still work.
+  let tripToday = null;
+  let builtTrip = null;
+
+  function closeTrip() { $('trip-sheet').classList.remove('open'); $('sheet-bg').classList.remove('open'); }
+
+  function openTripSheet() {
+    const groups = [...new Set(Object.values(parks).map((p) => p.group))];
+    $('trip-dest').innerHTML = groups.map((g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`).join('');
+    if (!$('trip-start').value) $('trip-start').value = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    $('trip-days').innerHTML = Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}" ${i + 1 === 4 ? 'selected' : ''}>${i + 1}d</option>`).join('');
+    renderSavedTrip();
+    $('trip-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  }
+
+  function tripRows(plan) {
+    return plan.map((d) => {
+      const day = new Date(d.date + 'T12:00:00');
+      const dowName = day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}</span></div>`;
+    }).join('');
+  }
+
+  async function renderSavedTrip() {
+    let saved = null;
+    if (sessionToken()) {
+      try { const r = await api('/api/trip'); if (r.ok) { const d = await r.json(); if (d.plan) saved = d; } } catch {}
+    }
+    if (!saved) { try { saved = JSON.parse(localStorage.getItem('pp-trip') || 'null'); } catch {} }
+    if (saved && saved.plan) {
+      $('trip-out').innerHTML = `<p class="why" style="color:var(--muted);margin:.8rem 0 .2rem">Your saved trip — ${saved.dest}:</p>` + tripRows(saved.plan);
+    }
+  }
+
+  async function buildTrip(e) {
+    e.preventDefault();
+    const destSel = $('trip-dest').value;
+    const start = $('trip-start').value;
+    const days = +$('trip-days').value;
+    if (!start || !days) return;
+    const slugs = Object.entries(parks).filter(([, p]) => p.group === destSel).map(([sl]) => sl);
+    const dowLevel = {};
+    await Promise.all(slugs.map(async (sl) => {
+      try {
+        const r = await api(`/api/forecast/${sl}`);
+        if (r.ok) { const f = await r.json(); dowLevel[sl] = Object.fromEntries(f.days.map((d) => [d.dow, d.level])); }
+      } catch {}
+    }));
+    const maxUse = Math.ceil(days / slugs.length);
+    const used = {};
+    const plan = [];
+    for (let i = 0; i < days; i++) {
+      const dt = new Date(new Date(start + 'T12:00:00').getTime() + i * 86400000);
+      const date = dt.toISOString().slice(0, 10);
+      const dow = dt.toLocaleDateString('en-US', { weekday: 'short' });
+      const scored = slugs
+        .map((sl) => ({ sl, level: dowLevel[sl]?.[dow] ?? 3 }))
+        .sort((a, b) => (a.level - b.level) || ((used[a.sl] || 0) - (used[b.sl] || 0)));
+      const pick = scored.find((x) => (used[x.sl] || 0) < maxUse) || scored[0];
+      used[pick.sl] = (used[pick.sl] || 0) + 1;
+      plan.push({ date, park: pick.sl, level: pick.level });
+    }
+    builtTrip = { dest: destSel, start, days, plan };
+    $('trip-out').innerHTML = tripRows(plan) +
+      `<button class="btn wide" id="trip-save" style="margin-top:.7rem">💾 Save this trip</button>
+       <p class="why" style="color:var(--muted);margin:.4rem 0 0">${sessionToken() ? 'Saved to your account — the AI advisor will plan around it.' : 'Saved on this phone. Log in (👤) to sync it and let the AI advisor use it.'}</p>`;
+    document.getElementById('trip-save').addEventListener('click', saveTrip);
+  }
+
+  async function saveTrip() {
+    if (!builtTrip) return;
+    try { localStorage.setItem('pp-trip', JSON.stringify(builtTrip)); } catch {}
+    if (sessionToken()) {
+      try {
+        await api('/api/trip', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ dest: builtTrip.dest, start: builtTrip.start, days: builtTrip.days, plan: builtTrip.plan.map((p) => ({ date: p.date, park: p.park })) }) });
+      } catch {}
+    }
+    setTripToday(builtTrip);
+    document.getElementById('trip-save').textContent = '✓ Saved';
+  }
+
+  function setTripToday(saved) {
+    tripToday = null;
+    if (!saved || !saved.plan) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const entry = saved.plan.find((p) => p.date === today);
+    if (entry && parks[entry.park]) tripToday = entry;
+  }
+
+  $('trip-form').addEventListener('submit', buildTrip);
+  $('trip-cancel').addEventListener('click', closeTrip);
+
   // 📍 Find my park: nearest covered park by straight-line distance.
   const haversineKm = (la1, lo1, la2, lo2) => {
     const rad = Math.PI / 180;
@@ -864,7 +981,7 @@
   // immediately when the user returns to the tab.
   setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('#rides.skeleton')) load({ silent: true }); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load({ silent: true }); });
-  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); $('trip-sheet').classList.remove('open'); });
   // First-run welcome: shown once, reopenable from the footer link.
   function toggleOnboard(open) {
     $('onboard').classList.toggle('open', open);
@@ -1042,6 +1159,14 @@
           }
         } catch {}
       }
+      // Restore the saved trip so today's-park hint and the advisor line up.
+      (async () => {
+        let saved = null;
+        if (sessionToken()) { try { const r = await api('/api/trip'); if (r.ok) { const d = await r.json(); if (d.plan) saved = d; } } catch {} }
+        if (!saved) { try { saved = JSON.parse(localStorage.getItem('pp-trip') || 'null'); } catch {} }
+        setTripToday(saved);
+        if (tripToday) load({ silent: true });
+      })();
       if (!c.proGate) {
         isPro = true;
       } else if (!isPro && passToken()) {

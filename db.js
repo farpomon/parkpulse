@@ -72,6 +72,14 @@ db.exec(`
     messages TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS trips (
+    email TEXT PRIMARY KEY,
+    dest TEXT NOT NULL,
+    start TEXT NOT NULL,
+    days INTEGER NOT NULL,
+    plan TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS advisor_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT,
@@ -218,6 +226,15 @@ const advisor = {
   },
 };
 
+// Multi-day trip plans, one per account (the current/next trip).
+const trips = {
+  get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
+  set: (email, dest, start, days, plan) =>
+    db.prepare('INSERT INTO trips (email, dest, start, days, plan, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, updated_at = excluded.updated_at')
+      .run(email, dest, start, days, plan, new Date().toISOString()),
+  clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
+};
+
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, hits, advisor, DB_FILE };
+module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, DB_FILE };

@@ -262,10 +262,31 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:alerts@parkpulse.example', vapidKeys.publicKey, vapidKeys.privateKey);
 
 const ALERT_CHECK_MS = 5 * 60 * 1000;
+// Guardian state: last observed open/closed per watched ride, so alert
+// holders get a proactive push when their ride goes down or comes back.
+const rideOpenState = new Map();
 async function checkAlerts() {
   for (const slug of db.alerts.parks()) {
     const data = await getWaits(slug);
     if (data.source !== 'live') continue; // never alert off demo data
+    // Guardian pass: closure/reopen notices (the alert itself stays armed).
+    for (const alert of db.alerts.byPark(slug)) {
+      const ride = data.rides.find((r) => normName(r.name) === normName(alert.ride));
+      if (!ride) continue;
+      const key = `${slug}|${normName(ride.name)}`;
+      const prev = rideOpenState.get(key);
+      if (prev !== undefined && prev !== ride.open) {
+        const payload = JSON.stringify(ride.open
+          ? { title: `${ride.name} reopened ✅`, body: `Back up at ${ride.wait} min — go before the line rebuilds!` }
+          : { title: `${ride.name} is down ⚠️`, body: 'Temporarily closed — pivot to your next pick and circle back.' });
+        try {
+          await webpush.sendNotification(JSON.parse(alert.subscription), payload);
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) db.alerts.removeByEndpoint(alert.endpoint);
+        }
+      }
+    }
+    for (const r of data.rides) rideOpenState.set(`${slug}|${normName(r.name)}`, r.open);
     for (const alert of db.alerts.byPark(slug)) {
       const ride = data.rides.find((r) => normName(r.name) === normName(alert.ride));
       if (!ride || !ride.open || ride.wait > alert.threshold) continue;
@@ -471,6 +492,17 @@ const server = http.createServer(async (req, res) => {
       exp: active ? s.user.plan_exp : null,
       passToken: active ? signPass(s.user.plan, s.user.plan_exp) : null,
     });
+  }
+
+  // The account's saved multi-day trip plan.
+  if (url.pathname === '/api/trip' && req.method === 'GET') {
+    const s = sessionUser(req);
+    if (!s) return sendJson(res, 401, { error: 'not logged in' });
+    const trip = db.trips.get(s.email);
+    if (!trip) return sendJson(res, 200, {});
+    let plan = [];
+    try { plan = JSON.parse(trip.plan); } catch {}
+    return sendJson(res, 200, { dest: trip.dest, start: trip.start, days: trip.days, plan });
   }
 
   // The advisor's saved conversation for the logged-in account, so the chat
@@ -701,6 +733,7 @@ const server = http.createServer(async (req, res) => {
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,
+              trip: s ? db.trips.get(s.email) : null,
               lang,
               send,
             });
@@ -725,6 +758,21 @@ const server = http.createServer(async (req, res) => {
           console.log(`consultant error: ${err.message}`);
           return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
         }
+      }
+
+      if (url.pathname === '/api/trip') {
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'log in to save your trip' });
+        if (parsed.clear) { db.trips.clear(s.email); return sendJson(res, 200, { ok: true }); }
+        const dest = typeof parsed.dest === 'string' ? parsed.dest.slice(0, 60) : '';
+        const start = typeof parsed.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.start) ? parsed.start : '';
+        const days = Number.isInteger(parsed.days) && parsed.days >= 1 && parsed.days <= 14 ? parsed.days : 0;
+        const plan = Array.isArray(parsed.plan)
+          ? parsed.plan.filter((p) => p && PARKS[p.park] && typeof p.date === 'string').slice(0, 14).map((p) => ({ date: p.date.slice(0, 10), park: p.park }))
+          : [];
+        if (!dest || !start || !days || plan.length !== days) return sendJson(res, 400, { error: 'invalid trip' });
+        db.trips.set(s.email, dest, start, days, JSON.stringify(plan));
+        return sendJson(res, 200, { ok: true });
       }
 
       if (url.pathname === '/api/advisor/feedback') {
