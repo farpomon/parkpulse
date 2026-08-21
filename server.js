@@ -395,6 +395,7 @@ function forecastFor(slug) {
     park: park.name,
     days,
     best: best.dow,
+    measuredDays: measured ? measured.days : 0,
     basis: measured ? `${measured.days} days of measured data` : 'typical patterns (measured data still accruing)',
   };
 }
@@ -674,6 +675,8 @@ const server = http.createServer(async (req, res) => {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
         if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
         const { park, messages, favorites, planPicks, subscription } = parsed;
+        const LANGS = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Japanese'];
+        const lang = LANGS.includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per pass/session identity, falling back to IP.
         const throttleKey = req.headers['x-pass'] || req.headers['x-session'] || req.socket.remoteAddress || 'anon';
@@ -698,6 +701,7 @@ const server = http.createServer(async (req, res) => {
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,
+              lang,
               send,
             });
           } catch (err) {

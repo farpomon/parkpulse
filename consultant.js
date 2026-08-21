@@ -208,13 +208,14 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, planPicks, subscription, email, memory }) {
+function userContextBlock({ favorites, planPicks, subscription, email, memory, lang }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const lines = [];
   if (memory) lines.push(`Saved traveler notes from earlier conversations (kept current via your remember tool):\n${memory}`);
   if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}`);
   if (picks.length) lines.push(`Rides currently checked in their plan builder: ${picks.join(', ')}`);
+  if (lang && lang !== 'English') lines.push(`The user's app language is ${lang} — reply in ${lang}.`);
   lines.push(`Logged in: ${email ? 'yes (remember will work)' : 'no (remember will fail)'}`);
   lines.push(`Push notifications on this device: ${subscription ? 'enabled (set_alert will work)' : 'not enabled (set_alert will fail)'}`);
   return lines.join('\n');
@@ -236,7 +237,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, send }) {
+async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, send }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -248,7 +249,7 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     ...clean.slice(0, -1),
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory })}\n</user_context>\n\n${last.content}`,
+      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang })}\n</user_context>\n\n${last.content}`,
     },
   ];
   // Actions are emitted the moment their side effect happens, so a later

@@ -173,6 +173,7 @@
       <a class="logo" href="/">⚡ ParkPulse</a>
       <span class="right">
         <span class="updated" id="updated"></span>
+        <select class="iconbtn" id="lang" title="Language" aria-label="Language"></select>
         <button class="iconbtn" id="locate" title="Find my park" aria-label="Find my park">📍</button>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
@@ -189,8 +190,8 @@
     </div>
     <div class="planrow">
       <button class="btn planday" id="plan-day">🗓️ Plan my day</button>
-      <label>Arrive <select id="start-hour" aria-label="Arrival time"></select></label>
-      <label>Leave <select id="end-hour" aria-label="Exit time"></select></label>
+      <label id="lab-arrive">Arrive <select id="start-hour" aria-label="Arrival time"></select></label>
+      <label id="lab-leave">Leave <select id="end-hour" aria-label="Exit time"></select></label>
     </div>
   </header>
 
@@ -232,7 +233,7 @@
 <div class="sheet-bg" id="sheet-bg"></div>
 <div class="sheet" id="sheet">
   <h3 id="sheet-title"></h3>
-  <p>Get a push alert when the wait drops under:</p>
+  <p id="sheet-sub">Get a push alert when the wait drops under:</p>
   <div class="sheet-opts" id="sheet-opts"></div>
   <button class="cancel" id="sheet-cancel">Cancel</button>
 </div>
@@ -258,6 +259,7 @@
   <button class="cancel" id="acct-cancel">Close</button>
 </div>
 
+<script src="/i18n.js"></script>
 <script>window.PP_CHAT_MANUAL = true;</script>
 <script src="/chat-widget.js"></script>
 <script>
@@ -358,6 +360,7 @@
     }
   }
 
+  const tr = window.PP_T || ((k) => k);
   let dest = null;
   let consultantOn = false;
 
@@ -380,17 +383,17 @@
     const avg = open.length ? open.reduce((s, r) => s + r.wait, 0) / open.length : 0;
     let verdict = '';
     if (skip.type === 'none') {
-      verdict = '<span class="sk-verdict skip">🙌 You don\'t need one here</span>';
+      verdict = `<span class="sk-verdict skip">🙌 ${tr("You don't need one here")}</span>`;
     } else if (live) {
-      verdict = avg >= 38 ? '<span class="sk-verdict buy">🔥 Worth it today — lines are heavy</span>'
-        : avg >= 24 ? '<span class="sk-verdict mid">🤔 Borderline today</span>'
-        : '<span class="sk-verdict skip">💰 Skip it today — keep your money</span>';
+      verdict = avg >= 38 ? `<span class="sk-verdict buy">🔥 ${tr('Worth it today — lines are heavy')}</span>`
+        : avg >= 24 ? `<span class="sk-verdict mid">🤔 ${tr('Borderline today')}</span>`
+        : `<span class="sk-verdict skip">💰 ${tr('Skip it today — keep your money')}</span>`;
     }
     const title = skip.type === 'none'
-      ? `<b>No paid line-skip at ${parks[current].name}</b>`
+      ? `<b>${tr('No paid line-skip at')} ${parks[current].name}</b>`
       : `<b>⚡ ${skip.name}</b><span class="sk-price">${skip.cur}${skip.low}–${skip.cur}${skip.high}</span>`;
     const askable = consultantOn && window.ParkPulseChat;
-    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div></div>${verdict}${askable ? '<button id="sk-ask">Ask the AI →</button>' : ''}</div>`;
+    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div></div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
@@ -413,10 +416,10 @@
       if (!res.ok) { el.innerHTML = ''; return; }
       const f = await res.json();
       el.innerHTML = `<div class="fcast">
-        <div class="fc-head"><b>Next 7 days</b><span>Lightest: ${f.best} · ${f.basis}</span></div>
+        <div class="fc-head"><b>${tr('Next 7 days')}</b><span>${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.map((d) => `
           <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
-            ${d.dow}<i class="l${d.level}"></i><span class="lv">${d.label}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
+            ${d.dow}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
           </div>`).join('')}
         </div>
       </div>`;
@@ -434,7 +437,7 @@
     const optFor = (g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`;
     const starred = groups.filter((g) => myDests.has(g));
     $('dest').innerHTML =
-      (starred.length ? `<optgroup label="★ My parks">${starred.map(optFor).join('')}</optgroup>` : '') +
+      (starred.length ? `<optgroup label="${tr('★ My parks')}">${starred.map(optFor).join('')}</optgroup>` : '') +
       regions.map((reg) => {
         const gs = groups.filter((g) => regionOf[g] === reg && !myDests.has(g));
         return gs.length ? `<optgroup label="${reg}">${gs.map(optFor).join('')}</optgroup>` : '';
@@ -492,7 +495,7 @@
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
         <span class="mid"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
-        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' min' : 'Closed'}</span>
+        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
       </div>`;
   }
 
@@ -503,7 +506,7 @@
     if (searching || !hasLands) {
       const list = visibleRides();
       if (!list.length) {
-        $('rides').innerHTML = `<div class="state">No rides match “${query}”.</div>`;
+        $('rides').innerHTML = `<div class="state">${tr('No rides match')} “${query}”.</div>`;
         return;
       }
       $('rides').innerHTML = list.map(rideRow).join('');
@@ -512,7 +515,7 @@
       // so "what's short near me" reads at a glance.
       const lands = new Map();
       for (const r of rides) {
-        const key = r.land || 'Elsewhere in the park';
+        const key = r.land || tr('Elsewhere in the park');
         if (!lands.has(key)) lands.set(key, []);
         lands.get(key).push(r);
       }
@@ -590,7 +593,7 @@
   function updatePlanbar() {
     const n = pickedNames.size;
     $('planbar').classList.toggle('visible', n > 0);
-    $('picked-count').textContent = `${n} ride${n === 1 ? '' : 's'}`;
+    $('picked-count').textContent = `${n} ${n === 1 ? tr('ride') : tr('rides')}`;
   }
 
   function updatedLabel() {
@@ -637,7 +640,7 @@
     const steps = [];
     while (remaining.length && t < end) {
       if (!lunchDone && t >= 12) {
-        steps.push({ time: t, break: '🍔 Lunch break', why: 'Peak-crowd hour — perfect time to be out of line' });
+        steps.push({ time: t, break: '🍔 ' + tr('Lunch break'), why: 'Peak-crowd hour — perfect time to be out of line' });
         t += 0.75;
         lunchDone = true;
         continue;
@@ -669,11 +672,11 @@
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
       const predicted = Math.max(5, Math.round(ride.wait * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, why: (why || (mult <= 0.6 ? 'Low-crowd window — headliner time' : mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds')) + (stayed ? ' · short walk, same land' : '') });
+      steps.push({ time: t, ride, predicted, why: (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds'))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
     if (!showDone && end > show.hour) {
-      steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: 'Cap off the night' });
+      steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: tr('Cap off the night') });
     }
     const planned = steps.filter((s) => s.ride).reduce((s, x) => s + x.predicted, 0);
     const saved = Math.max(0, standbyNow - planned - remaining.reduce((s, r) => s + r.wait, 0));
@@ -687,16 +690,16 @@
       : "that's one more ride together instead of a queue";
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
-      <h2>Your plan</h2>
+      <h2>${tr('Your plan')}</h2>
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
-      ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ Already ridden today: ${doneSet.size} — planning what's left from where you are.</p>` : ''}
+      ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} min wait<br>
+        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} ${tr('min')}<br>
            <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${s.ride.name} ridden">✓</button></div>`
       ).join('')}
-      ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
-      <button class="btn replan" id="replan" style="display:none">📍 Replan from here</button>
+      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')} — ${tr('extend your hours or grab Lightning Lane for these.')}</p>` : ''}
+      <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
     $('plan-out').querySelectorAll('.stepdone').forEach((b) => b.addEventListener('click', () => {
       const name = decodeURIComponent(b.dataset.name);
@@ -775,6 +778,39 @@
     try { localStorage.setItem('pp-my-dests', JSON.stringify([...myDests])); } catch {}
     renderTabs();
   });
+  // Language: selector in the header; auto-detected from the phone/browser
+  // setting on first visit. Non-English retexts the static chrome here
+  // (dynamic strings go through tr() at render time).
+  (function initLang() {
+    const sel = $('lang');
+    sel.innerHTML = Object.entries(window.PP_LANGS || { en: 'EN' })
+      .map(([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`).join('');
+    sel.addEventListener('change', () => window.PP_SET_LANG(sel.value));
+    if (!window.PP_LANG || window.PP_LANG === 'en') return;
+    $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
+    $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
+    $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
+    $('search').placeholder = tr('Search rides…');
+    $('locate').title = tr('Find my park');
+    $('refresh').title = tr('Refresh waits');
+    $('acct-btn').title = tr('Account');
+    $('sheet-sub').textContent = tr('Get a push alert when the wait drops under:');
+    $('build').textContent = tr('Plan it');
+    const lunchLabel = document.querySelector('.planbar label.lunch');
+    if (lunchLabel) lunchLabel.lastChild.nodeValue = ' ' + tr('lunch');
+    $('howworks').textContent = tr('How it works');
+    document.querySelector('#onboard h2').textContent = tr('Welcome to ParkPulse 🎢');
+    $('onboard-go').textContent = tr("Let's beat the lines →");
+    $('acct-title').textContent = tr('Log in');
+    $('acct-submit').textContent = tr('Log in');
+    $('acct-sub').textContent = tr('Your pass follows your account onto any device.');
+    $('acct-pw').placeholder = tr('Password');
+    $('acct-toggle').textContent = tr('Create an account');
+    $('acct-switch').childNodes[0].nodeValue = tr('New here?') + ' ';
+    $('acct-forgot').textContent = tr('Forgot password?');
+    $('acct-logout').textContent = tr('Log out');
+    $('acct-cancel').textContent = tr('Close');
+  })();
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
   // biggest open headliners.
