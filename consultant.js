@@ -346,4 +346,30 @@ async function describeRide(parkName, rideName, lang) {
   return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || null;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+// One-shot park dining guide as strict JSON, generated once per park per
+// language and cached by the caller. Honesty-guarded: only well-known spots.
+async function diningGuide(parkName, group, lang) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 1500,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You produce dining guides for a theme-park app as STRICT JSON — no markdown, no code fences, no commentary. Output a JSON array of 5-8 objects: {"name": string, "type": "table"|"quick"|"character", "price": "$"|"$$"|"$$$", "blurb": string (one short sentence: cuisine + why it stands out), "mustBook": boolean (true only if reservations are genuinely hard to get)}. Include ONLY restaurants you are confident actually exist at this specific park — fewer correct entries beat more invented ones. Blurbs in the requested language; names in their official form.',
+    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Language for blurbs: ${lang || 'English'}.` }],
+  });
+  if (msg.stop_reason === 'refusal') return null;
+  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+  const list = JSON.parse(raw);
+  if (!Array.isArray(list)) return null;
+  return list.slice(0, 8).map((r) => ({
+    name: String(r.name || '').slice(0, 80),
+    type: ['table', 'quick', 'character'].includes(r.type) ? r.type : 'quick',
+    price: ['$', '$$', '$$$'].includes(r.price) ? r.price : '$$',
+    blurb: String(r.blurb || '').slice(0, 200),
+    mustBook: Boolean(r.mustBook),
+  })).filter((r) => r.name);
+}
+
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

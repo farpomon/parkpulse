@@ -581,6 +581,40 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Dining guide: AI-generated once per park per language, cached forever.
+  // Includes the official reservation link and booking-window note per chain.
+  const diningMatch = url.pathname.match(/^\/api\/dining\/([a-z-]+)$/);
+  if (diningMatch) {
+    const slug = diningMatch[1];
+    const LANG_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
+    const langCode = LANG_NAMES[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const park = PARKS[slug];
+    const RESERVE = {
+      'Walt Disney World': { url: 'https://disneyworld.disney.go.com/dining/', note: 'Reservations open 60 days ahead at 6:00 AM ET' },
+      'Disneyland (California)': { url: 'https://disneyland.disney.go.com/dining/', note: 'Reservations open 60 days ahead' },
+      'Universal Orlando': { url: 'https://www.universalorlando.com/web/en/us/things-to-do/dining', note: 'Most spots are walk-up or same-week' },
+      'Universal Hollywood': { url: 'https://www.universalstudioshollywood.com/web/en/us/things-to-do/dining', note: 'Mostly walk-up' },
+      'Disneyland Paris': { url: 'https://www.disneylandparis.com/en-usd/restaurants/', note: 'Reservations open 2 months ahead' },
+      'Tokyo Disney Resort': { url: 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html', note: 'Priority Seating opens 1 month ahead, 9:00 AM JST' },
+    };
+    const reserve = RESERVE[park.group] || null;
+    const cached = db.dining.get(slug, langCode);
+    if (cached) return sendJson(res, 200, { park: park.name, reserve, list: JSON.parse(cached) });
+    if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    try {
+      const list = await consultant.diningGuide(park.name, park.group, LANG_NAMES[langCode]);
+      if (!list || !list.length) return sendJson(res, 502, { error: 'no guide' });
+      db.dining.set(slug, langCode, JSON.stringify(list));
+      return sendJson(res, 200, { park: park.name, reserve, list });
+    } catch (err) {
+      console.log(`dining error: ${err.message}`);
+      return sendJson(res, 502, { error: 'no guide' });
+    }
+  }
+
   const forecastMatch = url.pathname.match(/^\/api\/forecast\/([a-z-]+)$/);
   if (forecastMatch) {
     const slug = forecastMatch[1];

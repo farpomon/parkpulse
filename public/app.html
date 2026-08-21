@@ -99,7 +99,10 @@
     background: linear-gradient(135deg, var(--brand), #7b5fe0); box-shadow: 0 4px 14px rgba(79,58,201,.30); transition: transform .12s ease, box-shadow .12s ease, filter .12s ease; }
   .btn:hover { filter: brightness(1.06); }
   .btn:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(79,58,201,.30); }
-  .listtools { display: flex; justify-content: flex-end; margin: 0 0 .1rem; }
+  .listtools { display: flex; justify-content: space-between; margin: 0 0 .1rem; }
+  .dine-tags { font-size: .72rem; font-weight: 800; color: var(--brand); text-transform: uppercase; letter-spacing: .04em; margin-top: .1rem; }
+  .dine-blurb { font-size: .84rem; color: var(--muted); line-height: 1.45; margin-top: .15rem; }
+  .dine-note { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
   .listtools a { color: var(--brand); font-size: .82rem; font-weight: 800; text-decoration: none; cursor: pointer; }
   .plan-note { background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); border-radius: 10px; padding: .4rem .7rem; font-size: .78rem; font-weight: 700; margin-top: .5rem; display: flex; gap: .5rem; align-items: center; }
   .plan-note button { margin-left: auto; border: none; background: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0 .1rem; }
@@ -210,7 +213,8 @@
   <p class="crowdline" id="crowdline"></p>
   <div id="skipcard"></div>
   <div id="forecast"></div>
-  <div class="listtools"><a id="pick-all">Select all</a></div>
+  <div class="listtools"><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
+  <div id="dining" style="display:none"></div>
   <div id="plan-out"></div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
@@ -787,7 +791,7 @@
   async function load(opts = {}) {
     renderTabs();
     loadDone();
-    if (plannerPark !== null && plannerPark !== current) { llSet.clear(); hidePlanNote(); openDesc.clear(); }
+    if (plannerPark !== null && plannerPark !== current) { llSet.clear(); hidePlanNote(); openDesc.clear(); if (viewMode === 'dining') renderDining(); }
     if (plannerPark !== current) { setupPlanner(); plannerPark = current; }
     if (!opts.silent) {
       $('rides').classList.add('skeleton');
@@ -1062,6 +1066,60 @@
 
   $('trip-form').addEventListener('submit', buildTrip);
   $('trip-cancel').addEventListener('click', closeTrip);
+
+  // --- 🍽 Dining tab: AI-curated guide per park (cached server-side), real
+  // reservation windows and official booking links; honest about the absence
+  // of live dining waits.
+  let viewMode = 'rides';
+  const diningCache = {};
+
+  async function renderDining() {
+    const el = $('dining');
+    const key = current + '|' + (window.PP_LANG || 'en');
+    if (!diningCache[key]) {
+      el.innerHTML = '<div class="state">🍽 …</div>';
+      try {
+        const r = await api(`/api/dining/${current}?lang=${window.PP_LANG || 'en'}`);
+        if (!r.ok) throw new Error();
+        diningCache[key] = await r.json();
+      } catch {
+        el.innerHTML = '<div class="state">Dining guide unavailable right now — ask the AI instead via the 💬 bubble.</div>';
+        return;
+      }
+    }
+    const d = diningCache[key];
+    const TYPE = { table: 'Table service', quick: 'Quick service', character: 'Character dining' };
+    el.innerHTML = `
+      <div class="fcast">
+        <div class="fc-head"><b>🍽 Dining at ${parks[current].name}</b>${d.reserve ? `<a href="${d.reserve.url}" target="_blank" rel="noopener" style="font-weight:800">Reserve →</a>` : ''}</div>
+        ${d.reserve ? `<div class="sk-note">${d.reserve.note} — booking happens in the official app/site.</div>` : ''}
+        <div class="sk-note">Kitchens peak 12:00–1:30 &amp; 6:00–7:30 — mobile-order 30 min ahead or eat off-peak. Parks don't publish live dining waits.</div>
+      </div>
+      ${d.list.map((r) => `
+        <div class="ride">
+          <span class="mid">
+            <span class="name">${r.name}${r.mustBook ? ' 🔒' : ''}</span>
+            <div class="dine-tags">${TYPE[r.type] || r.type} · ${r.price}${r.mustBook ? ' · book early!' : ''}</div>
+            <div class="dine-blurb">${r.blurb}</div>
+          </span>
+        </div>`).join('')}
+      <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 Ask the AI for a dining plan for today</a></p>`;
+    const ask = document.getElementById('dine-ask');
+    if (ask) ask.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (window.ParkPulseChat) ParkPulseChat.ask(`Plan our meals at ${parks[current].name} today — what needs a reservation, what's best for kids, and when should we eat to dodge the rush?`);
+    });
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    $('rides').style.display = mode === 'rides' ? '' : 'none';
+    $('dining').style.display = mode === 'dining' ? '' : 'none';
+    $('pick-all').style.display = mode === 'rides' ? '' : 'none';
+    $('view-toggle').textContent = mode === 'rides' ? '🍽 Dining' : '🎢 Rides';
+    if (mode === 'dining') renderDining();
+  }
+  $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'rides' ? 'dining' : 'rides'); });
 
   // 📍 Find my park: nearest covered park by straight-line distance.
   const haversineKm = (la1, lo1, la2, lo2) => {
