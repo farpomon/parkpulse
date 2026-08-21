@@ -129,54 +129,56 @@ function grantToUser(email, plan, exp) {
   if (!accountPassActive(u) || exp > u.plan_exp) db.users.grant(email, plan, exp);
 }
 
-// --- Password reset ----------------------------------------------------------
-// Reset emails go through Resend when RESEND_API_KEY is set; otherwise the
-// link is logged server-side so an operator can help manually.
+// --- Outbound email ----------------------------------------------------------
+// All email goes through Resend when RESEND_API_KEY is set; otherwise each
+// message's essentials are logged server-side so an operator can help manually.
+// Note: Resend's shared onboarding@resend.dev sender only delivers to the
+// Resend account owner's own address — a verified domain (MAIL_FROM) is
+// required before emailing real users.
 const RESEND_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'ParkPulse <onboarding@resend.dev>';
 
-async function sendResetEmail(origin, email, token) {
-  const link = `${origin}/reset?email=${encodeURIComponent(email)}&token=${token}`;
+async function sendEmail(to, subject, html, logFallback) {
   if (!RESEND_KEY) {
-    console.log(`Password reset requested for ${email} (no RESEND_API_KEY set) — link: ${link}`);
-    return;
+    console.log(logFallback || `Email not sent to ${to} (no RESEND_API_KEY set): ${subject}`);
+    return { sent: false, reason: 'RESEND_API_KEY not set' };
   }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { authorization: `Bearer ${RESEND_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      from: MAIL_FROM,
-      to: [email],
-      subject: 'Reset your ParkPulse password',
-      html: `<p>Someone (hopefully you) asked to reset the password for this ParkPulse account.</p>
-<p><a href="${link}">Reset your password</a> — the link is valid for 1 hour.</p>
-<p>If this wasn't you, ignore this email; your password is unchanged.</p>`,
-    }),
+    body: JSON.stringify({ from: MAIL_FROM, to: [to], subject, html }),
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`resend ${res.status}`);
+  if (!res.ok) throw new Error(`resend ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  return { sent: true };
 }
+
+const sendResetEmail = (origin, email, token) => {
+  const link = `${origin}/reset?email=${encodeURIComponent(email)}&token=${token}`;
+  return sendEmail(email, 'Reset your ParkPulse password',
+    `<p>Someone (hopefully you) asked to reset the password for this ParkPulse account.</p>
+<p><a href="${link}">Reset your password</a> — the link is valid for 1 hour.</p>
+<p>If this wasn't you, ignore this email; your password is unchanged.</p>`,
+    `Password reset requested for ${email} (no RESEND_API_KEY set) — link: ${link}`);
+};
 
 // Email verification: 6-digit codes, hashed at rest, 15-minute validity.
 const hashCode = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
-async function sendVerifyEmail(email, code) {
-  if (!RESEND_KEY) {
-    console.log(`Verification code for ${email}: ${code}`);
-    return;
-  }
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${RESEND_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      from: MAIL_FROM,
-      to: [email],
-      subject: `${code} is your ParkPulse code`,
-      html: `<p>Your ParkPulse verification code:</p><p style="font-size:28px;font-weight:800;letter-spacing:4px">${code}</p><p>It expires in 15 minutes. If you didn't request it, ignore this email.</p>`,
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`resend ${res.status}`);
-}
+const sendVerifyEmail = (email, code) => sendEmail(email, `${code} is your ParkPulse code`,
+  `<p>Your ParkPulse verification code:</p><p style="font-size:28px;font-weight:800;letter-spacing:4px">${code}</p><p>It expires in 15 minutes. If you didn't request it, ignore this email.</p>`,
+  `Verification code for ${email}: ${code}`);
+
+// One-time welcome after the account verifies. Fire-and-forget, never blocks.
+const sendWelcomeEmail = (email) => sendEmail(email, 'Welcome to ParkPulse 🎢',
+  `<p>Your account is verified — you're in!</p>
+<p>Three things worth trying on your next park day:</p>
+<ul>
+<li><b>Plan my day</b> builds a full-day, walk-smart ride order from live and predicted waits.</li>
+<li>The <b>AI advisor</b> answers anything — dining, skip-pass math, rainy-day backup plans.</li>
+<li><b>Wait alerts</b> ping your phone when a ride you want drops below your threshold.</li>
+</ul>
+<p>Happy riding!<br>— ParkPulse</p>`,
+  `Welcome email skipped for ${email} (no RESEND_API_KEY set)`);
 function startVerification(email) {
   const code = String(crypto.randomInt(100000, 1000000));
   db.users.setVerifyCode(email, hashCode(code), Date.now() + 15 * 60000);
@@ -564,8 +566,19 @@ consultant.init({
   saveMemory: (email, notes) => db.advisor.setMemory(email, notes),
 });
 
+// Canonical host: when CANONICAL_HOST is set (e.g. www.parkpulse.fun), GET
+// traffic arriving on any other host — the Railway domains, the bare apex —
+// is 301-redirected there, so links, SEO and sessions converge on one origin.
+const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const host = String(req.headers.host || '').toLowerCase();
+  if (CANONICAL_HOST && host && host !== CANONICAL_HOST && !host.startsWith('localhost') && !host.startsWith('127.')
+      && (req.method === 'GET' || req.method === 'HEAD')) {
+    res.writeHead(301, { location: `https://${CANONICAL_HOST}${req.url}`, 'cache-control': 'public, max-age=3600' });
+    return res.end();
+  }
 
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {
@@ -645,6 +658,7 @@ const server = http.createServer(async (req, res) => {
     const parkName = (p) => PARKS[p.path.slice(5)]?.name || p.path.slice(5);
     return sendJson(res, 200, {
       env: APP_ENV,
+      email: { configured: Boolean(RESEND_KEY), from: MAIL_FROM, customSender: !MAIL_FROM.includes('resend.dev') },
       users: {
         ...db.admin.userTotals(),
         new7d: db.admin.newUsers(7),
@@ -850,6 +864,7 @@ const server = http.createServer(async (req, res) => {
         if (!valid) return sendJson(res, 403, { error: 'wrong or expired code' });
         db.users.markVerified(email);
         verifyFails.delete(email);
+        sendWelcomeEmail(email).catch((err) => console.log(`welcome email failed: ${err.message}`));
         const held = passFromReq(req);
         if (held) grantToUser(email, held.plan, held.exp);
         const fresh = db.users.get(email);
@@ -861,6 +876,20 @@ const server = http.createServer(async (req, res) => {
           exp: active ? fresh.plan_exp : null,
           passToken: active ? signPass(fresh.plan, fresh.plan_exp) : null,
         });
+      }
+
+      // Admin: send a test email to the signed-in admin's own address, so
+      // email config can be checked from the dashboard without a real signup.
+      if (url.pathname === '/api/admin/test-email') {
+        const adm = adminUser(req);
+        if (!adm) return sendJson(res, 403, { error: 'admin account required' });
+        try {
+          const r = await sendEmail(adm.email, 'ParkPulse test email',
+            `<p>This is a test email from your ParkPulse ${APP_ENV} deployment. Sending works. ✅</p><p>From: ${MAIL_FROM}</p>`);
+          return sendJson(res, 200, r.sent ? { sent: true, to: adm.email } : { sent: false, reason: r.reason });
+        } catch (err) {
+          return sendJson(res, 502, { sent: false, reason: err.message });
+        }
       }
 
       if (url.pathname === '/api/auth/logout-all') {

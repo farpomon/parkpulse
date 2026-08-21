@@ -89,6 +89,12 @@
   </div>
 
   <div id="dash" hidden>
+    <div class="card" id="email-card">
+      <h2>Email sending</h2>
+      <p id="email-status" style="margin:.2rem 0 .6rem;font-size:.9rem"></p>
+      <button id="test-email">Send me a test email</button>
+      <span id="email-result" class="muted" style="font-size:.85rem;margin-left:.6rem"></span>
+    </div>
     <div class="tiles" id="tiles"></div>
     <div class="card"><h2>Page views · last 14 days</h2><div class="chart" id="views-chart"></div><div class="axis" id="views-axis"></div></div>
     <div class="card"><h2>Signups · last 30 days</h2><div class="chart" id="signup-chart"></div><div class="axis" id="signup-axis"></div></div>
@@ -151,6 +157,12 @@ function meterTable(el, rows, nameKey, header) {
 
 function render(d) {
   $('env').textContent = d.env; $('env').hidden = false;
+  const em = d.email || {};
+  $('email-status').innerHTML = !em.configured
+    ? '<span class="no">✗ Not configured</span> — verification codes and reset links print to the Railway deploy logs. Add a <b>RESEND_API_KEY</b> variable in Railway to enable real sending.'
+    : !em.customSender
+      ? `<span class="ok">✓ Resend connected</span> — but sending as <b>${esc(em.from)}</b> (Resend test sender), which only delivers to your own Resend account email. Verify a domain in Resend and set <b>MAIL_FROM</b> to email real users.`
+      : `<span class="ok">✓ Configured</span> — sending as <b>${esc(em.from)}</b>.`;
   const pct = d.users.total ? Math.round(d.users.verified / d.users.total * 100) : 0;
   $('tiles').innerHTML = [
     { num: d.users.total, lbl: 'Accounts', sub: `${pct}% verified` },
@@ -219,6 +231,11 @@ $('verify').onclick = async () => {
   const { status, data } = await api('/api/auth/verify', { email: $('email').value.trim().toLowerCase(), code: $('code').value.trim(), device });
   if (status !== 200) { $('err2').textContent = data.error || 'Verification failed'; return; }
   afterAuth(data);
+};
+$('test-email').onclick = async () => {
+  $('email-result').textContent = 'Sending…';
+  const { data } = await api('/api/admin/test-email', {});
+  $('email-result').textContent = data.sent ? `Sent to ${data.to} — check your inbox.` : `Not sent: ${data.reason || 'unknown error'}`;
 };
 $('refresh').onclick = load;
 $('logout').onclick = () => { localStorage.removeItem(KEY); location.reload(); };
