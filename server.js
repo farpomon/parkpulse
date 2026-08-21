@@ -615,6 +615,30 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Ride tags (vibe + age band): AI-classified once per park, cached.
+  const rideTagsMatch = url.pathname.match(/^\/api\/ride-tags\/([a-z-]+)$/);
+  if (rideTagsMatch) {
+    const slug = rideTagsMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const cached = db.ridetags.get(slug);
+    if (cached) return sendJson(res, 200, { tags: JSON.parse(cached) });
+    if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    try {
+      const waits = await getWaits(slug);
+      const names = waits.rides.map((r) => r.name).slice(0, 120);
+      if (!names.length) return sendJson(res, 502, { error: 'no rides' });
+      const tags = await consultant.rideTags(PARKS[slug].name, names);
+      if (!tags || !Object.keys(tags).length) return sendJson(res, 502, { error: 'no tags' });
+      db.ridetags.set(slug, JSON.stringify(tags));
+      return sendJson(res, 200, { tags });
+    } catch (err) {
+      console.log(`ride-tags error: ${err.message}`);
+      return sendJson(res, 502, { error: 'no tags' });
+    }
+  }
+
   const forecastMatch = url.pathname.match(/^\/api\/forecast\/([a-z-]+)$/);
   if (forecastMatch) {
     const slug = forecastMatch[1];

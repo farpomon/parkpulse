@@ -88,6 +88,11 @@ db.exec(`
     at TEXT NOT NULL,
     PRIMARY KEY (park, lang)
   );
+  CREATE TABLE IF NOT EXISTS ride_tags (
+    park TEXT PRIMARY KEY,
+    json TEXT NOT NULL,
+    at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS trips (
     email TEXT PRIMARY KEY,
     dest TEXT NOT NULL,
@@ -257,6 +262,12 @@ const dining = {
     db.prepare('INSERT OR REPLACE INTO dining (park, lang, json, at) VALUES (?, ?, ?, ?)').run(park, lang, json, new Date().toISOString()),
 };
 
+// AI-classified ride tags (vibe + age band) per park, cached.
+const ridetags = {
+  get: (park) => db.prepare('SELECT json FROM ride_tags WHERE park = ?').get(park)?.json ?? null,
+  set: (park, json) => db.prepare('INSERT OR REPLACE INTO ride_tags (park, json, at) VALUES (?, ?, ?)').run(park, json, new Date().toISOString()),
+};
+
 // Multi-day trip plans, one per account (the current/next trip).
 const trips = {
   get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
@@ -268,4 +279,4 @@ const trips = {
 
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, DB_FILE };
+module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, DB_FILE };
