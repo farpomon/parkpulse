@@ -24,7 +24,9 @@
       "low": 15,
       "high": 45,
       "note": "per person/day · top headliners sold separately ($12-25)"
-    }
+    },
+    "lat": 28.4177,
+    "lng": -81.5812
   },
   {
     "slug": "epcot",
@@ -50,7 +52,9 @@
       "low": 15,
       "high": 35,
       "note": "per person/day · top headliners sold separately"
-    }
+    },
+    "lat": 28.3747,
+    "lng": -81.5494
   },
   {
     "slug": "hollywood-studios",
@@ -77,7 +81,9 @@
       "low": 15,
       "high": 45,
       "note": "per person/day · top headliners sold separately"
-    }
+    },
+    "lat": 28.3575,
+    "lng": -81.5583
   },
   {
     "slug": "animal-kingdom",
@@ -100,7 +106,9 @@
       "low": 15,
       "high": 30,
       "note": "per person/day · usually the least needed at WDW"
-    }
+    },
+    "lat": 28.3553,
+    "lng": -81.5901
   },
   {
     "slug": "disneyland",
@@ -132,7 +140,9 @@
       "low": 15,
       "high": 35,
       "note": "per person/day"
-    }
+    },
+    "lat": 33.8121,
+    "lng": -117.919
   },
   {
     "slug": "california-adventure",
@@ -159,7 +169,9 @@
       "low": 15,
       "high": 35,
       "note": "per person/day"
-    }
+    },
+    "lat": 33.8063,
+    "lng": -117.9218
   },
   {
     "slug": "universal-studios-florida",
@@ -187,7 +199,9 @@
       "low": 80,
       "high": 300,
       "note": "per person/day · FREE with premier hotel stays"
-    }
+    },
+    "lat": 28.4749,
+    "lng": -81.4664
   },
   {
     "slug": "islands-of-adventure",
@@ -210,7 +224,9 @@
       "low": 80,
       "high": 300,
       "note": "per person/day · FREE with premier hotel stays"
-    }
+    },
+    "lat": 28.4715,
+    "lng": -81.4713
   },
   {
     "slug": "epic-universe",
@@ -233,7 +249,9 @@
       "low": 100,
       "high": 300,
       "note": "limited availability — sells out early"
-    }
+    },
+    "lat": 28.4374,
+    "lng": -81.452
   },
   {
     "slug": "universal-studios-hollywood",
@@ -257,7 +275,9 @@
       "low": 90,
       "high": 250,
       "note": "per person/day"
-    }
+    },
+    "lat": 34.1381,
+    "lng": -118.3534
   },
   {
     "slug": "disneyland-paris",
@@ -284,7 +304,9 @@
       "low": 5,
       "high": 18,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 48.8722,
+    "lng": 2.7758
   },
   {
     "slug": "walt-disney-studios-paris",
@@ -308,7 +330,9 @@
       "low": 5,
       "high": 18,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 48.8683,
+    "lng": 2.778
   },
   {
     "slug": "tokyo-disneyland",
@@ -331,7 +355,9 @@
       "low": 1500,
       "high": 2500,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 35.6329,
+    "lng": 139.8804
   },
   {
     "slug": "tokyo-disneysea",
@@ -353,7 +379,9 @@
       "low": 1500,
       "high": 2500,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 35.6267,
+    "lng": 139.885
   },
   {
     "slug": "hong-kong-disneyland",
@@ -381,7 +409,9 @@
       "low": 129,
       "high": 199,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 22.313,
+    "lng": 114.0413
   },
   {
     "slug": "shanghai-disneyland",
@@ -404,7 +434,9 @@
       "low": 80,
       "high": 180,
       "note": "per ride, per person (CNY)"
-    }
+    },
+    "lat": 31.1434,
+    "lng": 121.657
   },
   {
     "slug": "knotts-berry-farm",
@@ -426,7 +458,9 @@
       "low": 50,
       "high": 150,
       "note": "unlimited wristband"
-    }
+    },
+    "lat": 33.8442,
+    "lng": -117.9986
   },
   {
     "slug": "six-flags-magic-mountain",
@@ -449,7 +483,9 @@
       "low": 40,
       "high": 120,
       "note": "virtual queue — you wait, just not in line"
-    }
+    },
+    "lat": 34.4254,
+    "lng": -118.5971
   },
   {
     "slug": "busch-gardens-tampa",
@@ -472,7 +508,9 @@
       "low": 20,
       "high": 90,
       "note": "cheapest skip in the industry"
-    }
+    },
+    "lat": 28.0372,
+    "lng": -82.4194
   },
   {
     "slug": "seaworld-orlando",
@@ -495,7 +533,9 @@
       "low": 20,
       "high": 90,
       "note": "one-time or Unlimited variants"
-    }
+    },
+    "lat": 28.4114,
+    "lng": -81.4633
   },
   {
     "slug": "cedar-point",
@@ -517,7 +557,9 @@
       "low": 50,
       "high": 190,
       "note": "unlimited wristband · sells out Saturdays"
-    }
+    },
+    "lat": 41.4822,
+    "lng": -82.6835
   },
   {
     "slug": "kings-island",
@@ -539,7 +581,9 @@
       "low": 50,
       "high": 170,
       "note": "unlimited wristband"
-    }
+    },
+    "lat": 39.3448,
+    "lng": -84.2686
   },
   {
     "slug": "six-flags-great-adventure",
@@ -561,7 +605,9 @@
       "low": 40,
       "high": 120,
       "note": "virtual queue — you wait, just not in line"
-    }
+    },
+    "lat": 40.1385,
+    "lng": -74.4409
   },
   {
     "slug": "canadas-wonderland",
@@ -584,7 +630,9 @@
       "low": 60,
       "high": 200,
       "note": "unlimited wristband"
-    }
+    },
+    "lat": 43.843,
+    "lng": -79.5389
   },
   {
     "slug": "hersheypark",
@@ -606,7 +654,9 @@
       "low": 40,
       "high": 100,
       "note": "limited quantity"
-    }
+    },
+    "lat": 40.2878,
+    "lng": -76.654
   },
   {
     "slug": "dollywood",
@@ -628,7 +678,9 @@
       "low": 40,
       "high": 100,
       "note": "limited quantity"
-    }
+    },
+    "lat": 35.7953,
+    "lng": -83.5306
   },
   {
     "slug": "busch-gardens-williamsburg",
@@ -651,7 +703,9 @@
       "low": 20,
       "high": 90,
       "note": "cheapest skip in the industry"
-    }
+    },
+    "lat": 37.2365,
+    "lng": -76.6455
   },
   {
     "slug": "seaworld-san-diego",
@@ -674,7 +728,9 @@
       "low": 20,
       "high": 80,
       "note": "one-time or Unlimited variants"
-    }
+    },
+    "lat": 32.7647,
+    "lng": -117.2264
   },
   {
     "slug": "europa-park",
@@ -692,7 +748,9 @@
     "skip": {
       "type": "none",
       "note": "No paid skip — rope drop and single-rider are your friends"
-    }
+    },
+    "lat": 48.266,
+    "lng": 7.722
   },
   {
     "slug": "efteling",
@@ -710,7 +768,9 @@
     "skip": {
       "type": "none",
       "note": "No paid skip — go at opening or after 16:00"
-    }
+    },
+    "lat": 51.6503,
+    "lng": 5.0497
   },
   {
     "slug": "alton-towers",
@@ -732,7 +792,9 @@
       "low": 3,
       "high": 15,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 52.9866,
+    "lng": -1.889
   },
   {
     "slug": "thorpe-park",
@@ -754,7 +816,9 @@
       "low": 3,
       "high": 15,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 51.4055,
+    "lng": -0.5115
   },
   {
     "slug": "portaventura",
@@ -779,7 +843,9 @@
       "low": 25,
       "high": 60,
       "note": "per person/day"
-    }
+    },
+    "lat": 41.0872,
+    "lng": 1.156
   },
   {
     "slug": "phantasialand",
@@ -797,7 +863,9 @@
     "skip": {
       "type": "none",
       "note": "No paid skip — weekdays are dramatically lighter"
-    }
+    },
+    "lat": 50.7989,
+    "lng": 6.8794
   },
   {
     "slug": "parc-asterix",
@@ -819,7 +887,9 @@
       "low": 5,
       "high": 15,
       "note": "per ride, per person"
-    }
+    },
+    "lat": 49.1348,
+    "lng": 2.5722
   },
   {
     "slug": "liseberg",
@@ -837,6 +907,8 @@
     "skip": {
       "type": "none",
       "note": "No paid skip — evenings are lightest"
-    }
+    },
+    "lat": 57.6944,
+    "lng": 11.9924
   }
 ]

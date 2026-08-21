@@ -403,7 +403,7 @@ const server = http.createServer(async (req, res) => {
       checkout: CHECKOUT_ENABLED,
       consultant: consultant.enabled(),
       pushKey: vapidKeys.publicKey,
-      parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip }])),
+      parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng }])),
     });
   }
 
