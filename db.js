@@ -72,6 +72,15 @@ db.exec(`
     messages TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS ride_info (
+    park TEXT NOT NULL,
+    ride TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    name TEXT NOT NULL,
+    text TEXT NOT NULL,
+    at TEXT NOT NULL,
+    PRIMARY KEY (park, ride, lang)
+  );
   CREATE TABLE IF NOT EXISTS trips (
     email TEXT PRIMARY KEY,
     dest TEXT NOT NULL,
@@ -226,6 +235,14 @@ const advisor = {
   },
 };
 
+// AI-generated one-time ride descriptions, cached forever per language.
+const rideinfo = {
+  get: (park, ride, lang) => db.prepare('SELECT text FROM ride_info WHERE park = ? AND ride = ? AND lang = ?').get(park, ride, lang)?.text ?? null,
+  set: (park, ride, lang, name, text) =>
+    db.prepare('INSERT OR REPLACE INTO ride_info (park, ride, lang, name, text, at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(park, ride, lang, name, text, new Date().toISOString()),
+};
+
 // Multi-day trip plans, one per account (the current/next trip).
 const trips = {
   get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
@@ -237,4 +254,4 @@ const trips = {
 
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, DB_FILE };
+module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, rideinfo, DB_FILE };

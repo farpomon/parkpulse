@@ -330,4 +330,20 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
   send('done', {});
 }
 
-module.exports = { enabled, init, consult, throttled, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+// One-shot ride description: short, family-focused, honest about uncertainty.
+// Generated once per ride per language, then cached by the caller.
+async function describeRide(parkName, rideName, lang) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 250,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You write tiny attraction blurbs for a theme-park app. At most 2 short sentences: what kind of ride or experience it is, thrill level, and who it suits (small kids? thrill seekers?). If you are not confident about this specific attraction, infer only its likely type from the name and park and keep it generic — never invent specifics like drops, speeds, or heights you are unsure of. No preamble, no quotes.',
+    messages: [{ role: 'user', content: `Attraction: "${rideName}" at ${parkName}. Reply in ${lang || 'English'}.` }],
+  });
+  if (msg.stop_reason === 'refusal') return null;
+  return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || null;
+}
+
+module.exports = { enabled, init, consult, throttled, describeRide, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

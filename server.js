@@ -147,6 +147,16 @@ function feedbackBlocked(key) {
   return f.n > 30;
 }
 
+// Description-generation damper: 60 fresh generations per IP per hour
+// (cached descriptions are unmetered).
+const rideInfoHits = new Map();
+function rideInfoBlocked(key) {
+  const f = rideInfoHits.get(key);
+  if (!f || Date.now() > f.resetAt) { rideInfoHits.set(key, { n: 1, resetAt: Date.now() + 3600000 }); return false; }
+  f.n += 1;
+  return f.n > 60;
+}
+
 // Brute-force damper: 5 failed logins per email per 15 minutes.
 const loginFails = new Map();
 function loginBlocked(email) {
@@ -543,6 +553,32 @@ const server = http.createServer(async (req, res) => {
       return res.end(isMap ? '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' : 'User-agent: *\nDisallow: /\n');
     }
     return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug)) : pages.renderRobots(origin));
+  }
+
+  // Tap-for-description: AI-generated once per ride per language, cached in
+  // SQLite forever, so the marginal cost of the feature trends to zero.
+  const rideInfoMatch = url.pathname.match(/^\/api\/ride-info\/([a-z-]+)$/);
+  if (rideInfoMatch) {
+    const slug = rideInfoMatch[1];
+    const ride = (url.searchParams.get('ride') || '').slice(0, 120).trim();
+    const LANG_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
+    const langCode = LANG_NAMES[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
+    if (!PARKS[slug] || !ride) return sendJson(res, 400, { error: 'invalid' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const key = normName(ride);
+    const cached = db.rideinfo.get(slug, key, langCode);
+    if (cached) return sendJson(res, 200, { text: cached });
+    if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    try {
+      const text = await consultant.describeRide(PARKS[slug].name, ride, LANG_NAMES[langCode]);
+      if (!text) return sendJson(res, 502, { error: 'no description' });
+      db.rideinfo.set(slug, key, langCode, ride, text.slice(0, 500));
+      return sendJson(res, 200, { text: text.slice(0, 500) });
+    } catch (err) {
+      console.log(`ride-info error: ${err.message}`);
+      return sendJson(res, 502, { error: 'no description' });
+    }
   }
 
   const forecastMatch = url.pathname.match(/^\/api\/forecast\/([a-z-]+)$/);
