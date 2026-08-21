@@ -88,6 +88,11 @@ db.exec(`
     at TEXT NOT NULL,
     PRIMARY KEY (park, lang)
   );
+  CREATE TABLE IF NOT EXISTS ride_tags (
+    park TEXT PRIMARY KEY,
+    json TEXT NOT NULL,
+    at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS trips (
     email TEXT PRIMARY KEY,
     dest TEXT NOT NULL,
@@ -104,6 +109,27 @@ db.exec(`
     message TEXT,
     at TEXT NOT NULL
   );
+`);
+
+// Guarded column additions (CREATE TABLE IF NOT EXISTS won't alter existing
+// tables). verified defaults to 1 so pre-existing accounts are grandfathered;
+// new signups insert 0 explicitly until they confirm their email code.
+for (const ddl of [
+  "ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 1",
+  "ALTER TABLE users ADD COLUMN verify_code TEXT",
+  "ALTER TABLE users ADD COLUMN verify_exp INTEGER",
+]) { try { db.exec(ddl); } catch {} }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    device TEXT NOT NULL,
+    ua TEXT,
+    created_at TEXT NOT NULL,
+    last_seen TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS sessions_email ON sessions (email);
 `);
 
 // --- Legacy flat-file import (runs once per empty table) ---------------------
@@ -171,14 +197,18 @@ const kv = {
 
 const users = {
   get: (email) => db.prepare('SELECT * FROM users WHERE email = ?').get(email) ?? null,
-  create: (email, salt, hash) =>
-    db.prepare('INSERT INTO users (email, salt, hash, created_at) VALUES (?, ?, ?, ?)').run(email, salt, hash, new Date().toISOString()),
+  create: (email, salt, hash, verified = 0) =>
+    db.prepare('INSERT INTO users (email, salt, hash, created_at, verified) VALUES (?, ?, ?, ?, ?)').run(email, salt, hash, new Date().toISOString(), verified),
+  setVerifyCode: (email, codeHash, exp) =>
+    db.prepare('UPDATE users SET verify_code = ?, verify_exp = ? WHERE email = ?').run(codeHash, exp, email),
+  markVerified: (email) =>
+    db.prepare('UPDATE users SET verified = 1, verify_code = NULL, verify_exp = NULL WHERE email = ?').run(email),
   grant: (email, plan, exp) =>
     db.prepare('UPDATE users SET plan = ?, plan_exp = ? WHERE email = ?').run(plan, exp, email),
   setResetToken: (email, token, exp) =>
     db.prepare('UPDATE users SET reset_token = ?, reset_exp = ? WHERE email = ?').run(token, exp, email),
   resetPassword: (email, salt, hash) =>
-    db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL WHERE email = ?').run(salt, hash, email),
+    db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL, verified = 1 WHERE email = ?').run(salt, hash, email),
 };
 
 const alerts = {
@@ -242,6 +272,22 @@ const advisor = {
   },
 };
 
+// Server-side sessions: one row per login, revocable, device-tagged. The
+// signed token carries the row id; a missing row means signed-out/evicted.
+const sessions = {
+  create: (id, email, device, ua) =>
+    db.prepare('INSERT INTO sessions (id, email, device, ua, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, email, device, ua ?? null, new Date().toISOString(), new Date().toISOString()),
+  get: (id) => db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) ?? null,
+  touch: (id) => db.prepare('UPDATE sessions SET last_seen = ? WHERE id = ?').run(new Date().toISOString(), id),
+  forEmail: (email) => db.prepare('SELECT * FROM sessions WHERE email = ? ORDER BY last_seen DESC').all(email),
+  devices: (email) => db.prepare('SELECT device, MAX(last_seen) AS last_seen FROM sessions WHERE email = ? GROUP BY device ORDER BY last_seen DESC').all(email),
+  deleteByDevice: (email, device) => db.prepare('DELETE FROM sessions WHERE email = ? AND device = ?').run(email, device).changes,
+  deleteForEmail: (email, exceptId) => (exceptId
+    ? db.prepare('DELETE FROM sessions WHERE email = ? AND id != ?').run(email, exceptId)
+    : db.prepare('DELETE FROM sessions WHERE email = ?').run(email)).changes,
+};
+
 // AI-generated one-time ride descriptions, cached forever per language.
 const rideinfo = {
   get: (park, ride, lang) => db.prepare('SELECT text FROM ride_info WHERE park = ? AND ride = ? AND lang = ?').get(park, ride, lang)?.text ?? null,
@@ -257,6 +303,12 @@ const dining = {
     db.prepare('INSERT OR REPLACE INTO dining (park, lang, json, at) VALUES (?, ?, ?, ?)').run(park, lang, json, new Date().toISOString()),
 };
 
+// AI-classified ride tags (vibe + age band) per park, cached.
+const ridetags = {
+  get: (park) => db.prepare('SELECT json FROM ride_tags WHERE park = ?').get(park)?.json ?? null,
+  set: (park, json) => db.prepare('INSERT OR REPLACE INTO ride_tags (park, json, at) VALUES (?, ?, ?)').run(park, json, new Date().toISOString()),
+};
+
 // Multi-day trip plans, one per account (the current/next trip).
 const trips = {
   get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
@@ -268,4 +320,4 @@ const trips = {
 
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, DB_FILE };
+module.exports = { kv, users, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, DB_FILE };

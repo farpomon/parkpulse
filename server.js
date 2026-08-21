@@ -85,13 +85,31 @@ function verifyPass(token) {
 // A purchase or dev-code redemption made while logged in attaches the pass to
 // the account, so entitlements follow the login rather than the browser.
 const SESSION_DAYS = 30;
+const MAX_DEVICES = 5;
 const hashPassword = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
-const signSession = (email) => signToken({ email, exp: Date.now() + SESSION_DAYS * 86400000 });
+
+// Sessions are server-side rows (revocable) referenced by a signed token.
+// Each login registers a device; beyond MAX_DEVICES the least-recently-seen
+// device is signed out — family-sized, sharing-hostile.
+function issueSession(email, device, req) {
+  const dev = (typeof device === 'string' && device.trim() ? device.trim() : 'unknown').slice(0, 64);
+  const known = db.sessions.devices(email);
+  if (!known.some((d) => d.device === dev) && known.length >= MAX_DEVICES) {
+    db.sessions.deleteByDevice(email, known[known.length - 1].device);
+  }
+  const sid = crypto.randomBytes(16).toString('hex');
+  db.sessions.create(sid, email, dev, String(req.headers['user-agent'] || '').slice(0, 200));
+  return signToken({ sid, email, exp: Date.now() + SESSION_DAYS * 86400000 });
+}
+
 function sessionUser(req) {
   const p = verifyToken(req.headers['x-session']);
-  if (!p?.email) return null;
+  if (!p?.email || !p.sid) return null; // legacy stateless tokens are retired
+  const row = db.sessions.get(p.sid);
+  if (!row || row.email !== p.email) return null; // revoked or evicted
+  if (Date.now() - new Date(row.last_seen).getTime() > 10 * 60 * 1000) db.sessions.touch(p.sid);
   const user = db.users.get(p.email);
-  return user ? { email: p.email, user } : null;
+  return user ? { email: p.email, user, sid: p.sid } : null;
 }
 const accountPassActive = (user) => Boolean(user.plan && PLAN_DAYS[user.plan] && user.plan_exp > Date.now());
 
@@ -128,6 +146,40 @@ async function sendResetEmail(origin, email, token) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`resend ${res.status}`);
+}
+
+// Email verification: 6-digit codes, hashed at rest, 15-minute validity.
+const hashCode = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
+async function sendVerifyEmail(email, code) {
+  if (!RESEND_KEY) {
+    console.log(`Verification code for ${email}: ${code}`);
+    return;
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${RESEND_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      from: MAIL_FROM,
+      to: [email],
+      subject: `${code} is your ParkPulse code`,
+      html: `<p>Your ParkPulse verification code:</p><p style="font-size:28px;font-weight:800;letter-spacing:4px">${code}</p><p>It expires in 15 minutes. If you didn't request it, ignore this email.</p>`,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`resend ${res.status}`);
+}
+function startVerification(email) {
+  const code = String(crypto.randomInt(100000, 1000000));
+  db.users.setVerifyCode(email, hashCode(code), Date.now() + 15 * 60000);
+  sendVerifyEmail(email, code).catch((err) => console.log(`verify email failed: ${err.message}`));
+}
+// 6 wrong codes per email per 15 minutes.
+const verifyFails = new Map();
+function verifyBlocked(email) {
+  const f = verifyFails.get(email);
+  if (!f || Date.now() > f.resetAt) { verifyFails.set(email, { n: 1, resetAt: Date.now() + 15 * 60000 }); return false; }
+  f.n += 1;
+  return f.n > 6;
 }
 
 const forgotFails = new Map();
@@ -167,6 +219,37 @@ function noteLoginFail(email) {
   const f = loginFails.get(email);
   if (!f || Date.now() > f.resetAt) loginFails.set(email, { n: 1, resetAt: Date.now() + 15 * 60000 });
   else f.n += 1;
+}
+
+// --- Sharing signals ---------------------------------------------------------
+// One account actively pulling waits at two parks >500 km apart within an
+// hour is physically impossible for one household — a clean sharing signal
+// with none of the false positives of IP matching. Measured, not enforced.
+const parkSeen = new Map(); // email -> Map(slug -> ts)
+const sharingSignals = [];
+const kmBetween = (a, b) => {
+  const rad = Math.PI / 180;
+  const h = Math.sin((b.lat - a.lat) * rad / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin((b.lng - a.lng) * rad / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+};
+function noteParkUse(email, slug) {
+  const now = Date.now();
+  const seen = parkSeen.get(email) ?? new Map();
+  for (const [other, ts] of seen) {
+    if (other === slug || now - ts > 60 * 60000) continue;
+    const a = PARKS[slug], b = PARKS[other];
+    if (!a?.lat || !b?.lat) continue;
+    const km = Math.round(kmBetween(a, b));
+    if (km > 500 && !sharingSignals.some((x) => x.email === email && x.parks.includes(other) && now - x.ts < 6 * 3600000)) {
+      sharingSignals.push({ email, parks: [slug, other], km, at: new Date().toISOString(), ts: now });
+      if (sharingSignals.length > 50) sharingSignals.shift();
+    }
+  }
+  seen.set(slug, now);
+  if (seen.size > 10) seen.delete(seen.keys().next().value);
+  parkSeen.set(email, seen);
+  if (parkSeen.size > 5000) parkSeen.delete(parkSeen.keys().next().value);
 }
 
 const passFromReq = (req) => verifyPass(req.headers['x-pass']);
@@ -419,7 +502,7 @@ function forecastFor(slug) {
     const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
     if (holiday) factor *= 1.28;
     const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
-    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], ...(holiday && { holiday }) });
+    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }) });
   }
   const best = [...days].sort((a, b) => a.level - b.level)[0];
   return {
@@ -498,6 +581,8 @@ const server = http.createServer(async (req, res) => {
     const active = accountPassActive(s.user);
     return sendJson(res, 200, {
       email: s.email,
+      verified: Boolean(s.user.verified),
+      devices: db.sessions.devices(s.email).length,
       plan: active ? s.user.plan : null,
       exp: active ? s.user.plan_exp : null,
       passToken: active ? signPass(s.user.plan, s.user.plan_exp) : null,
@@ -534,7 +619,12 @@ const server = http.createServer(async (req, res) => {
   // Traffic stats for the operator — requires a dev pass token.
   if (url.pathname === '/api/stats') {
     if (passFromReq(req)?.plan !== 'dev') return sendJson(res, 403, { error: 'dev pass required' });
-    return sendJson(res, 200, { totals30d: db.hits.totals(30), daily14d: db.hits.since(14), advisorFeedback30d: db.advisor.feedbackSummary(30) });
+    return sendJson(res, 200, {
+      totals30d: db.hits.totals(30),
+      daily14d: db.hits.since(14),
+      advisorFeedback30d: db.advisor.feedbackSummary(30),
+      sharingSignals: { note: 'accounts using two parks >500km apart within an hour (since last restart)', events: sharingSignals.slice(-20).map(({ ts, ...rest }) => rest) },
+    });
   }
 
   // SEO surface: server-rendered park pages + sitemap + robots.
@@ -615,6 +705,30 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Ride tags (vibe + age band): AI-classified once per park, cached.
+  const rideTagsMatch = url.pathname.match(/^\/api\/ride-tags\/([a-z-]+)$/);
+  if (rideTagsMatch) {
+    const slug = rideTagsMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const cached = db.ridetags.get(slug);
+    if (cached) return sendJson(res, 200, { tags: JSON.parse(cached) });
+    if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    try {
+      const waits = await getWaits(slug);
+      const names = waits.rides.map((r) => r.name).slice(0, 120);
+      if (!names.length) return sendJson(res, 502, { error: 'no rides' });
+      const tags = await consultant.rideTags(PARKS[slug].name, names);
+      if (!tags || !Object.keys(tags).length) return sendJson(res, 502, { error: 'no tags' });
+      db.ridetags.set(slug, JSON.stringify(tags));
+      return sendJson(res, 200, { tags });
+    } catch (err) {
+      console.log(`ride-tags error: ${err.message}`);
+      return sendJson(res, 502, { error: 'no tags' });
+    }
+  }
+
   const forecastMatch = url.pathname.match(/^\/api\/forecast\/([a-z-]+)$/);
   if (forecastMatch) {
     const slug = forecastMatch[1];
@@ -628,6 +742,8 @@ const server = http.createServer(async (req, res) => {
     const slug = waitsMatch[1];
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const su = sessionUser(req);
+    if (su) noteParkUse(su.email, slug);
     return sendJson(res, 200, await getWaits(slug));
   }
 
@@ -647,13 +763,18 @@ const server = http.createServer(async (req, res) => {
           if (password.length < 8) return sendJson(res, 400, { error: 'password must be at least 8 characters' });
           if (db.users.get(email)) return sendJson(res, 409, { error: 'account already exists — log in instead' });
           const salt = crypto.randomBytes(16).toString('hex');
-          db.users.create(email, salt, hashPassword(password, salt));
-        } else {
-          if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
-          const u = db.users.get(email);
-          const ok = u && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u.salt)), Buffer.from(u.hash));
-          if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
-          loginFails.delete(email);
+          db.users.create(email, salt, hashPassword(password, salt), 0);
+          startVerification(email);
+          return sendJson(res, 200, { pending: true, email });
+        }
+        if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
+        const u0 = db.users.get(email);
+        const ok = u0 && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u0.salt)), Buffer.from(u0.hash));
+        if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
+        loginFails.delete(email);
+        if (!u0.verified) {
+          startVerification(email);
+          return sendJson(res, 200, { pending: true, email });
         }
 
         // If this browser already holds a pass token, bind it to the account
@@ -664,12 +785,48 @@ const server = http.createServer(async (req, res) => {
         const u = db.users.get(email);
         const active = accountPassActive(u);
         return sendJson(res, 200, {
-          session: signSession(email),
+          session: issueSession(email, parsed.device, req),
           email,
           plan: active ? u.plan : null,
           exp: active ? u.plan_exp : null,
           passToken: active ? signPass(u.plan, u.plan_exp) : null,
         });
+      }
+
+      if (url.pathname === '/api/auth/verify') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        const u = db.users.get(email);
+        if (!u) return sendJson(res, 403, { error: 'invalid code' });
+        if (parsed.resend) {
+          if (forgotBlocked('v:' + email)) return sendJson(res, 429, { error: 'too many codes requested — try again later' });
+          startVerification(email);
+          return sendJson(res, 200, { pending: true, email });
+        }
+        const code = typeof parsed.code === 'string' ? parsed.code.trim() : '';
+        if (verifyBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — request a new code in 15 minutes' });
+        const valid = u.verify_code && u.verify_exp > Date.now() && /^\d{6}$/.test(code) &&
+          crypto.timingSafeEqual(Buffer.from(hashCode(code)), Buffer.from(u.verify_code));
+        if (!valid) return sendJson(res, 403, { error: 'wrong or expired code' });
+        db.users.markVerified(email);
+        verifyFails.delete(email);
+        const held = passFromReq(req);
+        if (held) grantToUser(email, held.plan, held.exp);
+        const fresh = db.users.get(email);
+        const active = accountPassActive(fresh);
+        return sendJson(res, 200, {
+          session: issueSession(email, parsed.device, req),
+          email,
+          plan: active ? fresh.plan : null,
+          exp: active ? fresh.plan_exp : null,
+          passToken: active ? signPass(fresh.plan, fresh.plan_exp) : null,
+        });
+      }
+
+      if (url.pathname === '/api/auth/logout-all') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+        const removed = db.sessions.deleteForEmail(s2.email, s2.sid);
+        return sendJson(res, 200, { ok: true, removed });
       }
 
       if (url.pathname === '/api/auth/forgot') {
@@ -702,7 +859,7 @@ const server = http.createServer(async (req, res) => {
         const fresh = db.users.get(email);
         const active = accountPassActive(fresh);
         return sendJson(res, 200, {
-          session: signSession(email),
+          session: issueSession(email, parsed.device, req),
           email,
           plan: active ? fresh.plan : null,
           exp: active ? fresh.plan_exp : null,

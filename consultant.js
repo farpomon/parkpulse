@@ -372,4 +372,32 @@ async function diningGuide(parkName, group, lang) {
   })).filter((r) => r.name);
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+// One-shot ride classification for a park: vibe + minimum enjoyment age,
+// strict JSON, generated once per park and cached by the caller.
+async function rideTags(parkName, rideNames) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 4000,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). If you do not know a specific attraction, infer conservatively from its name.',
+    messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
+  });
+  if (msg.stop_reason === 'refusal') return null;
+  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+  const list = JSON.parse(raw);
+  if (!Array.isArray(list)) return null;
+  const out = {};
+  for (const r of list) {
+    if (!r || typeof r.name !== 'string') continue;
+    out[r.name] = {
+      vibe: ['gentle', 'family', 'thrill', 'water', 'show'].includes(r.vibe) ? r.vibe : 'family',
+      minAge: [0, 3, 7, 12].includes(r.minAge) ? r.minAge : 3,
+    };
+  }
+  return out;
+}
+
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
