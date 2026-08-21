@@ -109,6 +109,20 @@
   .skipcard .sk-verdict.skip { color: var(--green); }
   .skipcard .sk-verdict.mid { color: var(--muted); }
   .skipcard button { border: 1px solid var(--brand); background: none; color: var(--brand); border-radius: 999px; padding: .35rem .8rem; font-weight: 700; font-size: .82rem; cursor: pointer; flex-shrink: 0; }
+  .fcast { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: .6rem .85rem .7rem; margin: 0 0 .6rem; box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); }
+  .fcast .fc-head { display: flex; justify-content: space-between; align-items: baseline; font-size: .78rem; color: var(--muted); font-weight: 700; margin-bottom: .45rem; }
+  .fcast .fc-head b { color: var(--ink); font-size: .85rem; }
+  .fc-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35rem; }
+  .fc-day { text-align: center; font-size: .7rem; font-weight: 700; color: var(--muted); }
+  .fc-day.best { color: var(--green); }
+  .fc-day i { display: block; height: .45rem; border-radius: 4px; margin: .25rem 0 .15rem; }
+  .fc-day .lv { font-size: .62rem; font-weight: 600; }
+  .fc-day i.l1 { background: var(--green); }
+  .fc-day i.l2 { background: #8fd6ae; }
+  .fc-day i.l3 { background: var(--gold); opacity: .85; }
+  .fc-day i.l4 { background: #e08a4c; }
+  .fc-day i.l5 { background: var(--red); }
+  .fc-day .hol { font-size: .6rem; }
   .onboard-bg { position: fixed; inset: 0; background: rgba(18,12,40,.6); z-index: 60; display: none; }
   .onboard { position: fixed; inset: 0; z-index: 61; display: none; align-items: center; justify-content: center; padding: 1rem; }
   .onboard.open { display: flex; }
@@ -182,6 +196,7 @@
 
   <p class="crowdline" id="crowdline"></p>
   <div id="skipcard"></div>
+  <div id="forecast"></div>
   <div id="plan-out"></div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
@@ -388,6 +403,25 @@
   // Destinations the user tracks — pinned to the top of the picker.
   let myDests = new Set();
   try { myDests = new Set(JSON.parse(localStorage.getItem('pp-my-dests') || '[]')); } catch {}
+
+  // 7-day crowd forecast strip: measured day-of-week patterns blended with
+  // typical priors server-side; renders under the skip-pass card.
+  async function renderForecast() {
+    const el = $('forecast');
+    try {
+      const res = await api(`/api/forecast/${current}`);
+      if (!res.ok) { el.innerHTML = ''; return; }
+      const f = await res.json();
+      el.innerHTML = `<div class="fcast">
+        <div class="fc-head"><b>Next 7 days</b><span>Lightest: ${f.best} · ${f.basis}</span></div>
+        <div class="fc-days">${f.days.map((d) => `
+          <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
+            ${d.dow}<i class="l${d.level}"></i><span class="lv">${d.label}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    } catch { el.innerHTML = ''; }
+  }
 
   function renderTabs() {
     const groups = [...new Set(Object.values(parks).map((p) => p.group))];
@@ -700,6 +734,7 @@
       rides = lastData.rides;
       $('crowdline').innerHTML = crowdNow();
       renderSkip();
+      if (!opts.silent || !$('forecast').innerHTML) renderForecast();
       $('updated').textContent = updatedLabel();
       if (lastData.source === 'unavailable') {
         $('rides').classList.remove('skeleton');

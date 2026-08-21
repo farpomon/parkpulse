@@ -198,11 +198,13 @@ const TYPICAL = Object.fromEntries(
 // Measured baselines from collected history take precedence over the static
 // hand-built samples; static values remain the fallback until data accrues.
 let MEASURED = {};
+let DOW_INDEX = {};
 function refreshBaselines() {
   try {
     MEASURED = history.computeBaselines(normName);
+    DOW_INDEX = history.computeDowIndex();
     const parks = Object.keys(MEASURED).length;
-    if (parks) console.log(`Baselines refreshed from history: ${parks} parks`);
+    if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index)`);
   } catch (err) {
     console.log(`Baseline refresh failed: ${err.message}`);
   }
@@ -351,6 +353,52 @@ async function getWaits(slug) {
   }
 }
 
+// --- 7-day crowd forecast ----------------------------------------------------
+// Day-of-week factors measured from the park's own history, blended with
+// industry priors (Saturday busiest, Tue/Wed lightest) while data accrues,
+// plus a major-holiday boost. Levels 1-5.
+const PRIOR_DOW = [1.10, 0.90, 0.85, 0.87, 0.93, 1.03, 1.22]; // Sun..Sat
+const HOLIDAYS = {
+  '2026-09-07': 'Labor Day', '2026-10-12': 'Columbus Day', '2026-11-26': 'Thanksgiving',
+  '2026-11-27': 'Thanksgiving weekend', '2026-11-28': 'Thanksgiving weekend',
+  '2027-01-01': "New Year's Day", '2027-01-18': 'MLK Day', '2027-02-15': "Presidents' Day",
+  '2027-03-26': 'Easter week', '2027-03-27': 'Easter week', '2027-03-28': 'Easter',
+  '2027-05-31': 'Memorial Day', '2027-07-03': 'July 4th weekend', '2027-07-04': 'July 4th',
+  '2027-09-06': 'Labor Day',
+};
+const isChristmasWeek = (iso) => {
+  const md = iso.slice(5);
+  return md >= '12-19' || md <= '01-03';
+};
+const FORECAST_LEVELS = ['', 'Light', 'Mild', 'Moderate', 'Busy', 'Packed'];
+
+function forecastFor(slug) {
+  const park = PARKS[slug];
+  const measured = DOW_INDEX[slug];
+  const weight = measured ? Math.min(1, measured.days / 21) : 0;
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.now() + i * 86400000);
+    // Date and weekday in the PARK's timezone, not the server's.
+    const iso = d.toLocaleDateString('en-CA', { timeZone: park.tz });
+    const dowName = d.toLocaleDateString('en-US', { timeZone: park.tz, weekday: 'short' });
+    const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
+    const m = measured?.factors[dow];
+    let factor = weight * (m ?? PRIOR_DOW[dow]) + (1 - weight) * PRIOR_DOW[dow];
+    const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
+    if (holiday) factor *= 1.28;
+    const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
+    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], ...(holiday && { holiday }) });
+  }
+  const best = [...days].sort((a, b) => a.level - b.level)[0];
+  return {
+    park: park.name,
+    days,
+    best: best.dow,
+    basis: measured ? `${measured.days} days of measured data` : 'typical patterns (measured data still accruing)',
+  };
+}
+
 const saveLead = (email, plan) => db.leads.add(email, plan);
 
 const MIME = {
@@ -462,6 +510,14 @@ const server = http.createServer(async (req, res) => {
       return res.end(isMap ? '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' : 'User-agent: *\nDisallow: /\n');
     }
     return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug)) : pages.renderRobots(origin));
+  }
+
+  const forecastMatch = url.pathname.match(/^\/api\/forecast\/([a-z-]+)$/);
+  if (forecastMatch) {
+    const slug = forecastMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    return sendJson(res, 200, forecastFor(slug));
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
@@ -626,6 +682,7 @@ const server = http.createServer(async (req, res) => {
         }
         try {
           const waits = await getWaits(park);
+          try { waits.forecast = forecastFor(park); } catch {}
           const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });

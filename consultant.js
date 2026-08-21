@@ -142,7 +142,7 @@ Local time now: ${localTime(park.tz)}
 Typical hours: ${park.open}:00-${park.close}:00 local.
 ${park.show ? `Tonight's show: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
 Data: ${waits.source === 'live' ? 'live, updated within minutes' : 'TYPICAL-DAY ESTIMATES (live feed unavailable) — caveat advice accordingly'}
-Standby waits:
+${waits.forecast ? `7-day crowd outlook (based on ${waits.forecast.basis}): ${waits.forecast.days.map((d) => `${d.dow} ${d.label}${d.holiday ? ` (${d.holiday})` : ''}`).join(', ')}. Lightest day: ${waits.forecast.best}.\n` : ''}Standby waits:
 ${rides}`;
 }
 
