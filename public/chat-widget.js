@@ -68,6 +68,7 @@
     let chars = 0;
     for (let i = state.history.length - 1; i >= 0 && out.length < 12; i--) {
       const m = state.history[i];
+      if ((m.role !== 'user' && m.role !== 'assistant') || typeof m.content !== 'string') continue;
       if (chars + m.content.length > 9000 && out.length) break;
       out.unshift(m);
       chars += m.content.length;
@@ -135,7 +136,10 @@
     if (state.opts.requireAccess && !state.opts.requireAccess()) return;
     $id('ppc-panel').classList.add('ppc-open');
     if (!msgs.children.length) {
-      for (const m of state.history) bubble(m.role === 'user' ? 'user' : 'bot', m.content);
+      for (const m of state.history) {
+        if (m.role === 'action' && m.action) renderAction(m.action);
+        else bubble(m.role === 'user' ? 'user' : 'bot', m.content);
+      }
       if (!state.history.length) {
         const name = state.opts.getParkName() || 'the parks';
         bubble('bot', `Hi! I'm your park consultant — I can see today's waits at ${name}. Ask me whether Lightning Lane or Express Pass is worth it, or how to plan your day.`);
@@ -258,6 +262,7 @@
         return;
       }
       state.history.push({ role: 'assistant', content: replyText });
+      for (const a of actions) if (a.type === 'plan') state.history.push({ role: 'action', action: a });
       saveHistory();
       actions.forEach(renderAction);
       feedbackRow(replyText);

@@ -630,8 +630,10 @@ const server = http.createServer(async (req, res) => {
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
           let replyText = '';
+          const turnActions = [];
           const send = (event, data) => {
             if (event === 'delta' && data.text) replyText += data.text;
+            if (event === 'action') turnActions.push(data);
             res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
           };
           let failed = false;
@@ -656,6 +658,9 @@ const server = http.createServer(async (req, res) => {
                 .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
                 .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
               window.push({ role: 'assistant', content: replyText.slice(0, 4000) });
+              for (const a of turnActions) {
+                if (a.type === 'plan') window.push({ role: 'action', action: { type: 'plan', park: a.park, rides: a.rides } });
+              }
               db.advisor.saveChat(s.email, JSON.stringify(window.slice(-24)));
             } catch {}
           }
