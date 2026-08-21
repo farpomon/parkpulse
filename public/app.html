@@ -99,8 +99,9 @@
   .planbar select { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .4rem .5rem; font-size: .9rem; }
   .planbar label.lunch { display: flex; align-items: center; gap: .3rem; color: var(--muted); }
   .plan, .upsell { border-radius: 14px; padding: 1.1rem 1.25rem; margin-top: 1rem; }
-  .plan { background: var(--card); border: 1px solid var(--border); }
+  .plan { background: var(--card); border: 1px solid var(--border); position: relative; margin-bottom: .5rem; }
   .plan h2 { margin: 0 0 .35rem; font-size: 1.15rem; }
+  .plan .plan-x { position: absolute; top: .6rem; right: .7rem; border: none; background: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: .3rem; }
   .plan .savings { color: var(--green); font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
   .step { display: flex; gap: .8rem; padding: .55rem 0; border-bottom: 1px solid var(--border); }
   .step:last-child { border-bottom: none; }
@@ -133,8 +134,8 @@
   </header>
 
   <p class="crowdline" id="crowdline"></p>
-  <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
   <div id="plan-out"></div>
+  <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
   <footer>
     Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
@@ -552,6 +553,7 @@
       : saved >= 45 ? "that's an extra headliner AND an ice-cream stop"
       : "that's one more ride together instead of a queue";
     $('plan-out').innerHTML = `<div class="plan">
+      <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>Your plan</h2>
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${steps.map((s) => s.break
@@ -561,6 +563,7 @@
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
     </div>`;
+    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
