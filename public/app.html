@@ -519,9 +519,17 @@
     }
     const planned = steps.filter((s) => s.ride).reduce((s, x) => s + x.predicted, 0);
     const saved = Math.max(0, standbyNow - planned - remaining.reduce((s, r) => s + r.wait, 0));
+    // Savings pitch: families don't buy "minutes saved", they buy what the
+    // minutes turn into — more rides, a real break, happier kids.
+    const savedLabel = saved >= 60
+      ? `${Math.floor(saved / 60)} hr${saved % 60 ? ` ${saved % 60} min` : ''}`
+      : `${saved} min`;
+    const savedPerk = saved >= 90 ? "that's 3-4 extra rides together (or one very peaceful sit-down lunch)"
+      : saved >= 45 ? "that's an extra headliner AND an ice-cream stop"
+      : "that's one more ride together instead of a queue";
     $('plan-out').innerHTML = `<div class="plan">
       <h2>Your plan</h2>
-      ${saved > 0 ? `<div class="savings">≈ ${saved} min less waiting than riding them all right now</div>` : ''}
+      ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
         : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} min wait<br>
