@@ -32,8 +32,9 @@
   .iconbtn:active { transform: scale(.94); }
   .iconbtn.spinning { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .destrow { margin-bottom: .5rem; }
-  .destrow select { width: 100%; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .5rem .8rem; font-size: .95rem; font-weight: 600; }
+  .destrow { margin-bottom: .5rem; display: flex; gap: .45rem; }
+  .destrow select { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .5rem .8rem; font-size: .95rem; font-weight: 600; }
+  #dest-star.on { color: var(--star); border-color: var(--star); }
   .tabs { display: flex; gap: .45rem; overflow-x: auto; padding-bottom: .4rem; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tabs button { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: .45rem 1rem; font-size: .9rem; font-weight: 600; cursor: pointer; color: var(--ink); }
@@ -143,7 +144,10 @@
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
       </span>
     </div>
-    <div class="destrow"><select id="dest" aria-label="Choose destination"></select></div>
+    <div class="destrow">
+      <select id="dest" aria-label="Choose destination"></select>
+      <button class="iconbtn" id="dest-star" title="Track this destination in My parks" aria-label="Track this destination">☆</button>
+    </div>
     <div class="tabs" id="tabs" role="tablist"></div>
     <div class="searchrow">
       <input type="search" id="search" placeholder="Search rides…" aria-label="Search rides">
@@ -361,18 +365,28 @@
     });
   }
 
+  // Destinations the user tracks — pinned to the top of the picker.
+  let myDests = new Set();
+  try { myDests = new Set(JSON.parse(localStorage.getItem('pp-my-dests') || '[]')); } catch {}
+
   function renderTabs() {
     const groups = [...new Set(Object.values(parks).map((p) => p.group))];
     if (!dest || !groups.includes(dest)) dest = parks[current]?.group || groups[0];
-    // Destinations grouped by region so a long park list stays navigable.
+    // Destinations grouped by region so a long park list stays navigable;
+    // starred ("My parks") destinations float to the top.
     const regionOf = {};
     for (const p of Object.values(parks)) if (!(p.group in regionOf)) regionOf[p.group] = p.region || 'More parks';
     const regions = [...new Set(Object.values(regionOf))];
-    $('dest').innerHTML = regions.map((reg) =>
-      `<optgroup label="${reg}">` +
-      groups.filter((g) => regionOf[g] === reg).map((g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`).join('') +
-      '</optgroup>'
-    ).join('');
+    const optFor = (g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`;
+    const starred = groups.filter((g) => myDests.has(g));
+    $('dest').innerHTML =
+      (starred.length ? `<optgroup label="★ My parks">${starred.map(optFor).join('')}</optgroup>` : '') +
+      regions.map((reg) => {
+        const gs = groups.filter((g) => regionOf[g] === reg && !myDests.has(g));
+        return gs.length ? `<optgroup label="${reg}">${gs.map(optFor).join('')}</optgroup>` : '';
+      }).join('');
+    $('dest-star').textContent = myDests.has(dest) ? '★' : '☆';
+    $('dest-star').classList.toggle('on', myDests.has(dest));
     $('tabs').innerHTML = Object.entries(parks).filter(([, p]) => p.group === dest).map(([slug, p]) =>
       `<button role="tab" data-slug="${slug}" class="${slug === current ? 'active' : ''}">${p.name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</button>`
     ).join('');
@@ -388,7 +402,7 @@
   }
 
   function showUpsell() {
-    $('plan-out').innerHTML = `<div class="upsell"><strong>36 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in the Trip Pass.</strong><br>
+    $('plan-out').innerHTML = `<div class="upsell"><strong>56 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in the Trip Pass.</strong><br>
       $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
       <a href="/#pricing">Get your Trip Pass →</a><br>
       <a href="#" id="redeem-link" style="font-weight:400;font-size:.85rem;opacity:.85">Have a pass code?</a></div>`;
@@ -701,6 +715,11 @@
     renderRides();
   });
   $('build').addEventListener('click', buildPlan);
+  $('dest-star').addEventListener('click', () => {
+    myDests.has(dest) ? myDests.delete(dest) : myDests.add(dest);
+    try { localStorage.setItem('pp-my-dests', JSON.stringify([...myDests])); } catch {}
+    renderTabs();
+  });
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
   // biggest open headliners.

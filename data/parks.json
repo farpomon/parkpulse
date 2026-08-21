@@ -910,5 +910,480 @@
     },
     "lat": 57.6944,
     "lng": 11.9924
+  },
+  {
+    "slug": "six-flags-over-texas",
+    "name": "Six Flags Over Texas",
+    "group": "Six Flags Over Texas",
+    "id": null,
+    "tokens": [
+      "over texas"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 32.7551,
+    "lng": -97.0702
+  },
+  {
+    "slug": "six-flags-fiesta-texas",
+    "name": "Six Flags Fiesta Texas",
+    "group": "Six Flags Fiesta Texas",
+    "id": null,
+    "tokens": [
+      "fiesta"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 29.5994,
+    "lng": -98.61
+  },
+  {
+    "slug": "six-flags-over-georgia",
+    "name": "Six Flags Over Georgia",
+    "group": "Six Flags Over Georgia",
+    "id": null,
+    "tokens": [
+      "over georgia"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 33.7681,
+    "lng": -84.551
+  },
+  {
+    "slug": "six-flags-great-america",
+    "name": "Six Flags Great America",
+    "group": "Six Flags Great America",
+    "id": null,
+    "tokens": [
+      "six flags",
+      "great america"
+    ],
+    "exclude": [
+      "california"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 42.37,
+    "lng": -87.934
+  },
+  {
+    "slug": "six-flags-new-england",
+    "name": "Six Flags New England",
+    "group": "Six Flags New England",
+    "id": null,
+    "tokens": [
+      "new england"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 42.0378,
+    "lng": -72.6151
+  },
+  {
+    "slug": "six-flags-discovery-kingdom",
+    "name": "Six Flags Discovery Kingdom",
+    "group": "Six Flags Discovery Kingdom",
+    "id": null,
+    "tokens": [
+      "discovery kingdom"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Los_Angeles",
+    "region": "California",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 38.1386,
+    "lng": -122.2331
+  },
+  {
+    "slug": "six-flags-st-louis",
+    "name": "Six Flags St. Louis",
+    "group": "Six Flags St. Louis",
+    "id": null,
+    "tokens": [
+      "st louis"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    },
+    "lat": 38.513,
+    "lng": -90.6757
+  },
+  {
+    "slug": "carowinds",
+    "name": "Carowinds",
+    "group": "Carowinds",
+    "id": null,
+    "tokens": [
+      "carowinds"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 45,
+      "high": 170,
+      "note": "unlimited wristband"
+    },
+    "lat": 35.1042,
+    "lng": -80.9394
+  },
+  {
+    "slug": "kings-dominion",
+    "name": "Kings Dominion",
+    "group": "Kings Dominion",
+    "id": null,
+    "tokens": [
+      "kings dominion"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 45,
+      "high": 170,
+      "note": "unlimited wristband"
+    },
+    "lat": 37.8365,
+    "lng": -77.4452
+  },
+  {
+    "slug": "dorney-park",
+    "name": "Dorney Park",
+    "group": "Dorney Park",
+    "id": null,
+    "tokens": [
+      "dorney"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 45,
+      "high": 170,
+      "note": "unlimited wristband"
+    },
+    "lat": 40.5779,
+    "lng": -75.5327
+  },
+  {
+    "slug": "worlds-of-fun",
+    "name": "Worlds of Fun",
+    "group": "Worlds of Fun",
+    "id": null,
+    "tokens": [
+      "worlds of fun"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 45,
+      "high": 170,
+      "note": "unlimited wristband"
+    },
+    "lat": 39.1748,
+    "lng": -94.4885
+  },
+  {
+    "slug": "valleyfair",
+    "name": "Valleyfair",
+    "group": "Valleyfair",
+    "id": null,
+    "tokens": [
+      "valleyfair"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 45,
+      "high": 170,
+      "note": "unlimited wristband"
+    },
+    "lat": 44.7986,
+    "lng": -93.4494
+  },
+  {
+    "slug": "michigans-adventure",
+    "name": "Michigan's Adventure",
+    "group": "Michigan's Adventure",
+    "id": null,
+    "tokens": [
+      "michigan"
+    ],
+    "open": 11,
+    "close": 20,
+    "show": null,
+    "tz": "America/Detroit",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 45,
+      "high": 170,
+      "note": "unlimited wristband"
+    },
+    "lat": 43.4756,
+    "lng": -86.4276
+  },
+  {
+    "slug": "seaworld-san-antonio",
+    "name": "SeaWorld San Antonio",
+    "group": "SeaWorld San Antonio",
+    "id": null,
+    "tokens": [
+      "seaworld",
+      "san antonio"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "Quick Queue",
+      "type": "day",
+      "cur": "$",
+      "low": 20,
+      "high": 90,
+      "note": "one-time or Unlimited variants"
+    },
+    "lat": 29.4592,
+    "lng": -98.7003
+  },
+  {
+    "slug": "silver-dollar-city",
+    "name": "Silver Dollar City",
+    "group": "Silver Dollar City",
+    "id": null,
+    "tokens": [
+      "silver dollar"
+    ],
+    "open": 9,
+    "close": 19,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "name": "TrailBlazer Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 80,
+      "note": "limited quantity"
+    },
+    "lat": 36.6685,
+    "lng": -93.3383
+  },
+  {
+    "slug": "holiday-world",
+    "name": "Holiday World",
+    "group": "Holiday World",
+    "id": null,
+    "tokens": [
+      "holiday world"
+    ],
+    "open": 10,
+    "close": 19,
+    "show": null,
+    "tz": "America/Chicago",
+    "region": "US & Canada",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — and free soft drinks all day"
+    },
+    "lat": 38.12,
+    "lng": -86.9142
+  },
+  {
+    "slug": "kennywood",
+    "name": "Kennywood",
+    "group": "Kennywood",
+    "id": null,
+    "tokens": [
+      "kennywood"
+    ],
+    "open": 11,
+    "close": 21,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "US & Canada",
+    "skip": {
+      "type": "none",
+      "note": "No general skip pass — weekdays are dramatically lighter"
+    },
+    "lat": 40.3872,
+    "lng": -79.8622
+  },
+  {
+    "slug": "lagoon",
+    "name": "Lagoon",
+    "group": "Lagoon",
+    "id": null,
+    "tokens": [
+      "lagoon"
+    ],
+    "open": 11,
+    "close": 22,
+    "show": null,
+    "tz": "America/Denver",
+    "region": "US & Canada",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — go on a weekday"
+    },
+    "lat": 40.9847,
+    "lng": -111.8935
+  },
+  {
+    "slug": "legoland-florida",
+    "name": "LEGOLAND Florida",
+    "group": "LEGOLAND Florida",
+    "id": null,
+    "tokens": [
+      "legoland",
+      "florida"
+    ],
+    "open": 10,
+    "close": 19,
+    "show": null,
+    "tz": "America/New_York",
+    "region": "Florida",
+    "skip": {
+      "name": "Reserve 'N' Ride",
+      "type": "day",
+      "cur": "$",
+      "low": 25,
+      "high": 90,
+      "note": "virtual queue tiers"
+    },
+    "lat": 27.9898,
+    "lng": -81.6902
+  },
+  {
+    "slug": "legoland-california",
+    "name": "LEGOLAND California",
+    "group": "LEGOLAND California",
+    "id": null,
+    "tokens": [
+      "legoland",
+      "california"
+    ],
+    "open": 10,
+    "close": 19,
+    "show": null,
+    "tz": "America/Los_Angeles",
+    "region": "California",
+    "skip": {
+      "name": "Reserve 'N' Ride",
+      "type": "day",
+      "cur": "$",
+      "low": 25,
+      "high": 90,
+      "note": "virtual queue tiers"
+    },
+    "lat": 33.1266,
+    "lng": -117.311
   }
 ]

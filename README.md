@@ -33,7 +33,7 @@ JSON API with a 5-minute in-memory cache (their license requires the visible
 feed is unreachable, WDW parks fall back to bundled typical-day sample data
 (labeled as such); other parks return a clean "unavailable" state.
 
-**Coverage: 36 parks across 5 regions** — Florida (WDW ×4, Universal Orlando
+**Coverage: 56 parks across 5 regions** (incl. every major trackable US chain — Six Flags, legacy Cedar Fair, SeaWorld/Busch, LEGOLAND, and independents like Silver Dollar City, Kennywood, Holiday World, Lagoon) — Florida (WDW ×4, Universal Orlando
 ×3, Busch Gardens Tampa, SeaWorld Orlando), California (Disneyland ×2,
 Universal Hollywood, Knott's, Six Flags Magic Mountain, SeaWorld San Diego),
 US & Canada regionals (Cedar Point, Kings Island, Six Flags Great Adventure,
@@ -85,7 +85,7 @@ run `HISTORY=off` to keep the history archive production-only.
 ### Wait-time history & measured baselines
 
 Every 15 minutes the server snapshots live waits for all parks into daily
-JSONL files (~2 MB/day across all 36 parks; 60-day retention, oldest pruned).
+JSONL files (~2 MB/day across all covered parks; 60-day retention, oldest pruned).
 Per-ride **median baselines** are computed from the last 14 days (minimum 12
 samples per ride) and take precedence over the hand-built static samples for
 the app's "vs typical" deltas — so within a day or two of running, delta
