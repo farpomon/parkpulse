@@ -419,7 +419,7 @@ function forecastFor(slug) {
     const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
     if (holiday) factor *= 1.28;
     const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
-    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], ...(holiday && { holiday }) });
+    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }) });
   }
   const best = [...days].sort((a, b) => a.level - b.level)[0];
   return {

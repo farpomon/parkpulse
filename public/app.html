@@ -474,6 +474,7 @@
       const res = await api(`/api/forecast/${current}`);
       if (!res.ok) { el.innerHTML = ''; return; }
       const f = await res.json();
+      lastForecast = f;
       el.innerHTML = `<div class="fcast">
         <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 Trip</a> · ${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.map((d) => `
@@ -733,7 +734,18 @@
         return LAND_WALK + (unfinished ? LAND_WALK : 0);
       };
       // Skip-pass rides are near walk-ons regardless of the posted wait.
-      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : r.wait);
+      const todayF = lastForecast?.days?.[0]?.factor || 1;
+      const anchorH = HOURLY[new Date().getHours()] ?? 1;
+      // Popularity-and-crowd model: a ride's expected wait later today comes
+      // from its typical wait (popularity), today's forecast factor, and the
+      // hour's crowd curve — anchored so it agrees with the live wait now.
+      const baseWait = (r) => {
+        if (r.typical == null || !(r.typical > 0)) return r.wait;
+        let anchor = 1;
+        if (r.open && anchorH > 0) anchor = Math.min(1.8, Math.max(0.55, r.wait / (r.typical * todayF * anchorH)));
+        return r.typical * todayF * anchor;
+      };
+      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : baseWait(r) * mult);
       // Low-crowd window: grab the biggest headliner (walk cost eats savings).
       // Otherwise: shortest effective wait, where changing lands adds a walk.
       const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r));
@@ -741,7 +753,7 @@
       const ride = remaining.splice(bestIdx, 1)[0];
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
-      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(ride.wait * mult / 5) * 5);
+      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult / 5) * 5);
       steps.push({ time: t, ride, predicted, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
@@ -761,6 +773,7 @@
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan')}</h2>
+      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 Waits predicted for today's crowds (${tr(lastForecast.days[0].label)}) from each ride's popularity — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">refine with AI</a></p>` : ''}
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
@@ -771,6 +784,12 @@
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
+    const refine = document.getElementById('plan-refine');
+    if (refine) refine.addEventListener('click', (e) => {
+      e.preventDefault();
+      const lines = steps.filter((x) => x.ride).map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
+      if (window.ParkPulseChat) ParkPulseChat.ask(`Here's my plan for today at ${parks[current].name}: ${lines}. Today looks ${lastForecast ? lastForecast.days[0].label.toLowerCase() : 'moderate'}. Improve the order using ride popularity and today's crowd patterns, and propose the revised plan.`);
+    });
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
@@ -1071,6 +1090,7 @@
   // reservation windows and official booking links; honest about the absence
   // of live dining waits.
   let viewMode = 'rides';
+  let lastForecast = null;
   const diningCache = {};
 
   async function renderDining() {
