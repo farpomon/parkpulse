@@ -240,7 +240,7 @@ function userContextBlock({ favorites, planPicks, subscription, email, memory, l
   }
   if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}`);
   if (picks.length) lines.push(`Rides currently checked in their plan builder: ${picks.join(', ')}`);
-  if (lang && lang !== 'English') lines.push(`The user's app language is ${lang} — reply in ${lang}.`);
+  lines.push(`App language setting: ${lang || 'English'}. Reply in ${lang || 'English'} — even if earlier messages in this conversation are in a different language, the current setting wins.`);
   lines.push(`Logged in: ${email ? 'yes (remember will work)' : 'no (remember will fail)'}`);
   lines.push(`Push notifications on this device: ${subscription ? 'enabled (set_alert will work)' : 'not enabled (set_alert will fail)'}`);
   return lines.join('\n');
