@@ -52,6 +52,10 @@
   .ride { display: flex; align-items: center; gap: .6rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: .65rem .8rem; margin: .5rem 0;
     box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); transition: transform .12s ease, box-shadow .12s ease; }
   .ride:active { transform: scale(.995); }
+  .ride { flex-wrap: wrap; }
+  .ride .mid { cursor: pointer; }
+  .ride-desc { flex-basis: 100%; order: 9; font-size: .84rem; color: var(--muted); line-height: 1.5;
+    border-top: 1px dashed var(--border); margin-top: .55rem; padding-top: .5rem; animation: rise .2s ease; }
   .ride input[type=checkbox] { width: 1.2rem; height: 1.2rem; accent-color: var(--brand); flex-shrink: 0; }
   .ride .mid { flex: 1; min-width: 0; }
   .ride .name { font-weight: 600; font-size: .95rem; line-height: 1.3; }
@@ -95,6 +99,16 @@
     background: linear-gradient(135deg, var(--brand), #7b5fe0); box-shadow: 0 4px 14px rgba(79,58,201,.30); transition: transform .12s ease, box-shadow .12s ease, filter .12s ease; }
   .btn:hover { filter: brightness(1.06); }
   .btn:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(79,58,201,.30); }
+  .listtools { display: flex; justify-content: space-between; margin: 0 0 .1rem; }
+  .dine-tags { font-size: .72rem; font-weight: 800; color: var(--brand); text-transform: uppercase; letter-spacing: .04em; margin-top: .1rem; }
+  .dine-blurb { font-size: .84rem; color: var(--muted); line-height: 1.45; margin-top: .15rem; }
+  .dine-note { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
+  .listtools a { color: var(--brand); font-size: .82rem; font-weight: 800; text-decoration: none; cursor: pointer; }
+  .plan-note { background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); border-radius: 10px; padding: .4rem .7rem; font-size: .78rem; font-weight: 700; margin-top: .5rem; display: flex; gap: .5rem; align-items: center; }
+  .plan-note button { margin-left: auto; border: none; background: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0 .1rem; }
+  .ll-row { display: flex; align-items: center; gap: .55rem; padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .95rem; }
+  .ll-row input { width: 1.15rem; height: 1.15rem; accent-color: var(--brand); }
+  #ll-cost { font-weight: 800; color: var(--brand); margin: .7rem 0 .2rem; }
   .planrow { display: flex; gap: .55rem; align-items: center; margin-top: .6rem; flex-wrap: wrap; }
   .planrow .planday { flex: 1 1 11rem; padding: .7rem 1rem; font-size: .95rem; margin: 0; }
   .planrow label { display: flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); font-weight: 600; }
@@ -109,6 +123,20 @@
   .skipcard .sk-verdict.skip { color: var(--green); }
   .skipcard .sk-verdict.mid { color: var(--muted); }
   .skipcard button { border: 1px solid var(--brand); background: none; color: var(--brand); border-radius: 999px; padding: .35rem .8rem; font-weight: 700; font-size: .82rem; cursor: pointer; flex-shrink: 0; }
+  .fcast { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: .6rem .85rem .7rem; margin: 0 0 .6rem; box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); }
+  .fcast .fc-head { display: flex; justify-content: space-between; align-items: baseline; font-size: .78rem; color: var(--muted); font-weight: 700; margin-bottom: .45rem; }
+  .fcast .fc-head b { color: var(--ink); font-size: .85rem; }
+  .fc-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .35rem; }
+  .fc-day { text-align: center; font-size: .7rem; font-weight: 700; color: var(--muted); }
+  .fc-day.best { color: var(--green); }
+  .fc-day i { display: block; height: .45rem; border-radius: 4px; margin: .25rem 0 .15rem; }
+  .fc-day .lv { font-size: .62rem; font-weight: 600; }
+  .fc-day i.l1 { background: var(--green); }
+  .fc-day i.l2 { background: #8fd6ae; }
+  .fc-day i.l3 { background: var(--gold); opacity: .85; }
+  .fc-day i.l4 { background: #e08a4c; }
+  .fc-day i.l5 { background: var(--red); }
+  .fc-day .hol { font-size: .6rem; }
   .onboard-bg { position: fixed; inset: 0; background: rgba(18,12,40,.6); z-index: 60; display: none; }
   .onboard { position: fixed; inset: 0; z-index: 61; display: none; align-items: center; justify-content: center; padding: 1rem; }
   .onboard.open { display: flex; }
@@ -159,6 +187,7 @@
       <a class="logo" href="/">⚡ ParkPulse</a>
       <span class="right">
         <span class="updated" id="updated"></span>
+        <select class="iconbtn" id="lang" title="Language" aria-label="Language"></select>
         <button class="iconbtn" id="locate" title="Find my park" aria-label="Find my park">📍</button>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
@@ -175,13 +204,17 @@
     </div>
     <div class="planrow">
       <button class="btn planday" id="plan-day">🗓️ Plan my day</button>
-      <label>Arrive <select id="start-hour" aria-label="Arrival time"></select></label>
-      <label>Leave <select id="end-hour" aria-label="Exit time"></select></label>
+      <div class="plan-note" id="plan-note" style="display:none"><span id="plan-note-txt"></span><button id="plan-note-x" aria-label="Dismiss">✕</button></div>
+      <label id="lab-arrive">Arrive <select id="start-hour" aria-label="Arrival time"></select></label>
+      <label id="lab-leave">Leave <select id="end-hour" aria-label="Exit time"></select></label>
     </div>
   </header>
 
   <p class="crowdline" id="crowdline"></p>
   <div id="skipcard"></div>
+  <div id="forecast"></div>
+  <div class="listtools"><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
+  <div id="dining" style="display:none"></div>
   <div id="plan-out"></div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
@@ -201,6 +234,32 @@
   </div>
 </div>
 
+<div class="sheet" id="ll-sheet">
+  <h3 id="ll-title"></h3>
+  <p id="ll-info"></p>
+  <div id="ll-list"></div>
+  <div id="ll-cost"></div>
+  <p class="why" style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .7rem">Prices float daily — confirm the exact price in the official park app before buying.</p>
+  <button class="btn wide" id="ll-apply">Update my plan</button>
+  <button class="btn wide" id="ll-ask" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">💬 Ask the AI first</button>
+  <button class="cancel" id="ll-cancel">Close</button>
+</div>
+
+<div class="sheet" id="trip-sheet">
+  <h3>🧳 Plan a trip</h3>
+  <p>Pick your destination and dates — each day gets the park our forecast expects to be lightest.</p>
+  <form id="trip-form">
+    <select id="trip-dest" style="width:100%;margin-bottom:.6rem;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.6rem;font-size:1rem"></select>
+    <div style="display:flex;gap:.5rem;margin-bottom:.6rem">
+      <input type="date" id="trip-start" required style="flex:1;min-width:0;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem">
+      <select id="trip-days" style="border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem"></select>
+    </div>
+    <button class="btn wide" type="submit">Build my trip</button>
+  </form>
+  <div id="trip-out"></div>
+  <button class="cancel" id="trip-cancel">Close</button>
+</div>
+
 <div class="onboard-bg" id="onboard-bg"></div>
 <div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="How ParkPulse works">
   <div class="card">
@@ -217,7 +276,7 @@
 <div class="sheet-bg" id="sheet-bg"></div>
 <div class="sheet" id="sheet">
   <h3 id="sheet-title"></h3>
-  <p>Get a push alert when the wait drops under:</p>
+  <p id="sheet-sub">Get a push alert when the wait drops under:</p>
   <div class="sheet-opts" id="sheet-opts"></div>
   <button class="cancel" id="sheet-cancel">Cancel</button>
 </div>
@@ -243,6 +302,7 @@
   <button class="cancel" id="acct-cancel">Close</button>
 </div>
 
+<script src="/i18n.js"></script>
 <script>window.PP_CHAT_MANUAL = true;</script>
 <script src="/chat-widget.js"></script>
 <script>
@@ -343,8 +403,25 @@
     }
   }
 
+  const tr = window.PP_T || ((k) => k);
   let dest = null;
   let consultantOn = false;
+
+  // Tap-to-expand ride descriptions: generated by the AI once per ride per
+  // language, cached in SQLite server-side and in memory here.
+  const openDesc = new Set();
+  const descCache = {};
+  async function fetchDesc(name) {
+    const key = current + '|' + name;
+    try {
+      const r = await api(`/api/ride-info/${current}?ride=${encodeURIComponent(name)}&lang=${window.PP_LANG || 'en'}`);
+      const d = await r.json().catch(() => ({}));
+      descCache[key] = r.ok && d.text ? d.text : tr('No description available right now.');
+    } catch {
+      descCache[key] = tr('No description available right now.');
+    }
+    if (openDesc.has(name)) renderRides();
+  }
 
   // Rides completed today, per park (ordered — the newest one doubles as our
   // best guess for which land the family is standing in right now).
@@ -365,17 +442,17 @@
     const avg = open.length ? open.reduce((s, r) => s + r.wait, 0) / open.length : 0;
     let verdict = '';
     if (skip.type === 'none') {
-      verdict = '<span class="sk-verdict skip">🙌 You don\'t need one here</span>';
+      verdict = `<span class="sk-verdict skip">🙌 ${tr("You don't need one here")}</span>`;
     } else if (live) {
-      verdict = avg >= 38 ? '<span class="sk-verdict buy">🔥 Worth it today — lines are heavy</span>'
-        : avg >= 24 ? '<span class="sk-verdict mid">🤔 Borderline today</span>'
-        : '<span class="sk-verdict skip">💰 Skip it today — keep your money</span>';
+      verdict = avg >= 38 ? `<span class="sk-verdict buy">🔥 ${tr('Worth it today — lines are heavy')}</span>`
+        : avg >= 24 ? `<span class="sk-verdict mid">🤔 ${tr('Borderline today')}</span>`
+        : `<span class="sk-verdict skip">💰 ${tr('Skip it today — keep your money')}</span>`;
     }
     const title = skip.type === 'none'
-      ? `<b>No paid line-skip at ${parks[current].name}</b>`
+      ? `<b>${tr('No paid line-skip at')} ${parks[current].name}</b>`
       : `<b>⚡ ${skip.name}</b><span class="sk-price">${skip.cur}${skip.low}–${skip.cur}${skip.high}</span>`;
     const askable = consultantOn && window.ParkPulseChat;
-    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div></div>${verdict}${askable ? '<button id="sk-ask">Ask the AI →</button>' : ''}</div>`;
+    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div></div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
@@ -389,6 +466,27 @@
   let myDests = new Set();
   try { myDests = new Set(JSON.parse(localStorage.getItem('pp-my-dests') || '[]')); } catch {}
 
+  // 7-day crowd forecast strip: measured day-of-week patterns blended with
+  // typical priors server-side; renders under the skip-pass card.
+  async function renderForecast() {
+    const el = $('forecast');
+    try {
+      const res = await api(`/api/forecast/${current}`);
+      if (!res.ok) { el.innerHTML = ''; return; }
+      const f = await res.json();
+      el.innerHTML = `<div class="fcast">
+        <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 Trip</a> · ${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
+        <div class="fc-days">${f.days.map((d) => `
+          <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
+            ${d.dow}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
+          </div>`).join('')}
+        </div>
+      </div>`;
+      const tl = document.getElementById('trip-link');
+      if (tl) tl.addEventListener('click', (e) => { e.preventDefault(); openTripSheet(); });
+    } catch { el.innerHTML = ''; }
+  }
+
   function renderTabs() {
     const groups = [...new Set(Object.values(parks).map((p) => p.group))];
     if (!dest || !groups.includes(dest)) dest = parks[current]?.group || groups[0];
@@ -400,7 +498,7 @@
     const optFor = (g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`;
     const starred = groups.filter((g) => myDests.has(g));
     $('dest').innerHTML =
-      (starred.length ? `<optgroup label="★ My parks">${starred.map(optFor).join('')}</optgroup>` : '') +
+      (starred.length ? `<optgroup label="${tr('★ My parks')}">${starred.map(optFor).join('')}</optgroup>` : '') +
       regions.map((reg) => {
         const gs = groups.filter((g) => regionOf[g] === reg && !myDests.has(g));
         return gs.length ? `<optgroup label="${reg}">${gs.map(optFor).join('')}</optgroup>` : '';
@@ -456,9 +554,10 @@
       <div class="ride">
         <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${r.name} to plan">
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
-        <span class="mid"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
+        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
-        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' min' : 'Closed'}</span>
+        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
+        ${openDesc.has(r.name) ? `<div class="ride-desc">${descCache[current + '|' + r.name] || '…'}</div>` : ''}
       </div>`;
   }
 
@@ -469,7 +568,7 @@
     if (searching || !hasLands) {
       const list = visibleRides();
       if (!list.length) {
-        $('rides').innerHTML = `<div class="state">No rides match “${query}”.</div>`;
+        $('rides').innerHTML = `<div class="state">${tr('No rides match')} “${query}”.</div>`;
         return;
       }
       $('rides').innerHTML = list.map(rideRow).join('');
@@ -478,7 +577,7 @@
       // so "what's short near me" reads at a glance.
       const lands = new Map();
       for (const r of rides) {
-        const key = r.land || 'Elsewhere in the park';
+        const key = r.land || tr('Elsewhere in the park');
         if (!lands.has(key)) lands.set(key, []);
         lands.get(key).push(r);
       }
@@ -499,6 +598,12 @@
       renderRides();
     }));
     $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
+    $('rides').querySelectorAll('.mid').forEach((m) => m.addEventListener('click', () => {
+      const name = decodeURIComponent(m.dataset.ride);
+      if (openDesc.has(name)) openDesc.delete(name);
+      else { openDesc.add(name); if (!descCache[current + '|' + name]) fetchDesc(name); }
+      renderRides();
+    }));
   }
 
   // --- Wait-drop alerts ---
@@ -556,7 +661,7 @@
   function updatePlanbar() {
     const n = pickedNames.size;
     $('planbar').classList.toggle('visible', n > 0);
-    $('picked-count').textContent = `${n} ride${n === 1 ? '' : 's'}`;
+    $('picked-count').textContent = `${n} ${n === 1 ? tr('ride') : tr('rides')}`;
   }
 
   function updatedLabel() {
@@ -603,7 +708,7 @@
     const steps = [];
     while (remaining.length && t < end) {
       if (!lunchDone && t >= 12) {
-        steps.push({ time: t, break: '🍔 Lunch break', why: 'Peak-crowd hour — perfect time to be out of line' });
+        steps.push({ time: t, break: '🍔 ' + tr('Lunch break'), why: 'Peak-crowd hour — perfect time to be out of line' });
         t += 0.75;
         lunchDone = true;
         continue;
@@ -627,19 +732,21 @@
         const unfinished = remaining.some((o) => o !== r && o.land === lastLand);
         return LAND_WALK + (unfinished ? LAND_WALK : 0);
       };
+      // Skip-pass rides are near walk-ons regardless of the posted wait.
+      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : r.wait);
       // Low-crowd window: grab the biggest headliner (walk cost eats savings).
       // Otherwise: shortest effective wait, where changing lands adds a walk.
-      const score = (r) => (mult <= 0.6 ? -(r.wait - switchCost(r)) : r.wait + switchCost(r));
+      const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r));
       const bestIdx = remaining.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
       const ride = remaining.splice(bestIdx, 1)[0];
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
-      const predicted = Math.max(5, Math.round(ride.wait * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, why: (why || (mult <= 0.6 ? 'Low-crowd window — headliner time' : mult >= 1.05 ? 'Peak hours — short line to knock out' : 'Moderate crowds')) + (stayed ? ' · short walk, same land' : '') });
+      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(ride.wait * mult / 5) * 5);
+      steps.push({ time: t, ride, predicted, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
     if (!showDone && end > show.hour) {
-      steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: 'Cap off the night' });
+      steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: tr('Cap off the night') });
     }
     const planned = steps.filter((s) => s.ride).reduce((s, x) => s + x.predicted, 0);
     const saved = Math.max(0, standbyNow - planned - remaining.reduce((s, r) => s + r.wait, 0));
@@ -653,17 +760,20 @@
       : "that's one more ride together instead of a queue";
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
-      <h2>Your plan</h2>
+      <h2>${tr('Your plan')}</h2>
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
-      ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ Already ridden today: ${doneSet.size} — planning what's left from where you are.</p>` : ''}
+      ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} min wait<br>
+        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ll ? ' 🎟' : ''}${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} ${tr('min')}<br>
            <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${s.ride.name} ridden">✓</button></div>`
       ).join('')}
-      ${remaining.length ? `<p class="why" style="color:var(--muted)">Didn't fit: ${remaining.map((r) => r.name).join(', ')} — extend your hours or grab Lightning Lane for these.</p>` : ''}
-      <button class="btn replan" id="replan" style="display:none">📍 Replan from here</button>
+      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
+      <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
+    const llFit = document.getElementById('ll-fit');
+    if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
+    updatePlanNote();
     $('plan-out').querySelectorAll('.stepdone').forEach((b) => b.addEventListener('click', () => {
       const name = decodeURIComponent(b.dataset.name);
       if (!doneOrder.includes(name)) { doneOrder.push(name); saveDone(); }
@@ -672,7 +782,7 @@
       document.getElementById('replan').style.display = 'inline-block';
     }));
     document.getElementById('replan').addEventListener('click', () => { $('start-hour').value = 'now'; buildPlan(); });
-    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; });
+    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -681,6 +791,7 @@
   async function load(opts = {}) {
     renderTabs();
     loadDone();
+    if (plannerPark !== null && plannerPark !== current) { llSet.clear(); hidePlanNote(); openDesc.clear(); if (viewMode === 'dining') renderDining(); }
     if (plannerPark !== current) { setupPlanner(); plannerPark = current; }
     if (!opts.silent) {
       $('rides').classList.add('skeleton');
@@ -698,8 +809,13 @@
       if (!res.ok) throw new Error(res.status);
       lastData = await res.json();
       rides = lastData.rides;
-      $('crowdline').innerHTML = crowdNow();
+      let crowdHtml = crowdNow();
+      if (tripToday && tripToday.park !== current) crowdHtml = `🧳 Today on your trip: <a href=\"#\" id=\"trip-jump\"><b>${parks[tripToday.park].name}</b></a> · ` + crowdHtml;
+      $('crowdline').innerHTML = crowdHtml;
+      const tj = document.getElementById('trip-jump');
+      if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); pickedNames.clear(); load(); });
       renderSkip();
+      if (!opts.silent || !$('forecast').innerHTML) renderForecast();
       $('updated').textContent = updatedLabel();
       if (lastData.source === 'unavailable') {
         $('rides').classList.remove('skeleton');
@@ -734,12 +850,53 @@
     $('clear-search').style.display = 'none';
     renderRides();
   });
+  $('pick-all').addEventListener('click', () => {
+    const open = rides.filter((r) => r.open);
+    const allPicked = open.length && open.every((r) => pickedNames.has(r.name));
+    if (allPicked) { pickedNames.clear(); $('pick-all').textContent = 'Select all'; }
+    else { open.forEach((r) => pickedNames.add(r.name)); $('pick-all').textContent = 'Clear all'; }
+    renderRides();
+    updatePlanbar();
+  });
   $('build').addEventListener('click', buildPlan);
   $('dest-star').addEventListener('click', () => {
     myDests.has(dest) ? myDests.delete(dest) : myDests.add(dest);
     try { localStorage.setItem('pp-my-dests', JSON.stringify([...myDests])); } catch {}
     renderTabs();
   });
+  // Language: selector in the header; auto-detected from the phone/browser
+  // setting on first visit. Non-English retexts the static chrome here
+  // (dynamic strings go through tr() at render time).
+  (function initLang() {
+    const sel = $('lang');
+    sel.innerHTML = Object.entries(window.PP_LANGS || { en: 'EN' })
+      .map(([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`).join('');
+    sel.addEventListener('change', () => window.PP_SET_LANG(sel.value));
+    if (!window.PP_LANG || window.PP_LANG === 'en') return;
+    $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
+    $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
+    $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
+    $('search').placeholder = tr('Search rides…');
+    $('locate').title = tr('Find my park');
+    $('refresh').title = tr('Refresh waits');
+    $('acct-btn').title = tr('Account');
+    $('sheet-sub').textContent = tr('Get a push alert when the wait drops under:');
+    $('build').textContent = tr('Plan it');
+    const lunchLabel = document.querySelector('.planbar label.lunch');
+    if (lunchLabel) lunchLabel.lastChild.nodeValue = ' ' + tr('lunch');
+    $('howworks').textContent = tr('How it works');
+    document.querySelector('#onboard h2').textContent = tr('Welcome to ParkPulse 🎢');
+    $('onboard-go').textContent = tr("Let's beat the lines →");
+    $('acct-title').textContent = tr('Log in');
+    $('acct-submit').textContent = tr('Log in');
+    $('acct-sub').textContent = tr('Your pass follows your account onto any device.');
+    $('acct-pw').placeholder = tr('Password');
+    $('acct-toggle').textContent = tr('Create an account');
+    $('acct-switch').childNodes[0].nodeValue = tr('New here?') + ' ';
+    $('acct-forgot').textContent = tr('Forgot password?');
+    $('acct-logout').textContent = tr('Log out');
+    $('acct-cancel').textContent = tr('Close');
+  })();
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
   // biggest open headliners.
@@ -757,6 +914,213 @@
     }
     buildPlan();
   });
+  // --- Skip-pass fitting: offer the park's pass for rides that didn't fit,
+  // with per-ride or per-day cost estimates, then rebuild the plan with
+  // walk-on waits for the covered rides. Purely advisory — buying happens
+  // in the official park app.
+  let llSet = new Set();
+
+  function llCostText(n) {
+    const skip = parks[current].skip;
+    if (!skip || skip.type === 'none' || !n) return '';
+    return skip.type === 'ride'
+      ? `≈ ${skip.cur}${skip.low * n}–${skip.cur}${skip.high * n} per person (${n} × ${skip.cur}${skip.low}–${skip.cur}${skip.high})`
+      : `≈ ${skip.cur}${skip.low}–${skip.cur}${skip.high} per person for the day — one pass covers all ${n}`;
+  }
+
+  function openLlSheet(names) {
+    const skip = parks[current].skip;
+    if (!skip || skip.type === 'none') return;
+    $('ll-title').textContent = `🎟 ${skip.name}`;
+    const unit = skip.note && skip.note.startsWith('per') ? '' : (skip.type === 'ride' ? ' per ride, per person' : ' per person, per day');
+    $('ll-info').textContent = `${skip.cur}${skip.low}–${skip.cur}${skip.high}${unit} · ${skip.note}`;
+    $('ll-list').innerHTML = names.map((n) => `<label class="ll-row"><input type="checkbox" checked data-name="${encodeURIComponent(n)}"> ${n}</label>`).join('');
+    const update = () => { $('ll-cost').textContent = llCostText($('ll-list').querySelectorAll('input:checked').length); };
+    $('ll-list').querySelectorAll('input').forEach((cb) => cb.addEventListener('change', update));
+    update();
+    $('ll-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  }
+
+  function closeLl() { $('ll-sheet').classList.remove('open'); $('sheet-bg').classList.remove('open'); }
+
+  $('ll-apply').addEventListener('click', () => {
+    const chosen = [...$('ll-list').querySelectorAll('input:checked')].map((cb) => decodeURIComponent(cb.dataset.name));
+    chosen.forEach((n) => { llSet.add(n); pickedNames.add(n); });
+    closeLl();
+    buildPlan();
+  });
+  $('ll-ask').addEventListener('click', () => {
+    const skip = parks[current].skip;
+    const names = [...$('ll-list').querySelectorAll('input:checked')].map((cb) => decodeURIComponent(cb.dataset.name));
+    closeLl();
+    if (window.ParkPulseChat) ParkPulseChat.ask(`Is ${skip.name} worth buying today at ${parks[current].name} to cover: ${names.join(', ')}? What would it cost and which of those are worth paying for?`);
+  });
+  $('ll-cancel').addEventListener('click', closeLl);
+
+  // Sticky note under the header: the plan reflects choices already made.
+  function updatePlanNote() {
+    const bits = [];
+    if (llSet.size) bits.push(`🎟 ${parks[current].skip?.name || 'Skip pass'} on ${llSet.size} ride${llSet.size === 1 ? '' : 's'}`);
+    const doneCount = new Set(doneOrder).size;
+    if (doneCount) bits.push(`✓ ${doneCount} completed`);
+    if (!bits.length) { hidePlanNote(); return; }
+    $('plan-note-txt').textContent = `📌 Plan reflects your choices: ${bits.join(' · ')}`;
+    $('plan-note').style.display = 'flex';
+  }
+  function hidePlanNote() { $('plan-note').style.display = 'none'; }
+  $('plan-note-x').addEventListener('click', hidePlanNote);
+
+  // --- Multi-day trip planner ------------------------------------------------
+  // Assigns each trip day the park the forecast expects to be lightest,
+  // using day-of-week levels so dates beyond the 7-day window still work.
+  let tripToday = null;
+  let builtTrip = null;
+
+  function closeTrip() { $('trip-sheet').classList.remove('open'); $('sheet-bg').classList.remove('open'); }
+
+  function openTripSheet() {
+    const groups = [...new Set(Object.values(parks).map((p) => p.group))];
+    $('trip-dest').innerHTML = groups.map((g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`).join('');
+    if (!$('trip-start').value) $('trip-start').value = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    $('trip-days').innerHTML = Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}" ${i + 1 === 4 ? 'selected' : ''}>${i + 1}d</option>`).join('');
+    renderSavedTrip();
+    $('trip-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  }
+
+  function tripRows(plan) {
+    return plan.map((d) => {
+      const day = new Date(d.date + 'T12:00:00');
+      const dowName = day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}</span></div>`;
+    }).join('');
+  }
+
+  async function renderSavedTrip() {
+    let saved = null;
+    if (sessionToken()) {
+      try { const r = await api('/api/trip'); if (r.ok) { const d = await r.json(); if (d.plan) saved = d; } } catch {}
+    }
+    if (!saved) { try { saved = JSON.parse(localStorage.getItem('pp-trip') || 'null'); } catch {} }
+    if (saved && saved.plan) {
+      $('trip-out').innerHTML = `<p class="why" style="color:var(--muted);margin:.8rem 0 .2rem">Your saved trip — ${saved.dest}:</p>` + tripRows(saved.plan);
+    }
+  }
+
+  async function buildTrip(e) {
+    e.preventDefault();
+    const destSel = $('trip-dest').value;
+    const start = $('trip-start').value;
+    const days = +$('trip-days').value;
+    if (!start || !days) return;
+    const slugs = Object.entries(parks).filter(([, p]) => p.group === destSel).map(([sl]) => sl);
+    const dowLevel = {};
+    await Promise.all(slugs.map(async (sl) => {
+      try {
+        const r = await api(`/api/forecast/${sl}`);
+        if (r.ok) { const f = await r.json(); dowLevel[sl] = Object.fromEntries(f.days.map((d) => [d.dow, d.level])); }
+      } catch {}
+    }));
+    const maxUse = Math.ceil(days / slugs.length);
+    const used = {};
+    const plan = [];
+    for (let i = 0; i < days; i++) {
+      const dt = new Date(new Date(start + 'T12:00:00').getTime() + i * 86400000);
+      const date = dt.toISOString().slice(0, 10);
+      const dow = dt.toLocaleDateString('en-US', { weekday: 'short' });
+      const scored = slugs
+        .map((sl) => ({ sl, level: dowLevel[sl]?.[dow] ?? 3 }))
+        .sort((a, b) => (a.level - b.level) || ((used[a.sl] || 0) - (used[b.sl] || 0)));
+      const pick = scored.find((x) => (used[x.sl] || 0) < maxUse) || scored[0];
+      used[pick.sl] = (used[pick.sl] || 0) + 1;
+      plan.push({ date, park: pick.sl, level: pick.level });
+    }
+    builtTrip = { dest: destSel, start, days, plan };
+    $('trip-out').innerHTML = tripRows(plan) +
+      `<button class="btn wide" id="trip-save" style="margin-top:.7rem">💾 Save this trip</button>
+       <p class="why" style="color:var(--muted);margin:.4rem 0 0">${sessionToken() ? 'Saved to your account — the AI advisor will plan around it.' : 'Saved on this phone. Log in (👤) to sync it and let the AI advisor use it.'}</p>`;
+    document.getElementById('trip-save').addEventListener('click', saveTrip);
+  }
+
+  async function saveTrip() {
+    if (!builtTrip) return;
+    try { localStorage.setItem('pp-trip', JSON.stringify(builtTrip)); } catch {}
+    if (sessionToken()) {
+      try {
+        await api('/api/trip', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ dest: builtTrip.dest, start: builtTrip.start, days: builtTrip.days, plan: builtTrip.plan.map((p) => ({ date: p.date, park: p.park })) }) });
+      } catch {}
+    }
+    setTripToday(builtTrip);
+    document.getElementById('trip-save').textContent = '✓ Saved';
+  }
+
+  function setTripToday(saved) {
+    tripToday = null;
+    if (!saved || !saved.plan) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const entry = saved.plan.find((p) => p.date === today);
+    if (entry && parks[entry.park]) tripToday = entry;
+  }
+
+  $('trip-form').addEventListener('submit', buildTrip);
+  $('trip-cancel').addEventListener('click', closeTrip);
+
+  // --- 🍽 Dining tab: AI-curated guide per park (cached server-side), real
+  // reservation windows and official booking links; honest about the absence
+  // of live dining waits.
+  let viewMode = 'rides';
+  const diningCache = {};
+
+  async function renderDining() {
+    const el = $('dining');
+    const key = current + '|' + (window.PP_LANG || 'en');
+    if (!diningCache[key]) {
+      el.innerHTML = '<div class="state">🍽 …</div>';
+      try {
+        const r = await api(`/api/dining/${current}?lang=${window.PP_LANG || 'en'}`);
+        if (!r.ok) throw new Error();
+        diningCache[key] = await r.json();
+      } catch {
+        el.innerHTML = '<div class="state">Dining guide unavailable right now — ask the AI instead via the 💬 bubble.</div>';
+        return;
+      }
+    }
+    const d = diningCache[key];
+    const TYPE = { table: 'Table service', quick: 'Quick service', character: 'Character dining' };
+    el.innerHTML = `
+      <div class="fcast">
+        <div class="fc-head"><b>🍽 Dining at ${parks[current].name}</b>${d.reserve ? `<a href="${d.reserve.url}" target="_blank" rel="noopener" style="font-weight:800">Reserve →</a>` : ''}</div>
+        ${d.reserve ? `<div class="sk-note">${d.reserve.note} — booking happens in the official app/site.</div>` : ''}
+        <div class="sk-note">Kitchens peak 12:00–1:30 &amp; 6:00–7:30 — mobile-order 30 min ahead or eat off-peak. Parks don't publish live dining waits.</div>
+      </div>
+      ${d.list.map((r) => `
+        <div class="ride">
+          <span class="mid">
+            <span class="name">${r.name}${r.mustBook ? ' 🔒' : ''}</span>
+            <div class="dine-tags">${TYPE[r.type] || r.type} · ${r.price}${r.mustBook ? ' · book early!' : ''}</div>
+            <div class="dine-blurb">${r.blurb}</div>
+          </span>
+        </div>`).join('')}
+      <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 Ask the AI for a dining plan for today</a></p>`;
+    const ask = document.getElementById('dine-ask');
+    if (ask) ask.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (window.ParkPulseChat) ParkPulseChat.ask(`Plan our meals at ${parks[current].name} today — what needs a reservation, what's best for kids, and when should we eat to dodge the rush?`);
+    });
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    $('rides').style.display = mode === 'rides' ? '' : 'none';
+    $('dining').style.display = mode === 'dining' ? '' : 'none';
+    $('pick-all').style.display = mode === 'rides' ? '' : 'none';
+    $('view-toggle').textContent = mode === 'rides' ? '🍽 Dining' : '🎢 Rides';
+    if (mode === 'dining') renderDining();
+  }
+  $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'rides' ? 'dining' : 'rides'); });
+
   // 📍 Find my park: nearest covered park by straight-line distance.
   const haversineKm = (la1, lo1, la2, lo2) => {
     const rad = Math.PI / 180;
@@ -793,7 +1157,7 @@
   // immediately when the user returns to the tab.
   setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('#rides.skeleton')) load({ silent: true }); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load({ silent: true }); });
-  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); });
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); $('trip-sheet').classList.remove('open'); $('ll-sheet').classList.remove('open'); });
   // First-run welcome: shown once, reopenable from the footer link.
   function toggleOnboard(open) {
     $('onboard').classList.toggle('open', open);
@@ -971,6 +1335,14 @@
           }
         } catch {}
       }
+      // Restore the saved trip so today's-park hint and the advisor line up.
+      (async () => {
+        let saved = null;
+        if (sessionToken()) { try { const r = await api('/api/trip'); if (r.ok) { const d = await r.json(); if (d.plan) saved = d; } } catch {} }
+        if (!saved) { try { saved = JSON.parse(localStorage.getItem('pp-trip') || 'null'); } catch {} }
+        setTripToday(saved);
+        if (tripToday) load({ silent: true });
+      })();
       if (!c.proGate) {
         isPro = true;
       } else if (!isPro && passToken()) {

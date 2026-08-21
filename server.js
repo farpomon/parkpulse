@@ -147,6 +147,16 @@ function feedbackBlocked(key) {
   return f.n > 30;
 }
 
+// Description-generation damper: 60 fresh generations per IP per hour
+// (cached descriptions are unmetered).
+const rideInfoHits = new Map();
+function rideInfoBlocked(key) {
+  const f = rideInfoHits.get(key);
+  if (!f || Date.now() > f.resetAt) { rideInfoHits.set(key, { n: 1, resetAt: Date.now() + 3600000 }); return false; }
+  f.n += 1;
+  return f.n > 60;
+}
+
 // Brute-force damper: 5 failed logins per email per 15 minutes.
 const loginFails = new Map();
 function loginBlocked(email) {
@@ -198,11 +208,13 @@ const TYPICAL = Object.fromEntries(
 // Measured baselines from collected history take precedence over the static
 // hand-built samples; static values remain the fallback until data accrues.
 let MEASURED = {};
+let DOW_INDEX = {};
 function refreshBaselines() {
   try {
     MEASURED = history.computeBaselines(normName);
+    DOW_INDEX = history.computeDowIndex();
     const parks = Object.keys(MEASURED).length;
-    if (parks) console.log(`Baselines refreshed from history: ${parks} parks`);
+    if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index)`);
   } catch (err) {
     console.log(`Baseline refresh failed: ${err.message}`);
   }
@@ -260,10 +272,31 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:alerts@parkpulse.example', vapidKeys.publicKey, vapidKeys.privateKey);
 
 const ALERT_CHECK_MS = 5 * 60 * 1000;
+// Guardian state: last observed open/closed per watched ride, so alert
+// holders get a proactive push when their ride goes down or comes back.
+const rideOpenState = new Map();
 async function checkAlerts() {
   for (const slug of db.alerts.parks()) {
     const data = await getWaits(slug);
     if (data.source !== 'live') continue; // never alert off demo data
+    // Guardian pass: closure/reopen notices (the alert itself stays armed).
+    for (const alert of db.alerts.byPark(slug)) {
+      const ride = data.rides.find((r) => normName(r.name) === normName(alert.ride));
+      if (!ride) continue;
+      const key = `${slug}|${normName(ride.name)}`;
+      const prev = rideOpenState.get(key);
+      if (prev !== undefined && prev !== ride.open) {
+        const payload = JSON.stringify(ride.open
+          ? { title: `${ride.name} reopened ✅`, body: `Back up at ${ride.wait} min — go before the line rebuilds!` }
+          : { title: `${ride.name} is down ⚠️`, body: 'Temporarily closed — pivot to your next pick and circle back.' });
+        try {
+          await webpush.sendNotification(JSON.parse(alert.subscription), payload);
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) db.alerts.removeByEndpoint(alert.endpoint);
+        }
+      }
+    }
+    for (const r of data.rides) rideOpenState.set(`${slug}|${normName(r.name)}`, r.open);
     for (const alert of db.alerts.byPark(slug)) {
       const ride = data.rides.find((r) => normName(r.name) === normName(alert.ride));
       if (!ride || !ride.open || ride.wait > alert.threshold) continue;
@@ -351,6 +384,53 @@ async function getWaits(slug) {
   }
 }
 
+// --- 7-day crowd forecast ----------------------------------------------------
+// Day-of-week factors measured from the park's own history, blended with
+// industry priors (Saturday busiest, Tue/Wed lightest) while data accrues,
+// plus a major-holiday boost. Levels 1-5.
+const PRIOR_DOW = [1.10, 0.90, 0.85, 0.87, 0.93, 1.03, 1.22]; // Sun..Sat
+const HOLIDAYS = {
+  '2026-09-07': 'Labor Day', '2026-10-12': 'Columbus Day', '2026-11-26': 'Thanksgiving',
+  '2026-11-27': 'Thanksgiving weekend', '2026-11-28': 'Thanksgiving weekend',
+  '2027-01-01': "New Year's Day", '2027-01-18': 'MLK Day', '2027-02-15': "Presidents' Day",
+  '2027-03-26': 'Easter week', '2027-03-27': 'Easter week', '2027-03-28': 'Easter',
+  '2027-05-31': 'Memorial Day', '2027-07-03': 'July 4th weekend', '2027-07-04': 'July 4th',
+  '2027-09-06': 'Labor Day',
+};
+const isChristmasWeek = (iso) => {
+  const md = iso.slice(5);
+  return md >= '12-19' || md <= '01-03';
+};
+const FORECAST_LEVELS = ['', 'Light', 'Mild', 'Moderate', 'Busy', 'Packed'];
+
+function forecastFor(slug) {
+  const park = PARKS[slug];
+  const measured = DOW_INDEX[slug];
+  const weight = measured ? Math.min(1, measured.days / 21) : 0;
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.now() + i * 86400000);
+    // Date and weekday in the PARK's timezone, not the server's.
+    const iso = d.toLocaleDateString('en-CA', { timeZone: park.tz });
+    const dowName = d.toLocaleDateString('en-US', { timeZone: park.tz, weekday: 'short' });
+    const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
+    const m = measured?.factors[dow];
+    let factor = weight * (m ?? PRIOR_DOW[dow]) + (1 - weight) * PRIOR_DOW[dow];
+    const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
+    if (holiday) factor *= 1.28;
+    const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
+    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], ...(holiday && { holiday }) });
+  }
+  const best = [...days].sort((a, b) => a.level - b.level)[0];
+  return {
+    park: park.name,
+    days,
+    best: best.dow,
+    measuredDays: measured ? measured.days : 0,
+    basis: measured ? `${measured.days} days of measured data` : 'typical patterns (measured data still accruing)',
+  };
+}
+
 const saveLead = (email, plan) => db.leads.add(email, plan);
 
 const MIME = {
@@ -424,6 +504,17 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // The account's saved multi-day trip plan.
+  if (url.pathname === '/api/trip' && req.method === 'GET') {
+    const s = sessionUser(req);
+    if (!s) return sendJson(res, 401, { error: 'not logged in' });
+    const trip = db.trips.get(s.email);
+    if (!trip) return sendJson(res, 200, {});
+    let plan = [];
+    try { plan = JSON.parse(trip.plan); } catch {}
+    return sendJson(res, 200, { dest: trip.dest, start: trip.start, days: trip.days, plan });
+  }
+
   // The advisor's saved conversation for the logged-in account, so the chat
   // widget can restore it on any device.
   if (url.pathname === '/api/advisor/history') {
@@ -462,6 +553,74 @@ const server = http.createServer(async (req, res) => {
       return res.end(isMap ? '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' : 'User-agent: *\nDisallow: /\n');
     }
     return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug)) : pages.renderRobots(origin));
+  }
+
+  // Tap-for-description: AI-generated once per ride per language, cached in
+  // SQLite forever, so the marginal cost of the feature trends to zero.
+  const rideInfoMatch = url.pathname.match(/^\/api\/ride-info\/([a-z-]+)$/);
+  if (rideInfoMatch) {
+    const slug = rideInfoMatch[1];
+    const ride = (url.searchParams.get('ride') || '').slice(0, 120).trim();
+    const LANG_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
+    const langCode = LANG_NAMES[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
+    if (!PARKS[slug] || !ride) return sendJson(res, 400, { error: 'invalid' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const key = normName(ride);
+    const cached = db.rideinfo.get(slug, key, langCode);
+    if (cached) return sendJson(res, 200, { text: cached });
+    if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    try {
+      const text = await consultant.describeRide(PARKS[slug].name, ride, LANG_NAMES[langCode]);
+      if (!text) return sendJson(res, 502, { error: 'no description' });
+      db.rideinfo.set(slug, key, langCode, ride, text.slice(0, 500));
+      return sendJson(res, 200, { text: text.slice(0, 500) });
+    } catch (err) {
+      console.log(`ride-info error: ${err.message}`);
+      return sendJson(res, 502, { error: 'no description' });
+    }
+  }
+
+  // Dining guide: AI-generated once per park per language, cached forever.
+  // Includes the official reservation link and booking-window note per chain.
+  const diningMatch = url.pathname.match(/^\/api\/dining\/([a-z-]+)$/);
+  if (diningMatch) {
+    const slug = diningMatch[1];
+    const LANG_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
+    const langCode = LANG_NAMES[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    const park = PARKS[slug];
+    const RESERVE = {
+      'Walt Disney World': { url: 'https://disneyworld.disney.go.com/dining/', note: 'Reservations open 60 days ahead at 6:00 AM ET' },
+      'Disneyland (California)': { url: 'https://disneyland.disney.go.com/dining/', note: 'Reservations open 60 days ahead' },
+      'Universal Orlando': { url: 'https://www.universalorlando.com/web/en/us/things-to-do/dining', note: 'Most spots are walk-up or same-week' },
+      'Universal Hollywood': { url: 'https://www.universalstudioshollywood.com/web/en/us/things-to-do/dining', note: 'Mostly walk-up' },
+      'Disneyland Paris': { url: 'https://www.disneylandparis.com/en-usd/restaurants/', note: 'Reservations open 2 months ahead' },
+      'Tokyo Disney Resort': { url: 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html', note: 'Priority Seating opens 1 month ahead, 9:00 AM JST' },
+    };
+    const reserve = RESERVE[park.group] || null;
+    const cached = db.dining.get(slug, langCode);
+    if (cached) return sendJson(res, 200, { park: park.name, reserve, list: JSON.parse(cached) });
+    if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    try {
+      const list = await consultant.diningGuide(park.name, park.group, LANG_NAMES[langCode]);
+      if (!list || !list.length) return sendJson(res, 502, { error: 'no guide' });
+      db.dining.set(slug, langCode, JSON.stringify(list));
+      return sendJson(res, 200, { park: park.name, reserve, list });
+    } catch (err) {
+      console.log(`dining error: ${err.message}`);
+      return sendJson(res, 502, { error: 'no guide' });
+    }
+  }
+
+  const forecastMatch = url.pathname.match(/^\/api\/forecast\/([a-z-]+)$/);
+  if (forecastMatch) {
+    const slug = forecastMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+    return sendJson(res, 200, forecastFor(slug));
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
@@ -618,6 +777,8 @@ const server = http.createServer(async (req, res) => {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
         if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
         const { park, messages, favorites, planPicks, subscription } = parsed;
+        const LANGS = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Japanese'];
+        const lang = LANGS.includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per pass/session identity, falling back to IP.
         const throttleKey = req.headers['x-pass'] || req.headers['x-session'] || req.socket.remoteAddress || 'anon';
@@ -626,6 +787,7 @@ const server = http.createServer(async (req, res) => {
         }
         try {
           const waits = await getWaits(park);
+          try { waits.forecast = forecastFor(park); } catch {}
           const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
@@ -643,6 +805,8 @@ const server = http.createServer(async (req, res) => {
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,
+              trip: s ? db.trips.get(s.email) : null,
+              lang,
               send,
             });
           } catch (err) {
@@ -669,6 +833,21 @@ const server = http.createServer(async (req, res) => {
           console.log(`consultant error: ${err.message}`);
           return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
         }
+      }
+
+      if (url.pathname === '/api/trip') {
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'log in to save your trip' });
+        if (parsed.clear) { db.trips.clear(s.email); return sendJson(res, 200, { ok: true }); }
+        const dest = typeof parsed.dest === 'string' ? parsed.dest.slice(0, 60) : '';
+        const start = typeof parsed.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.start) ? parsed.start : '';
+        const days = Number.isInteger(parsed.days) && parsed.days >= 1 && parsed.days <= 14 ? parsed.days : 0;
+        const plan = Array.isArray(parsed.plan)
+          ? parsed.plan.filter((p) => p && PARKS[p.park] && typeof p.date === 'string').slice(0, 14).map((p) => ({ date: p.date.slice(0, 10), park: p.park }))
+          : [];
+        if (!dest || !start || !days || plan.length !== days) return sendJson(res, 400, { error: 'invalid trip' });
+        db.trips.set(s.email, dest, start, days, JSON.stringify(plan));
+        return sendJson(res, 200, { ok: true });
       }
 
       if (url.pathname === '/api/advisor/feedback') {

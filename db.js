@@ -72,6 +72,30 @@ db.exec(`
     messages TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS ride_info (
+    park TEXT NOT NULL,
+    ride TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    name TEXT NOT NULL,
+    text TEXT NOT NULL,
+    at TEXT NOT NULL,
+    PRIMARY KEY (park, ride, lang)
+  );
+  CREATE TABLE IF NOT EXISTS dining (
+    park TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    json TEXT NOT NULL,
+    at TEXT NOT NULL,
+    PRIMARY KEY (park, lang)
+  );
+  CREATE TABLE IF NOT EXISTS trips (
+    email TEXT PRIMARY KEY,
+    dest TEXT NOT NULL,
+    start TEXT NOT NULL,
+    days INTEGER NOT NULL,
+    plan TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS advisor_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT,
@@ -218,6 +242,30 @@ const advisor = {
   },
 };
 
+// AI-generated one-time ride descriptions, cached forever per language.
+const rideinfo = {
+  get: (park, ride, lang) => db.prepare('SELECT text FROM ride_info WHERE park = ? AND ride = ? AND lang = ?').get(park, ride, lang)?.text ?? null,
+  set: (park, ride, lang, name, text) =>
+    db.prepare('INSERT OR REPLACE INTO ride_info (park, ride, lang, name, text, at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(park, ride, lang, name, text, new Date().toISOString()),
+};
+
+// AI-generated park dining guides, cached per park per language.
+const dining = {
+  get: (park, lang) => db.prepare('SELECT json FROM dining WHERE park = ? AND lang = ?').get(park, lang)?.json ?? null,
+  set: (park, lang, json) =>
+    db.prepare('INSERT OR REPLACE INTO dining (park, lang, json, at) VALUES (?, ?, ?, ?)').run(park, lang, json, new Date().toISOString()),
+};
+
+// Multi-day trip plans, one per account (the current/next trip).
+const trips = {
+  get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
+  set: (email, dest, start, days, plan) =>
+    db.prepare('INSERT INTO trips (email, dest, start, days, plan, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, updated_at = excluded.updated_at')
+      .run(email, dest, start, days, plan, new Date().toISOString()),
+  clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
+};
+
 migrateLegacy();
 
-module.exports = { kv, users, alerts, passes, leads, hits, advisor, DB_FILE };
+module.exports = { kv, users, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, DB_FILE };

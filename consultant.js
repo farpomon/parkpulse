@@ -59,6 +59,25 @@ OTHER CHAINS (regional parks — different economics from Disney/Universal):
 - Europe: most parks sell PER-RIDE skips, not day passes — Alton Towers and Thorpe Park Fastrack (a few pounds per ride), PortAventura Express. Europa-Park, Efteling, and Phantasialand sell NO general skip product — there, advise rope drop, single-rider lines, and the last operating hour.
 - Value rule of thumb for regional parks: these are one-day parks, so if the live waits average under ~25 minutes, the skip pass is wasted money — say so. Crowded Saturday at Cedar Point or Magic Mountain is where Fast Lane/Flash Pass genuinely shines.
 
+DINING & RESERVATIONS (recommend only — you can never book anything; booking happens in the official park app or site):
+- WDW table-service (ADRs): the window opens 60 days ahead at 6:00 AM ET; on-site guests book 60 days + their full stay at once. Hardest tables: Cinderella's Royal Table, Space 220, 'Ohana, Topolino's Terrace character breakfast. Missed it? Check for day-of cancellations early morning and around meal times.
+- Character meals beat character lines: one reservation = several character meets while eating.
+- Mobile Order (Disney) / Mobile Ordering (Universal): order counter-service from the app 30-60 min before you're hungry — skips the entire food line. Recommend it in every plan around meal times.
+- Universal sit-down spots rarely need reservations outside peak weeks; premium venues (Toothsome, Mythos on busy days) do.
+- Always say exactly WHAT to book and WHEN the window opens; never imply you booked it.
+
+LOGISTICS PLAYBOOK:
+- Rider Switch / Child Swap (all major chains, free): adults take turns on big rides without waiting twice; stack it with single-rider lines for maximum effect. Always mention it to parties with small kids.
+- Early entry: WDW resort guests get +30 min daily at every park; Universal Orlando hotel guests get Early Park Admission. Everyone else: arrive 45-60 min before official open — rope drop is the single most valuable free tactic.
+- Lockers: Universal requires free ride lockers on big coasters (plan for the shuffle); Disney allows bags on nearly everything.
+- Show spots: fireworks viewing fills 30-45 min early (Main Street/hub at MK); Fantasmic and World of Color have dining packages that replace the wait.
+
+CONTINGENCIES:
+- Rain: brief storms are a gift — lines collapse for the best 90 minutes of the day. Send them to indoor headliners, ponchos over umbrellas, and note coasters close in lightning but reopen fast.
+- Ride temporarily closed: don't wait at the entrance; pivot to the nearest priority ride and circle back — closures under an hour are common.
+- Tired kids / afternoon meltdown zone (1-4 PM): build ONE real break into every family plan — hotel pool, air-conditioned show, or a long meal. Baby Care Centers exist at every Disney park.
+- Behind schedule: cut the lowest-priority ride, never the break; the plan serves the family, not the other way around.
+
 PARKS YOU COVER (slug: name):
 ${directory}
 
@@ -143,7 +162,7 @@ Local time now: ${localTime(park.tz)}
 Typical hours: ${park.open}:00-${park.close}:00 local.
 ${park.show ? `Tonight's show: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
 Data: ${waits.source === 'live' ? 'live, updated within minutes' : 'TYPICAL-DAY ESTIMATES (live feed unavailable) — caveat advice accordingly'}
-Standby waits:
+${waits.forecast ? `7-day crowd outlook (based on ${waits.forecast.basis}): ${waits.forecast.days.map((d) => `${d.dow} ${d.label}${d.holiday ? ` (${d.holiday})` : ''}`).join(', ')}. Lightest day: ${waits.forecast.best}.\n` : ''}Standby waits:
 ${rides}`;
 }
 
@@ -209,13 +228,19 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, planPicks, subscription, email, memory }) {
+function userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const lines = [];
   if (memory) lines.push(`Saved traveler notes from earlier conversations (kept current via your remember tool):\n${memory}`);
+  if (trip) {
+    let plan = [];
+    try { plan = JSON.parse(trip.plan); } catch {}
+    if (plan.length) lines.push(`Their saved trip plan (${trip.dest}, starting ${trip.start}): ${plan.map((p) => `${p.date}: ${p.park}`).join('; ')}. Anchor multi-day advice to this schedule.`);
+  }
   if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}`);
   if (picks.length) lines.push(`Rides currently checked in their plan builder: ${picks.join(', ')}`);
+  lines.push(`App language setting: ${lang || 'English'}. Reply in ${lang || 'English'} — even if earlier messages in this conversation are in a different language, the current setting wins.`);
   lines.push(`Logged in: ${email ? 'yes (remember will work)' : 'no (remember will fail)'}`);
   lines.push(`Push notifications on this device: ${subscription ? 'enabled (set_alert will work)' : 'not enabled (set_alert will fail)'}`);
   return lines.join('\n');
@@ -237,7 +262,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, send }) {
+async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, trip, send }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -249,7 +274,7 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     ...clean.slice(0, -1),
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory })}\n</user_context>\n\n${last.content}`,
+      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip })}\n</user_context>\n\n${last.content}`,
     },
   ];
   // Actions are emitted the moment their side effect happens, so a later
@@ -305,4 +330,46 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
   send('done', {});
 }
 
-module.exports = { enabled, init, consult, throttled, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+// One-shot ride description: short, family-focused, honest about uncertainty.
+// Generated once per ride per language, then cached by the caller.
+async function describeRide(parkName, rideName, lang) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 250,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You write tiny attraction blurbs for a theme-park app. At most 2 short sentences: what kind of ride or experience it is, thrill level, and who it suits (small kids? thrill seekers?). If you are not confident about this specific attraction, infer only its likely type from the name and park and keep it generic — never invent specifics like drops, speeds, or heights you are unsure of. No preamble, no quotes.',
+    messages: [{ role: 'user', content: `Attraction: "${rideName}" at ${parkName}. Reply in ${lang || 'English'}.` }],
+  });
+  if (msg.stop_reason === 'refusal') return null;
+  return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || null;
+}
+
+// One-shot park dining guide as strict JSON, generated once per park per
+// language and cached by the caller. Honesty-guarded: only well-known spots.
+async function diningGuide(parkName, group, lang) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 1500,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You produce dining guides for a theme-park app as STRICT JSON — no markdown, no code fences, no commentary. Output a JSON array of 5-8 objects: {"name": string, "type": "table"|"quick"|"character", "price": "$"|"$$"|"$$$", "blurb": string (one short sentence: cuisine + why it stands out), "mustBook": boolean (true only if reservations are genuinely hard to get)}. Include ONLY restaurants you are confident actually exist at this specific park — fewer correct entries beat more invented ones. Blurbs in the requested language; names in their official form.',
+    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Language for blurbs: ${lang || 'English'}.` }],
+  });
+  if (msg.stop_reason === 'refusal') return null;
+  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+  const list = JSON.parse(raw);
+  if (!Array.isArray(list)) return null;
+  return list.slice(0, 8).map((r) => ({
+    name: String(r.name || '').slice(0, 80),
+    type: ['table', 'quick', 'character'].includes(r.type) ? r.type : 'quick',
+    price: ['$', '$$', '$$$'].includes(r.price) ? r.price : '$$',
+    blurb: String(r.blurb || '').slice(0, 200),
+    mustBook: Boolean(r.mustBook),
+  })).filter((r) => r.name);
+}
+
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

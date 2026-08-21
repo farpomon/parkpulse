@@ -74,6 +74,47 @@ function computeBaselines(normName) {
   return baselines;
 }
 
+// Day-of-week crowd index per park: how each weekday's average wait compares
+// to the park's overall average, plus how many distinct days back it. Powers
+// the 7-day forecast (blended with priors until enough history accrues).
+function computeDowIndex() {
+  const perParkDay = {}; // slug -> date -> {sum, n}
+  for (const f of fs.readdirSync(HISTORY_DIR)) {
+    const m = f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
+    if (!m) continue;
+    let content;
+    try { content = fs.readFileSync(path.join(HISTORY_DIR, f), 'utf8'); } catch { continue; }
+    for (const line of content.split('\n')) {
+      if (!line) continue;
+      let e;
+      try { e = JSON.parse(line); } catch { continue; }
+      const waits = Object.values(e.rides || {});
+      if (!waits.length) continue;
+      const d = ((perParkDay[e.park] ??= {})[m[1]] ??= { sum: 0, n: 0 });
+      d.sum += waits.reduce((s, w) => s + w, 0);
+      d.n += waits.length;
+    }
+  }
+  const out = {};
+  for (const [slug, days] of Object.entries(perParkDay)) {
+    const byDow = [[], [], [], [], [], [], []];
+    const all = [];
+    for (const [date, { sum, n }] of Object.entries(days)) {
+      if (n < 20) continue; // ignore days with barely any snapshots
+      const avg = sum / n;
+      byDow[new Date(`${date}T12:00:00Z`).getUTCDay()].push(avg);
+      all.push(avg);
+    }
+    if (all.length < 3) continue;
+    const overall = all.reduce((s, v) => s + v, 0) / all.length;
+    out[slug] = {
+      factors: byDow.map((v) => (v.length ? v.reduce((s, x) => s + x, 0) / v.length / overall : null)),
+      days: all.length,
+    };
+  }
+  return out;
+}
+
 function stats() {
   let files = 0, bytes = 0;
   for (const f of fs.readdirSync(HISTORY_DIR)) {
@@ -84,4 +125,4 @@ function stats() {
   return { files, bytes };
 }
 
-module.exports = { record, prune, computeBaselines, stats, HISTORY_DIR };
+module.exports = { record, prune, computeBaselines, computeDowIndex, stats, HISTORY_DIR };

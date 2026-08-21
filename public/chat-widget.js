@@ -9,6 +9,7 @@
 // via sessionStorage.
 (function () {
   const script = document.currentScript;
+  const T = () => window.PP_T || ((k) => k); // resolved lazily so load order never matters
   const state = { history: [], busy: false, opts: null };
   try { state.history = JSON.parse(sessionStorage.getItem('ppc-history') || '[]'); } catch {}
   const saveHistory = () => { try { sessionStorage.setItem('ppc-history', JSON.stringify(state.history.slice(-24))); } catch {} };
@@ -98,16 +99,16 @@
     root.innerHTML = `
       <button id="ppc-fab" title="Ask the park consultant" aria-label="Ask the park consultant">💬</button>
       <div id="ppc-panel" role="dialog" aria-label="Park consultant chat">
-        <div id="ppc-head"><div><b>Park Consultant</b><span id="ppc-sub"></span></div>
+        <div id="ppc-head"><div><b>${T()('Park Consultant')}</b><span id="ppc-sub"></span></div>
           <button id="ppc-close" aria-label="Close chat">✕</button></div>
         <div id="ppc-msgs"></div>
         <div id="ppc-chips">
-          <button data-q="Is it worth buying line-skipping passes here today?">Worth buying today?</button>
-          <button data-q="What's the smartest plan for the rest of my day here?">Plan my day</button>
-          <button data-q="How do I do this park well without paying for any passes?">Do it free</button>
+          <button data-q="Is it worth buying line-skipping passes here today?">${T()('Worth buying today?')}</button>
+          <button data-q="What's the smartest plan for the rest of my day here?">${T()('Plan my day')}</button>
+          <button data-q="How do I do this park well without paying for any passes?">${T()('Do it free')}</button>
         </div>
-        <form id="ppc-form"><input id="ppc-input" placeholder="Ask about passes, plans, strategy…" autocomplete="off" maxlength="500">
-          <button id="ppc-send" type="submit">Send</button></form>
+        <form id="ppc-form"><input id="ppc-input" placeholder="${T()('Ask about passes, plans, strategy…')}" autocomplete="off" maxlength="500">
+          <button id="ppc-send" type="submit">${T()('Send')}</button></form>
       </div>`;
     document.body.appendChild(root);
     msgs = $id('ppc-msgs');
@@ -120,7 +121,7 @@
       $id('ppc-input').value = '';
       send(text);
     });
-    root.querySelectorAll('#ppc-chips button').forEach((b) => b.addEventListener('click', () => send(b.dataset.q)));
+    root.querySelectorAll('#ppc-chips button').forEach((b) => b.addEventListener('click', () => send(window.PP_LANG && window.PP_LANG !== 'en' ? b.textContent : b.dataset.q)));
   }
 
   function bubble(role, text) {
@@ -166,7 +167,7 @@
         }).catch(() => {});
         row.innerHTML = '';
         const s = document.createElement('span');
-        s.textContent = vote === 'up' ? 'Thanks!' : "Thanks — I'll do better.";
+        s.textContent = vote === 'up' ? T()('Thanks!') : T()("Thanks — I'll do better.");
         row.appendChild(s);
       });
       row.appendChild(b);
@@ -177,19 +178,19 @@
 
   function renderAction(action) {
     if (action.type === 'memory') {
-      bubble('bot', "📝 Noted — I'll remember that for next time.");
+      bubble('bot', '📝 ' + T()("Noted — I'll remember that for next time."));
     } else if (action.type === 'alert' && state.opts.onAlert) {
       state.opts.onAlert(action);
-      bubble('bot', `🔔 Alert set: ${action.ride} under ${action.threshold} min.`);
+      bubble('bot', `🔔 ${T()('Alert set:')} ${action.ride} ${T()('under')} ${action.threshold} ${T()('min')}.`);
     } else if (action.type === 'plan') {
       if (state.opts.onPlan) {
-        const div = bubble('bot', `🧭 Plan ready: ${action.rides.join(', ')} `);
+        const div = bubble('bot', `🧭 ${T()('Plan ready:')} ${action.rides.join(', ')} `);
         const btn = document.createElement('button');
-        btn.textContent = 'Apply to plan builder';
+        btn.textContent = T()('Apply to plan builder');
         btn.addEventListener('click', () => state.opts.onPlan(action));
         div.appendChild(btn);
       } else {
-        const div = bubble('bot', `🧭 Plan ready: ${action.rides.join(', ')} — `);
+        const div = bubble('bot', `🧭 ${T()('Plan ready:')} ${action.rides.join(', ')} — `);
         const a = document.createElement('a');
         a.href = '/app';
         a.textContent = 'open the app to apply it';
@@ -205,7 +206,7 @@
     $id('ppc-chips').style.display = 'none';
     bubble('user', text);
     state.history.push({ role: 'user', content: text });
-    const out = bubble('bot', 'Thinking…');
+    const out = bubble('bot', T()('Thinking…'));
     out.classList.add('ppc-typing');
     let replyText = '';
     const appendDelta = (t) => {
@@ -219,7 +220,7 @@
       const res = await fetch('/api/consultant', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ park: state.opts.getPark(), messages: historyWindow(), ...context }),
+        body: JSON.stringify({ park: state.opts.getPark(), messages: historyWindow(), lang: window.PP_LANG_NAME || 'English', ...context }),
       });
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         const data = await res.json().catch(() => ({}));
@@ -270,7 +271,7 @@
       out.classList.remove('ppc-typing');
       out.textContent = (e.message && e.message.length < 130 && e.message !== 'empty reply')
         ? e.message
-        : 'The consultant is having a moment — try again shortly.';
+        : T()('The consultant is having a moment — try again shortly.');
       state.history.pop();
       saveHistory();
     } finally {
