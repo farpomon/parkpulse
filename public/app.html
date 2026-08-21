@@ -170,6 +170,8 @@
   .step .stepdone { margin-left: auto; border: 1.5px solid var(--border); background: var(--bg); color: var(--green); border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; font-weight: 800; flex-shrink: 0; }
   .step.done .what, .step.done .time { text-decoration: line-through; opacity: .5; }
   .step.done .stepdone { background: var(--green); color: #fff; border-color: var(--green); }
+  .step.sugg .what b { font-weight: 700; opacity: .85; }
+  .step.sugg .time { background: var(--bg); color: var(--muted); }
   .plan .replan { margin-top: .7rem; }
   .step:last-child { border-bottom: none; }
   .step .time { font-weight: 800; color: var(--brand); background: var(--brand-soft); border-radius: 8px; padding: .12rem .45rem; min-width: 4.9rem; text-align: center; font-size: .85rem; height: fit-content; font-variant-numeric: tabular-nums; }
@@ -707,7 +709,17 @@
     const attendShow = !!(show && $('show-cb').checked && end > show.hour);
     let showDone = !attendShow;
     const steps = [];
-    while (remaining.length && t < end) {
+    // Once every picked ride is scheduled, keep filling the day with the
+    // best remaining attractions (marked as suggestions) so the plan covers
+    // arrival to exit with no dead gaps.
+    const extras = rides.filter((r) => r.open && !doneSet.has(r.name) && !pickedNames.has(r.name));
+    let fillMode = false;
+    while (t < end && steps.filter((x) => x.ride).length < 18) {
+      if (!remaining.length) {
+        if (!extras.length) break;
+        fillMode = true;
+      }
+      const pool = remaining.length ? remaining : extras;
       if (!lunchDone && t >= 12) {
         steps.push({ time: t, break: '🍔 ' + tr('Lunch break'), why: 'Peak-crowd hour — perfect time to be out of line' });
         t += 0.75;
@@ -730,7 +742,7 @@
       // walk back later — count both, or the plan zig-zags back for stragglers.
       const switchCost = (r) => {
         if (!lastLand || !r.land || r.land === lastLand) return 0;
-        const unfinished = remaining.some((o) => o !== r && o.land === lastLand);
+        const unfinished = pool.some((o) => o !== r && o.land === lastLand);
         return LAND_WALK + (unfinished ? LAND_WALK : 0);
       };
       // Skip-pass rides are near walk-ons regardless of the posted wait.
@@ -749,18 +761,18 @@
       // Low-crowd window: grab the biggest headliner (walk cost eats savings).
       // Otherwise: shortest effective wait, where changing lands adds a walk.
       const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r));
-      const bestIdx = remaining.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
-      const ride = remaining.splice(bestIdx, 1)[0];
+      const bestIdx = pool.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
+      const ride = pool.splice(bestIdx, 1)[0];
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
       const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
+      steps.push({ time: t, ride, predicted, suggested: fillMode, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
     if (!showDone && end > show.hour) {
       steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: tr('Cap off the night') });
     }
-    const planned = steps.filter((s) => s.ride).reduce((s, x) => s + x.predicted, 0);
+    const planned = steps.filter((s) => s.ride && !s.suggested).reduce((s, x) => s + x.predicted, 0);
     const saved = Math.max(0, standbyNow - planned - remaining.reduce((s, r) => s + r.wait, 0));
     // Savings pitch: families don't buy "minutes saved", they buy what the
     // minutes turn into — more rides, a real break, happier kids.
@@ -778,7 +790,7 @@
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ll ? ' 🎟' : ''}${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} ${tr('min')}<br>
+        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ll ? ' 🎟' : ''}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} ${tr('min')}<br>
            <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${s.ride.name} ridden">✓</button></div>`
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
