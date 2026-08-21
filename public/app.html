@@ -317,11 +317,20 @@
     </form>
     <p class="switch" id="acct-switch">New here? <a id="acct-toggle">Create an account</a></p>
     <p class="switch"><a id="acct-forgot">Forgot password?</a></p>
+    <div id="acct-verify" style="display:none">
+      <p style="margin:.8rem 0 .5rem">📬 We emailed a 6-digit code to <b id="verify-email"></b>:</p>
+      <input type="text" id="acct-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
+        style="width:100%;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.65rem .9rem;font-size:1.3rem;letter-spacing:.35em;text-align:center;margin-bottom:.6rem">
+      <p class="err" id="verify-err"></p>
+      <button class="btn wide" id="acct-verify-btn">Verify</button>
+      <p class="switch"><a id="acct-resend">Resend code</a></p>
+    </div>
   </div>
   <div id="acct-logged-in" style="display:none">
     <h3>Account</h3>
-    <p class="acct-status"><b id="acct-who"></b><span id="acct-plan"></span></p>
+    <p class="acct-status"><b id="acct-who"></b><span id="acct-plan"></span><span id="acct-devices" style="display:block;color:var(--muted);font-size:.85rem"></span></p>
     <button class="btn wide" id="acct-logout">Log out</button>
+    <button class="btn wide" id="acct-logout-all" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
   </div>
   <button class="cancel" id="acct-cancel">Close</button>
 </div>
@@ -1253,6 +1262,30 @@
 
   // --- Account sheet ---
   let acctMode = 'login';
+  // Stable per-browser device id — the unit the 5-device account cap counts.
+  let deviceId = localStorage.getItem('pp-device');
+  if (!deviceId) {
+    deviceId = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+    try { localStorage.setItem('pp-device', deviceId); } catch {}
+  }
+  let pendingEmail = null;
+
+  function showVerify(email) {
+    pendingEmail = email;
+    $('acct-form').style.display = 'none';
+    $('acct-switch').style.display = 'none';
+    $('acct-verify').style.display = 'block';
+    $('verify-email').textContent = email;
+    $('verify-err').textContent = '';
+    $('acct-code').value = '';
+    $('acct-code').focus();
+  }
+  function hideVerify() {
+    $('acct-form').style.display = '';
+    $('acct-switch').style.display = '';
+    $('acct-verify').style.display = 'none';
+    pendingEmail = null;
+  }
 
   function planLabel(plan, exp) {
     if (!plan) return 'Free plan';
@@ -1268,7 +1301,12 @@
     if (email) {
       $('acct-who').textContent = email;
       $('acct-plan').textContent = planLabel(localStorage.getItem('pp-plan'), Number(localStorage.getItem('pp-plan-exp')));
+      $('acct-devices').textContent = '';
+      api('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => {
+        if (d && d.devices) $('acct-devices').textContent = `Active on ${d.devices} device${d.devices === 1 ? '' : 's'} (max 5)`;
+      }).catch(() => {});
     }
+    hideVerify();
     $('acct-err').textContent = '';
     $('acct-sheet').classList.add('open');
     $('sheet-bg').classList.add('open');
@@ -1350,10 +1388,11 @@
       const res = await api(`/api/auth/${acctMode}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value }),
+        body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value, device: deviceId }),
       });
       const data = await res.json();
       if (!res.ok) { $('acct-err').textContent = data.error || 'Something went wrong.'; return; }
+      if (data.pending) { showVerify(data.email); return; }
       applyAuth(data);
       $('acct-pw').value = '';
       closeAcct();
@@ -1363,6 +1402,39 @@
     } finally {
       $('acct-submit').disabled = false;
     }
+  });
+
+  $('acct-verify-btn').addEventListener('click', async () => {
+    $('verify-err').textContent = '';
+    try {
+      const res = await api('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: pendingEmail, code: $('acct-code').value.trim(), device: deviceId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { $('verify-err').textContent = data.error || 'Wrong code.'; return; }
+      applyAuth(data);
+      $('acct-pw').value = '';
+      hideVerify();
+      closeAcct();
+      load();
+    } catch { $('verify-err').textContent = 'Connection trouble — try again.'; }
+  });
+  $('acct-resend').addEventListener('click', async () => {
+    try {
+      await api('/api/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: pendingEmail, resend: true }) });
+      $('verify-err').style.color = 'var(--green)';
+      $('verify-err').textContent = 'New code sent.';
+      setTimeout(() => { $('verify-err').style.color = ''; $('verify-err').textContent = ''; }, 4000);
+    } catch {}
+  });
+  $('acct-logout-all').addEventListener('click', async () => {
+    try {
+      const res = await api('/api/auth/logout-all', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      const d = await res.json();
+      if (res.ok) $('acct-devices').textContent = `Signed out ${d.removed} other session${d.removed === 1 ? '' : 's'} — this device stays in.`;
+    } catch {}
   });
 
   $('acct-logout').addEventListener('click', () => {
