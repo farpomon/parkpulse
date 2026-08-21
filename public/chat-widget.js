@@ -306,7 +306,15 @@
     return { setEnabled: (on) => $id('ppc-fab').classList.toggle('ppc-show', Boolean(on)) };
   }
 
-  window.ParkPulseChat = { init };
+  // Open the panel and (optionally) send a question — lets the app deep-link
+  // into a conversation, e.g. the skip-pass card's "worth it today?" button.
+  function ask(text) {
+    if (!root || !state.opts) return;
+    openPanel();
+    if (text && !state.busy) send(text);
+  }
+
+  window.ParkPulseChat = { init, ask };
   if (!window.PP_CHAT_MANUAL) {
     const park = (script && script.dataset && script.dataset.park) || 'magic-kingdom';
     const name = (script && script.dataset && script.dataset.parkName) || null;

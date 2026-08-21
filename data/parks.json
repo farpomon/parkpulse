@@ -16,7 +16,15 @@
       "duration": 0.5
     },
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Lightning Lane Multi Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 15,
+      "high": 45,
+      "note": "per person/day · top headliners sold separately ($12-25)"
+    }
   },
   {
     "slug": "epcot",
@@ -34,7 +42,15 @@
       "duration": 0.5
     },
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Lightning Lane Multi Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 15,
+      "high": 35,
+      "note": "per person/day · top headliners sold separately"
+    }
   },
   {
     "slug": "hollywood-studios",
@@ -53,7 +69,15 @@
       "duration": 0.5
     },
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Lightning Lane Multi Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 15,
+      "high": 45,
+      "note": "per person/day · top headliners sold separately"
+    }
   },
   {
     "slug": "animal-kingdom",
@@ -68,7 +92,15 @@
     "close": 19,
     "show": null,
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Lightning Lane Multi Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 15,
+      "high": 30,
+      "note": "per person/day · usually the least needed at WDW"
+    }
   },
   {
     "slug": "disneyland",
@@ -92,7 +124,15 @@
       "duration": 0.5
     },
     "tz": "America/Los_Angeles",
-    "region": "California"
+    "region": "California",
+    "skip": {
+      "name": "Lightning Lane Multi Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 15,
+      "high": 35,
+      "note": "per person/day"
+    }
   },
   {
     "slug": "california-adventure",
@@ -111,7 +151,15 @@
       "duration": 0.5
     },
     "tz": "America/Los_Angeles",
-    "region": "California"
+    "region": "California",
+    "skip": {
+      "name": "Lightning Lane Multi Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 15,
+      "high": 35,
+      "note": "per person/day"
+    }
   },
   {
     "slug": "universal-studios-florida",
@@ -131,7 +179,15 @@
       "duration": 0.5
     },
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Universal Express",
+      "type": "day",
+      "cur": "$",
+      "low": 80,
+      "high": 300,
+      "note": "per person/day · FREE with premier hotel stays"
+    }
   },
   {
     "slug": "islands-of-adventure",
@@ -146,7 +202,15 @@
     "close": 21,
     "show": null,
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Universal Express",
+      "type": "day",
+      "cur": "$",
+      "low": 80,
+      "high": 300,
+      "note": "per person/day · FREE with premier hotel stays"
+    }
   },
   {
     "slug": "epic-universe",
@@ -161,7 +225,15 @@
     "close": 21,
     "show": null,
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Universal Express",
+      "type": "day",
+      "cur": "$",
+      "low": 100,
+      "high": 300,
+      "note": "limited availability — sells out early"
+    }
   },
   {
     "slug": "universal-studios-hollywood",
@@ -177,7 +249,15 @@
     "close": 22,
     "show": null,
     "tz": "America/Los_Angeles",
-    "region": "California"
+    "region": "California",
+    "skip": {
+      "name": "Universal Express",
+      "type": "day",
+      "cur": "$",
+      "low": 90,
+      "high": 250,
+      "note": "per person/day"
+    }
   },
   {
     "slug": "disneyland-paris",
@@ -196,7 +276,15 @@
       "duration": 0.5
     },
     "tz": "Europe/Paris",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "name": "Disney Premier Access",
+      "type": "ride",
+      "cur": "€",
+      "low": 5,
+      "high": 18,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "walt-disney-studios-paris",
@@ -212,7 +300,15 @@
     "close": 21,
     "show": null,
     "tz": "Europe/Paris",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "name": "Disney Premier Access",
+      "type": "ride",
+      "cur": "€",
+      "low": 5,
+      "high": 18,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "tokyo-disneyland",
@@ -227,7 +323,15 @@
     "close": 21,
     "show": null,
     "tz": "Asia/Tokyo",
-    "region": "Asia"
+    "region": "Asia",
+    "skip": {
+      "name": "Disney Premier Access",
+      "type": "ride",
+      "cur": "¥",
+      "low": 1500,
+      "high": 2500,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "tokyo-disneysea",
@@ -241,7 +345,15 @@
     "close": 21,
     "show": null,
     "tz": "Asia/Tokyo",
-    "region": "Asia"
+    "region": "Asia",
+    "skip": {
+      "name": "Disney Premier Access",
+      "type": "ride",
+      "cur": "¥",
+      "low": 1500,
+      "high": 2500,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "hong-kong-disneyland",
@@ -261,7 +373,15 @@
       "duration": 0.5
     },
     "tz": "Asia/Hong_Kong",
-    "region": "Asia"
+    "region": "Asia",
+    "skip": {
+      "name": "Disney Premier Access",
+      "type": "ride",
+      "cur": "HK$",
+      "low": 129,
+      "high": 199,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "shanghai-disneyland",
@@ -276,7 +396,15 @@
     "close": 21,
     "show": null,
     "tz": "Asia/Shanghai",
-    "region": "Asia"
+    "region": "Asia",
+    "skip": {
+      "name": "Disney Premier Access",
+      "type": "ride",
+      "cur": "¥",
+      "low": 80,
+      "high": 180,
+      "note": "per ride, per person (CNY)"
+    }
   },
   {
     "slug": "knotts-berry-farm",
@@ -290,7 +418,15 @@
     "close": 22,
     "show": null,
     "tz": "America/Los_Angeles",
-    "region": "California"
+    "region": "California",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 50,
+      "high": 150,
+      "note": "unlimited wristband"
+    }
   },
   {
     "slug": "six-flags-magic-mountain",
@@ -305,7 +441,15 @@
     "close": 21,
     "show": null,
     "tz": "America/Los_Angeles",
-    "region": "California"
+    "region": "California",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    }
   },
   {
     "slug": "busch-gardens-tampa",
@@ -320,7 +464,15 @@
     "close": 21,
     "show": null,
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Quick Queue",
+      "type": "day",
+      "cur": "$",
+      "low": 20,
+      "high": 90,
+      "note": "cheapest skip in the industry"
+    }
   },
   {
     "slug": "seaworld-orlando",
@@ -335,7 +487,15 @@
     "close": 21,
     "show": null,
     "tz": "America/New_York",
-    "region": "Florida"
+    "region": "Florida",
+    "skip": {
+      "name": "Quick Queue",
+      "type": "day",
+      "cur": "$",
+      "low": 20,
+      "high": 90,
+      "note": "one-time or Unlimited variants"
+    }
   },
   {
     "slug": "cedar-point",
@@ -349,7 +509,15 @@
     "close": 22,
     "show": null,
     "tz": "America/New_York",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 50,
+      "high": 190,
+      "note": "unlimited wristband · sells out Saturdays"
+    }
   },
   {
     "slug": "kings-island",
@@ -363,7 +531,15 @@
     "close": 22,
     "show": null,
     "tz": "America/New_York",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "$",
+      "low": 50,
+      "high": 170,
+      "note": "unlimited wristband"
+    }
   },
   {
     "slug": "six-flags-great-adventure",
@@ -377,7 +553,15 @@
     "close": 21,
     "show": null,
     "tz": "America/New_York",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "Flash Pass",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 120,
+      "note": "virtual queue — you wait, just not in line"
+    }
   },
   {
     "slug": "canadas-wonderland",
@@ -392,7 +576,15 @@
     "close": 22,
     "show": null,
     "tz": "America/Toronto",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Lane",
+      "type": "day",
+      "cur": "CA$",
+      "low": 60,
+      "high": 200,
+      "note": "unlimited wristband"
+    }
   },
   {
     "slug": "hersheypark",
@@ -406,7 +598,15 @@
     "close": 22,
     "show": null,
     "tz": "America/New_York",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "Fast Track",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 100,
+      "note": "limited quantity"
+    }
   },
   {
     "slug": "dollywood",
@@ -420,7 +620,15 @@
     "close": 20,
     "show": null,
     "tz": "America/New_York",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "TimeSaver",
+      "type": "day",
+      "cur": "$",
+      "low": 40,
+      "high": 100,
+      "note": "limited quantity"
+    }
   },
   {
     "slug": "busch-gardens-williamsburg",
@@ -435,7 +643,15 @@
     "close": 21,
     "show": null,
     "tz": "America/New_York",
-    "region": "US & Canada"
+    "region": "US & Canada",
+    "skip": {
+      "name": "Quick Queue",
+      "type": "day",
+      "cur": "$",
+      "low": 20,
+      "high": 90,
+      "note": "cheapest skip in the industry"
+    }
   },
   {
     "slug": "seaworld-san-diego",
@@ -450,7 +666,15 @@
     "close": 20,
     "show": null,
     "tz": "America/Los_Angeles",
-    "region": "California"
+    "region": "California",
+    "skip": {
+      "name": "Quick Queue",
+      "type": "day",
+      "cur": "$",
+      "low": 20,
+      "high": 80,
+      "note": "one-time or Unlimited variants"
+    }
   },
   {
     "slug": "europa-park",
@@ -464,7 +688,11 @@
     "close": 18,
     "show": null,
     "tz": "Europe/Berlin",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — rope drop and single-rider are your friends"
+    }
   },
   {
     "slug": "efteling",
@@ -478,7 +706,11 @@
     "close": 18,
     "show": null,
     "tz": "Europe/Amsterdam",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — go at opening or after 16:00"
+    }
   },
   {
     "slug": "alton-towers",
@@ -492,7 +724,15 @@
     "close": 17,
     "show": null,
     "tz": "Europe/London",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "name": "Fastrack",
+      "type": "ride",
+      "cur": "£",
+      "low": 3,
+      "high": 15,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "thorpe-park",
@@ -506,7 +746,15 @@
     "close": 17,
     "show": null,
     "tz": "Europe/London",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "name": "Fastrack",
+      "type": "ride",
+      "cur": "£",
+      "low": 3,
+      "high": 15,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "portaventura",
@@ -523,7 +771,15 @@
     "close": 20,
     "show": null,
     "tz": "Europe/Madrid",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "name": "PortAventura Express",
+      "type": "day",
+      "cur": "€",
+      "low": 25,
+      "high": 60,
+      "note": "per person/day"
+    }
   },
   {
     "slug": "phantasialand",
@@ -537,7 +793,11 @@
     "close": 18,
     "show": null,
     "tz": "Europe/Berlin",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — weekdays are dramatically lighter"
+    }
   },
   {
     "slug": "parc-asterix",
@@ -551,7 +811,15 @@
     "close": 18,
     "show": null,
     "tz": "Europe/Paris",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "name": "Skip-the-line pass",
+      "type": "ride",
+      "cur": "€",
+      "low": 5,
+      "high": 15,
+      "note": "per ride, per person"
+    }
   },
   {
     "slug": "liseberg",
@@ -565,6 +833,10 @@
     "close": 20,
     "show": null,
     "tz": "Europe/Stockholm",
-    "region": "Europe"
+    "region": "Europe",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — evenings are lightest"
+    }
   }
 ]
