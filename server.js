@@ -566,8 +566,19 @@ consultant.init({
   saveMemory: (email, notes) => db.advisor.setMemory(email, notes),
 });
 
+// Canonical host: when CANONICAL_HOST is set (e.g. www.parkpulse.fun), GET
+// traffic arriving on any other host — the Railway domains, the bare apex —
+// is 301-redirected there, so links, SEO and sessions converge on one origin.
+const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const host = String(req.headers.host || '').toLowerCase();
+  if (CANONICAL_HOST && host && host !== CANONICAL_HOST && !host.startsWith('localhost') && !host.startsWith('127.')
+      && (req.method === 'GET' || req.method === 'HEAD')) {
+    res.writeHead(301, { location: `https://${CANONICAL_HOST}${req.url}`, 'cache-control': 'public, max-age=3600' });
+    return res.end();
+  }
 
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {

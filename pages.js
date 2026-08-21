@@ -69,6 +69,7 @@ function renderParkPage(park, sample, allParks) {
 <title>${esc(park.name)} Wait Times &amp; ${DISNEY_GROUPS.has(park.group) ? 'Lightning Lane' : 'Express Pass'} Strategy | ParkPulse</title>
 <meta name="description" content="Live ${esc(park.name)} wait times, typical waits for every ride, park hours, and whether ${DISNEY_GROUPS.has(park.group) ? 'Lightning Lane' : 'Express Pass'} is worth it today.">
 <link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<link rel="canonical" href="https://www.parkpulse.fun/parks/${park.slug}">
 <style>${CSS}</style></head><body><div class="wrap">
 <nav><a class="logo" href="/">&#9889; ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/guide">Guide</a></span></nav>
 <h1>${esc(park.name)} Wait Times &amp; Strategy</h1>
