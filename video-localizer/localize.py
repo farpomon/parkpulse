@@ -33,7 +33,7 @@ import wave
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-OUT_DIR = BASE_DIR / "out"
+OUT_DIR = Path(os.environ.get("LOCALIZER_OUT", BASE_DIR / "out"))
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
 SAMPLE_RATE = 24000  # Gemini TTS output: 16-bit mono PCM at 24 kHz
@@ -46,6 +46,13 @@ ISO_639_2 = {
     "id": "ind", "vi": "vie", "th": "tha", "uk": "ukr", "sv": "swe",
     "da": "dan", "no": "nor", "fi": "fin",
 }
+
+
+def rel(path):
+    try:
+        return path.relative_to(BASE_DIR)
+    except ValueError:
+        return path
 
 
 def load_config():
@@ -163,7 +170,7 @@ def cmd_translate(args, config):
             for s, t in zip(scenes, translated):
                 w.writerow([s["scene"], s["start"], s["duration"],
                             s["visual"], t])
-        print(f"  wrote {out_path.relative_to(BASE_DIR)}")
+        print(f"  wrote {rel(out_path)}")
 
 
 # ----------------------------------------------------------------------- tts
@@ -296,7 +303,7 @@ def cmd_tts(args, config):
         (OUT_DIR / "tracks").mkdir(parents=True, exist_ok=True)
         track = OUT_DIR / "tracks" / f"{code}.m4a"
         ffmpeg(["-i", str(full), "-c:a", "aac", "-b:a", "192k", str(track)])
-        print(f"  wrote {track.relative_to(BASE_DIR)} "
+        print(f"  wrote {rel(track)} "
               f"({wav_duration(full):.1f}s)")
 
 
@@ -333,7 +340,7 @@ def cmd_mux(args, config):
                     f"language={ISO_639_2.get(code, 'und')}"]
             cmd += [f"-disposition:a:{i}", "default" if i == 0 else "0"]
         ffmpeg(cmd + [str(out)])
-        print(f"wrote {out.relative_to(BASE_DIR)}")
+        print(f"wrote {rel(out)}")
         return
 
     for code in tracks:
@@ -353,7 +360,7 @@ def cmd_mux(args, config):
                     "-map", "0:v", "-map", "1:a", "-c", "copy",
                     "-metadata:s:a:0",
                     f"language={ISO_639_2.get(code, 'und')}", str(out)])
-        print(f"wrote {out.relative_to(BASE_DIR)}")
+        print(f"wrote {rel(out)}")
 
 
 # ---------------------------------------------------------------------- main

@@ -97,6 +97,28 @@ translated CSV and regenerate just that language.
   subtitle source text.
 - **Mark it "Made for Kids"** (COPPA requirement for children's content).
 
+## Web UI / deploy on Railway
+
+`server.py` wraps the pipeline in a simple web page: upload the script CSV
+(plus optional glossary and video), pick languages, watch the log, download
+the tracks/MP4s. Run it locally with `python3 server.py` (port 8080), or
+deploy it on [Railway](https://railway.com):
+
+1. Push this folder to its own GitHub repo.
+2. In Railway: **New Project → Deploy from GitHub repo** → pick the repo.
+   The included `Dockerfile` + `railway.json` handle the build (ffmpeg
+   included).
+3. Add environment variables: `GEMINI_API_KEY` (required) and
+   `APP_PASSWORD` (recommended — anyone with the URL can otherwise run jobs
+   on your API key; any username + this password logs in).
+4. Generate a domain under Settings → Networking.
+
+Notes for Railway: the filesystem is ephemeral, so download results after
+each job (they don't survive a redeploy); jobs run one at a time; very large
+video uploads are better handled by running `mux` locally with the
+downloaded audio tracks — or skip the video upload entirely and use the
+tracks with YouTube multi-language audio.
+
 ## Notes
 
 - Songs don't localize this way — a translated song must be re-sung and

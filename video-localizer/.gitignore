@@ -1,4 +1,5 @@
 out/
+jobs/
 glossary.csv
 master_script.csv
 __pycache__/
