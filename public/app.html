@@ -101,6 +101,24 @@
   .btn:hover { filter: brightness(1.06); }
   .btn:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(79,58,201,.30); }
   .listtools { display: flex; justify-content: space-between; margin: 0 0 .1rem; }
+  .sectionhead { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem 1rem;
+    flex-wrap: wrap; margin: 1.5rem 0 .2rem; padding-top: .9rem; border-top: 2px solid var(--border); }
+  .sectionhead h2 { margin: 0; font-size: 1.06rem; font-weight: 800; letter-spacing: -.015em; }
+  .sectionhead .listtools { margin: 0; gap: 1rem; flex: 0 0 auto; }
+  .dinehero { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem 1.15rem 1rem;
+    margin: .5rem 0 .9rem; position: relative; overflow: hidden;
+    box-shadow: 0 2px 6px rgba(20,12,48,.06), 0 10px 30px rgba(20,12,48,.07); }
+  .dinehero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--brand), #9b6bf0, #ffd94d); }
+  .dinehero h3 { margin: .15rem 0 .2rem; font-size: 1.18rem; letter-spacing: -.015em; }
+  .dinehero .dh-sub { margin: 0 0 .8rem; color: var(--muted); font-size: .88rem; }
+  .dinehero .dh-cta { display: block; text-align: center; background: linear-gradient(135deg, var(--brand), #7b5fe0);
+    color: #fff; font-weight: 800; text-decoration: none; border-radius: 12px; padding: .7rem 1rem; margin-bottom: .85rem;
+    box-shadow: 0 3px 12px rgba(79,58,201,.28); }
+  .dinehero .dh-row { display: flex; gap: .6rem; align-items: flex-start; font-size: .84rem; color: var(--muted);
+    padding: .45rem 0; border-top: 1px solid var(--border); }
+  .dinehero .dh-row span { flex-shrink: 0; font-size: .95rem; line-height: 1.3; }
+  .dinehero .dh-row b { display: block; color: var(--ink); font-size: .85rem; margin-bottom: .05rem; }
   .dine-tags { font-size: .72rem; font-weight: 800; color: var(--brand); text-transform: uppercase; letter-spacing: .04em; margin-top: .1rem; }
   .dine-blurb { font-size: .84rem; color: var(--muted); line-height: 1.45; margin-top: .15rem; }
   .dine-note { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
@@ -219,9 +237,12 @@
   <p class="crowdline" id="crowdline"></p>
   <div id="skipcard"></div>
   <div id="forecast"></div>
-  <div class="listtools"><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
-  <div id="dining" style="display:none"></div>
   <div id="plan-out"></div>
+  <div class="sectionhead">
+    <h2 id="listhead-title">🎢 Park attractions</h2>
+    <div class="listtools"><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
+  </div>
+  <div id="dining" style="display:none"></div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
   <footer>
@@ -854,7 +875,7 @@
       : "that's one more ride together instead of a queue";
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
-      <h2>${tr('Your plan')}</h2>
+      <h2>${tr('Your plan for the day')}</h2>
       ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 Waits predicted for today's crowds (${tr(lastForecast.days[0].label)}) from each ride's popularity — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">refine with AI</a></p>` : ''}
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
@@ -998,6 +1019,8 @@
     $('acct-forgot').textContent = tr('Forgot password?');
     $('acct-logout').textContent = tr('Log out');
     $('acct-cancel').textContent = tr('Close');
+    // read the DOM, not viewMode — this runs before that binding exists
+    $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions');
   })();
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
@@ -1234,17 +1257,29 @@
         if (!r.ok) throw new Error();
         diningCache[key] = await r.json();
       } catch {
-        el.innerHTML = '<div class="state">Dining guide unavailable right now — ask the AI instead via the 💬 bubble.</div>';
+        el.innerHTML = `<div class="state">${tr('Dining guide unavailable right now.')}<br>
+          <a href="#" id="dine-retry" style="color:var(--brand);font-weight:800">${tr('Try again')}</a>
+          ${consultantOn ? ` · <a href="#" id="dine-ask2" style="color:var(--brand);font-weight:800">${tr('Ask the AI instead')}</a>` : ''}</div>`;
+        const retry = document.getElementById('dine-retry');
+        if (retry) retry.addEventListener('click', (e) => { e.preventDefault(); renderDining(); });
+        const ask2 = document.getElementById('dine-ask2');
+        if (ask2) ask2.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (window.ParkPulseChat) ParkPulseChat.ask(`Where should we eat at ${parks[current].name} today, and what needs a reservation?`);
+        });
         return;
       }
     }
     const d = diningCache[key];
     const TYPE = { table: 'Table service', quick: 'Quick service', character: 'Character dining' };
     el.innerHTML = `
-      <div class="fcast">
-        <div class="fc-head"><b>🍽 Dining at ${parks[current].name}</b>${d.reserve ? `<a href="${d.reserve.url}" target="_blank" rel="noopener" style="font-weight:800">Reserve →</a>` : ''}</div>
-        ${d.reserve ? `<div class="sk-note">${d.reserve.note} — booking happens in the official app/site.</div>` : ''}
-        <div class="sk-note">Kitchens peak 12:00–1:30 &amp; 6:00–7:30 — mobile-order 30 min ahead or eat off-peak. Parks don't publish live dining waits.</div>
+      <div class="dinehero">
+        <h3>🍽 ${tr('Where to eat at')} ${parks[current].name}</h3>
+        <p class="dh-sub">${d.list.length} ${tr('places worth your time, picked for this park')}</p>
+        ${d.reserve ? `<a class="dh-cta" href="${d.reserve.url}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
+        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${d.reserve.note}</div></div>` : ''}
+        <div class="dh-row"><span>⏰</span><div><b>${tr('Beat the rush')}</b>${tr('Kitchens peak 12:00–1:30 and 6:00–7:30. Mobile-order 30 minutes ahead or eat either side of those windows.')}</div></div>
+        <div class="dh-row"><span>ℹ️</span><div><b>${tr('No live waits')}</b>${tr("Parks don't publish restaurant wait times, so we won't invent them.")}</div></div>
       </div>
       ${d.list.map((r) => `
         <div class="ride">
@@ -1264,6 +1299,7 @@
 
   function setViewMode(mode) {
     viewMode = mode;
+    $('listhead-title').textContent = mode === 'rides' ? '🎢 ' + tr('Park attractions') : '🍽 ' + tr('Dining');
     $('rides').style.display = mode === 'rides' ? '' : 'none';
     $('dining').style.display = mode === 'dining' ? '' : 'none';
     $('pick-all').style.display = mode === 'rides' ? '' : 'none';

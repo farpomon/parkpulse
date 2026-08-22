@@ -348,6 +348,16 @@ async function describeRide(parkName, rideName, lang) {
 
 // One-shot park dining guide as strict JSON, generated once per park per
 // language and cached by the caller. Honesty-guarded: only well-known spots.
+// Strict-JSON responses occasionally arrive wrapped in a stray sentence.
+// Parse the whole string first, then fall back to the outermost [...] block.
+function parseJsonArray(raw) {
+  try { return JSON.parse(raw); } catch {}
+  const start = raw.indexOf('[');
+  const end = raw.lastIndexOf(']');
+  if (start === -1 || end <= start) return null;
+  try { return JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
+}
+
 async function diningGuide(parkName, group, lang) {
   const msg = await client.beta.messages.create({
     model: MODEL,
@@ -361,7 +371,9 @@ async function diningGuide(parkName, group, lang) {
   if (msg.stop_reason === 'refusal') return null;
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
-  const list = JSON.parse(raw);
+  // Be forgiving about a stray sentence around the array — a whole guide
+  // shouldn't be lost to one word of preamble.
+  const list = parseJsonArray(raw);
   if (!Array.isArray(list)) return null;
   return list.slice(0, 8).map((r) => ({
     name: String(r.name || '').slice(0, 80),
