@@ -62,6 +62,16 @@
   .ride .mid { cursor: pointer; }
   .ride-desc { flex-basis: 100%; order: 9; font-size: .84rem; color: var(--muted); line-height: 1.5;
     border-top: 1px dashed var(--border); margin-top: .55rem; padding-top: .5rem; animation: rise .2s ease; }
+  .sr-ask, .sr-set { flex-basis: 100%; order: 10; font-size: .82rem; line-height: 1.5; border-top: 1px dashed var(--border);
+    margin-top: .55rem; padding-top: .5rem; animation: rise .2s ease; }
+  .sr-ask b { color: var(--ink); }
+  .sr-ask .sr-warn { display: block; color: var(--muted); }
+  .sr-btns { display: inline-flex; gap: .45rem; margin-top: .35rem; }
+  .sr-btns button { border: 1.5px solid var(--brand); background: none; color: var(--brand); border-radius: 999px;
+    padding: .3rem 1.05rem; font-weight: 800; font-size: .82rem; cursor: pointer; }
+  .sr-btns button[data-v="1"] { background: linear-gradient(135deg, var(--brand), #7b5fe0); color: #fff; border-color: transparent; }
+  .sr-set { color: var(--muted); cursor: pointer; }
+  .sr-set b.on { color: var(--green); }
   .ride input[type=checkbox] { width: 1.2rem; height: 1.2rem; accent-color: var(--brand); flex-shrink: 0; }
   .ride .mid { flex: 1; min-width: 0; }
   .ride .name { font-weight: 600; font-size: .95rem; line-height: 1.3; }
@@ -484,6 +494,25 @@
   const tagsCache = {};
   let fVibe = 'all';
   let fAge = 99;
+
+  // Per-ride single-rider opt-in. Only asked when the AI tags say the ride
+  // actually runs a single-rider line and the ride is picked for the plan.
+  let srChoice = {};
+  try { srChoice = JSON.parse(localStorage.getItem('pp-single') || '{}'); } catch {}
+  const saveSr = () => { try { localStorage.setItem('pp-single', JSON.stringify(srChoice)); } catch {} };
+  const srAvailable = (name) => Boolean(tagsCache[current] && tagsCache[current][name] && tagsCache[current][name].sr);
+  const srOn = (name) => srAvailable(name) && srChoice[name] === true;
+
+  function srPromptHtml(r) {
+    if (!r.open || !pickedNames.has(r.name) || !srAvailable(r.name)) return '';
+    const c = srChoice[r.name];
+    if (c === undefined) {
+      return `<div class="sr-ask" data-name="${encodeURIComponent(r.name)}">🚶 <b>${tr('Single-rider line available')}</b>
+        <span class="sr-warn">${tr('Open to riding separately? Each party member rides alone.')}</span>
+        <span class="sr-btns"><button data-v="1">${tr('Yes')}</button><button data-v="0">${tr('No')}</button></span></div>`;
+    }
+    return `<div class="sr-set" data-name="${encodeURIComponent(r.name)}" role="button" tabindex="0">🚶 ${tr('Single rider')}: <b class="${c ? 'on' : ''}">${c ? tr('Yes') : tr('No')}</b> ⇄</div>`;
+  }
   async function loadTags() {
     if (tagsCache[current] !== undefined) { $('filterbar').style.display = tagsCache[current] ? 'flex' : 'none'; return; }
     try {
@@ -491,7 +520,7 @@
       tagsCache[current] = r.ok ? (await r.json()).tags : null;
     } catch { tagsCache[current] = null; }
     $('filterbar').style.display = tagsCache[current] ? 'flex' : 'none';
-    if (tagsCache[current] && (fVibe !== 'all' || fAge !== 99)) renderRides();
+    if (tagsCache[current]) renderRides();
   }
   function passesFilter(r) {
     const tags = tagsCache[current];
@@ -657,6 +686,7 @@
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
         ${openDesc.has(r.name) ? `<div class="ride-desc">${descCache[current + '|' + r.name] || '…'}</div>` : ''}
+        ${srPromptHtml(r)}
       </div>`;
   }
 
@@ -689,6 +719,7 @@
       const name = decodeURIComponent(cb.dataset.name);
       cb.checked ? pickedNames.add(name) : pickedNames.delete(name);
       updatePlanbar();
+      if (srAvailable(name)) renderRides();
     }));
     $('rides').querySelectorAll('.star').forEach((btn) => btn.addEventListener('click', () => {
       const name = decodeURIComponent(btn.dataset.name);
@@ -697,6 +728,19 @@
       renderRides();
     }));
     $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
+    $('rides').querySelectorAll('.sr-ask button').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = decodeURIComponent(btn.closest('.sr-ask').dataset.name);
+      srChoice[name] = btn.dataset.v === '1';
+      saveSr();
+      renderRides();
+    }));
+    $('rides').querySelectorAll('.sr-set').forEach((el) => el.addEventListener('click', () => {
+      const name = decodeURIComponent(el.dataset.name);
+      srChoice[name] = !srChoice[name];
+      saveSr();
+      renderRides();
+    }));
     $('rides').querySelectorAll('.mid').forEach((m) => m.addEventListener('click', () => {
       const name = decodeURIComponent(m.dataset.ride);
       if (openDesc.has(name)) openDesc.delete(name);
@@ -862,7 +906,8 @@
         if (r.open && anchorH > 0) anchor = Math.min(1.8, Math.max(0.55, r.wait / (r.typical * todayF * anchorH)));
         return r.typical * todayF * anchor;
       };
-      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : baseWait(r) * mult);
+      const srF = (r) => (srOn(r.name) ? 0.35 : 1); // single-rider line moves ~3x faster
+      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : baseWait(r) * mult * srF(r));
       // Low-crowd window: grab the biggest headliner (walk cost eats savings).
       // Otherwise: shortest effective wait, where changing lands adds a walk.
       const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r));
@@ -870,8 +915,8 @@
       const ride = pool.splice(bestIdx, 1)[0];
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
-      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, suggested: fillMode, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
+      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult * srF(ride) / 5) * 5);
+      steps.push({ time: t, ride, predicted, suggested: fillMode, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : srOn(ride.name) ? '🚶 ' + tr('single rider — party rides separately') : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
     if (!showDone && end > show.hour) {
