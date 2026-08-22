@@ -801,8 +801,10 @@
     }
   }
 
-  function updatePlanbar() {
-    const n = pickedNames.size;
+  function updatePlanbar(plannedCount) {
+    // While picking, the bar counts your selection; once a plan is built it
+    // counts the attractions actually in the plan (starters + suggestions).
+    const n = plannedCount ?? pickedNames.size;
     $('planbar').classList.toggle('visible', n > 0);
     $('picked-count').textContent = `${n} ${n === 1 ? tr('ride') : tr('rides')}`;
   }
@@ -935,7 +937,7 @@
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
-      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 Waits predicted for today's crowds (${tr(lastForecast.days[0].label)}) from each ride's popularity — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">refine with AI</a></p>` : ''}
+      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${tr("Waits predicted for today's crowds")} (${tr(lastForecast.days[0].label)}) ${tr("from each ride's popularity")} — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">${tr('refine with AI')}</a></p>` : ''}
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
@@ -946,6 +948,7 @@
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
+    updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     const refine = document.getElementById('plan-refine');
     if (refine) refine.addEventListener('click', (e) => {
       e.preventDefault();
@@ -1036,7 +1039,7 @@
     const open = rides.filter((r) => r.open && passesFilter(r));
     const allPicked = open.length && open.every((r) => pickedNames.has(r.name));
     if (allPicked) { pickedNames.clear(); $('pick-all').textContent = tr('Select all'); }
-    else { open.forEach((r) => pickedNames.add(r.name)); $('pick-all').textContent = 'Clear all'; }
+    else { open.forEach((r) => pickedNames.add(r.name)); $('pick-all').textContent = tr('Clear all'); }
     renderRides();
     updatePlanbar();
   });
