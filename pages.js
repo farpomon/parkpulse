@@ -71,7 +71,7 @@ function renderParkPage(park, sample, allParks) {
 <link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
 <link rel="canonical" href="https://www.parkpulse.fun/parks/${park.slug}">
 <style>${CSS}</style></head><body><div class="wrap">
-<nav><a class="logo" href="/">&#9889; ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/guide">Guide</a></span></nav>
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/guide">Guide</a></span></nav>
 <h1>${esc(park.name)} Wait Times &amp; Strategy</h1>
 <p class="sub">${esc(park.group)} &middot; typical hours ${hour12(park.open)}&ndash;${hour12(park.close)}</p>
 <div class="card"><p><strong>The one-minute version:</strong> arrive before opening and ride a headliner first &mdash; the first hour has the day's shortest lines. Waits peak from 11&nbsp;AM to 4&nbsp;PM (do shows and meals then), and the final hour is often as quiet as rope drop. ${showLine}</p>
