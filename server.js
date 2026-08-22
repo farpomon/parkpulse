@@ -428,7 +428,44 @@ async function checkAlerts() {
     }
   }
 }
-setInterval(() => checkAlerts().catch(() => {}), ALERT_CHECK_MS);
+// Booking-window reminders: Walt Disney World is the only chain with an
+// advance Lightning Lane race (7 days on-site / 3 days off-site, 7:00 AM ET),
+// so saved WDW trips with a push subscription get pinged the evening before
+// their window opens — with morning-of and already-open fallbacks in case the
+// evening pass was missed. One reminder per saved trip; re-saving re-arms it.
+const etNow = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date());
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: +get('hour') };
+};
+const addDays = (dateStr, n) => {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+async function checkBookingReminders() {
+  for (const t of db.trips.pendingReminders()) {
+    if (t.dest !== 'Walt Disney World') continue;
+    const { date: today, hour } = etNow();
+    if (t.start < today) { db.trips.markNotified(t.email); continue; } // trip already underway
+    const windowDate = addDays(t.start, -(t.onsite ? 7 : 3));
+    let body = null;
+    if (windowDate === addDays(today, 1) && hour >= 17) body = 'opens TOMORROW at 7:00 AM ET — set an alarm and book your must-do ride first!';
+    else if (windowDate === today && hour < 7) body = 'opens TODAY at 7:00 AM ET — book your must-do ride the moment it does!';
+    else if (windowDate < today || (windowDate === today && hour >= 7)) body = 'is already open — book your must-do rides now before they sell out!';
+    if (!body) continue;
+    const payload = JSON.stringify({ title: '🎟 Lightning Lane booking window', body: `Your Walt Disney World window ${body}` });
+    try {
+      await webpush.sendNotification(JSON.parse(t.push_sub), payload);
+      console.log(`booking reminder sent for ${t.email} (window ${windowDate})`);
+    } catch (err) {
+      console.log(`booking reminder failed for ${t.email}: ${err.statusCode || err.message}`);
+    }
+    db.trips.markNotified(t.email); // once per saved trip, even if the endpoint died
+  }
+}
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); }, ALERT_CHECK_MS);
+setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const waitsCache = new Map();
@@ -1093,8 +1130,10 @@ const server = http.createServer(async (req, res) => {
           ? parsed.plan.filter((p) => p && PARKS[p.park] && typeof p.date === 'string').slice(0, 14).map((p) => ({ date: p.date.slice(0, 10), park: p.park }))
           : [];
         if (!dest || !start || !days || plan.length !== days) return sendJson(res, 400, { error: 'invalid trip' });
-        db.trips.set(s.email, dest, start, days, JSON.stringify(plan), parsed.onsite ? 1 : 0);
-        return sendJson(res, 200, { ok: true });
+        const sub = parsed.sub && typeof parsed.sub.endpoint === 'string' && parsed.sub.endpoint.startsWith('https://')
+          ? JSON.stringify(parsed.sub).slice(0, 4000) : null;
+        db.trips.set(s.email, dest, start, days, JSON.stringify(plan), parsed.onsite ? 1 : 0, sub);
+        return sendJson(res, 200, { ok: true, reminder: Boolean(sub) });
       }
 
       if (url.pathname === '/api/advisor/feedback') {

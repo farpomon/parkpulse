@@ -1175,15 +1175,25 @@
   async function saveTrip() {
     if (!builtTrip) return;
     try { localStorage.setItem('pp-trip', JSON.stringify(builtTrip)); } catch {}
+    let reminder = false;
     if (sessionToken()) {
+      // Attach this phone's push subscription so the server can ping when the
+      // booking window opens (WDW only). Reuse a granted permission silently;
+      // only a WDW trip is worth prompting for.
+      let sub = null;
       try {
-        await api('/api/trip', { method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ dest: builtTrip.dest, start: builtTrip.start, days: builtTrip.days, onsite: builtTrip.onsite, plan: builtTrip.plan.map((p) => ({ date: p.date, park: p.park })) }) });
+        if (Notification.permission === 'granted') sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+        if (!sub && builtTrip.dest === 'Walt Disney World' && Notification.permission !== 'denied') sub = await getPushSubscription();
+      } catch {}
+      try {
+        const r = await api('/api/trip', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ dest: builtTrip.dest, start: builtTrip.start, days: builtTrip.days, onsite: builtTrip.onsite, sub: sub ? sub.toJSON() : undefined, plan: builtTrip.plan.map((p) => ({ date: p.date, park: p.park })) }) });
+        if (r.ok) reminder = Boolean((await r.json()).reminder) && builtTrip.dest === 'Walt Disney World';
       } catch {}
     }
     savedTrip = builtTrip;
     setTripToday(builtTrip);
-    document.getElementById('trip-save').textContent = '✓ Saved';
+    document.getElementById('trip-save').textContent = reminder ? '✓ Saved — booking-window reminder set 📣' : '✓ Saved';
   }
 
   function setTripToday(saved) {
