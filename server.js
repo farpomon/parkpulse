@@ -494,6 +494,9 @@ setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch
 setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
+// In-flight dining-guide generations, one per park+language.
+const diningJobs = new Map();
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const waitsCache = new Map();
 
@@ -845,16 +848,22 @@ const server = http.createServer(async (req, res) => {
     const cached = db.dining.get(slug, langCode);
     if (cached) return sendJson(res, 200, { park: park.name, reserve, list: JSON.parse(cached) });
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
-    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
-    try {
-      const list = await consultant.diningGuide(park.name, park.group, LANG_NAMES[langCode]);
-      if (!list || !list.length) return sendJson(res, 502, { error: 'no guide' });
-      db.dining.set(slug, langCode, JSON.stringify(list));
-      return sendJson(res, 200, { park: park.name, reserve, list });
-    } catch (err) {
-      console.log(`dining error: ${err.message}`);
-      return sendJson(res, 502, { error: 'no guide' });
+    // First visit for this park+language: generate in the background and tell
+    // the client to poll. Nobody stares at a spinner tied to a model call, and
+    // concurrent visitors share one generation instead of stampeding it.
+    const jobKey = `${slug}|${langCode}`;
+    if (!diningJobs.has(jobKey)) {
+      if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+      const job = consultant.diningGuide(park.name, park.group, LANG_NAMES[langCode])
+        .then((list) => {
+          if (list && list.length) db.dining.set(slug, langCode, JSON.stringify(list));
+          else console.log(`dining: empty guide for ${jobKey}`);
+        })
+        .catch((err) => console.log(`dining error (${jobKey}): ${err.message}`))
+        .finally(() => diningJobs.delete(jobKey));
+      diningJobs.set(jobKey, job);
     }
+    return sendJson(res, 202, { pending: true });
   }
 
   // Ride tags (vibe + age band): AI-classified once per park, cached.

@@ -378,7 +378,7 @@ async function diningGuide(parkName, group, lang) {
     fallbacks: 'default',
     system: 'You produce dining guides for a theme-park app as STRICT JSON — no markdown, no code fences, no commentary. Output a JSON array of 5-8 objects: {"name": string, "type": "table"|"quick"|"character", "price": "$"|"$$"|"$$$", "blurb": string (one short sentence: cuisine + why it stands out), "mustBook": boolean (true only if reservations are genuinely hard to get)}. Include ONLY restaurants you are confident actually exist at this specific park — fewer correct entries beat more invented ones. Blurbs in the requested language; names in their official form.',
     messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Language for blurbs: ${lang || 'English'}.` }],
-  });
+  }, { timeout: 90000, maxRetries: 1 }); // a hung call must fail, not pin the job
   if (msg.stop_reason === 'refusal') return null;
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
