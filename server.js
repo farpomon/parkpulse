@@ -187,6 +187,21 @@ const sendVerifyEmail = (email, code) => sendEmail(email, `${code} is your ParkP
   `<p>Your ParkPulse verification code:</p><p style="font-size:28px;font-weight:800;letter-spacing:4px">${code}</p><p>It expires in 15 minutes. If you didn't request it, ignore this email.</p>`,
   `Verification code for ${email}: ${code}`);
 
+// Deletion is scheduled, not immediate: the account sits in a grace period so
+// a regretted tap at 2am is recoverable, by the emailed link or simply by
+// logging back in.
+const DELETE_GRACE_DAYS = 7;
+const sendDeletionEmail = (origin, email, token, deleteAt) => {
+  const link = `${origin}/cancel-deletion?email=${encodeURIComponent(email)}&token=${token}`;
+  const when = new Date(deleteAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+  return sendEmail(email, 'Your ParkPulse account is scheduled for deletion',
+    `<p>We're sorry to see you go.</p>
+<p>Your ParkPulse account and everything in it — trips, plans, advisor conversations and alerts — will be permanently deleted on <strong>${when}</strong>. Until then nothing is lost.</p>
+<p>Changed your mind? <a href="${link}">Click here to cancel</a> — or just log in again, which cancels it too.</p>
+<p>After that date this cannot be undone.</p>`,
+    `Deletion scheduled for ${email} (no RESEND_API_KEY set) — cancel link: ${link}`);
+};
+
 // One-time welcome after the account verifies. Fire-and-forget, never blocks.
 const sendWelcomeEmail = (email) => sendEmail(email, 'Welcome to ParkPulse 🎢',
   `<p>Your account is verified — you're in!</p>
@@ -464,7 +479,19 @@ async function checkBookingReminders() {
     db.trips.markNotified(t.email); // once per saved trip, even if the endpoint died
   }
 }
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); }, ALERT_CHECK_MS);
+// Accounts whose grace period has run out are purged for real.
+function sweepDeletedAccounts() {
+  for (const email of db.accounts.due(Date.now())) {
+    try {
+      const counts = db.accounts.purge(email);
+      console.log(`account purged after grace period: ${email} — ${JSON.stringify(counts)}`);
+    } catch (err) {
+      console.log(`purge failed for ${email}: ${err.message}`);
+    }
+  }
+}
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); }, ALERT_CHECK_MS);
+setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -738,6 +765,20 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Android app-link verification for the Play Store TWA wrapper. Bubblewrap
+  // prints the signing-key SHA-256 fingerprint; paste it into the Railway
+  // ANDROID_FINGERPRINT variable (comma-separated for multiple keys, e.g. the
+  // upload key plus Play App Signing) and Chrome will drop the URL bar.
+  if (url.pathname === '/.well-known/assetlinks.json') {
+    const prints = (process.env.ANDROID_FINGERPRINT || '').split(',').map((f) => f.trim()).filter(Boolean);
+    const pkg = process.env.ANDROID_PACKAGE || 'fun.parkpulse.twa';
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' });
+    return res.end(JSON.stringify(prints.length ? [{
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: { namespace: 'android_app', package_name: pkg, sha256_cert_fingerprints: prints },
+    }] : []));
+  }
+
   // SEO surface: server-rendered park pages + sitemap + robots.
   const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
   if (parkPage) {
@@ -884,6 +925,12 @@ const server = http.createServer(async (req, res) => {
         const ok = u0 && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u0.salt)), Buffer.from(u0.hash));
         if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
         loginFails.delete(email);
+        // Coming back during the grace period is itself a change of mind.
+        const wasPendingDeletion = Boolean(u0.delete_at);
+        if (wasPendingDeletion) {
+          db.users.cancelDeletion(email);
+          console.log(`account deletion cancelled by login: ${email}`);
+        }
         if (!u0.verified) {
           startVerification(email);
           return sendJson(res, 200, { pending: true, email });
@@ -899,6 +946,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, {
           session: issueSession(email, parsed.device, req),
           email,
+          deletionCancelled: wasPendingDeletion,
           plan: active ? u.plan : null,
           exp: active ? u.plan_exp : null,
           passToken: active ? signPass(u.plan, u.plan_exp) : null,
@@ -947,6 +995,43 @@ const server = http.createServer(async (req, res) => {
         } catch (err) {
           return sendJson(res, 502, { sent: false, reason: err.message });
         }
+      }
+
+      // Account deletion. Requires the password even when a session is
+      // present — this is irreversible, and re-authenticating protects anyone
+      // whose unlocked phone is borrowed. Works without a session too, so the
+      // public /delete-account page can serve people who removed the app.
+      if (url.pathname === '/api/auth/delete') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        const password = typeof parsed.password === 'string' ? parsed.password : '';
+        if (!email || !password) return sendJson(res, 400, { error: 'email and password required' });
+        if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
+        const u = db.users.get(email);
+        const ok = u && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u.salt)), Buffer.from(u.hash));
+        if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
+        loginFails.delete(email);
+        const deleteAt = Date.now() + DELETE_GRACE_DAYS * 86400000;
+        const cancelToken = crypto.randomBytes(32).toString('hex');
+        db.users.scheduleDeletion(email, deleteAt, cancelToken);
+        db.sessions.deleteForEmail(email); // signed out everywhere immediately
+        const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+        sendDeletionEmail(origin, email, cancelToken, deleteAt).catch((err) => console.log(`deletion email failed: ${err.message}`));
+        console.log(`account deletion scheduled: ${email} for ${new Date(deleteAt).toISOString()}`);
+        return sendJson(res, 200, { ok: true, scheduled: true, deleteAt, graceDays: DELETE_GRACE_DAYS });
+      }
+
+      // Cancel a scheduled deletion, from the emailed link.
+      if (url.pathname === '/api/auth/cancel-deletion') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        const token = typeof parsed.token === 'string' ? parsed.token : '';
+        const u = email && db.users.get(email);
+        if (!u || !u.delete_token || !token || token.length !== u.delete_token.length ||
+            !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(u.delete_token))) {
+          return sendJson(res, 403, { error: 'this cancellation link is no longer valid' });
+        }
+        db.users.cancelDeletion(email);
+        console.log(`account deletion cancelled: ${email}`);
+        return sendJson(res, 200, { ok: true, cancelled: true });
       }
 
       if (url.pathname === '/api/auth/logout-all') {

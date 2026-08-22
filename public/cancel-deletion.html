@@ -1,0 +1,69 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2c2154">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Keep your account — ParkPulse</title>
+<style>
+  :root { --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485; --brand: #4f3ac9; --border: #e3dff2;
+    --ok: #1d7a4f; --ok-soft: #e2f5ea; --danger: #b3324a; --danger-soft: #fbe9ec; --danger-line: #e7b9c2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4; --brand: #8f7bf0; --border: #362c5c;
+      --ok: #4fc98a; --ok-soft: #14301f; --danger: #f07a92; --danger-soft: #331a22; --danger-line: #5c2f3b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  nav { padding: .5rem 0 2rem; }
+  .logo { font-weight: 800; font-size: 1.15rem; color: var(--brand); text-decoration: none; }
+  h1 { font-size: 1.55rem; margin: 0 0 .6rem; }
+  p { margin: 0 0 .9rem; }
+  a { color: var(--brand); }
+  .card { border-radius: 14px; padding: 1.3rem 1.4rem; border: 1px solid var(--border); background: var(--card); }
+  .card.ok { background: var(--ok-soft); border-color: var(--ok); }
+  .card.bad { background: var(--danger-soft); border-color: var(--danger-line); }
+  .big { font-size: 2rem; margin-bottom: .3rem; }
+  .btn { display: inline-block; margin-top: .6rem; border-radius: 12px; padding: .7rem 1.4rem; font-weight: 800;
+    text-decoration: none; background: var(--brand); color: #fff; }
+  .muted { color: var(--muted); font-size: .9rem; }
+</style>
+<div class="wrap">
+  <nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a></nav>
+  <div id="state" class="card"><p class="muted" style="margin:0">Checking your link…</p></div>
+</div>
+<script>
+  const el = document.getElementById('state');
+  const q = new URLSearchParams(location.search);
+  const email = q.get('email') || '';
+  const token = q.get('token') || '';
+
+  const show = (cls, html) => { el.className = 'card ' + cls; el.innerHTML = html; };
+
+  if (!email || !token) {
+    show('bad', '<div class="big">🤔</div><h1>This link is incomplete</h1>'
+      + '<p>Open the cancellation link straight from the email we sent you.</p>'
+      + '<p class="muted">Still stuck? Email <a href="mailto:luisrubiof@gmail.com">luisrubiof@gmail.com</a> and we\'ll sort it out.</p>');
+  } else {
+    fetch('/api/auth/cancel-deletion', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, token }),
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        show('ok', '<div class="big">🎢</div><h1>Welcome back!</h1>'
+          + '<p>Your account is safe — the deletion is cancelled and nothing was lost. Your trips, plans and advisor history are all still there.</p>'
+          + '<a class="btn" href="/app">Open ParkPulse</a>');
+      } else {
+        show('bad', '<div class="big">⌛</div><h1>This link no longer works</h1>'
+          + '<p>' + (data.error || 'The cancellation link is not valid.') + '</p>'
+          + '<p>If your account was already deleted, that is permanent — but you are welcome to start fresh anytime.</p>'
+          + '<p class="muted">If you think this is a mistake, email <a href="mailto:luisrubiof@gmail.com">luisrubiof@gmail.com</a>.</p>'
+          + '<a class="btn" href="/app">Go to ParkPulse</a>');
+      }
+    }).catch(() => {
+      show('bad', '<div class="big">📡</div><h1>Connection problem</h1>'
+        + '<p>We could not reach the server. Refresh the page to try again.</p>');
+    });
+  }
+</script>

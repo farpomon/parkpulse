@@ -121,6 +121,8 @@ for (const ddl of [
   "ALTER TABLE trips ADD COLUMN onsite INTEGER DEFAULT 0",
   "ALTER TABLE trips ADD COLUMN push_sub TEXT",
   "ALTER TABLE trips ADD COLUMN notified INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN delete_at INTEGER",
+  "ALTER TABLE users ADD COLUMN delete_token TEXT",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
@@ -210,6 +212,10 @@ const users = {
     db.prepare('UPDATE users SET plan = ?, plan_exp = ? WHERE email = ?').run(plan, exp, email),
   setResetToken: (email, token, exp) =>
     db.prepare('UPDATE users SET reset_token = ?, reset_exp = ? WHERE email = ?').run(token, exp, email),
+  scheduleDeletion: (email, at, token) =>
+    db.prepare('UPDATE users SET delete_at = ?, delete_token = ? WHERE email = ?').run(at, token, email),
+  cancelDeletion: (email) =>
+    db.prepare('UPDATE users SET delete_at = NULL, delete_token = NULL WHERE email = ?').run(email).changes,
   resetPassword: (email, salt, hash) =>
     db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL, verified = 1 WHERE email = ?').run(salt, hash, email),
 };
@@ -324,6 +330,46 @@ const trips = {
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
+// Account deletion (required by both app stores, and the right default anyway).
+// Personal data is destroyed; two tables are de-identified instead of dropped:
+// `passes` are sale records worth keeping for accounting, and `advisor_feedback`
+// is product signal — both have their email cleared so nothing points at a
+// person. Wait-drop alerts are keyed by push endpoint rather than account, so
+// the best we can do is drop any that match this account's stored endpoint.
+const accounts = {
+  due: (now) => db.prepare('SELECT email FROM users WHERE delete_at IS NOT NULL AND delete_at <= ?').all(now).map((r) => r.email),
+  purge: (email) => {
+    const counts = {};
+    const run = (label, sql) => { counts[label] = db.prepare(sql).run(email).changes; };
+    let endpoint = null;
+    try {
+      const trip = db.prepare('SELECT push_sub FROM trips WHERE email = ?').get(email);
+      if (trip?.push_sub) endpoint = JSON.parse(trip.push_sub).endpoint || null;
+    } catch {}
+
+    db.exec('BEGIN');
+    try {
+      run('sessions', 'DELETE FROM sessions WHERE email = ?');
+      run('trips', 'DELETE FROM trips WHERE email = ?');
+      run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
+      run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
+      run('leads', 'DELETE FROM leads WHERE email = ?');
+      run('feedbackAnonymized', 'UPDATE advisor_feedback SET email = NULL WHERE email = ?');
+      run('passesAnonymized', 'UPDATE passes SET email = NULL WHERE email = ?');
+      run('user', 'DELETE FROM users WHERE email = ?');
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+    // Outside the transaction: alerts live on their own endpoint key.
+    if (endpoint) {
+      try { counts.alerts = db.prepare('DELETE FROM alerts WHERE endpoint = ?').run(endpoint).changes; } catch {}
+    }
+    return counts;
+  },
+};
+
 // Aggregate queries for the operator dashboard (/admin). Counts only — no
 // passwords, hashes, or chat contents ever leave this module.
 const daysAgoIso = (days) => new Date(Date.now() - days * 86400000).toISOString();
@@ -342,4 +388,4 @@ const admin = {
 
 migrateLegacy();
 
-module.exports = { kv, users, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, DB_FILE };

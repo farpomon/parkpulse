@@ -1,12 +1,29 @@
 {
+  "id": "/app",
   "name": "ParkPulse — Theme Park Wait Times",
   "short_name": "ParkPulse",
-  "description": "Live wait times, smart day plans and an AI park advisor for 56 theme parks",
+  "description": "Live wait times, smart day plans and an AI park advisor for 56 theme parks worldwide.",
   "start_url": "/app",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#2c2154",
   "theme_color": "#2c2154",
+  "categories": ["travel", "lifestyle", "navigation"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "/shot-waits.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Live wait times for every ride" },
+    { "src": "/shot-plan.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "A smart plan for your whole day" }
+  ],
+  "shortcuts": [
+    { "name": "Plan my day", "url": "/app?action=plan" },
+    { "name": "Live waits", "url": "/app" }
   ]
 }
