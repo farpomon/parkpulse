@@ -1,5 +1,6 @@
 {
  "Account": "खाते",
+ "Age rating": "वयोगट",
  "Ages 12+": "१२+ वर्षे",
  "Ages 3+": "३+ वर्षे",
  "Ages 7+": "७+ वर्षे",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "एआय सल्लागाराला विचारा",
  "Ask the AI instead": "एआयला विचारा",
  "Ask the AI →": "एआयला विचारा →",
+ "Attraction type": "राइडचा प्रकार",
  "Beat the rush": "गर्दी टाळा",
  "Book a table": "टेबल राखून ठेवा",
  "Borderline today": "आज सांगणे कठीण",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "उद्यानाच्या इतर भागांत",
  "Enter your password to confirm.": "खात्रीसाठी पासवर्ड टाका.",
  "Family": "कुटुंब",
+ "Filters": "फिल्टर",
  "Find my park": "माझे उद्यान शोधा",
  "Forgot password?": "पासवर्ड विसरलात?",
  "Free strategy guide": "मोफत रणनीती मार्गदर्शक",

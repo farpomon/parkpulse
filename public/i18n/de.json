@@ -1,5 +1,6 @@
 {
  "Account": "Konto",
+ "Age rating": "Altersstufe",
  "Ages 12+": "Ab 12 Jahren",
  "Ages 3+": "Ab 3 Jahren",
  "Ages 7+": "Ab 7 Jahren",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "Frag den KI-Berater",
  "Ask the AI instead": "Stattdessen die KI fragen",
  "Ask the AI →": "Frag die KI →",
+ "Attraction type": "Attraktionstyp",
  "Beat the rush": "Dem Andrang entgehen",
  "Book a table": "Tisch reservieren",
  "Borderline today": "Heute grenzwertig",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "Anderswo im Park",
  "Enter your password to confirm.": "Zum Bestätigen dein Passwort eingeben.",
  "Family": "Familie",
+ "Filters": "Filter",
  "Find my park": "Meinen Park finden",
  "Forgot password?": "Passwort vergessen?",
  "Free strategy guide": "Kostenloser Strategie-Guide",

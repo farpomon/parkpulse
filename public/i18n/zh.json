@@ -1,5 +1,6 @@
 {
  "Account": "账户",
+ "Age rating": "年龄段",
  "Ages 12+": "12岁以上",
  "Ages 3+": "3岁以上",
  "Ages 7+": "7岁以上",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "咨询 AI 顾问",
  "Ask the AI instead": "改问 AI",
  "Ask the AI →": "问问 AI →",
+ "Attraction type": "项目类型",
  "Beat the rush": "避开高峰",
  "Book a table": "预订餐位",
  "Borderline today": "今天不好说",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "园区其他区域",
  "Enter your password to confirm.": "请输入密码以确认。",
  "Family": "亲子",
+ "Filters": "筛选",
  "Find my park": "找到我的乐园",
  "Forgot password?": "忘记密码？",
  "Free strategy guide": "免费攻略指南",

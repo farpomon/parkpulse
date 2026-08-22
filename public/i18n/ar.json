@@ -1,5 +1,6 @@
 {
  "Account": "الحساب",
+ "Age rating": "الفئة العمرية",
  "Ages 12+": "12 سنة فأكثر",
  "Ages 3+": "3 سنوات فأكثر",
  "Ages 7+": "7 سنوات فأكثر",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "اسأل مستشار الذكاء الاصطناعي",
  "Ask the AI instead": "اسأل الذكاء الاصطناعي",
  "Ask the AI →": "اسأل الذكاء الاصطناعي →",
+ "Attraction type": "نوع اللعبة",
  "Beat the rush": "تجنّب الزحام",
  "Book a table": "احجز طاولة",
  "Borderline today": "اليوم على الحدّ",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "في مناطق أخرى من المدينة",
  "Enter your password to confirm.": "أدخل كلمة المرور للتأكيد.",
  "Family": "عائلية",
+ "Filters": "عوامل التصفية",
  "Find my park": "ابحث عن مدينتي الترفيهية",
  "Forgot password?": "نسيت كلمة المرور؟",
  "Free strategy guide": "دليل استراتيجي مجاني",

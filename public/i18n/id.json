@@ -1,5 +1,6 @@
 {
  "Account": "Akun",
+ "Age rating": "Kelompok usia",
  "Ages 12+": "Usia 12+",
  "Ages 3+": "Usia 3+",
  "Ages 7+": "Usia 7+",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "Tanya konsultan AI",
  "Ask the AI instead": "Tanya AI saja",
  "Ask the AI →": "Tanya AI →",
+ "Attraction type": "Jenis wahana",
  "Beat the rush": "Hindari jam sibuk",
  "Book a table": "Pesan meja",
  "Borderline today": "Hari ini pas-pasan",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "Area lain di taman",
  "Enter your password to confirm.": "Masukkan kata sandi untuk konfirmasi.",
  "Family": "Keluarga",
+ "Filters": "Filter",
  "Find my park": "Cari taman saya",
  "Forgot password?": "Lupa kata sandi?",
  "Free strategy guide": "Panduan strategi gratis",

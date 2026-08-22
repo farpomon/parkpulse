@@ -1,5 +1,6 @@
 {
  "Account": "계정",
+ "Age rating": "연령대",
  "Ages 12+": "12세 이상",
  "Ages 3+": "3세 이상",
  "Ages 7+": "7세 이상",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "AI 컨설턴트에게 질문",
  "Ask the AI instead": "AI에게 묻기",
  "Ask the AI →": "AI에게 묻기 →",
+ "Attraction type": "어트랙션 종류",
  "Beat the rush": "혼잡 피하기",
  "Book a table": "자리 예약",
  "Borderline today": "오늘은 애매해요",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "파크 내 다른 구역",
  "Enter your password to confirm.": "확인하려면 비밀번호를 입력하세요.",
  "Family": "가족",
+ "Filters": "필터",
  "Find my park": "내 파크 찾기",
  "Forgot password?": "비밀번호를 잊으셨나요?",
  "Free strategy guide": "무료 공략 가이드",

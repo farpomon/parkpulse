@@ -185,10 +185,16 @@
   .landhead { margin: 1.1rem 0 .3rem; font-size: .78rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
   .landhead::before { content: ''; width: .55rem; height: .55rem; border-radius: 3px; background: linear-gradient(135deg, var(--brand), #9b6bf0); flex-shrink: 0; }
   #rides > .landhead:first-child { margin-top: .4rem; }
-  .filterbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 21; background: var(--card); border-top: 1px solid var(--border);
-    padding: .45rem 1rem calc(.45rem + env(safe-area-inset-bottom)); display: flex; gap: .5rem; align-items: center; box-shadow: 0 -4px 16px rgba(20,12,48,.10); }
-  .filterbar select { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 9px; padding: .45rem .5rem; font-size: .86rem; font-weight: 700; }
-  .planbar { position: fixed; bottom: calc(2.9rem + env(safe-area-inset-bottom)); left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem .7rem; display: none; z-index: 20; box-shadow: 0 -6px 24px rgba(20,12,48,.12); }
+  /* Filter chips live in a bottom sheet (big thumb targets, clear of the
+     iPhone home-indicator zone) opened from the section header. */
+  .chipgroup { margin-bottom: 1rem; }
+  .chipgroup h4 { margin: 0 0 .5rem; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .chipgrid { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chipgrid button { border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 999px;
+    padding: .6rem 1rem; font-size: .92rem; font-weight: 700; cursor: pointer; min-height: 44px; }
+  .chipgrid button.on { background: linear-gradient(135deg, var(--brand), #7b5fe0); color: #fff; border-color: transparent; }
+  #filter-open.active { color: var(--gold); }
+  .planbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); display: none; z-index: 20; box-shadow: 0 -6px 24px rgba(20,12,48,.12); }
   .planbar.visible { display: block; }
   .planbar .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .9rem; }
   .planbar select { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .4rem .5rem; font-size: .9rem; }
@@ -255,7 +261,7 @@
   <div id="plan-out"></div>
   <div class="sectionhead">
     <h2 id="listhead-title">🎢 Park attractions</h2>
-    <div class="listtools"><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
+    <div class="listtools"><a id="filter-open" style="display:none">🎛 Filters</a><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
   </div>
   <div id="dining" style="display:none"></div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
@@ -267,23 +273,10 @@
   </footer>
 </div>
 
-<div class="filterbar" id="filterbar" style="display:none">
-  <span>🎡</span>
-  <select id="f-vibe" aria-label="Attraction type">
-    <option value="all">All types</option>
-    <option value="gentle">😌 Easy-going</option>
-    <option value="family">👨‍👩‍👧 Family</option>
-    <option value="thrill">🎢 Thrilling</option>
-    <option value="water">💦 Water</option>
-    <option value="show">🎭 Shows</option>
-  </select>
-  <select id="f-age" aria-label="Age rating">
-    <option value="99">Any age rating</option>
-    <option value="0">👶 Toddler-friendly</option>
-    <option value="3">🧒 Ages 3+</option>
-    <option value="7">🧑 Ages 7+</option>
-    <option value="12">🎓 Ages 12+</option>
-  </select>
+<div class="sheet" id="filter-sheet">
+  <h3 id="filter-title">🎛 Filters</h3>
+  <div id="filter-body"></div>
+  <button class="cancel" id="filter-close">Close</button>
 </div>
 
 <div class="planbar" id="planbar">
@@ -514,12 +507,12 @@
     return `<div class="sr-set" data-name="${encodeURIComponent(r.name)}" role="button" tabindex="0">🚶 ${tr('Single rider')}: <b class="${c ? 'on' : ''}">${c ? tr('Yes') : tr('No')}</b> ⇄</div>`;
   }
   async function loadTags() {
-    if (tagsCache[current] !== undefined) { $('filterbar').style.display = tagsCache[current] ? 'flex' : 'none'; return; }
+    if (tagsCache[current] !== undefined) { syncFilterButton(); return; }
     try {
       const r = await api(`/api/ride-tags/${current}`);
       tagsCache[current] = r.ok ? (await r.json()).tags : null;
     } catch { tagsCache[current] = null; }
-    $('filterbar').style.display = tagsCache[current] ? 'flex' : 'none';
+    syncFilterButton();
     if (tagsCache[current]) renderRides();
   }
   function passesFilter(r) {
@@ -1094,15 +1087,6 @@
     $('pick-all').textContent = tr('Select all');
     $('view-toggle').textContent = '🍽 ' + tr('Dining');
     // Filter menus: translate the label, keep the emoji and the value
-    // Keep a leading emoji as-is and translate only the words after it.
-    const retextOption = (o, label) => {
-      const m = label.match(/^(\P{L}+)\s(.+)$/u);
-      o.textContent = m ? m[1] + ' ' + tr(m[2]) : tr(label);
-    };
-    const optText = { 'all': 'All types', 'gentle': '😌 Easy-going', 'family': '👨‍👩‍👧 Family', 'thrill': '🎢 Thrilling', 'water': '💦 Water', 'show': '🎭 Shows' };
-    for (const o of $('f-vibe').options) if (optText[o.value]) retextOption(o, optText[o.value]);
-    const ageText = { '99': 'Any age rating', '0': '👶 Toddler-friendly', '3': '🧒 Ages 3+', '7': '🧑 Ages 7+', '12': '🎓 Ages 12+' };
-    for (const o of $('f-age').options) if (ageText[o.value]) retextOption(o, ageText[o.value]);
     // The picker is built before the dictionary lands, so relabel its groups now.
     const groups = $('lang').querySelectorAll('optgroup');
     if (groups[0]) groups[0].label = tr('Most spoken');
@@ -1405,8 +1389,49 @@
     if (mode === 'dining') renderDining();
   }
   $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'rides' ? 'dining' : 'rides'); });
-  $('f-vibe').addEventListener('change', () => { fVibe = $('f-vibe').value; renderRides(); updatePlanbar(); });
-  $('f-age').addEventListener('change', () => { fAge = +$('f-age').value; renderRides(); updatePlanbar(); });
+  // Filter sheet: big tappable chips, opened from the section header — a
+  // fixed bottom bar sat in the iPhone home-indicator zone and fought taps.
+  const VIBE_OPTS = [['all', '🎡', 'All types'], ['gentle', '😌', 'Easy-going'], ['family', '👨‍👩‍👧', 'Family'], ['thrill', '🎢', 'Thrilling'], ['water', '💦', 'Water'], ['show', '🎭', 'Shows']];
+  const AGE_OPTS = [[99, '🎡', 'Any age rating'], [0, '👶', 'Toddler-friendly'], [3, '🧒', 'Ages 3+'], [7, '🧑', 'Ages 7+'], [12, '🎓', 'Ages 12+']];
+
+  function syncFilterButton() {
+    const btn = $('filter-open');
+    btn.style.display = tagsCache[current] ? '' : 'none';
+    const active = (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0);
+    btn.textContent = '🎛 ' + tr('Filters') + (active ? ` · ${active}` : '');
+    btn.classList.toggle('active', active > 0);
+  }
+
+  function renderFilterSheet() {
+    const group = (title, opts, cur, set) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'chipgroup';
+      wrap.innerHTML = `<h4>${title}</h4><div class="chipgrid"></div>`;
+      const grid = wrap.querySelector('.chipgrid');
+      for (const [val, emoji, label] of opts) {
+        const b = document.createElement('button');
+        b.className = String(val) === String(cur) ? 'on' : '';
+        b.textContent = `${emoji} ${tr(label)}`;
+        b.addEventListener('click', () => { set(val); renderFilterSheet(); syncFilterButton(); renderRides(); updatePlanbar(); });
+        grid.appendChild(b);
+      }
+      return wrap;
+    };
+    const body = $('filter-body');
+    body.innerHTML = '';
+    body.appendChild(group(tr('Attraction type'), VIBE_OPTS, fVibe, (v) => { fVibe = v; }));
+    body.appendChild(group(tr('Age rating'), AGE_OPTS, fAge, (v) => { fAge = +v; }));
+  }
+
+  $('filter-open').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('filter-title').textContent = '🎛 ' + tr('Filters');
+    $('filter-close').textContent = tr('Close');
+    renderFilterSheet();
+    $('filter-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  });
+  $('filter-close').addEventListener('click', () => { $('filter-sheet').classList.remove('open'); $('sheet-bg').classList.remove('open'); });
 
   // 📍 Find my park: nearest covered park by straight-line distance.
   const haversineKm = (la1, lo1, la2, lo2) => {
@@ -1444,7 +1469,7 @@
   // immediately when the user returns to the tab.
   setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('#rides.skeleton')) load({ silent: true }); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load({ silent: true }); });
-  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); $('trip-sheet').classList.remove('open'); $('ll-sheet').classList.remove('open'); });
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); $('trip-sheet').classList.remove('open'); $('ll-sheet').classList.remove('open'); $('filter-sheet').classList.remove('open'); });
   // First-run welcome: shown once, reopenable from the footer link.
   function toggleOnboard(open) {
     $('onboard').classList.toggle('open', open);

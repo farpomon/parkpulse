@@ -1,5 +1,6 @@
 {
  "Account": "ఖాతా",
+ "Age rating": "వయో వర్గం",
  "Ages 12+": "12+ ఏళ్లు",
  "Ages 3+": "3+ ఏళ్లు",
  "Ages 7+": "7+ ఏళ్లు",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "AI సలహాదారును అడగండి",
  "Ask the AI instead": "AIని అడగండి",
  "Ask the AI →": "AIని అడగండి →",
+ "Attraction type": "రైడ్ రకం",
  "Beat the rush": "రద్దీని తప్పించుకోండి",
  "Book a table": "టేబుల్ బుక్ చేయండి",
  "Borderline today": "ఈరోజు చెప్పడం కష్టం",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "పార్క్‌లోని ఇతర ప్రాంతాల్లో",
  "Enter your password to confirm.": "నిర్ధారించడానికి పాస్‌వర్డ్ నమోదు చేయండి.",
  "Family": "కుటుంబం",
+ "Filters": "ఫిల్టర్లు",
  "Find my park": "నా పార్క్‌ను కనుగొనండి",
  "Forgot password?": "పాస్‌వర్డ్ మర్చిపోయారా?",
  "Free strategy guide": "ఉచిత వ్యూహ మార్గదర్శి",

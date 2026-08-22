@@ -1,5 +1,6 @@
 {
  "Account": "खाता",
+ "Age rating": "आयु वर्ग",
  "Ages 12+": "12+ वर्ष",
  "Ages 3+": "3+ वर्ष",
  "Ages 7+": "7+ वर्ष",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "एआई सलाहकार से पूछें",
  "Ask the AI instead": "एआई से पूछें",
  "Ask the AI →": "एआई से पूछें →",
+ "Attraction type": "राइड का प्रकार",
  "Beat the rush": "भीड़ से बचें",
  "Book a table": "टेबल बुक करें",
  "Borderline today": "आज कहना मुश्किल",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "पार्क के अन्य हिस्सों में",
  "Enter your password to confirm.": "पुष्टि के लिए अपना पासवर्ड डालें।",
  "Family": "परिवार",
+ "Filters": "फ़िल्टर",
  "Find my park": "मेरा पार्क खोजें",
  "Forgot password?": "पासवर्ड भूल गए?",
  "Free strategy guide": "मुफ़्त रणनीति गाइड",

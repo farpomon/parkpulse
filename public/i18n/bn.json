@@ -1,5 +1,6 @@
 {
  "Account": "অ্যাকাউন্ট",
+ "Age rating": "বয়সসীমা",
  "Ages 12+": "১২+ বছর",
  "Ages 3+": "৩+ বছর",
  "Ages 7+": "৭+ বছর",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "এআই পরামর্শদাতাকে জিজ্ঞাসা করুন",
  "Ask the AI instead": "এআইকে জিজ্ঞাসা করুন",
  "Ask the AI →": "এআইকে জিজ্ঞাসা করুন →",
+ "Attraction type": "রাইডের ধরন",
  "Beat the rush": "ভিড় এড়ান",
  "Book a table": "টেবিল বুক করুন",
  "Borderline today": "আজ বলা কঠিন",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "পার্কের অন্য অংশে",
  "Enter your password to confirm.": "নিশ্চিত করতে পাসওয়ার্ড দিন।",
  "Family": "পরিবার",
+ "Filters": "ফিল্টার",
  "Find my park": "আমার পার্ক খুঁজুন",
  "Forgot password?": "পাসওয়ার্ড ভুলে গেছেন?",
  "Free strategy guide": "বিনামূল্যে কৌশল গাইড",

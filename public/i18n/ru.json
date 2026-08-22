@@ -1,5 +1,6 @@
 {
  "Account": "Аккаунт",
+ "Age rating": "Возраст",
  "Ages 12+": "От 12 лет",
  "Ages 3+": "От 3 лет",
  "Ages 7+": "От 7 лет",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "Спросить ИИ-консультанта",
  "Ask the AI instead": "Спросить ИИ",
  "Ask the AI →": "Спросить ИИ →",
+ "Attraction type": "Тип аттракциона",
  "Beat the rush": "Избежать час пик",
  "Book a table": "Забронировать столик",
  "Borderline today": "Сегодня спорно",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "В других зонах парка",
  "Enter your password to confirm.": "Введите пароль для подтверждения.",
  "Family": "Семейные",
+ "Filters": "Фильтры",
  "Find my park": "Найти мой парк",
  "Forgot password?": "Забыли пароль?",
  "Free strategy guide": "Бесплатный гид по тактике",

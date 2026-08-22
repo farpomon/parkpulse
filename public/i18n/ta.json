@@ -1,5 +1,6 @@
 {
  "Account": "கணக்கு",
+ "Age rating": "வயது வரம்பு",
  "Ages 12+": "12+ வயது",
  "Ages 3+": "3+ வயது",
  "Ages 7+": "7+ வயது",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "AI ஆலோசகரிடம் கேளுங்கள்",
  "Ask the AI instead": "AI-யிடம் கேளுங்கள்",
  "Ask the AI →": "AI-யிடம் கேளுங்கள் →",
+ "Attraction type": "சவாரி வகை",
  "Beat the rush": "கூட்டத்தைத் தவிர்",
  "Book a table": "மேசை பதிவு செய்",
  "Borderline today": "இன்று சொல்வது கடினம்",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "பூங்காவின் பிற பகுதிகளில்",
  "Enter your password to confirm.": "உறுதிப்படுத்த கடவுச்சொல்லை உள்ளிடவும்.",
  "Family": "குடும்பம்",
+ "Filters": "வடிப்பான்கள்",
  "Find my park": "என் பூங்காவைக் கண்டறி",
  "Forgot password?": "கடவுச்சொல் மறந்துவிட்டதா?",
  "Free strategy guide": "இலவச உத்தி வழிகாட்டி",

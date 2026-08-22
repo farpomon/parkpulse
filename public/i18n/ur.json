@@ -1,5 +1,6 @@
 {
  "Account": "اکاؤنٹ",
+ "Age rating": "عمر کا گروپ",
  "Ages 12+": "12 سال سے",
  "Ages 3+": "3 سال سے",
  "Ages 7+": "7 سال سے",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "اے آئی مشیر سے پوچھیں",
  "Ask the AI instead": "اے آئی سے پوچھیں",
  "Ask the AI →": "اے آئی سے پوچھیں →",
+ "Attraction type": "رائیڈ کی قسم",
  "Beat the rush": "رش سے بچیں",
  "Book a table": "میز بک کریں",
  "Borderline today": "آج کہنا مشکل ہے",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "پارک کے دیگر حصوں میں",
  "Enter your password to confirm.": "تصدیق کے لیے پاس ورڈ درج کریں۔",
  "Family": "خاندانی",
+ "Filters": "فلٹرز",
  "Find my park": "میرا پارک تلاش کریں",
  "Forgot password?": "پاس ورڈ بھول گئے؟",
  "Free strategy guide": "مفت حکمتِ عملی گائیڈ",

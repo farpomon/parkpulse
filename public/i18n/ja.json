@@ -1,5 +1,6 @@
 {
  "Account": "アカウント",
+ "Age rating": "対象年齢",
  "Ages 12+": "12歳以上",
  "Ages 3+": "3歳以上",
  "Ages 7+": "7歳以上",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "AIコンサルタントに相談",
  "Ask the AI instead": "AIに聞く",
  "Ask the AI →": "AIに聞く →",
+ "Attraction type": "アトラクションの種類",
  "Beat the rush": "混雑を避ける",
  "Book a table": "席を予約",
  "Borderline today": "今日は微妙",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "パーク内のその他",
  "Enter your password to confirm.": "確認のためパスワードを入力してください。",
  "Family": "ファミリー",
+ "Filters": "絞り込み",
  "Find my park": "現在地のパークを探す",
  "Forgot password?": "パスワードをお忘れですか？",
  "Free strategy guide": "無料攻略ガイド",

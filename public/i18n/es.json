@@ -1,5 +1,6 @@
 {
  "Account": "Cuenta",
+ "Age rating": "Edad",
  "Ages 12+": "Desde 12 años",
  "Ages 3+": "Desde 3 años",
  "Ages 7+": "Desde 7 años",
@@ -13,6 +14,7 @@
  "Ask the AI consultant": "Pregunta al consultor de IA",
  "Ask the AI instead": "Pregunta a la IA",
  "Ask the AI →": "Pregunta a la IA →",
+ "Attraction type": "Tipo de atracción",
  "Beat the rush": "Evita las horas punta",
  "Book a table": "Reservar mesa",
  "Borderline today": "Hoy está justo",
@@ -31,6 +33,7 @@
  "Elsewhere in the park": "Resto del parque",
  "Enter your password to confirm.": "Escribe tu contraseña para confirmar.",
  "Family": "Familiar",
+ "Filters": "Filtros",
  "Find my park": "Encontrar mi parque",
  "Forgot password?": "¿Olvidaste la contraseña?",
  "Free strategy guide": "Guía de estrategia gratis",
