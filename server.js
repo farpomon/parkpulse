@@ -640,7 +640,7 @@ const server = http.createServer(async (req, res) => {
     if (!trip) return sendJson(res, 200, {});
     let plan = [];
     try { plan = JSON.parse(trip.plan); } catch {}
-    return sendJson(res, 200, { dest: trip.dest, start: trip.start, days: trip.days, plan });
+    return sendJson(res, 200, { dest: trip.dest, start: trip.start, days: trip.days, onsite: Boolean(trip.onsite), plan });
   }
 
   // The advisor's saved conversation for the logged-in account, so the chat
@@ -1093,7 +1093,7 @@ const server = http.createServer(async (req, res) => {
           ? parsed.plan.filter((p) => p && PARKS[p.park] && typeof p.date === 'string').slice(0, 14).map((p) => ({ date: p.date.slice(0, 10), park: p.park }))
           : [];
         if (!dest || !start || !days || plan.length !== days) return sendJson(res, 400, { error: 'invalid trip' });
-        db.trips.set(s.email, dest, start, days, JSON.stringify(plan));
+        db.trips.set(s.email, dest, start, days, JSON.stringify(plan), parsed.onsite ? 1 : 0);
         return sendJson(res, 200, { ok: true });
       }
 

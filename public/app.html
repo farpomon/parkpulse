@@ -278,6 +278,9 @@
       <input type="date" id="trip-start" required style="flex:1;min-width:0;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem">
       <select id="trip-days" style="border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem"></select>
     </div>
+    <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;font-size:.92rem;cursor:pointer">
+      <input type="checkbox" id="trip-onsite" style="width:1.1rem;height:1.1rem;accent-color:var(--brand)"> 🏨 Staying at an on-site park hotel
+    </label>
     <button class="btn wide" type="submit">Build my trip</button>
   </form>
   <div id="trip-out"></div>
@@ -509,7 +512,8 @@
       ? `<b>${tr('No paid line-skip at')} ${parks[current].name}</b>`
       : `<b>⚡ ${skip.name}</b><span class="sk-price">${skip.cur}${skip.low}–${skip.cur}${skip.high}</span>`;
     const askable = consultantOn && window.ParkPulseChat;
-    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div></div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
+    const tripAdvice = (skip.type !== 'none' && savedTrip && savedTrip.dest === parks[current].group) ? bookAdvice(savedTrip) : '';
+    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div>${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
@@ -1064,6 +1068,41 @@
   // using day-of-week levels so dates beyond the 7-day window still work.
   let tripToday = null;
   let builtTrip = null;
+  let savedTrip = null;
+
+  // When-to-buy advice for the destination's skip product: booking windows
+  // (Disney World), included-free hotel perks (Universal Orlando premium
+  // hotels), and day-of rules everywhere else. Dates come from the saved trip.
+  function bookAdvice(trip) {
+    if (!trip || !trip.start || !trip.dest) return '';
+    const g = trip.dest, onsite = !!trip.onsite;
+    const fmt = (d) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const start = new Date(trip.start + 'T12:00:00');
+    let msg = '';
+    if (g === 'Walt Disney World') {
+      const open = new Date(start.getTime() - (onsite ? 7 : 3) * 86400000);
+      msg = onsite
+        ? `🎟 Lightning Lane booking opens <b>${fmt(open)} at 7:00 AM ET</b> — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.`
+        : `🎟 Off-site guests book Lightning Lane <b>3 days before each park day</b> at 7:00 AM ET — your first window is ${fmt(open)}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.`;
+      const dt = Math.ceil((open - new Date()) / 86400000);
+      if (dt > 0) msg += ` <b>(${dt} day${dt > 1 ? 's' : ''} away)</b>`;
+      else if (dt === 0) msg += ' <b>(that’s today!)</b>';
+    } else if (g === 'Universal Orlando') {
+      msg = onsite
+        ? '🎟 Staying at Hard Rock, Royal Pacific or Portofino Bay? <b>Unlimited Express Pass is included free</b> with your room — don’t buy it separately. Other on-site hotels get early park admission only.'
+        : '🎟 Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.';
+    } else if (/Disneyland Paris/.test(g)) {
+      msg = `🎟 Premier Access is bought day-of in the official app, per ride.${onsite ? ' Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.' : ''}`;
+    } else if (/Tokyo/.test(g)) {
+      msg = `🎟 Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.${onsite ? ' Hotel guests enter 15 minutes early — use it.' : ''}`;
+    } else if (/Disneyland|Hong Kong|Shanghai/.test(g)) {
+      msg = `🎟 Lightning Lane / Premier Access at ${g} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.`;
+    } else {
+      msg = `🎟 ${g} sells line-skipping day-of (app or gate) — no advance booking needed.${onsite ? ' On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.' : ''}`;
+    }
+    msg += ' <i>Rules and prices change — confirm in the park’s official app.</i>';
+    return `<div style="background:var(--brand-soft);border-radius:10px;padding:.55rem .7rem;margin:.6rem 0 0;font-size:.82rem;line-height:1.45">${msg}</div>`;
+  }
 
   function closeTrip() { $('trip-sheet').classList.remove('open'); $('sheet-bg').classList.remove('open'); }
 
@@ -1092,7 +1131,9 @@
     }
     if (!saved) { try { saved = JSON.parse(localStorage.getItem('pp-trip') || 'null'); } catch {} }
     if (saved && saved.plan) {
-      $('trip-out').innerHTML = `<p class="why" style="color:var(--muted);margin:.8rem 0 .2rem">Your saved trip — ${saved.dest}:</p>` + tripRows(saved.plan);
+      savedTrip = saved;
+      $('trip-onsite').checked = !!saved.onsite;
+      $('trip-out').innerHTML = `<p class="why" style="color:var(--muted);margin:.8rem 0 .2rem">Your saved trip — ${saved.dest}:</p>` + tripRows(saved.plan) + bookAdvice(saved);
     }
   }
 
@@ -1124,8 +1165,8 @@
       used[pick.sl] = (used[pick.sl] || 0) + 1;
       plan.push({ date, park: pick.sl, level: pick.level });
     }
-    builtTrip = { dest: destSel, start, days, plan };
-    $('trip-out').innerHTML = tripRows(plan) +
+    builtTrip = { dest: destSel, start, days, plan, onsite: $('trip-onsite').checked };
+    $('trip-out').innerHTML = tripRows(plan) + bookAdvice(builtTrip) +
       `<button class="btn wide" id="trip-save" style="margin-top:.7rem">💾 Save this trip</button>
        <p class="why" style="color:var(--muted);margin:.4rem 0 0">${sessionToken() ? 'Saved to your account — the AI advisor will plan around it.' : 'Saved on this phone. Log in (👤) to sync it and let the AI advisor use it.'}</p>`;
     document.getElementById('trip-save').addEventListener('click', saveTrip);
@@ -1137,9 +1178,10 @@
     if (sessionToken()) {
       try {
         await api('/api/trip', { method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ dest: builtTrip.dest, start: builtTrip.start, days: builtTrip.days, plan: builtTrip.plan.map((p) => ({ date: p.date, park: p.park })) }) });
+          body: JSON.stringify({ dest: builtTrip.dest, start: builtTrip.start, days: builtTrip.days, onsite: builtTrip.onsite, plan: builtTrip.plan.map((p) => ({ date: p.date, park: p.park })) }) });
       } catch {}
     }
+    savedTrip = builtTrip;
     setTripToday(builtTrip);
     document.getElementById('trip-save').textContent = '✓ Saved';
   }
@@ -1494,8 +1536,9 @@
         let saved = null;
         if (sessionToken()) { try { const r = await api('/api/trip'); if (r.ok) { const d = await r.json(); if (d.plan) saved = d; } } catch {} }
         if (!saved) { try { saved = JSON.parse(localStorage.getItem('pp-trip') || 'null'); } catch {} }
+        savedTrip = saved;
         setTripToday(saved);
-        if (tripToday) load({ silent: true });
+        if (tripToday || (savedTrip && savedTrip.dest === parks[current]?.group)) load({ silent: true });
       })();
       if (!c.proGate) {
         isPro = true;

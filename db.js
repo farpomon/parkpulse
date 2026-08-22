@@ -118,6 +118,7 @@ for (const ddl of [
   "ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 1",
   "ALTER TABLE users ADD COLUMN verify_code TEXT",
   "ALTER TABLE users ADD COLUMN verify_exp INTEGER",
+  "ALTER TABLE trips ADD COLUMN onsite INTEGER DEFAULT 0",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
@@ -311,10 +312,10 @@ const ridetags = {
 
 // Multi-day trip plans, one per account (the current/next trip).
 const trips = {
-  get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
-  set: (email, dest, start, days, plan) =>
-    db.prepare('INSERT INTO trips (email, dest, start, days, plan, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, updated_at = excluded.updated_at')
-      .run(email, dest, start, days, plan, new Date().toISOString()),
+  get: (email) => db.prepare('SELECT dest, start, days, plan, onsite FROM trips WHERE email = ?').get(email) ?? null,
+  set: (email, dest, start, days, plan, onsite = 0) =>
+    db.prepare('INSERT INTO trips (email, dest, start, days, plan, onsite, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, onsite = excluded.onsite, updated_at = excluded.updated_at')
+      .run(email, dest, start, days, plan, onsite, new Date().toISOString()),
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
