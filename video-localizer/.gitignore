@@ -1,3 +1,4 @@
 out/
 glossary.csv
 master_script.csv
+__pycache__/
