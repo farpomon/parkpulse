@@ -1508,6 +1508,13 @@
 
   let wizStep = 0;
   let wizDraft = null;
+  // The park's calendar day — answers reset at midnight park time, so each
+  // new park day starts by re-confirming the group (prefilled from yesterday).
+  const parkDay = () => {
+    try { return new Date().toLocaleDateString('en-CA', { timeZone: parks[current]?.tz }); }
+    catch { return new Date().toLocaleDateString('en-CA'); }
+  };
+  const needsWizard = () => (profile ? profile.day !== parkDay() : localStorage.getItem('pp-wiz-seen') !== parkDay());
   const wizIsResort = () => /Disney|Universal/.test(parks[current]?.group || '');
   const wizStepCount = () => (wizIsResort() ? 4 : 3);
 
@@ -1521,14 +1528,19 @@
   function closeWizard(save) {
     if (save) {
       profile = wizDraft;
+      profile.day = parkDay();
       saveProfile();
       applyProfileDefaults();
       renderGroupChip();
       renderRides();
       updatePlanbar();
       syncFilterButton();
+    } else if (profile) {
+      // Skipped the daily re-confirm: keep yesterday's answers for today.
+      profile.day = parkDay();
+      saveProfile();
     }
-    try { localStorage.setItem('pp-wiz-seen', '1'); } catch {}
+    try { localStorage.setItem('pp-wiz-seen', parkDay()); } catch {}
     $('wiz').classList.remove('open');
     $('wiz-bg').classList.remove('open');
   }
@@ -1659,13 +1671,21 @@
     $('onboard').classList.toggle('open', open);
     $('onboard-bg').classList.toggle('open', open);
   }
-  $('onboard-go').addEventListener('click', () => { try { localStorage.setItem('pp-onboarded', '1'); } catch {} toggleOnboard(false); if (!profile && !localStorage.getItem('pp-wiz-seen')) setTimeout(openWizard, 250); });
+  $('onboard-go').addEventListener('click', () => { try { localStorage.setItem('pp-onboarded', '1'); } catch {} toggleOnboard(false); if (needsWizard()) setTimeout(openWizard, 250); });
   $('onboard-bg').addEventListener('click', () => { try { localStorage.setItem('pp-onboarded', '1'); } catch {} toggleOnboard(false); });
   $('howworks').addEventListener('click', (e) => { e.preventDefault(); toggleOnboard(true); });
   try {
     if (!localStorage.getItem('pp-onboarded')) toggleOnboard(true);
-    else if (!profile && !localStorage.getItem('pp-wiz-seen')) setTimeout(openWizard, 600);
+    else if (needsWizard()) setTimeout(openWizard, 600);
   } catch {}
+  // PWAs resume from the home screen far more often than they cold-boot:
+  // when the app comes back on a new park day, re-ask for the group.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    try {
+      if (localStorage.getItem('pp-onboarded') && needsWizard() && !$('wiz').classList.contains('open')) openWizard();
+    } catch {}
+  });
   $('sheet-cancel').addEventListener('click', closeSheet);
 
   // --- Account sheet ---

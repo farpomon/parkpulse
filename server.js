@@ -678,7 +678,7 @@ const server = http.createServer(async (req, res) => {
       plans: PLAN_CATALOG,
       consultant: consultant.enabled(),
       pushKey: vapidKeys.publicKey,
-      parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng }])),
+      parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng, tz: p.tz }])),
     });
   }
 
