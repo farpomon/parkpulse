@@ -494,6 +494,9 @@ setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch
 setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
+// Language codes the app ships, mapped to names the model understands.
+const LANG_NAMES = { en: 'English', zh: 'Chinese', hi: 'Hindi', es: 'Spanish', fr: 'French', ar: 'Arabic', bn: 'Bengali', de: 'German', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', mr: 'Marathi', pt: 'Portuguese', ru: 'Russian', ta: 'Tamil', te: 'Telugu', tr: 'Turkish', ur: 'Urdu', vi: 'Vietnamese' };
+
 // In-flight dining-guide generations, one per park+language.
 const diningJobs = new Map();
 
@@ -806,7 +809,6 @@ const server = http.createServer(async (req, res) => {
   if (rideInfoMatch) {
     const slug = rideInfoMatch[1];
     const ride = (url.searchParams.get('ride') || '').slice(0, 120).trim();
-    const LANG_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
     const langCode = LANG_NAMES[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
     if (!PARKS[slug] || !ride) return sendJson(res, 400, { error: 'invalid' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
@@ -831,7 +833,6 @@ const server = http.createServer(async (req, res) => {
   const diningMatch = url.pathname.match(/^\/api\/dining\/([a-z-]+)$/);
   if (diningMatch) {
     const slug = diningMatch[1];
-    const LANG_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
     const langCode = LANG_NAMES[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
@@ -1160,8 +1161,17 @@ const server = http.createServer(async (req, res) => {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
         if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
         const { park, messages, favorites, planPicks, subscription } = parsed;
-        const LANGS = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Japanese'];
-        const lang = LANGS.includes(parsed.lang) ? parsed.lang : 'English';
+        // Group profile from the setup wizard — whitelisted, never trusted raw.
+        const AGES = ['toddler', 'kid', 'teen', 'adult'];
+        const VIBES = ['gentle', 'family', 'thrill', 'water', 'show'];
+        const rawP = parsed.profile;
+        const profile = rawP && typeof rawP === 'object' ? {
+          party: Number.isInteger(rawP.party) && rawP.party >= 1 && rawP.party <= 20 ? rawP.party : null,
+          ages: Array.isArray(rawP.ages) ? rawP.ages.filter((a) => AGES.includes(a)).slice(0, 4) : [],
+          vibes: Array.isArray(rawP.vibes) ? rawP.vibes.filter((v) => VIBES.includes(v)).slice(0, 5) : [],
+          onsite: typeof rawP.onsite === 'boolean' ? rawP.onsite : null,
+        } : null;
+        const lang = Object.values(LANG_NAMES).includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per pass/session identity, falling back to IP.
         const throttleKey = req.headers['x-pass'] || req.headers['x-session'] || req.socket.remoteAddress || 'anon';
@@ -1184,7 +1194,7 @@ const server = http.createServer(async (req, res) => {
           let failed = false;
           try {
             await consultant.consult({
-              park: PARKS[park], waits, messages, favorites, planPicks,
+              park: PARKS[park], waits, messages, favorites, planPicks, profile,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,

@@ -228,10 +228,18 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip }) {
+function userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const lines = [];
+  if (profile && (profile.party || profile.ages.length || profile.vibes.length || profile.onsite !== null)) {
+    const bits = [];
+    if (profile.party) bits.push(`party of ${profile.party}`);
+    if (profile.ages.length) bits.push(`ages in group: ${profile.ages.join(', ')}`);
+    if (profile.vibes.length) bits.push(`ride tastes: ${profile.vibes.join(', ')}`);
+    if (profile.onsite !== null) bits.push(profile.onsite ? 'staying at an on-site park hotel' : 'staying off-site');
+    lines.push(`Their group (from the setup wizard): ${bits.join('; ')}. Tailor pacing, ride picks and pass math to this group — e.g. Rider Switch when toddlers are along, single-rider only if splitting up fits them.`);
+  }
   if (memory) lines.push(`Saved traveler notes from earlier conversations (kept current via your remember tool):\n${memory}`);
   if (trip) {
     let plan = [];
@@ -262,7 +270,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, trip, send }) {
+async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, trip, profile, send }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -274,7 +282,7 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     ...clean.slice(0, -1),
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip })}\n</user_context>\n\n${last.content}`,
+      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile })}\n</user_context>\n\n${last.content}`,
     },
   ];
   // Actions are emitted the moment their side effect happens, so a later
