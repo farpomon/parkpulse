@@ -40,14 +40,18 @@
   <nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a></nav>
 
   <div id="done" class="card ok" style="display:none">
-    <h1 style="margin-top:0">Your account is deleted</h1>
-    <p>Everything tied to it has been erased. There's nothing left to sign in to — thanks for giving ParkPulse a try.</p>
-    <p class="muted" style="margin:0">You can always <a href="/app">start fresh</a> with a new account.</p>
+    <h1 style="margin-top:0">We're sorry to see you go</h1>
+    <p>Your account is scheduled for deletion in <b>7 days</b>, and you've been signed out everywhere. Nothing is lost yet.</p>
+    <p><b>Changed your mind?</b> We emailed you a cancellation link — click it, or simply <a href="/app">log back in</a>, and everything comes straight back.</p>
+    <p class="muted" style="margin:0">After 7 days it's permanent and cannot be recovered.</p>
   </div>
 
   <div id="form-view">
     <h1>Delete your ParkPulse account</h1>
     <p>You can delete your account from inside the app under 👤 <b>Account</b>, or right here if you've already removed it from your phone.</p>
+
+    <h2>How it works</h2>
+    <p>Deleting sets a <b>7-day grace period</b>. You're signed out immediately and we email you a cancellation link. Click that link — or just log back in — any time in those 7 days and your account carries on untouched. After that, everything below is erased for good.</p>
 
     <h2>What gets deleted</h2>
     <ul>
@@ -62,8 +66,8 @@
     <p>Records of any purchase are kept for accounting and tax purposes, with your email address stripped out so they no longer identify you. Thumbs-up/down feedback you left on advisor replies is kept the same way — de-identified — so it still helps improve the product.</p>
 
     <div class="card danger">
-      <p style="font-weight:700;margin-bottom:.5rem">This cannot be undone.</p>
-      <p class="muted" style="margin:0">If you have an active pass, deleting your account forfeits the remaining time. There is no refund and no way to restore it.</p>
+      <p style="font-weight:700;margin-bottom:.5rem">After 7 days, this cannot be undone.</p>
+      <p class="muted" style="margin:0">If you have an active pass, deletion forfeits the remaining time once the grace period ends. There is no refund.</p>
     </div>
 
     <div class="card">
@@ -72,7 +76,7 @@
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" placeholder="Your password">
       <p class="err" id="err"></p>
-      <button id="go">Permanently delete my account</button>
+      <button id="go">Delete my account</button>
       <p class="muted" style="margin:.7rem 0 0;text-align:center">Changed your mind? <a href="/app">Go back to ParkPulse</a></p>
     </div>
 
@@ -94,7 +98,7 @@
     const password = $('password').value;
     $('err').textContent = '';
     if (!email || !password) { $('err').textContent = 'Enter your email and password.'; return; }
-    if (!confirm('Permanently delete the ParkPulse account for ' + email + '? This cannot be undone.')) return;
+    if (!confirm('Schedule deletion of the ParkPulse account for ' + email + '? You will have 7 days to change your mind.')) return;
     $('go').disabled = true;
     try {
       const res = await fetch('/api/auth/delete', {

@@ -337,11 +337,11 @@
     <button class="btn wide" id="acct-logout-all" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
     <p class="switch" style="margin-top:1rem"><a id="acct-del-open" style="color:var(--red)">Delete my account</a></p>
     <div id="acct-del" style="display:none;margin-top:.6rem;border:1px solid var(--red);background:var(--red-soft);border-radius:12px;padding:.85rem">
-      <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--ink)"><b style="color:var(--red)">This permanently deletes your account.</b> Your trips, saved plans, advisor conversations and alerts are erased and cannot be recovered. Any active pass is lost — no refund.</p>
+      <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--ink)"><b style="color:var(--red)">This schedules your account for deletion.</b> You have <b>7 days</b> to change your mind — we'll email you a cancel link, and logging back in cancels it too. After that your trips, plans, advisor history and alerts are erased for good.</p>
       <input type="password" id="acct-del-pw" placeholder="Confirm your password" autocomplete="current-password"
         style="width:100%;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:10px;padding:.6rem .8rem;font-size:1rem;margin-bottom:.5rem">
       <p class="err" id="acct-del-err"></p>
-      <button class="btn wide" id="acct-del-go" style="background:var(--red-btn)">Permanently delete</button>
+      <button class="btn wide" id="acct-del-go" style="background:var(--red-btn)">Delete my account</button>
       <p class="switch" style="margin:.5rem 0 0"><a id="acct-del-cancel">Keep my account</a></p>
     </div>
   </div>
@@ -1459,6 +1459,8 @@
       applyAuth(data);
       $('acct-pw').value = '';
       closeAcct();
+      // Signing back in during the grace period calls off a pending deletion.
+      if (data.deletionCancelled) alert(tr('Welcome back! Your account was scheduled for deletion — that is now cancelled and nothing was lost.'));
       load();
     } catch {
       $('acct-err').textContent = 'Connection trouble — try again.';
@@ -1511,7 +1513,7 @@
   $('acct-del-go').addEventListener('click', async () => {
     const pw = $('acct-del-pw').value;
     if (!pw) { $('acct-del-err').textContent = tr('Enter your password to confirm.'); return; }
-    if (!confirm(tr('Delete your ParkPulse account for good? This cannot be undone.'))) return;
+    if (!confirm(tr('Schedule your ParkPulse account for deletion? You have 7 days to change your mind.'))) return;
     $('acct-del-go').disabled = true;
     try {
       const res = await api('/api/auth/delete', { method: 'POST', headers: { 'content-type': 'application/json' },
