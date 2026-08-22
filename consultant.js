@@ -236,7 +236,7 @@ function userContextBlock({ favorites, planPicks, subscription, email, memory, l
   if (trip) {
     let plan = [];
     try { plan = JSON.parse(trip.plan); } catch {}
-    if (plan.length) lines.push(`Their saved trip plan (${trip.dest}, starting ${trip.start}): ${plan.map((p) => `${p.date}: ${p.park}`).join('; ')}. Anchor multi-day advice to this schedule.`);
+    if (plan.length) lines.push(`Their saved trip plan (${trip.dest}, starting ${trip.start}, staying ${trip.onsite ? 'AT AN ON-SITE PARK HOTEL — apply on-site booking windows and hotel perks (e.g. WDW 7-day Lightning Lane window, free Express at Universal Orlando premier hotels, early entry)' : 'off-site — apply off-site rules (e.g. WDW 3-day Lightning Lane window, no hotel skip perks)'}): ${plan.map((p) => `${p.date}: ${p.park}`).join('; ')}. Anchor multi-day advice to this schedule.`);
   }
   if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}`);
   if (picks.length) lines.push(`Rides currently checked in their plan builder: ${picks.join(', ')}`);

@@ -118,6 +118,9 @@ for (const ddl of [
   "ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 1",
   "ALTER TABLE users ADD COLUMN verify_code TEXT",
   "ALTER TABLE users ADD COLUMN verify_exp INTEGER",
+  "ALTER TABLE trips ADD COLUMN onsite INTEGER DEFAULT 0",
+  "ALTER TABLE trips ADD COLUMN push_sub TEXT",
+  "ALTER TABLE trips ADD COLUMN notified INTEGER DEFAULT 0",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
@@ -311,10 +314,13 @@ const ridetags = {
 
 // Multi-day trip plans, one per account (the current/next trip).
 const trips = {
-  get: (email) => db.prepare('SELECT dest, start, days, plan FROM trips WHERE email = ?').get(email) ?? null,
-  set: (email, dest, start, days, plan) =>
-    db.prepare('INSERT INTO trips (email, dest, start, days, plan, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, updated_at = excluded.updated_at')
-      .run(email, dest, start, days, plan, new Date().toISOString()),
+  get: (email) => db.prepare('SELECT dest, start, days, plan, onsite FROM trips WHERE email = ?').get(email) ?? null,
+  // Each save resets the reminder flag: a new/changed trip earns a fresh ping.
+  set: (email, dest, start, days, plan, onsite = 0, pushSub = null) =>
+    db.prepare('INSERT INTO trips (email, dest, start, days, plan, onsite, push_sub, notified, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, onsite = excluded.onsite, push_sub = excluded.push_sub, notified = 0, updated_at = excluded.updated_at')
+      .run(email, dest, start, days, plan, onsite, pushSub, new Date().toISOString()),
+  pendingReminders: () => db.prepare('SELECT email, dest, start, onsite, push_sub FROM trips WHERE push_sub IS NOT NULL AND notified = 0').all(),
+  markNotified: (email) => db.prepare('UPDATE trips SET notified = 1 WHERE email = ?').run(email),
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
