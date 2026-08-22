@@ -35,6 +35,11 @@
   .topline .right { display: flex; align-items: center; gap: .6rem; }
   .updated { color: var(--muted); font-size: .78rem; }
   .iconbtn { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 10px; padding: .4rem .6rem; font-size: 1rem; cursor: pointer; }
+  /* Native language names vary hugely in width; cap the picker so the
+     header never overflows, and let the whole row wrap on tiny screens. */
+  #lang { max-width: 8.5rem; }
+  .topline { flex-wrap: wrap; row-gap: .35rem; }
+  .topline .right { flex-wrap: wrap; justify-content: flex-end; }
   .iconbtn:active { transform: scale(.94); }
   .iconbtn.spinning { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -47,7 +52,7 @@
   .tabs button.active { background: linear-gradient(135deg, var(--brand), #7b5fe0); border-color: transparent; color: #fff; box-shadow: 0 3px 10px rgba(79,58,201,.30); }
   .searchrow { position: relative; margin: .25rem 0 .6rem; }
   .searchrow input { width: 100%; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .6rem 2.4rem .6rem 1rem; font-size: 1rem; }
-  .searchrow .clear { position: absolute; right: .4rem; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; display: none; padding: .3rem; }
+  .searchrow .clear { position: absolute; inset-inline-end: .4rem; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; display: none; padding: .3rem; }
   .crowdline { color: var(--muted); font-size: .82rem; margin: 0 0 .5rem; }
   .crowdline b { color: var(--ink); }
   .ride { display: flex; align-items: center; gap: .6rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: .65rem .8rem; margin: .5rem 0;
@@ -124,7 +129,7 @@
   .dine-note { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
   .listtools a { color: var(--brand); font-size: .82rem; font-weight: 800; text-decoration: none; cursor: pointer; }
   .plan-note { background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); border-radius: 10px; padding: .4rem .7rem; font-size: .78rem; font-weight: 700; margin-top: .5rem; display: flex; gap: .5rem; align-items: center; }
-  .plan-note button { margin-left: auto; border: none; background: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0 .1rem; }
+  .plan-note button { margin-inline-start: auto; border: none; background: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0 .1rem; }
   .ll-row { display: flex; align-items: center; gap: .55rem; padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .95rem; }
   .ll-row input { width: 1.15rem; height: 1.15rem; accent-color: var(--brand); }
   #ll-cost { font-weight: 800; color: var(--brand); margin: .7rem 0 .2rem; }
@@ -132,10 +137,10 @@
   .planrow .planday { flex: 1 1 11rem; padding: .7rem 1rem; font-size: .95rem; margin: 0; }
   .planrow label { display: flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); font-weight: 600; }
   .planrow select { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 9px; padding: .5rem .4rem; font-size: .88rem; font-weight: 600; }
-  .skipcard { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 14px; padding: .6rem .85rem; margin: 0 0 .6rem; font-size: .86rem; box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); }
+  .skipcard { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-inline-start: 4px solid var(--brand); border-radius: 14px; padding: .6rem .85rem; margin: 0 0 .6rem; font-size: .86rem; box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); }
   .skipcard .sk-main { flex: 1; min-width: 12rem; }
   .skipcard b { font-size: .92rem; }
-  .skipcard .sk-price { color: var(--muted); margin-left: .35rem; }
+  .skipcard .sk-price { color: var(--muted); margin-inline-start: .35rem; }
   .skipcard .sk-note { color: var(--muted); font-size: .78rem; }
   .skipcard .sk-verdict { font-weight: 700; font-size: .84rem; }
   .skipcard .sk-verdict.buy { color: var(--gold); }
@@ -185,11 +190,11 @@
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
   @media (prefers-reduced-motion: reduce) { .plan { animation: none; } }
   .plan h2 { margin: 0 0 .35rem; font-size: 1.15rem; letter-spacing: -.01em; }
-  .plan .plan-x { position: absolute; top: .6rem; right: .7rem; border: none; background: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: .3rem; }
+  .plan .plan-x { position: absolute; top: .6rem; inset-inline-end: .7rem; border: none; background: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: .3rem; }
   .plan .savings { color: var(--green); font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
   .step { display: flex; gap: .8rem; padding: .55rem 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
   .step .what { flex: 1; }
-  .step .stepdone { margin-left: auto; border: 1.5px solid var(--border); background: var(--bg); color: var(--green); border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; font-weight: 800; flex-shrink: 0; }
+  .step .stepdone { margin-inline-start: auto; border: 1.5px solid var(--border); background: var(--bg); color: var(--green); border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; font-weight: 800; flex-shrink: 0; }
   .step.done .what, .step.done .time { text-decoration: line-through; opacity: .5; }
   .step.done .stepdone { background: var(--green); color: #fff; border-color: var(--green); }
   .step.sugg .what b { font-weight: 700; opacity: .85; }
@@ -208,7 +213,7 @@
 <div class="wrap">
   <header>
     <div class="topline">
-      <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-right:.2rem"> ParkPulse</a>
+      <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-inline-end:.2rem"> ParkPulse</a>
       <span class="right">
         <span class="updated" id="updated"></span>
         <select class="iconbtn" id="lang" title="Language" aria-label="Language"></select>
@@ -246,9 +251,9 @@
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
   <footer>
-    Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
-    Unofficial fan tool — not affiliated with The Walt Disney Company.
-    <a href="#" id="howworks">How it works</a> · <a href="/guide">Free strategy guide</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
+    <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>.
+    <span id="ft-unofficial">Unofficial fan tool — not affiliated with any park operator.</span>
+    <a href="#" id="howworks">How it works</a> · <a href="/guide" id="ft-guide">Free strategy guide</a> · <a href="/terms" id="ft-terms">Terms</a> · <a href="/privacy" id="ft-privacy">Privacy</a>
   </footer>
 </div>
 
@@ -276,7 +281,7 @@
     <strong id="picked-count"></strong>
     <label class="lunch"><input type="checkbox" id="lunch"> lunch</label>
     <label class="lunch" id="show-wrap" style="display:none"><input type="checkbox" id="show-cb"> <span id="show-short">show</span></label>
-    <button class="btn" id="build" style="margin-left:auto">Plan it</button>
+    <button class="btn" id="build" style="margin-inline-start:auto">Plan it</button>
   </div>
 </div>
 
@@ -313,7 +318,7 @@
 <div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="How ParkPulse works">
   <div class="card">
     <h2>Welcome to ParkPulse 🎢</h2>
-    <p class="sub">Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:</p>
+    <p class="sub" id="ob-sub">Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:</p>
     <div class="ob-step"><span>📡</span><div><b>See every wait, live</b>Pick your park up top. Waits refresh every minute, grouped by land, with hints like <i>"▼ 20 min below typical — go now"</i> so you catch the steals.</div></div>
     <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b>Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</div></div>
     <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b>One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</div></div>
@@ -441,16 +446,16 @@
 
   function crowdNow() {
     const p = parks[current] || {};
-    const hoursTxt = p.open != null ? `Typical hours ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
+    const hoursTxt = p.open != null ? `${tr('Typical hours')} ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
     const showTxt = p.show ? ` · 🎆 ${p.show.name} ~${hourLabel(p.show.hour)}` : '';
     const h = new Date().getHours();
     const m = HOURLY[h];
     let crowd;
-    if (p.open != null && (h < p.open || h >= p.close)) crowd = 'Park likely closed right now.';
+    if (p.open != null && (h < p.open || h >= p.close)) crowd = tr('Park likely closed right now.');
     else if (m == null) crowd = '';
-    else if (m <= 0.6) crowd = '<b>Light crowds right now</b> — best time to hit a headliner.';
-    else if (m >= 1.05) crowd = '<b>Peak crowds right now</b> — good time for shows, food, or short lines.';
-    else crowd = '<b>Moderate crowds right now</b> — pick your battles.';
+    else if (m <= 0.6) crowd = `<b>${tr('Light crowds right now')}</b> — ${tr('best time to hit a headliner.')}`;
+    else if (m >= 1.05) crowd = `<b>${tr('Peak crowds right now')}</b> — ${tr('good time for shows, food, or short lines.')}`;
+    else crowd = `<b>${tr('Moderate crowds right now')}</b> — ${tr('pick your battles.')}`;
     return `${crowd} ${hoursTxt}${showTxt}`;
   }
 
@@ -458,7 +463,7 @@
     const p = parks[current] || { open: 9, close: 21 };
     const hours = [];
     for (let h = p.open; h <= p.close; h++) hours.push(h);
-    $('start-hour').innerHTML = `<option value="now">Now</option>` + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+    $('start-hour').innerHTML = `<option value="now">${tr('Now')}</option>` + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
     $('end-hour').innerHTML = hours.slice(1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
     $('end-hour').value = String(p.close);
     if (p.show) {
@@ -544,7 +549,7 @@
       : `<b>⚡ ${skip.name}</b><span class="sk-price">${skip.cur}${skip.low}–${skip.cur}${skip.high}</span>`;
     const askable = consultantOn && window.ParkPulseChat;
     const tripAdvice = (skip.type !== 'none' && savedTrip && savedTrip.dest === parks[current].group) ? bookAdvice(savedTrip) : '';
-    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div>${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
+    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${tr(skip.note)}</div>${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
@@ -568,10 +573,10 @@
       const f = await res.json();
       lastForecast = f;
       el.innerHTML = `<div class="fcast">
-        <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 Trip</a> · ${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
+        <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 ${tr('Trip')}</a> · ${tr('Lightest:')} ${tr(f.best)} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.map((d) => `
           <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
-            ${d.dow}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
+            ${tr(d.dow)}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
           </div>`).join('')}
         </div>
       </div>`;
@@ -761,16 +766,25 @@
   function updatedLabel() {
     if (!lastData) return '';
     const mins = Math.round((Date.now() - new Date(lastData.updatedAt)) / 60000);
-    const age = mins <= 0 ? 'just now' : `${mins} min ago`;
-    return `${lastData.source === 'live' ? 'Live' : 'Typical (demo)'} · ${age}`;
+    const age = mins <= 0 ? tr('just now') : `${mins} ${tr('min ago')}`;
+    return `${lastData.source === 'live' ? tr('Live') : tr('Typical (demo)')} · ${age}`;
   }
 
+  // Clock style follows the chosen language — 24-hour where that's the norm,
+  // AM/PM where it isn't — instead of forcing US formatting on everyone.
+  let hourFmt = null;
   function hourLabel(h) {
     const whole = Math.floor(h) % 24;
     const mins = Math.round((h - Math.floor(h)) * 60);
-    const ampm = whole >= 12 ? 'PM' : 'AM';
-    const disp = whole % 12 === 0 ? 12 : whole % 12;
-    return `${disp}:${String(mins).padStart(2, '0')} ${ampm}`;
+    try {
+      if (!hourFmt) hourFmt = new Intl.DateTimeFormat(window.PP_LANG || 'en', { hour: 'numeric', minute: '2-digit' });
+      const d = new Date(2020, 0, 1, whole, mins);
+      return hourFmt.format(d);
+    } catch {
+      const ampm = whole >= 12 ? 'PM' : 'AM';
+      const disp = whole % 12 === 0 ? 12 : whole % 12;
+      return `${disp}:${String(mins).padStart(2, '0')} ${ampm}`;
+    }
   }
 
   function buildPlan() {
@@ -976,7 +990,7 @@
   $('pick-all').addEventListener('click', () => {
     const open = rides.filter((r) => r.open && passesFilter(r));
     const allPicked = open.length && open.every((r) => pickedNames.has(r.name));
-    if (allPicked) { pickedNames.clear(); $('pick-all').textContent = 'Select all'; }
+    if (allPicked) { pickedNames.clear(); $('pick-all').textContent = tr('Select all'); }
     else { open.forEach((r) => pickedNames.add(r.name)); $('pick-all').textContent = 'Clear all'; }
     renderRides();
     updatePlanbar();
@@ -992,10 +1006,20 @@
   // (dynamic strings go through tr() at render time).
   (function initLang() {
     const sel = $('lang');
-    sel.innerHTML = Object.entries(window.PP_LANGS || { en: 'EN' })
-      .map(([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`).join('');
+    const entries = Object.entries(window.PP_LANGS || { en: 'EN' });
+    const opt = ([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`;
+    // The five most-spoken sit in their own group at the top of the list.
+    sel.innerHTML = entries.length > 6
+      ? `<optgroup label="${tr('Most spoken')}">${entries.slice(0, 5).map(opt).join('')}</optgroup>` +
+        `<optgroup label="${tr('More languages')}">${entries.slice(5).map(opt).join('')}</optgroup>`
+      : entries.map(opt).join('');
     sel.addEventListener('change', () => window.PP_SET_LANG(sel.value));
     if (!window.PP_LANG || window.PP_LANG === 'en') return;
+    // The dictionary may still be in flight on a first visit; retext once it lands.
+    (window.PP_READY || Promise.resolve()).then(applyStaticText);
+  })();
+
+  function applyStaticText() {
     $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
     $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
     $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
@@ -1019,9 +1043,35 @@
     $('acct-forgot').textContent = tr('Forgot password?');
     $('acct-logout').textContent = tr('Log out');
     $('acct-cancel').textContent = tr('Close');
-    // read the DOM, not viewMode — this runs before that binding exists
+    $('pick-all').textContent = tr('Select all');
+    $('view-toggle').textContent = '🍽 ' + tr('Dining');
+    // Filter menus: translate the label, keep the emoji and the value
+    // Keep a leading emoji as-is and translate only the words after it.
+    const retextOption = (o, label) => {
+      const m = label.match(/^(\P{L}+)\s(.+)$/u);
+      o.textContent = m ? m[1] + ' ' + tr(m[2]) : tr(label);
+    };
+    const optText = { 'all': 'All types', 'gentle': '😌 Easy-going', 'family': '👨‍👩‍👧 Family', 'thrill': '🎢 Thrilling', 'water': '💦 Water', 'show': '🎭 Shows' };
+    for (const o of $('f-vibe').options) if (optText[o.value]) retextOption(o, optText[o.value]);
+    const ageText = { '99': 'Any age rating', '0': '👶 Toddler-friendly', '3': '🧒 Ages 3+', '7': '🧑 Ages 7+', '12': '🎓 Ages 12+' };
+    for (const o of $('f-age').options) if (ageText[o.value]) retextOption(o, ageText[o.value]);
+    // The picker is built before the dictionary lands, so relabel its groups now.
+    const groups = $('lang').querySelectorAll('optgroup');
+    if (groups[0]) groups[0].label = tr('Most spoken');
+    if (groups[1]) groups[1].label = tr('More languages');
+    $('ft-data').textContent = tr('Wait-time data powered by');
+    $('ft-unofficial').textContent = tr('Unofficial fan tool — not affiliated with any park operator.');
+    $('ft-guide').textContent = tr('Free strategy guide');
+    $('ft-terms').textContent = tr('Terms');
+    $('ft-privacy').textContent = tr('Privacy');
+    $('ob-sub').textContent = tr("Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:");
+    document.querySelectorAll('#onboard .ob-step').forEach((stepEl) => {
+      const b = stepEl.querySelector('b');
+      if (b) b.textContent = tr(b.textContent);
+    });
+    // read the DOM, not viewMode — this can run before that binding exists
     $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions');
-  })();
+  }
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
   // biggest open headliners.
@@ -1109,7 +1159,7 @@
   function bookAdvice(trip) {
     if (!trip || !trip.start || !trip.dest) return '';
     const g = trip.dest, onsite = !!trip.onsite;
-    const fmt = (d) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const fmt = (d) => d.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
     const start = new Date(trip.start + 'T12:00:00');
     let msg = '';
     if (g === 'Walt Disney World') {
@@ -1152,7 +1202,7 @@
   function tripRows(plan) {
     return plan.map((d) => {
       const day = new Date(d.date + 'T12:00:00');
-      const dowName = day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const dowName = day.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}</span></div>`;
     }).join('');
   }
@@ -1387,7 +1437,7 @@
 
   function planLabel(plan, exp) {
     if (!plan) return 'Free plan';
-    const until = new Date(exp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const until = new Date(exp).toLocaleDateString(window.PP_LANG || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const names = { 'day-pass': 'Day Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'year-pass': 'Annual Pass', 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer' };
     return `${names[plan] || plan} · active until ${until}`;
   }

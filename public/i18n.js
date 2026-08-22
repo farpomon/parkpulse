@@ -1,174 +1,81 @@
-// ParkPulse i18n. English strings are the keys; missing keys fall back to
-// English, so partial dictionaries degrade gracefully. Language is chosen
-// from localStorage ('pp-lang'), else the browser/phone setting.
+// ParkPulse i18n. English strings are the keys; a missing key falls back to
+// English, so a partial dictionary degrades gracefully instead of breaking.
+//
+// Dictionaries live one-per-language in /i18n/<code>.json and only the active
+// language is fetched, so adding languages costs returning visitors nothing.
+// The last-used dictionary is mirrored into localStorage, which makes repeat
+// loads instant and keeps the UI translated even offline.
 (function () {
-  const LANGS = { en: 'English', es: 'Español', fr: 'Français', de: 'Deutsch', pt: 'Português', ja: '日本語' };
-  const D = {
-    es: {
-      'Plan my day': 'Planear mi día', 'Arrive': 'Llegada', 'Leave': 'Salida', 'Search rides…': 'Buscar atracciones…',
-      'Find my park': 'Encontrar mi parque', 'Refresh waits': 'Actualizar esperas', 'Account': 'Cuenta',
-      '★ My parks': '★ Mis parques', 'Elsewhere in the park': 'Resto del parque', 'No rides match': 'Sin resultados para',
-      'Closed': 'Cerrado', 'min': 'min', 'Your plan': 'Tu plan', 'Plan it': 'Planear', 'lunch': 'almuerzo',
-      'rides': 'atracciones', 'ride': 'atracción', 'Next 7 days': 'Próximos 7 días', 'Lightest:': 'Día más tranquilo:',
-      'Light': 'Tranquilo', 'Mild': 'Suave', 'Moderate': 'Moderado', 'Busy': 'Concurrido', 'Packed': 'Lleno',
-      'days of measured data': 'días de datos medidos', 'typical patterns (data accruing)': 'patrones típicos (recopilando datos)',
-      'Worth it today — lines are heavy': 'Hoy vale la pena — filas largas', 'Borderline today': 'Hoy está justo',
-      'Skip it today — keep your money': 'Hoy no hace falta — guarda tu dinero', "You don't need one here": 'Aquí no lo necesitas',
-      'No paid line-skip at': 'Sin acceso rápido de pago en', 'Ask the AI →': 'Pregunta a la IA →',
-      'Replan from here': 'Replanear desde aquí', 'Already ridden today:': 'Ya montadas hoy:',
-      'Lunch break': 'Pausa para almorzar', 'Cap off the night': 'Cierra la noche', 'short walk, same land': 'a pasos, misma zona',
-      'Low-crowd window — headliner time': 'Poca gente — hora de las estrellas',
-      'Peak hours — short line to knock out': 'Hora punta — fila corta para tachar', 'Moderate crowds': 'Gente moderada',
-      "Didn't fit:": 'No cupieron:', 'extend your hours or grab Lightning Lane for these.': 'amplía tu horario o usa el acceso rápido.',
-      'Log in': 'Iniciar sesión', 'Create an account': 'Crear cuenta', 'Log out': 'Cerrar sesión', 'Close': 'Cerrar',
-      'Password': 'Contraseña', 'Forgot password?': '¿Olvidaste la contraseña?', 'New here?': '¿Primera vez?',
-      'Your pass follows your account onto any device.': 'Tu pase te sigue en cualquier dispositivo.',
-      'Get a push alert when the wait drops under:': 'Recibe una alerta cuando la espera baje de:',
-      'Welcome to ParkPulse 🎢': '¡Bienvenido a ParkPulse! 🎢',
-      "Let's beat the lines →": 'A ganarle a las filas →', 'How it works': 'Cómo funciona',
-      'Park Consultant': 'Consultor del parque', 'Thinking…': 'Pensando…', 'Send': 'Enviar',
-      'Jump to latest': 'Ir a lo último',
-      'Ask about passes, plans, strategy…': 'Pregunta sobre pases, planes, estrategia…',
-      'Worth buying today?': '¿Vale la pena hoy?', 'Do it free': 'Hazlo gratis', 'Plan ready:': 'Plan listo:',
-      'Apply to plan builder': 'Aplicar al planificador', 'Alert set:': 'Alerta creada:', 'under': 'bajo',
-      'Thanks!': '¡Gracias!', "Thanks — I'll do better.": 'Gracias — mejoraré.',
-      "Noted — I'll remember that for next time.": 'Anotado — lo recordaré la próxima vez.',
-      'The consultant is having a moment — try again shortly.': 'El consultor está ocupado — inténtalo en un momento.',
-    },
-    fr: {
-      'Plan my day': 'Planifier ma journée', 'Arrive': 'Arrivée', 'Leave': 'Départ', 'Search rides…': 'Chercher une attraction…',
-      'Find my park': 'Trouver mon parc', 'Refresh waits': 'Actualiser', 'Account': 'Compte',
-      '★ My parks': '★ Mes parcs', 'Elsewhere in the park': 'Ailleurs dans le parc', 'No rides match': 'Aucun résultat pour',
-      'Closed': 'Fermé', 'min': 'min', 'Your plan': 'Votre plan', 'Plan it': 'Planifier', 'lunch': 'déjeuner',
-      'rides': 'attractions', 'ride': 'attraction', 'Next 7 days': '7 prochains jours', 'Lightest:': 'Jour le plus calme :',
-      'Light': 'Calme', 'Mild': 'Léger', 'Moderate': 'Modéré', 'Busy': 'Chargé', 'Packed': 'Bondé',
-      'days of measured data': 'jours de données mesurées', 'typical patterns (data accruing)': 'tendances typiques (données en cours)',
-      'Worth it today — lines are heavy': "Rentable aujourd'hui — files longues", 'Borderline today': "Limite aujourd'hui",
-      'Skip it today — keep your money': 'Inutile aujourd\'hui — gardez votre argent', "You don't need one here": "Pas besoin ici",
-      'No paid line-skip at': 'Pas de coupe-file payant à', 'Ask the AI →': "Demander à l'IA →",
-      'Replan from here': "Replanifier d'ici", 'Already ridden today:': "Déjà faites aujourd'hui :",
-      'Lunch break': 'Pause déjeuner', 'Cap off the night': 'Finir la soirée en beauté', 'short walk, same land': 'à deux pas, même zone',
-      'Low-crowd window — headliner time': 'Affluence faible — cap sur les stars',
-      'Peak hours — short line to knock out': 'Heure de pointe — petite file à cocher', 'Moderate crowds': 'Affluence modérée',
-      "Didn't fit:": "N'ont pas tenu :", 'extend your hours or grab Lightning Lane for these.': 'élargissez vos horaires ou prenez le coupe-file.',
-      'Log in': 'Connexion', 'Create an account': 'Créer un compte', 'Log out': 'Déconnexion', 'Close': 'Fermer',
-      'Password': 'Mot de passe', 'Forgot password?': 'Mot de passe oublié ?', 'New here?': 'Nouveau ici ?',
-      'Your pass follows your account onto any device.': 'Votre pass vous suit sur tous vos appareils.',
-      'Get a push alert when the wait drops under:': "Recevez une alerte quand l'attente passe sous :",
-      'Welcome to ParkPulse 🎢': 'Bienvenue sur ParkPulse 🎢',
-      "Let's beat the lines →": 'On évite les files →', 'How it works': 'Comment ça marche',
-      'Park Consultant': 'Conseiller du parc', 'Thinking…': 'Réflexion…', 'Send': 'Envoyer',
-      'Jump to latest': 'Aller au plus récent',
-      'Ask about passes, plans, strategy…': 'Pass, plans, stratégie… posez votre question',
-      'Worth buying today?': "Rentable aujourd'hui ?", 'Do it free': 'Version gratuite', 'Plan ready:': 'Plan prêt :',
-      'Apply to plan builder': 'Appliquer au planificateur', 'Alert set:': 'Alerte créée :', 'under': 'sous',
-      'Thanks!': 'Merci !', "Thanks — I'll do better.": 'Merci — je ferai mieux.',
-      "Noted — I'll remember that for next time.": "Noté — je m'en souviendrai.",
-      'The consultant is having a moment — try again shortly.': 'Le conseiller est occupé — réessayez dans un instant.',
-    },
-    de: {
-      'Plan my day': 'Meinen Tag planen', 'Arrive': 'Ankunft', 'Leave': 'Abfahrt', 'Search rides…': 'Attraktion suchen…',
-      'Find my park': 'Meinen Park finden', 'Refresh waits': 'Aktualisieren', 'Account': 'Konto',
-      '★ My parks': '★ Meine Parks', 'Elsewhere in the park': 'Sonst im Park', 'No rides match': 'Keine Treffer für',
-      'Closed': 'Geschlossen', 'min': 'Min', 'Your plan': 'Dein Plan', 'Plan it': 'Planen', 'lunch': 'Mittag',
-      'rides': 'Attraktionen', 'ride': 'Attraktion', 'Next 7 days': 'Nächste 7 Tage', 'Lightest:': 'Ruhigster Tag:',
-      'Light': 'Ruhig', 'Mild': 'Mäßig', 'Moderate': 'Mittel', 'Busy': 'Voll', 'Packed': 'Überfüllt',
-      'days of measured data': 'Tage gemessener Daten', 'typical patterns (data accruing)': 'typische Muster (Daten wachsen)',
-      'Worth it today — lines are heavy': 'Heute lohnenswert — lange Schlangen', 'Borderline today': 'Heute grenzwertig',
-      'Skip it today — keep your money': 'Heute unnötig — spar dir das Geld', "You don't need one here": 'Hier nicht nötig',
-      'No paid line-skip at': 'Kein bezahlter Skip in', 'Ask the AI →': 'KI fragen →',
-      'Replan from here': 'Ab hier neu planen', 'Already ridden today:': 'Heute schon gefahren:',
-      'Lunch break': 'Mittagspause', 'Cap off the night': 'Abschluss des Abends', 'short walk, same land': 'kurzer Weg, gleicher Bereich',
-      'Low-crowd window — headliner time': 'Wenig los — Zeit für die Highlights',
-      'Peak hours — short line to knock out': 'Stoßzeit — kurze Schlange abhaken', 'Moderate crowds': 'Mittlerer Andrang',
-      "Didn't fit:": 'Passten nicht:', 'extend your hours or grab Lightning Lane for these.': 'verlängere den Tag oder nimm den Skip-Pass.',
-      'Log in': 'Anmelden', 'Create an account': 'Konto erstellen', 'Log out': 'Abmelden', 'Close': 'Schließen',
-      'Password': 'Passwort', 'Forgot password?': 'Passwort vergessen?', 'New here?': 'Neu hier?',
-      'Your pass follows your account onto any device.': 'Dein Pass folgt deinem Konto auf jedes Gerät.',
-      'Get a push alert when the wait drops under:': 'Push-Alarm, wenn die Wartezeit fällt unter:',
-      'Welcome to ParkPulse 🎢': 'Willkommen bei ParkPulse 🎢',
-      "Let's beat the lines →": 'Schlangen austricksen →', 'How it works': 'So funktioniert’s',
-      'Park Consultant': 'Park-Berater', 'Thinking…': 'Denke nach…', 'Send': 'Senden',
-      'Jump to latest': 'Zum Neuesten',
-      'Ask about passes, plans, strategy…': 'Fragen zu Pässen, Plänen, Strategie…',
-      'Worth buying today?': 'Lohnt es sich heute?', 'Do it free': 'Kostenlos schaffen', 'Plan ready:': 'Plan fertig:',
-      'Apply to plan builder': 'In den Planer übernehmen', 'Alert set:': 'Alarm gesetzt:', 'under': 'unter',
-      'Thanks!': 'Danke!', "Thanks — I'll do better.": 'Danke — ich werde besser.',
-      "Noted — I'll remember that for next time.": 'Notiert — ich merke es mir.',
-      'The consultant is having a moment — try again shortly.': 'Der Berater ist kurz beschäftigt — gleich nochmal versuchen.',
-    },
-    pt: {
-      'Plan my day': 'Planejar meu dia', 'Arrive': 'Chegada', 'Leave': 'Saída', 'Search rides…': 'Buscar atrações…',
-      'Find my park': 'Encontrar meu parque', 'Refresh waits': 'Atualizar filas', 'Account': 'Conta',
-      '★ My parks': '★ Meus parques', 'Elsewhere in the park': 'Resto do parque', 'No rides match': 'Nada encontrado para',
-      'Closed': 'Fechado', 'min': 'min', 'Your plan': 'Seu plano', 'Plan it': 'Planejar', 'lunch': 'almoço',
-      'rides': 'atrações', 'ride': 'atração', 'Next 7 days': 'Próximos 7 dias', 'Lightest:': 'Dia mais tranquilo:',
-      'Light': 'Tranquilo', 'Mild': 'Leve', 'Moderate': 'Moderado', 'Busy': 'Cheio', 'Packed': 'Lotado',
-      'days of measured data': 'dias de dados medidos', 'typical patterns (data accruing)': 'padrões típicos (coletando dados)',
-      'Worth it today — lines are heavy': 'Vale a pena hoje — filas longas', 'Borderline today': 'No limite hoje',
-      'Skip it today — keep your money': 'Hoje não precisa — guarde seu dinheiro', "You don't need one here": 'Aqui você não precisa',
-      'No paid line-skip at': 'Sem fura-fila pago em', 'Ask the AI →': 'Pergunte à IA →',
-      'Replan from here': 'Replanejar daqui', 'Already ridden today:': 'Já feitas hoje:',
-      'Lunch break': 'Pausa para o almoço', 'Cap off the night': 'Fechar a noite', 'short walk, same land': 'pertinho, mesma área',
-      'Low-crowd window — headliner time': 'Pouca gente — hora dos favoritos',
-      'Peak hours — short line to knock out': 'Horário de pico — fila curta para riscar', 'Moderate crowds': 'Movimento moderado',
-      "Didn't fit:": 'Não couberam:', 'extend your hours or grab Lightning Lane for these.': 'estenda o horário ou use o fura-fila.',
-      'Log in': 'Entrar', 'Create an account': 'Criar conta', 'Log out': 'Sair', 'Close': 'Fechar',
-      'Password': 'Senha', 'Forgot password?': 'Esqueceu a senha?', 'New here?': 'Novo por aqui?',
-      'Your pass follows your account onto any device.': 'Seu passe acompanha sua conta em qualquer aparelho.',
-      'Get a push alert when the wait drops under:': 'Receba um alerta quando a fila cair abaixo de:',
-      'Welcome to ParkPulse 🎢': 'Bem-vindo ao ParkPulse 🎢',
-      "Let's beat the lines →": 'Vamos vencer as filas →', 'How it works': 'Como funciona',
-      'Park Consultant': 'Consultor do parque', 'Thinking…': 'Pensando…', 'Send': 'Enviar',
-      'Jump to latest': 'Ir para o mais recente',
-      'Ask about passes, plans, strategy…': 'Pergunte sobre passes, planos, estratégia…',
-      'Worth buying today?': 'Vale a pena hoje?', 'Do it free': 'Faça de graça', 'Plan ready:': 'Plano pronto:',
-      'Apply to plan builder': 'Aplicar ao planejador', 'Alert set:': 'Alerta criado:', 'under': 'abaixo de',
-      'Thanks!': 'Obrigado!', "Thanks — I'll do better.": 'Obrigado — vou melhorar.',
-      "Noted — I'll remember that for next time.": 'Anotado — vou lembrar na próxima.',
-      'The consultant is having a moment — try again shortly.': 'O consultor está ocupado — tente de novo em instantes.',
-    },
-    ja: {
-      'Plan my day': '今日のプラン作成', 'Arrive': '到着', 'Leave': '退園', 'Search rides…': 'アトラクションを検索…',
-      'Find my park': '近くのパークを探す', 'Refresh waits': '待ち時間を更新', 'Account': 'アカウント',
-      '★ My parks': '★ マイパーク', 'Elsewhere in the park': 'パーク内その他', 'No rides match': '該当なし:',
-      'Closed': '休止中', 'min': '分', 'Your plan': 'あなたのプラン', 'Plan it': 'プラン作成', 'lunch': '昼食',
-      'rides': '件', 'ride': '件', 'Next 7 days': '今後7日間', 'Lightest:': '最も空いている日:',
-      'Light': '空いている', 'Mild': 'やや空き', 'Moderate': '普通', 'Busy': '混雑', 'Packed': '大混雑',
-      'days of measured data': '日分の実測データ', 'typical patterns (data accruing)': '一般的な傾向（データ収集中）',
-      'Worth it today — lines are heavy': '今日は買う価値あり — 行列が長い', 'Borderline today': '今日は微妙',
-      'Skip it today — keep your money': '今日は不要 — 節約しましょう', "You don't need one here": 'ここでは不要です',
-      'No paid line-skip at': '有料優先入場なし:', 'Ask the AI →': 'AIに聞く →',
-      'Replan from here': 'ここから再プラン', 'Already ridden today:': '本日乗車済み:',
-      'Lunch break': '昼食休憩', 'Cap off the night': '夜の締めくくり', 'short walk, same land': 'すぐ近く・同じエリア',
-      'Low-crowd window — headliner time': '空いている時間 — 人気アトラクションへ',
-      'Peak hours — short line to knock out': 'ピーク時間 — 短い列を消化', 'Moderate crowds': '混雑は普通',
-      "Didn't fit:": '入りきらず:', 'extend your hours or grab Lightning Lane for these.': '時間を延ばすか優先入場をご検討ください。',
-      'Log in': 'ログイン', 'Create an account': 'アカウント作成', 'Log out': 'ログアウト', 'Close': '閉じる',
-      'Password': 'パスワード', 'Forgot password?': 'パスワードをお忘れですか？', 'New here?': 'はじめての方？',
-      'Your pass follows your account onto any device.': 'パスはどの端末でもアカウントに紐づきます。',
-      'Get a push alert when the wait drops under:': '待ち時間が下回ったら通知:',
-      'Welcome to ParkPulse 🎢': 'ParkPulseへようこそ 🎢',
-      "Let's beat the lines →": '行列に勝とう →', 'How it works': '使い方',
-      'Park Consultant': 'パーク・コンサルタント', 'Thinking…': '考え中…', 'Send': '送信',
-      'Jump to latest': '最新へ移動',
-      'Ask about passes, plans, strategy…': 'パス・プラン・攻略法を質問…',
-      'Worth buying today?': '今日は買うべき？', 'Do it free': '無料で攻略', 'Plan ready:': 'プラン完成:',
-      'Apply to plan builder': 'プランナーに反映', 'Alert set:': '通知を設定:', 'under': '以下で',
-      'Thanks!': 'ありがとう！', "Thanks — I'll do better.": 'ありがとう — 改善します。',
-      "Noted — I'll remember that for next time.": 'メモしました — 次回に活かします。',
-      'The consultant is having a moment — try again shortly.': 'コンサルタントが混み合っています — 少し後にもう一度。',
-    },
+  // The twenty most-spoken languages worldwide. Two entries from the raw
+  // speaker rankings are impractical for a UI picker — Nigerian Pidgin has no
+  // settled written standard, and Yue speakers read the same written Chinese
+  // as Mandarin — so Korean and Italian take those slots.
+  const LANGS = {
+    en: { native: 'English', name: 'English' },
+    zh: { native: '中文', name: 'Chinese' },
+    hi: { native: 'हिन्दी', name: 'Hindi' },
+    es: { native: 'Español', name: 'Spanish' },
+    fr: { native: 'Français', name: 'French' },
+    ar: { native: 'العربية', name: 'Arabic', rtl: true },
+    bn: { native: 'বাংলা', name: 'Bengali' },
+    de: { native: 'Deutsch', name: 'German' },
+    id: { native: 'Bahasa Indonesia', name: 'Indonesian' },
+    it: { native: 'Italiano', name: 'Italian' },
+    ja: { native: '日本語', name: 'Japanese' },
+    ko: { native: '한국어', name: 'Korean' },
+    mr: { native: 'मराठी', name: 'Marathi' },
+    pt: { native: 'Português', name: 'Portuguese' },
+    ru: { native: 'Русский', name: 'Russian' },
+    ta: { native: 'தமிழ்', name: 'Tamil' },
+    te: { native: 'తెలుగు', name: 'Telugu' },
+    tr: { native: 'Türkçe', name: 'Turkish' },
+    ur: { native: 'اردو', name: 'Urdu', rtl: true },
+    vi: { native: 'Tiếng Việt', name: 'Vietnamese' },
   };
-  const NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ja: 'Japanese' };
+  // Pinned to the top of the picker; everything else follows alphabetically.
+  const TOP = ['en', 'zh', 'hi', 'es', 'fr'];
+
   let lang = 'en';
   try {
     lang = localStorage.getItem('pp-lang') || (navigator.language || 'en').slice(0, 2).toLowerCase();
   } catch {}
   if (!LANGS[lang]) lang = 'en';
+
+  let dict = {};
+  let ready = Promise.resolve();
+  if (lang !== 'en') {
+    const cacheKey = 'pp-dict-' + lang;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) dict = JSON.parse(cached) || {};
+    } catch {}
+    const fetched = fetch('/i18n/' + lang + '.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d === 'object') {
+          dict = d;
+          try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch {}
+        }
+      })
+      .catch(() => {});
+    // A cached copy is good enough to render immediately; otherwise wait for it.
+    ready = Object.keys(dict).length ? Promise.resolve() : fetched;
+  }
+
+  // Right-to-left scripts need the whole document flipped, not just the words.
+  try {
+    const el = document.documentElement;
+    el.lang = lang;
+    if (LANGS[lang].rtl) el.dir = 'rtl';
+  } catch {}
+
   window.PP_LANG = lang;
-  window.PP_LANG_NAME = NAMES[lang];
-  window.PP_LANGS = LANGS;
-  window.PP_T = (key) => (D[lang] && D[lang][key]) || key;
+  window.PP_LANG_NAME = LANGS[lang].name;
+  window.PP_LANGS = Object.fromEntries(
+    [...TOP.filter((c) => LANGS[c]), ...Object.keys(LANGS).filter((c) => !TOP.includes(c))]
+      .map((c) => [c, LANGS[c].native]),
+  );
+  window.PP_READY = ready;
+  window.PP_T = (key) => dict[key] || key;
   window.PP_SET_LANG = (l) => { try { localStorage.setItem('pp-lang', l); } catch {} location.reload(); };
 })();
