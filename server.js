@@ -929,9 +929,17 @@ const server = http.createServer(async (req, res) => {
 
         if (url.pathname === '/api/auth/signup') {
           if (password.length < 8) return sendJson(res, 400, { error: 'password must be at least 8 characters' });
-          if (db.users.get(email)) return sendJson(res, 409, { error: 'account already exists — log in instead' });
+          const existing = db.users.get(email);
+          if (existing && existing.verified) return sendJson(res, 409, { error: 'account already exists — log in instead' });
           const salt = crypto.randomBytes(16).toString('hex');
-          db.users.create(email, salt, hashPassword(password, salt), 0);
+          if (existing) {
+            // Unfinished signup (never verified): treat this as a retry —
+            // take the new password and send a fresh code. Whoever controls
+            // the inbox wins, so an unverified squat can't lock anyone out.
+            db.users.setPassword(email, salt, hashPassword(password, salt));
+          } else {
+            db.users.create(email, salt, hashPassword(password, salt), 0);
+          }
           startVerification(email);
           return sendJson(res, 200, { pending: true, email });
         }

@@ -218,6 +218,10 @@ const users = {
     db.prepare('UPDATE users SET delete_at = NULL, delete_token = NULL WHERE email = ?').run(email).changes,
   resetPassword: (email, salt, hash) =>
     db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL, verified = 1 WHERE email = ?').run(salt, hash, email),
+  // Password change that does NOT vouch for the email — used when an
+  // unverified signup retries; the code check still gates verification.
+  setPassword: (email, salt, hash) =>
+    db.prepare('UPDATE users SET salt = ?, hash = ? WHERE email = ?').run(salt, hash, email),
 };
 
 const alerts = {

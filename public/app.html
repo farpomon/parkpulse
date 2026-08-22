@@ -99,6 +99,13 @@
   .sheet input[type=email], .sheet input[type=password] { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .65rem .9rem; font-size: 1rem; margin-bottom: .6rem; }
   .sheet .wide { width: 100%; }
   .sheet .err { color: var(--red); font-size: .85rem; min-height: 1.2em; margin: 0 0 .4rem; }
+  .sheet .hint { color: var(--muted); font-size: .82rem; margin: -.2rem 0 .6rem; }
+  .pwwrap { position: relative; }
+  .pwwrap input { padding-inline-end: 2.8rem; }
+  .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
+  .pweye.on { opacity: 1; }
+  .toast { position: fixed; left: 50%; bottom: calc(4.5rem + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(1rem); background: var(--ink); color: var(--card); padding: .7rem 1.1rem; border-radius: 999px; font-size: .92rem; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.25); opacity: 0; transition: opacity .25s, transform .25s; z-index: 90; pointer-events: none; max-width: 88vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .sheet .switch { text-align: center; margin-top: .6rem; font-size: .88rem; color: var(--muted); }
   .sheet .switch a { color: var(--brand); cursor: pointer; }
   .acct-status { font-size: .95rem; margin-bottom: 1rem; }
@@ -370,20 +377,28 @@
     <h3 id="acct-title">Log in</h3>
     <p id="acct-sub">Your pass follows your account onto any device.</p>
     <form id="acct-form">
-      <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email" required>
-      <input type="password" id="acct-pw" placeholder="Password" autocomplete="current-password" required minlength="8">
-      <p class="err" id="acct-err"></p>
+      <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email" required
+        autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+      <div class="pwwrap">
+        <input type="password" id="acct-pw" placeholder="Password" autocomplete="current-password" required minlength="8" enterkeyhint="go">
+        <button type="button" class="pweye" id="acct-pw-eye" aria-label="Show or hide password">👁</button>
+      </div>
+      <p class="hint" id="acct-pw-hint" style="display:none">At least 8 characters.</p>
+      <p class="err" id="acct-err" aria-live="polite"></p>
       <button class="btn wide" type="submit" id="acct-submit">Log in</button>
     </form>
     <p class="switch" id="acct-switch">New here? <a id="acct-toggle">Create an account</a></p>
     <p class="switch"><a id="acct-forgot">Forgot password?</a></p>
     <div id="acct-verify" style="display:none">
-      <p style="margin:.8rem 0 .5rem">📬 We emailed a 6-digit code to <b id="verify-email"></b>:</p>
-      <input type="text" id="acct-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
+      <h3 id="verify-title" style="margin:.2rem 0 .3rem">Check your inbox 📬</h3>
+      <p id="verify-sub" style="margin:0 0 .7rem;color:var(--muted);font-size:.9rem">We emailed a 6-digit code to <b id="verify-email" style="color:var(--ink)"></b></p>
+      <input type="text" id="acct-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"
         style="width:100%;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.65rem .9rem;font-size:1.3rem;letter-spacing:.35em;text-align:center;margin-bottom:.6rem">
-      <p class="err" id="verify-err"></p>
+      <p class="err" id="verify-err" aria-live="polite"></p>
       <button class="btn wide" id="acct-verify-btn">Verify</button>
       <p class="switch"><a id="acct-resend">Resend code</a></p>
+      <p class="hint" id="verify-spam" style="text-align:center">Didn't get it? Check your spam folder.</p>
+      <p class="switch"><a id="acct-verify-back">Wrong email? Go back</a></p>
     </div>
   </div>
   <div id="acct-logged-in" style="display:none">
@@ -1110,12 +1125,10 @@
     $('howworks').textContent = tr('How it works');
     document.querySelector('#onboard h2').textContent = tr('Welcome to ParkPulse 🎢');
     $('onboard-go').textContent = tr("Let's beat the lines →");
-    $('acct-title').textContent = tr('Log in');
-    $('acct-submit').textContent = tr('Log in');
-    $('acct-sub').textContent = tr('Your pass follows your account onto any device.');
+    renderAcctMode();
     $('acct-pw').placeholder = tr('Password');
-    $('acct-toggle').textContent = tr('Create an account');
-    $('acct-switch').childNodes[0].nodeValue = tr('New here?') + ' ';
+    $('acct-pw-hint').textContent = tr('At least 8 characters.');
+    $('acct-pw-eye').setAttribute('aria-label', tr('Show or hide password'));
     $('acct-forgot').textContent = tr('Forgot password?');
     $('acct-logout').textContent = tr('Log out');
     $('acct-cancel').textContent = tr('Close');
@@ -1697,21 +1710,59 @@
     try { localStorage.setItem('pp-device', deviceId); } catch {}
   }
   let pendingEmail = null;
+  let resendTimer = null;
+
+  function toast(msg) {
+    let el = document.querySelector('.toast');
+    if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+    el.textContent = msg;
+    requestAnimationFrame(() => el.classList.add('show'));
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  // A fresh code was just sent whenever this step appears, so the resend
+  // link starts on cooldown — it prevents accidental double-sends and makes
+  // the wait explicit instead of looking broken.
+  function startResendCooldown(seconds) {
+    clearInterval(resendTimer);
+    let left = seconds;
+    const a = $('acct-resend');
+    const tick = () => {
+      if (left > 0) { a.style.pointerEvents = 'none'; a.style.opacity = '.5'; a.textContent = `${tr('Resend code')} · ${left}s`; left--; }
+      else { clearInterval(resendTimer); a.style.pointerEvents = ''; a.style.opacity = ''; a.textContent = tr('Resend code'); }
+    };
+    tick();
+    resendTimer = setInterval(tick, 1000);
+  }
 
   function showVerify(email) {
     pendingEmail = email;
     $('acct-form').style.display = 'none';
     $('acct-switch').style.display = 'none';
+    $('acct-forgot').parentElement.style.display = 'none';
+    $('acct-title').style.display = 'none';
+    $('acct-sub').style.display = 'none';
     $('acct-verify').style.display = 'block';
+    $('verify-title').textContent = tr('Check your inbox 📬');
+    $('verify-sub').childNodes[0].nodeValue = tr('We emailed a 6-digit code to') + ' ';
+    $('verify-spam').textContent = tr("Didn't get it? Check your spam folder.");
+    $('acct-verify-back').textContent = tr('Wrong email? Go back');
+    $('acct-verify-btn').textContent = tr('Verify');
     $('verify-email').textContent = email;
     $('verify-err').textContent = '';
     $('acct-code').value = '';
-    $('acct-code').focus();
+    startResendCooldown(30);
+    setTimeout(() => $('acct-code').focus(), 150);
   }
   function hideVerify() {
     $('acct-form').style.display = '';
     $('acct-switch').style.display = '';
+    $('acct-forgot').parentElement.style.display = '';
+    $('acct-title').style.display = '';
+    $('acct-sub').style.display = '';
     $('acct-verify').style.display = 'none';
+    clearInterval(resendTimer);
     pendingEmail = null;
   }
 
@@ -1739,6 +1790,7 @@
     $('acct-err').textContent = '';
     $('acct-sheet').classList.add('open');
     $('sheet-bg').classList.add('open');
+    if (!email) setTimeout(() => $('acct-email').focus(), 200);
   }
 
   function closeAcct() {
@@ -1789,30 +1841,46 @@
   $('acct-cancel').addEventListener('click', closeAcct);
   $('acct-forgot').addEventListener('click', async () => {
     const email = $('acct-email').value.trim();
-    if (!email) { $('acct-err').textContent = 'Enter your email above first, then tap "Forgot password?".'; return; }
+    if (!email) { $('acct-err').textContent = tr('Enter your email above first, then tap "Forgot password?".'); return; }
     try {
       await fetch('/api/auth/forgot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }) });
       $('acct-err').style.color = 'var(--green)';
-      $('acct-err').textContent = 'If that account exists, a reset link is on its way.';
+      $('acct-err').textContent = tr('If that account exists, a reset link is on its way.');
       setTimeout(() => { $('acct-err').style.color = ''; $('acct-err').textContent = ''; }, 6000);
     } catch {
-      $('acct-err').textContent = 'Connection trouble — try again.';
+      $('acct-err').textContent = tr('Connection trouble — try again.');
     }
   });
+  function renderAcctMode() {
+    const login = acctMode === 'login';
+    $('acct-title').textContent = login ? tr('Log in') : tr('Create account');
+    $('acct-submit').textContent = login ? tr('Log in') : tr('Create account');
+    $('acct-sub').textContent = login ? tr('Your pass follows your account onto any device.')
+      : tr('Free to join — your plans, alerts and pass follow you onto any device.');
+    $('acct-switch').firstChild.textContent = (login ? tr('New here?') : tr('Already have an account?')) + ' ';
+    $('acct-toggle').textContent = login ? tr('Create an account') : tr('Log in');
+    $('acct-pw').autocomplete = login ? 'current-password' : 'new-password';
+    $('acct-pw-hint').style.display = login ? 'none' : '';
+    $('acct-forgot').parentElement.style.display = login ? '' : 'none';
+    $('acct-err').textContent = '';
+  }
   $('acct-toggle').addEventListener('click', () => {
     acctMode = acctMode === 'login' ? 'signup' : 'login';
-    $('acct-title').textContent = acctMode === 'login' ? 'Log in' : 'Create account';
-    $('acct-submit').textContent = acctMode === 'login' ? 'Log in' : 'Create account';
-    $('acct-switch').firstChild.textContent = acctMode === 'login' ? 'New here? ' : 'Already have an account? ';
-    $('acct-toggle').textContent = acctMode === 'login' ? 'Create an account' : 'Log in';
-    $('acct-pw').autocomplete = acctMode === 'login' ? 'current-password' : 'new-password';
-    $('acct-err').textContent = '';
+    renderAcctMode();
+    $('acct-email').focus();
+  });
+  $('acct-pw-eye').addEventListener('click', () => {
+    const pw = $('acct-pw');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+    $('acct-pw-eye').classList.toggle('on', pw.type === 'text');
+    pw.focus();
   });
 
   $('acct-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('acct-err').textContent = '';
     $('acct-submit').disabled = true;
+    $('acct-submit').textContent = acctMode === 'login' ? tr('Logging in…') : tr('Creating account…');
     try {
       const res = await api(`/api/auth/${acctMode}`, {
         method: 'POST',
@@ -1820,7 +1888,7 @@
         body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value, device: deviceId }),
       });
       const data = await res.json();
-      if (!res.ok) { $('acct-err').textContent = data.error || 'Something went wrong.'; return; }
+      if (!res.ok) { $('acct-err').textContent = data.error || tr('Something went wrong.'); return; }
       if (data.pending) { showVerify(data.email); return; }
       applyAuth(data);
       $('acct-pw').value = '';
@@ -1829,14 +1897,19 @@
       if (data.deletionCancelled) alert(tr('Welcome back! Your account was scheduled for deletion — that is now cancelled and nothing was lost.'));
       load();
     } catch {
-      $('acct-err').textContent = 'Connection trouble — try again.';
+      $('acct-err').textContent = tr('Connection trouble — try again.');
     } finally {
       $('acct-submit').disabled = false;
+      $('acct-submit').textContent = acctMode === 'login' ? tr('Log in') : tr('Create account');
     }
   });
 
   $('acct-verify-btn').addEventListener('click', async () => {
+    if ($('acct-verify-btn').disabled) return;
     $('verify-err').textContent = '';
+    $('verify-err').style.color = '';
+    $('acct-verify-btn').disabled = true;
+    $('acct-verify-btn').textContent = tr('Verifying…');
     try {
       const res = await api('/api/auth/verify', {
         method: 'POST',
@@ -1844,19 +1917,34 @@
         body: JSON.stringify({ email: pendingEmail, code: $('acct-code').value.trim(), device: deviceId }),
       });
       const data = await res.json();
-      if (!res.ok) { $('verify-err').textContent = data.error || 'Wrong code.'; return; }
+      if (!res.ok) { $('verify-err').textContent = data.error || tr('Wrong code.'); return; }
+      const wasSignup = acctMode === 'signup';
       applyAuth(data);
       $('acct-pw').value = '';
       hideVerify();
       closeAcct();
+      if (wasSignup) toast(tr("You're in — welcome to ParkPulse! 🎢"));
       load();
-    } catch { $('verify-err').textContent = 'Connection trouble — try again.'; }
+    } catch { $('verify-err').textContent = tr('Connection trouble — try again.'); }
+    finally {
+      $('acct-verify-btn').disabled = false;
+      $('acct-verify-btn').textContent = tr('Verify');
+    }
   });
+  // The code arrives by email; digits-only input plus auto-submit at six
+  // digits means most people never touch the Verify button.
+  $('acct-code').addEventListener('input', () => {
+    const v = $('acct-code').value.replace(/\D/g, '').slice(0, 6);
+    if (v !== $('acct-code').value) $('acct-code').value = v;
+    if (v.length === 6) $('acct-verify-btn').click();
+  });
+  $('acct-verify-back').addEventListener('click', () => { hideVerify(); $('acct-email').focus(); });
   $('acct-resend').addEventListener('click', async () => {
     try {
       await api('/api/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: pendingEmail, resend: true }) });
       $('verify-err').style.color = 'var(--green)';
-      $('verify-err').textContent = 'New code sent.';
+      $('verify-err').textContent = tr('New code sent.');
+      startResendCooldown(30);
       setTimeout(() => { $('verify-err').style.color = ''; $('verify-err').textContent = ''; }, 4000);
     } catch {}
   });
