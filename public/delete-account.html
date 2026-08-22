@@ -1,0 +1,113 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2c2154">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Delete your account — ParkPulse</title>
+<style>
+  :root { --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485; --brand: #4f3ac9; --border: #e3dff2;
+    --danger: #b3324a; --danger-btn: #b3324a; --danger-soft: #fbe9ec; --danger-line: #e7b9c2; --ok: #1d7a4f; --ok-soft: #e2f5ea; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4; --brand: #8f7bf0; --border: #362c5c;
+      --danger: #f07a92; --danger-btn: #c0405a; --danger-soft: #331a22; --danger-line: #5c2f3b; --ok: #4fc98a; --ok-soft: #14301f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  nav { padding: .5rem 0 1.5rem; }
+  .logo { font-weight: 800; font-size: 1.15rem; color: var(--brand); text-decoration: none; }
+  h1 { font-size: 1.6rem; margin: 0 0 .5rem; }
+  h2 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; }
+  p { margin: 0 0 .9rem; }
+  ul { margin: 0 0 .9rem; padding-left: 1.2rem; }
+  li { margin-bottom: .3rem; }
+  a { color: var(--brand); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; margin: 1.2rem 0; }
+  .card.danger { background: var(--danger-soft); border-color: var(--danger-line); }
+  .card.ok { background: var(--ok-soft); border-color: var(--ok); }
+  label { display: block; font-size: .9rem; font-weight: 600; margin-bottom: .25rem; }
+  input { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+    border-radius: 10px; padding: .65rem .85rem; font-size: 1rem; margin-bottom: .8rem; }
+  button { width: 100%; border: none; border-radius: 12px; padding: .75rem 1rem; font-size: 1rem; font-weight: 800;
+    color: #fff; background: var(--danger-btn); cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  .err { color: var(--danger); font-size: .9rem; min-height: 1.2em; margin: 0 0 .5rem; font-weight: 600; }
+  .muted { color: var(--muted); font-size: .88rem; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+</style>
+<div class="wrap">
+  <nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a></nav>
+
+  <div id="done" class="card ok" style="display:none">
+    <h1 style="margin-top:0">Your account is deleted</h1>
+    <p>Everything tied to it has been erased. There's nothing left to sign in to — thanks for giving ParkPulse a try.</p>
+    <p class="muted" style="margin:0">You can always <a href="/app">start fresh</a> with a new account.</p>
+  </div>
+
+  <div id="form-view">
+    <h1>Delete your ParkPulse account</h1>
+    <p>You can delete your account from inside the app under 👤 <b>Account</b>, or right here if you've already removed it from your phone.</p>
+
+    <h2>What gets deleted</h2>
+    <ul>
+      <li>Your account and password</li>
+      <li>Saved trips, day plans and booking reminders</li>
+      <li>Your AI advisor conversations and everything it remembered about you</li>
+      <li>Wait-drop alerts and push subscriptions on this account</li>
+      <li>Every signed-in session, on every device</li>
+    </ul>
+
+    <h2>What we keep</h2>
+    <p>Records of any purchase are kept for accounting and tax purposes, with your email address stripped out so they no longer identify you. Thumbs-up/down feedback you left on advisor replies is kept the same way — de-identified — so it still helps improve the product.</p>
+
+    <div class="card danger">
+      <p style="font-weight:700;margin-bottom:.5rem">This cannot be undone.</p>
+      <p class="muted" style="margin:0">If you have an active pass, deleting your account forfeits the remaining time. There is no refund and no way to restore it.</p>
+    </div>
+
+    <div class="card">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="you@example.com">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Your password">
+      <p class="err" id="err"></p>
+      <button id="go">Permanently delete my account</button>
+      <p class="muted" style="margin:.7rem 0 0;text-align:center">Changed your mind? <a href="/app">Go back to ParkPulse</a></p>
+    </div>
+
+    <p class="muted">Trouble signing in? Email <a href="mailto:luisrubiof@gmail.com">luisrubiof@gmail.com</a> from the address on the account and we'll delete it for you.</p>
+  </div>
+
+  <footer>
+    <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/">ParkPulse</a>
+  </footer>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  if (new URLSearchParams(location.search).get('done')) {
+    $('done').style.display = 'block';
+    $('form-view').style.display = 'none';
+  }
+  $('go').addEventListener('click', async () => {
+    const email = $('email').value.trim();
+    const password = $('password').value;
+    $('err').textContent = '';
+    if (!email || !password) { $('err').textContent = 'Enter your email and password.'; return; }
+    if (!confirm('Permanently delete the ParkPulse account for ' + email + '? This cannot be undone.')) return;
+    $('go').disabled = true;
+    try {
+      const res = await fetch('/api/auth/delete', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { $('err').textContent = data.error || 'Could not delete the account.'; $('go').disabled = false; return; }
+      try { localStorage.clear(); sessionStorage.clear(); } catch {}
+      location.href = '/delete-account?done=1';
+    } catch {
+      $('err').textContent = 'Network problem — please try again.';
+      $('go').disabled = false;
+    }
+  });
+</script>

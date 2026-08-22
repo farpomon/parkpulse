@@ -13,14 +13,14 @@
     --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
     --brand: #4f3ac9; --brand-soft: #eceaff; --border: #e3dff2;
     --green: #1d7a4f; --green-soft: #e2f5ea; --gold: #a06f00; --gold-soft: #fdf3d7;
-    --red: #b23a48; --red-soft: #fbe9ec; --star: #e8a800; --skeleton: #ece8f8;
+    --red: #b23a48; --red-soft: #fbe9ec; --red-btn: #b3324a; --star: #e8a800; --skeleton: #ece8f8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4;
       --brand: #8f7bf0; --brand-soft: #2e2455; --border: #362c5c;
       --green: #5ecb96; --green-soft: #1c3a2c; --gold: #e5b955; --gold-soft: #3d331f;
-      --red: #ef8b96; --red-soft: #46242a; --skeleton: #2b2350;
+      --red: #ef8b96; --red-soft: #46242a; --red-btn: #c0405a; --skeleton: #2b2350;
     }
   }
   * { box-sizing: border-box; }
@@ -335,6 +335,15 @@
     <p class="acct-status"><b id="acct-who"></b><span id="acct-plan"></span><span id="acct-devices" style="display:block;color:var(--muted);font-size:.85rem"></span></p>
     <button class="btn wide" id="acct-logout">Log out</button>
     <button class="btn wide" id="acct-logout-all" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
+    <p class="switch" style="margin-top:1rem"><a id="acct-del-open" style="color:var(--red)">Delete my account</a></p>
+    <div id="acct-del" style="display:none;margin-top:.6rem;border:1px solid var(--red);background:var(--red-soft);border-radius:12px;padding:.85rem">
+      <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--ink)"><b style="color:var(--red)">This permanently deletes your account.</b> Your trips, saved plans, advisor conversations and alerts are erased and cannot be recovered. Any active pass is lost — no refund.</p>
+      <input type="password" id="acct-del-pw" placeholder="Confirm your password" autocomplete="current-password"
+        style="width:100%;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:10px;padding:.6rem .8rem;font-size:1rem;margin-bottom:.5rem">
+      <p class="err" id="acct-del-err"></p>
+      <button class="btn wide" id="acct-del-go" style="background:var(--red-btn)">Permanently delete</button>
+      <p class="switch" style="margin:.5rem 0 0"><a id="acct-del-cancel">Keep my account</a></p>
+    </div>
   </div>
   <button class="cancel" id="acct-cancel">Close</button>
 </div>
@@ -1360,6 +1369,7 @@
       }).catch(() => {});
     }
     hideVerify();
+    $('acct-del').style.display = 'none';
     $('acct-err').textContent = '';
     $('acct-sheet').classList.add('open');
     $('sheet-bg').classList.add('open');
@@ -1488,6 +1498,36 @@
       const d = await res.json();
       if (res.ok) $('acct-devices').textContent = `Signed out ${d.removed} other session${d.removed === 1 ? '' : 's'} — this device stays in.`;
     } catch {}
+  });
+
+  $('acct-del-open').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('acct-del').style.display = 'block';
+    $('acct-del-err').textContent = '';
+    $('acct-del-pw').value = '';
+    $('acct-del-pw').focus();
+  });
+  $('acct-del-cancel').addEventListener('click', (e) => { e.preventDefault(); $('acct-del').style.display = 'none'; });
+  $('acct-del-go').addEventListener('click', async () => {
+    const pw = $('acct-del-pw').value;
+    if (!pw) { $('acct-del-err').textContent = tr('Enter your password to confirm.'); return; }
+    if (!confirm(tr('Delete your ParkPulse account for good? This cannot be undone.'))) return;
+    $('acct-del-go').disabled = true;
+    try {
+      const res = await api('/api/auth/delete', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: localStorage.getItem('pp-email') || '', password: pw }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { $('acct-del-err').textContent = data.error || tr('Could not delete the account.'); $('acct-del-go').disabled = false; return; }
+      // Clear every local trace, then land on the goodbye page.
+      try {
+        ['pp-session', 'pp-email', 'pp-plan', 'pp-plan-exp', 'pp-pass', 'pp-trip', 'pp-park', 'pp-favs', 'pp-onboarded', 'pp-device'].forEach((k) => localStorage.removeItem(k));
+        sessionStorage.clear();
+      } catch {}
+      location.href = '/delete-account?done=1';
+    } catch {
+      $('acct-del-err').textContent = tr('Network problem — please try again.');
+      $('acct-del-go').disabled = false;
+    }
   });
 
   $('acct-logout').addEventListener('click', () => {

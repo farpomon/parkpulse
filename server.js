@@ -963,6 +963,29 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // Account deletion. Requires the password even when a session is
+      // present — this is irreversible, and re-authenticating protects anyone
+      // whose unlocked phone is borrowed. Works without a session too, so the
+      // public /delete-account page can serve people who removed the app.
+      if (url.pathname === '/api/auth/delete') {
+        const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
+        const password = typeof parsed.password === 'string' ? parsed.password : '';
+        if (!email || !password) return sendJson(res, 400, { error: 'email and password required' });
+        if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
+        const u = db.users.get(email);
+        const ok = u && crypto.timingSafeEqual(Buffer.from(hashPassword(password, u.salt)), Buffer.from(u.hash));
+        if (!ok) { noteLoginFail(email); return sendJson(res, 403, { error: 'wrong email or password' }); }
+        loginFails.delete(email);
+        try {
+          const counts = db.accounts.purge(email);
+          console.log(`account deleted: ${email} — ${JSON.stringify(counts)}`);
+          return sendJson(res, 200, { ok: true, deleted: true });
+        } catch (err) {
+          console.log(`account deletion failed for ${email}: ${err.message}`);
+          return sendJson(res, 500, { error: 'could not delete the account — please contact support' });
+        }
+      }
+
       if (url.pathname === '/api/auth/logout-all') {
         const s2 = sessionUser(req);
         if (!s2) return sendJson(res, 401, { error: 'not logged in' });

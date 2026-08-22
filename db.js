@@ -324,6 +324,45 @@ const trips = {
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
+// Account deletion (required by both app stores, and the right default anyway).
+// Personal data is destroyed; two tables are de-identified instead of dropped:
+// `passes` are sale records worth keeping for accounting, and `advisor_feedback`
+// is product signal — both have their email cleared so nothing points at a
+// person. Wait-drop alerts are keyed by push endpoint rather than account, so
+// the best we can do is drop any that match this account's stored endpoint.
+const accounts = {
+  purge: (email) => {
+    const counts = {};
+    const run = (label, sql) => { counts[label] = db.prepare(sql).run(email).changes; };
+    let endpoint = null;
+    try {
+      const trip = db.prepare('SELECT push_sub FROM trips WHERE email = ?').get(email);
+      if (trip?.push_sub) endpoint = JSON.parse(trip.push_sub).endpoint || null;
+    } catch {}
+
+    db.exec('BEGIN');
+    try {
+      run('sessions', 'DELETE FROM sessions WHERE email = ?');
+      run('trips', 'DELETE FROM trips WHERE email = ?');
+      run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
+      run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
+      run('leads', 'DELETE FROM leads WHERE email = ?');
+      run('feedbackAnonymized', 'UPDATE advisor_feedback SET email = NULL WHERE email = ?');
+      run('passesAnonymized', 'UPDATE passes SET email = NULL WHERE email = ?');
+      run('user', 'DELETE FROM users WHERE email = ?');
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+    // Outside the transaction: alerts live on their own endpoint key.
+    if (endpoint) {
+      try { counts.alerts = db.prepare('DELETE FROM alerts WHERE endpoint = ?').run(endpoint).changes; } catch {}
+    }
+    return counts;
+  },
+};
+
 // Aggregate queries for the operator dashboard (/admin). Counts only — no
 // passwords, hashes, or chat contents ever leave this module.
 const daysAgoIso = (days) => new Date(Date.now() - days * 86400000).toISOString();
@@ -342,4 +381,4 @@ const admin = {
 
 migrateLegacy();
 
-module.exports = { kv, users, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, DB_FILE };
