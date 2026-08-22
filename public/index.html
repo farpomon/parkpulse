@@ -118,26 +118,13 @@
   </div>
 
   <h2 id="pricing">Pricing</h2>
-  <div class="grid">
+  <p class="fine" style="max-width:560px;margin:0 auto 1rem">Every pass includes all 56 parks, the smart plan builder, the AI park advisor, and wait-drop alerts — for your whole family's devices. One Lightning Lane costs $15–$45 <i>per person, per day</i>; a good plan often replaces it.</p>
+  <div class="grid" id="price-grid">
     <div class="card price-card">
       <h3>Free</h3>
       <div class="price">$0</div><div class="per">forever</div>
       <ul><li>Complete strategy guide</li><li>Live waits for one park</li><li>Trip-countdown email tips</li></ul>
       <a class="btn brand" href="/app">Start free</a>
-    </div>
-    <div class="card price-card featured">
-      <span class="badge">MOST POPULAR</span>
-      <h3>Trip Pass</h3>
-      <div class="price">$19.99</div><div class="per">30 days · one trip, everything included</div>
-      <ul><li>Every park, every resort — live</li><li>Smart plan builder</li><li>AI park consultant</li><li>Wait-drop push alerts</li></ul>
-      <p class="fine" style="margin:.25rem 0 .5rem">Free during launch preview</p>
-      <button class="btn brand" data-plan="trip-pass">Lock in this price</button>
-    </div>
-    <div class="card price-card">
-      <h3>Pro Annual</h3>
-      <div class="price">$49</div><div class="per">per year · for passholders</div>
-      <ul><li>Everything in Trip Pass</li><li>All year long</li><li>Early access to new parks</li></ul>
-      <button class="btn brand" data-plan="pro-annual">Go Pro</button>
     </div>
   </div>
 
@@ -172,15 +159,45 @@
 <script>
   let paymentLink = '';
   let checkoutEnabled = false;
+
+  // The pass ladder comes from the server so prices live in one place.
+  const FALLBACK_PLANS = [
+    { id: 'day-pass', usd: '24.99', label: 'Day Pass', per: '1 day' },
+    { id: 'week-pass', usd: '49.99', label: 'Week Pass', per: '7 days', badge: 'MOST POPULAR' },
+    { id: 'month-pass', usd: '69.99', label: 'Month Pass', per: '30 days' },
+    { id: 'half-year-pass', usd: '129.99', label: '6-Month Pass', per: '6 months' },
+    { id: 'year-pass', usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
+  ];
+  const PLAN_NOTES = {
+    'day-pass': 'The price of one person’s Lightning Lane — and it tells your whole family whether to buy any',
+    'week-pass': 'One full trip — $7 a day for the family',
+    'month-pass': 'Long or split trips, fully covered',
+    'half-year-pass': 'A season of park days',
+    'year-pass': 'For locals and passholders — under 55¢ a day',
+  };
+  function renderPlans(plans) {
+    const grid = document.getElementById('price-grid');
+    grid.querySelectorAll('[data-plan-card]').forEach((n) => n.remove());
+    for (const p of plans) {
+      const div = document.createElement('div');
+      div.className = 'card price-card' + (p.badge === 'MOST POPULAR' ? ' featured' : '');
+      div.dataset.planCard = p.id;
+      div.innerHTML = `${p.badge ? `<span class="badge">${p.badge}</span>` : ''}
+        <h3>${p.label}</h3>
+        <div class="price">$${p.usd}</div><div class="per">${p.per}</div>
+        <ul><li>${PLAN_NOTES[p.id] || 'Everything included'}</li></ul>
+        <button class="btn brand" data-plan="${p.id}">${checkoutEnabled ? 'Get ' + p.label : 'Lock in this price'}</button>`;
+      grid.appendChild(div);
+      div.querySelector('button[data-plan]').addEventListener('click', buyHandler);
+    }
+  }
+  renderPlans(FALLBACK_PLANS);
+
   fetch('/api/config').then(r => r.json()).then(c => {
     paymentLink = c.paymentLink;
     checkoutEnabled = !!c.checkout;
-    if (checkoutEnabled) {
-      // Real checkout is live — restore buy labels.
-      document.querySelectorAll('button[data-plan]').forEach((b) => {
-        b.textContent = b.dataset.plan === 'trip-pass' ? 'Get Trip Pass' : 'Go Pro';
-      });
-    }
+    if (Array.isArray(c.plans) && c.plans.length) renderPlans(c.plans);
+    else if (checkoutEnabled) renderPlans(FALLBACK_PLANS);
   }).catch(() => {});
 
   function capture(email, plan) {
@@ -201,33 +218,32 @@
     setTimeout(() => { toast.style.display = 'none'; }, 3000);
   });
 
-  document.querySelectorAll('button[data-plan]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (checkoutEnabled) {
-        btn.disabled = true;
-        try {
-          const res = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan: btn.dataset.plan }) });
-          const data = await res.json();
-          if (!res.ok || !data.url) throw new Error();
-          location.href = data.url;
-          return;
-        } catch {
-          btn.disabled = false;
-          alert('Checkout is having a moment — please try again.');
-          return;
-        }
+  async function buyHandler(e) {
+    const btn = e.currentTarget;
+    if (checkoutEnabled) {
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan: btn.dataset.plan }) });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error();
+        location.href = data.url;
+        return;
+      } catch {
+        btn.disabled = false;
+        alert('Checkout is having a moment — please try again.');
+        return;
       }
-      if (paymentLink) { location.href = paymentLink; return; }
-      // Pre-launch: checkout not configured yet, capture intent instead.
-      const email = prompt("We're launching soon! Leave your email and lock in this price:");
-      if (email) {
-        capture(email, btn.dataset.plan).catch(() => {});
-        const toast = document.getElementById('toast');
-        toast.textContent = "Price locked — we'll email you at launch! 🎉";
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 3500);
-      }
-    });
-  });
+    }
+    if (paymentLink) { location.href = paymentLink; return; }
+    // Pre-launch: checkout not configured yet, capture intent instead.
+    const email = prompt("We're launching soon! Leave your email and lock in this price:");
+    if (email) {
+      capture(email, btn.dataset.plan).catch(() => {});
+      const toast = document.getElementById('toast');
+      toast.textContent = "Price locked — we'll email you at launch! 🎉";
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    }
+  }
 </script>
 <script src="/chat-widget.js" defer></script>
