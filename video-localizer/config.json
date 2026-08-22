@@ -1,0 +1,14 @@
+{
+  "source_language": "en",
+  "languages": {
+    "es": { "name": "Spanish (Latin America)", "voice": "Kore" },
+    "pt": { "name": "Portuguese (Brazil)", "voice": "Aoede" },
+    "fr": { "name": "French", "voice": "Leda" },
+    "hi": { "name": "Hindi", "voice": "Kore" }
+  },
+  "translate_model": "gemini-2.5-flash",
+  "tts_model": "gemini-2.5-flash-preview-tts",
+  "audience": "children aged 4 to 7",
+  "voice_style": "Warm, cheerful storyteller reading to young children. Clear diction, gentle energy, not too fast.",
+  "max_speedup": 1.25
+}
