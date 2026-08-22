@@ -48,14 +48,33 @@ const FREE_PARK = 'magic-kingdom';
 // A pass is a self-contained HMAC-signed token {plan, exp} issued after a paid
 // Stripe Checkout session (or via the developer code). No accounts needed.
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
-const STRIPE_PRICES = { 'trip-pass': process.env.STRIPE_PRICE_TRIP || '', 'pro-annual': process.env.STRIPE_PRICE_ANNUAL || '' };
-const CHECKOUT_ENABLED = Boolean(STRIPE_KEY && STRIPE_PRICES['trip-pass'] && STRIPE_PRICES['pro-annual']);
+// The pass ladder. Prices are display-only — Stripe Prices (created in the
+// Stripe dashboard, ids passed via env) are the source of truth for billing.
+const PLAN_CATALOG = [
+  { id: 'day-pass', days: 1, usd: '24.99', label: 'Day Pass', per: '1 day' },
+  { id: 'week-pass', days: 7, usd: '49.99', label: 'Week Pass', per: '7 days', badge: 'MOST POPULAR' },
+  { id: 'month-pass', days: 30, usd: '69.99', label: 'Month Pass', per: '30 days' },
+  { id: 'half-year-pass', days: 182, usd: '129.99', label: '6-Month Pass', per: '6 months' },
+  { id: 'year-pass', days: 365, usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
+];
+const STRIPE_PRICES = {
+  'day-pass': process.env.STRIPE_PRICE_DAY || '',
+  'week-pass': process.env.STRIPE_PRICE_WEEK || '',
+  'month-pass': process.env.STRIPE_PRICE_MONTH || '',
+  'half-year-pass': process.env.STRIPE_PRICE_HALFYEAR || '',
+  'year-pass': process.env.STRIPE_PRICE_YEAR || '',
+  // Legacy v0 plans — keep resolvable so their env vars still work if set.
+  'trip-pass': process.env.STRIPE_PRICE_TRIP || '',
+  'pro-annual': process.env.STRIPE_PRICE_ANNUAL || '',
+};
+const CHECKOUT_ENABLED = Boolean(STRIPE_KEY && PLAN_CATALOG.every((p) => STRIPE_PRICES[p.id]));
 // MUST be set in production — the ephemeral default invalidates all passes on restart.
 const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
 if (!process.env.PASS_SECRET) console.log('WARNING: PASS_SECRET not set — issued passes will not survive a restart');
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
-const PLAN_DAYS = { 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
+// Legacy plan ids stay valid so previously issued passes keep working.
+const PLAN_DAYS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
 
 function signToken(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -586,6 +605,7 @@ const server = http.createServer(async (req, res) => {
       paymentLink: PAYMENT_LINK,
       proGate: PRO_GATE,
       checkout: CHECKOUT_ENABLED,
+      plans: PLAN_CATALOG,
       consultant: consultant.enabled(),
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng }])),

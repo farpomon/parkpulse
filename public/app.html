@@ -578,9 +578,9 @@
   }
 
   function showUpsell() {
-    $('plan-out').innerHTML = `<div class="upsell"><strong>56 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in the Trip Pass.</strong><br>
-      $19.99 for 30 days — less than one Lightning Lane ride for a family of four.<br><br>
-      <a href="/#pricing">Get your Trip Pass →</a><br>
+    $('plan-out').innerHTML = `<div class="upsell"><strong>56 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in every ParkPulse pass.</strong><br>
+      From $24.99 for a park day — the price of one person's Lightning Lane, covering your whole family's devices.<br><br>
+      <a href="/#pricing">See passes →</a><br>
       <a href="#" id="redeem-link" style="font-weight:400;font-size:.85rem;opacity:.85">Have a pass code?</a></div>`;
     $('redeem-link').addEventListener('click', async (e) => {
       e.preventDefault();
@@ -1290,7 +1290,7 @@
   function planLabel(plan, exp) {
     if (!plan) return 'Free plan';
     const until = new Date(exp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    const names = { 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer' };
+    const names = { 'day-pass': 'Day Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'year-pass': 'Annual Pass', 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer' };
     return `${names[plan] || plan} · active until ${until}`;
   }
 
