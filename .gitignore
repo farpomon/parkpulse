@@ -9,3 +9,6 @@ data/*.db-*
 node_modules/
 .env
 anthropic-key.txt
+*.db
+*.db-shm
+*.db-wal
