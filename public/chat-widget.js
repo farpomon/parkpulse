@@ -32,7 +32,13 @@
     #ppc-head b { font-size: .98rem; }
     #ppc-head span { display: block; font-size: .74rem; opacity: .8; font-weight: 400; }
     #ppc-close { border: none; background: none; color: #fff; font-size: 1.15rem; cursor: pointer; padding: .25rem .4rem; }
+    #ppc-scrollwrap { flex: 1; min-height: 0; position: relative; display: flex; }
     #ppc-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .55rem; padding: .85rem; }
+    #ppc-jump { position: absolute; bottom: .6rem; left: 50%; transform: translateX(-50%);
+      border: 1px solid var(--ppc-border); background: var(--ppc-card); color: var(--ppc-ink);
+      border-radius: 999px; padding: .32rem .8rem; font: inherit; font-size: .8rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.22); display: none; z-index: 2; }
+    #ppc-jump.ppc-show { display: block; }
     .ppc-bubble { max-width: 86%; border-radius: 13px; padding: .55rem .85rem; white-space: pre-wrap; word-wrap: break-word; }
     .ppc-bubble.ppc-user { align-self: flex-end; background: #4f3ac9; color: #fff; border-bottom-right-radius: 4px; }
     .ppc-bubble.ppc-bot { align-self: flex-start; background: var(--ppc-bg); border: 1px solid var(--ppc-border); border-bottom-left-radius: 4px; }
@@ -90,6 +96,20 @@
   let root, msgs;
   const $id = (id) => root.querySelector('#' + id);
 
+  // Auto-scroll follows new content only while the reader is already at the
+  // bottom. Scroll up to re-read and the view stays put, even mid-answer.
+  let stick = true;
+  const atBottom = () => msgs.scrollHeight - msgs.clientHeight - msgs.scrollTop < 24;
+  function syncJump() {
+    const btn = root && $id('ppc-jump');
+    if (btn) btn.classList.toggle('ppc-show', !stick && !atBottom());
+  }
+  function scrollDown(force) {
+    if (force) stick = true;
+    if (stick) msgs.scrollTop = msgs.scrollHeight;
+    syncJump();
+  }
+
   function mount() {
     const style = document.createElement('style');
     style.textContent = CSS;
@@ -101,7 +121,10 @@
       <div id="ppc-panel" role="dialog" aria-label="Park consultant chat">
         <div id="ppc-head"><div><b>${T()('Park Consultant')}</b><span id="ppc-sub"></span></div>
           <button id="ppc-close" aria-label="Close chat">✕</button></div>
-        <div id="ppc-msgs"></div>
+        <div id="ppc-scrollwrap">
+          <div id="ppc-msgs"></div>
+          <button id="ppc-jump" type="button">↓ ${T()('Jump to latest')}</button>
+        </div>
         <div id="ppc-chips">
           <button data-q="Is it worth buying line-skipping passes here today?">${T()('Worth buying today?')}</button>
           <button data-q="What's the smartest plan for the rest of my day here?">${T()('Plan my day')}</button>
@@ -112,6 +135,9 @@
       </div>`;
     document.body.appendChild(root);
     msgs = $id('ppc-msgs');
+
+    msgs.addEventListener('scroll', () => { stick = atBottom(); syncJump(); }, { passive: true });
+    $id('ppc-jump').addEventListener('click', () => scrollDown(true));
 
     $id('ppc-fab').addEventListener('click', openPanel);
     $id('ppc-close').addEventListener('click', () => $id('ppc-panel').classList.remove('ppc-open'));
@@ -129,7 +155,7 @@
     div.className = 'ppc-bubble ppc-' + role;
     div.textContent = text;
     msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
+    scrollDown(role === 'user'); // your own message always pulls the view down
     return div;
   }
 
@@ -147,6 +173,7 @@
       }
     }
     if (state.history.length) $id('ppc-chips').style.display = 'none';
+    scrollDown(true); // reopening always lands on the newest message
     $id('ppc-input').focus();
   }
 
@@ -173,7 +200,7 @@
       row.appendChild(b);
     }
     msgs.appendChild(row);
-    msgs.scrollTop = msgs.scrollHeight;
+    scrollDown();
   }
 
   function renderAction(action) {
@@ -196,7 +223,7 @@
         a.textContent = 'open the app to apply it';
         div.appendChild(a);
       }
-      msgs.scrollTop = msgs.scrollHeight;
+      scrollDown();
     }
   }
 
@@ -213,7 +240,7 @@
       if (!replyText) { out.classList.remove('ppc-typing'); out.textContent = ''; }
       replyText += t;
       out.textContent = replyText;
-      msgs.scrollTop = msgs.scrollHeight;
+      scrollDown();
     };
     try {
       const context = await state.opts.getContext();
@@ -276,7 +303,7 @@
       saveHistory();
     } finally {
       state.busy = false;
-      msgs.scrollTop = msgs.scrollHeight;
+      scrollDown();
     }
   }
 
