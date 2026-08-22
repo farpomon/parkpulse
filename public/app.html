@@ -1329,13 +1329,28 @@
   let lastForecast = null;
   const diningCache = {};
 
-  async function renderDining() {
+  async function renderDining(pollCount = 0) {
     const el = $('dining');
     const key = current + '|' + (window.PP_LANG || 'en');
+    const parkAtStart = current;
     if (!diningCache[key]) {
-      el.innerHTML = '<div class="state">🍽 …</div>';
+      el.innerHTML = pollCount
+        ? `<div class="state">🍳 ${tr("Cooking up this park's dining guide — about half a minute on the first visit.")}</div>`
+        : '<div class="state">🍽 …</div>';
       try {
         const r = await api(`/api/dining/${current}?lang=${window.PP_LANG || 'en'}`);
+        if (r.status === 202) {
+          // Guide is being generated server-side; poll while the user is
+          // still on this park's dining view, then bow out to the retry UI.
+          if (pollCount < 22) {
+            setTimeout(() => {
+              if (viewMode === 'dining' && current === parkAtStart) renderDining(pollCount + 1);
+            }, 4000);
+            if (!pollCount) renderDining(1); // swap in the friendly message now
+            return;
+          }
+          throw new Error('timeout');
+        }
         if (!r.ok) throw new Error();
         diningCache[key] = await r.json();
       } catch {
