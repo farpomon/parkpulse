@@ -283,10 +283,12 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
   let emittedText = false;
   let turnEmitted = false;
 
+  let continuations = 0;
+  let continuing = false; // true while resuming a max_tokens cut — no separator
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const stream = client.beta.messages.stream({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 3000,
       output_config: { effort: 'medium' },
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
@@ -298,13 +300,14 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     turnEmitted = false;
     for await (const ev of stream) {
       if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta' && ev.delta.text) {
-        if (!turnEmitted && emittedText) send('delta', { text: '\n\n' }); // separate pre-tool preamble from post-tool answer
+        if (!turnEmitted && emittedText && !continuing) send('delta', { text: '\n\n' }); // separate pre-tool preamble from post-tool answer
         turnEmitted = true;
         emittedText = true;
         send('delta', { text: ev.delta.text });
       }
     }
     const msg = await stream.finalMessage();
+    continuing = false;
 
     if (msg.stop_reason === 'refusal') {
       send('delta', { text: "I'll pass on that one — but ask me anything about beating the lines and I'm all yours! 🎢" });
@@ -324,7 +327,15 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
       continue;
     }
     if (msg.stop_reason === 'pause_turn') continue;
-    break; // end_turn / max_tokens
+    // Ran out of output budget mid-answer: pick up exactly where it stopped
+    // instead of leaving the user a sentence cut in half. One retry is plenty.
+    if (msg.stop_reason === 'max_tokens' && continuations < 1) {
+      continuations++;
+      continuing = true;
+      convo.push({ role: 'user', content: 'Your answer was cut off by the output limit. Continue exactly where it stopped — mid-sentence if needed, same language — without repeating anything or adding a preamble.' });
+      continue;
+    }
+    break; // end_turn
   }
 
   send('done', {});
@@ -348,6 +359,16 @@ async function describeRide(parkName, rideName, lang) {
 
 // One-shot park dining guide as strict JSON, generated once per park per
 // language and cached by the caller. Honesty-guarded: only well-known spots.
+// Strict-JSON responses occasionally arrive wrapped in a stray sentence.
+// Parse the whole string first, then fall back to the outermost [...] block.
+function parseJsonArray(raw) {
+  try { return JSON.parse(raw); } catch {}
+  const start = raw.indexOf('[');
+  const end = raw.lastIndexOf(']');
+  if (start === -1 || end <= start) return null;
+  try { return JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
+}
+
 async function diningGuide(parkName, group, lang) {
   const msg = await client.beta.messages.create({
     model: MODEL,
@@ -361,7 +382,9 @@ async function diningGuide(parkName, group, lang) {
   if (msg.stop_reason === 'refusal') return null;
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
-  const list = JSON.parse(raw);
+  // Be forgiving about a stray sentence around the array — a whole guide
+  // shouldn't be lost to one word of preamble.
+  const list = parseJsonArray(raw);
   if (!Array.isArray(list)) return null;
   return list.slice(0, 8).map((r) => ({
     name: String(r.name || '').slice(0, 80),
@@ -381,7 +404,7 @@ async function rideTags(parkName, rideNames) {
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). If you do not know a specific attraction, infer conservatively from its name.',
+    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });
   if (msg.stop_reason === 'refusal') return null;
@@ -395,6 +418,7 @@ async function rideTags(parkName, rideNames) {
     out[r.name] = {
       vibe: ['gentle', 'family', 'thrill', 'water', 'show'].includes(r.vibe) ? r.vibe : 'family',
       minAge: [0, 3, 7, 12].includes(r.minAge) ? r.minAge : 3,
+      sr: Boolean(r.sr),
     };
   }
   return out;

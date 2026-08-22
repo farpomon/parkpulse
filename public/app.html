@@ -35,6 +35,11 @@
   .topline .right { display: flex; align-items: center; gap: .6rem; }
   .updated { color: var(--muted); font-size: .78rem; }
   .iconbtn { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 10px; padding: .4rem .6rem; font-size: 1rem; cursor: pointer; }
+  /* Native language names vary hugely in width; cap the picker so the
+     header never overflows, and let the whole row wrap on tiny screens. */
+  #lang { max-width: 8.5rem; }
+  .topline { flex-wrap: wrap; row-gap: .35rem; }
+  .topline .right { flex-wrap: wrap; justify-content: flex-end; }
   .iconbtn:active { transform: scale(.94); }
   .iconbtn.spinning { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -47,7 +52,7 @@
   .tabs button.active { background: linear-gradient(135deg, var(--brand), #7b5fe0); border-color: transparent; color: #fff; box-shadow: 0 3px 10px rgba(79,58,201,.30); }
   .searchrow { position: relative; margin: .25rem 0 .6rem; }
   .searchrow input { width: 100%; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .6rem 2.4rem .6rem 1rem; font-size: 1rem; }
-  .searchrow .clear { position: absolute; right: .4rem; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; display: none; padding: .3rem; }
+  .searchrow .clear { position: absolute; inset-inline-end: .4rem; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; display: none; padding: .3rem; }
   .crowdline { color: var(--muted); font-size: .82rem; margin: 0 0 .5rem; }
   .crowdline b { color: var(--ink); }
   .ride { display: flex; align-items: center; gap: .6rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: .65rem .8rem; margin: .5rem 0;
@@ -57,6 +62,16 @@
   .ride .mid { cursor: pointer; }
   .ride-desc { flex-basis: 100%; order: 9; font-size: .84rem; color: var(--muted); line-height: 1.5;
     border-top: 1px dashed var(--border); margin-top: .55rem; padding-top: .5rem; animation: rise .2s ease; }
+  .sr-ask, .sr-set { flex-basis: 100%; order: 10; font-size: .82rem; line-height: 1.5; border-top: 1px dashed var(--border);
+    margin-top: .55rem; padding-top: .5rem; animation: rise .2s ease; }
+  .sr-ask b { color: var(--ink); }
+  .sr-ask .sr-warn { display: block; color: var(--muted); }
+  .sr-btns { display: inline-flex; gap: .45rem; margin-top: .35rem; }
+  .sr-btns button { border: 1.5px solid var(--brand); background: none; color: var(--brand); border-radius: 999px;
+    padding: .3rem 1.05rem; font-weight: 800; font-size: .82rem; cursor: pointer; }
+  .sr-btns button[data-v="1"] { background: linear-gradient(135deg, var(--brand), #7b5fe0); color: #fff; border-color: transparent; }
+  .sr-set { color: var(--muted); cursor: pointer; }
+  .sr-set b.on { color: var(--green); }
   .ride input[type=checkbox] { width: 1.2rem; height: 1.2rem; accent-color: var(--brand); flex-shrink: 0; }
   .ride .mid { flex: 1; min-width: 0; }
   .ride .name { font-weight: 600; font-size: .95rem; line-height: 1.3; }
@@ -101,12 +116,30 @@
   .btn:hover { filter: brightness(1.06); }
   .btn:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(79,58,201,.30); }
   .listtools { display: flex; justify-content: space-between; margin: 0 0 .1rem; }
+  .sectionhead { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem 1rem;
+    flex-wrap: wrap; margin: 1.5rem 0 .2rem; padding-top: .9rem; border-top: 2px solid var(--border); }
+  .sectionhead h2 { margin: 0; font-size: 1.06rem; font-weight: 800; letter-spacing: -.015em; }
+  .sectionhead .listtools { margin: 0; gap: 1rem; flex: 0 0 auto; }
+  .dinehero { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem 1.15rem 1rem;
+    margin: .5rem 0 .9rem; position: relative; overflow: hidden;
+    box-shadow: 0 2px 6px rgba(20,12,48,.06), 0 10px 30px rgba(20,12,48,.07); }
+  .dinehero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--brand), #9b6bf0, #ffd94d); }
+  .dinehero h3 { margin: .15rem 0 .2rem; font-size: 1.18rem; letter-spacing: -.015em; }
+  .dinehero .dh-sub { margin: 0 0 .8rem; color: var(--muted); font-size: .88rem; }
+  .dinehero .dh-cta { display: block; text-align: center; background: linear-gradient(135deg, var(--brand), #7b5fe0);
+    color: #fff; font-weight: 800; text-decoration: none; border-radius: 12px; padding: .7rem 1rem; margin-bottom: .85rem;
+    box-shadow: 0 3px 12px rgba(79,58,201,.28); }
+  .dinehero .dh-row { display: flex; gap: .6rem; align-items: flex-start; font-size: .84rem; color: var(--muted);
+    padding: .45rem 0; border-top: 1px solid var(--border); }
+  .dinehero .dh-row span { flex-shrink: 0; font-size: .95rem; line-height: 1.3; }
+  .dinehero .dh-row b { display: block; color: var(--ink); font-size: .85rem; margin-bottom: .05rem; }
   .dine-tags { font-size: .72rem; font-weight: 800; color: var(--brand); text-transform: uppercase; letter-spacing: .04em; margin-top: .1rem; }
   .dine-blurb { font-size: .84rem; color: var(--muted); line-height: 1.45; margin-top: .15rem; }
   .dine-note { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
   .listtools a { color: var(--brand); font-size: .82rem; font-weight: 800; text-decoration: none; cursor: pointer; }
   .plan-note { background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); border-radius: 10px; padding: .4rem .7rem; font-size: .78rem; font-weight: 700; margin-top: .5rem; display: flex; gap: .5rem; align-items: center; }
-  .plan-note button { margin-left: auto; border: none; background: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0 .1rem; }
+  .plan-note button { margin-inline-start: auto; border: none; background: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0 .1rem; }
   .ll-row { display: flex; align-items: center; gap: .55rem; padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .95rem; }
   .ll-row input { width: 1.15rem; height: 1.15rem; accent-color: var(--brand); }
   #ll-cost { font-weight: 800; color: var(--brand); margin: .7rem 0 .2rem; }
@@ -114,10 +147,10 @@
   .planrow .planday { flex: 1 1 11rem; padding: .7rem 1rem; font-size: .95rem; margin: 0; }
   .planrow label { display: flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); font-weight: 600; }
   .planrow select { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 9px; padding: .5rem .4rem; font-size: .88rem; font-weight: 600; }
-  .skipcard { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 14px; padding: .6rem .85rem; margin: 0 0 .6rem; font-size: .86rem; box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); }
+  .skipcard { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; background: var(--card); border: 1px solid var(--border); border-inline-start: 4px solid var(--brand); border-radius: 14px; padding: .6rem .85rem; margin: 0 0 .6rem; font-size: .86rem; box-shadow: 0 1px 2px rgba(20,12,48,.05), 0 4px 14px rgba(20,12,48,.04); }
   .skipcard .sk-main { flex: 1; min-width: 12rem; }
   .skipcard b { font-size: .92rem; }
-  .skipcard .sk-price { color: var(--muted); margin-left: .35rem; }
+  .skipcard .sk-price { color: var(--muted); margin-inline-start: .35rem; }
   .skipcard .sk-note { color: var(--muted); font-size: .78rem; }
   .skipcard .sk-verdict { font-weight: 700; font-size: .84rem; }
   .skipcard .sk-verdict.buy { color: var(--gold); }
@@ -152,10 +185,16 @@
   .landhead { margin: 1.1rem 0 .3rem; font-size: .78rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
   .landhead::before { content: ''; width: .55rem; height: .55rem; border-radius: 3px; background: linear-gradient(135deg, var(--brand), #9b6bf0); flex-shrink: 0; }
   #rides > .landhead:first-child { margin-top: .4rem; }
-  .filterbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 21; background: var(--card); border-top: 1px solid var(--border);
-    padding: .45rem 1rem calc(.45rem + env(safe-area-inset-bottom)); display: flex; gap: .5rem; align-items: center; box-shadow: 0 -4px 16px rgba(20,12,48,.10); }
-  .filterbar select { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 9px; padding: .45rem .5rem; font-size: .86rem; font-weight: 700; }
-  .planbar { position: fixed; bottom: calc(2.9rem + env(safe-area-inset-bottom)); left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem .7rem; display: none; z-index: 20; box-shadow: 0 -6px 24px rgba(20,12,48,.12); }
+  /* Filter chips live in a bottom sheet (big thumb targets, clear of the
+     iPhone home-indicator zone) opened from the section header. */
+  .chipgroup { margin-bottom: 1rem; }
+  .chipgroup h4 { margin: 0 0 .5rem; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .chipgrid { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chipgrid button { border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 999px;
+    padding: .6rem 1rem; font-size: .92rem; font-weight: 700; cursor: pointer; min-height: 44px; }
+  .chipgrid button.on { background: linear-gradient(135deg, var(--brand), #7b5fe0); color: #fff; border-color: transparent; }
+  #filter-open.active { color: var(--gold); }
+  .planbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--brand); padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom)); display: none; z-index: 20; box-shadow: 0 -6px 24px rgba(20,12,48,.12); }
   .planbar.visible { display: block; }
   .planbar .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .9rem; }
   .planbar select { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .4rem .5rem; font-size: .9rem; }
@@ -167,11 +206,11 @@
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
   @media (prefers-reduced-motion: reduce) { .plan { animation: none; } }
   .plan h2 { margin: 0 0 .35rem; font-size: 1.15rem; letter-spacing: -.01em; }
-  .plan .plan-x { position: absolute; top: .6rem; right: .7rem; border: none; background: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: .3rem; }
+  .plan .plan-x { position: absolute; top: .6rem; inset-inline-end: .7rem; border: none; background: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: .3rem; }
   .plan .savings { color: var(--green); font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
   .step { display: flex; gap: .8rem; padding: .55rem 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
   .step .what { flex: 1; }
-  .step .stepdone { margin-left: auto; border: 1.5px solid var(--border); background: var(--bg); color: var(--green); border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; font-weight: 800; flex-shrink: 0; }
+  .step .stepdone { margin-inline-start: auto; border: 1.5px solid var(--border); background: var(--bg); color: var(--green); border-radius: 999px; width: 1.8rem; height: 1.8rem; cursor: pointer; font-weight: 800; flex-shrink: 0; }
   .step.done .what, .step.done .time { text-decoration: line-through; opacity: .5; }
   .step.done .stepdone { background: var(--green); color: #fff; border-color: var(--green); }
   .step.sugg .what b { font-weight: 700; opacity: .85; }
@@ -190,7 +229,7 @@
 <div class="wrap">
   <header>
     <div class="topline">
-      <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-right:.2rem"> ParkPulse</a>
+      <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-inline-end:.2rem"> ParkPulse</a>
       <span class="right">
         <span class="updated" id="updated"></span>
         <select class="iconbtn" id="lang" title="Language" aria-label="Language"></select>
@@ -219,35 +258,25 @@
   <p class="crowdline" id="crowdline"></p>
   <div id="skipcard"></div>
   <div id="forecast"></div>
-  <div class="listtools"><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
-  <div id="dining" style="display:none"></div>
   <div id="plan-out"></div>
+  <div class="sectionhead">
+    <h2 id="listhead-title">🎢 Park attractions</h2>
+    <div class="listtools"><a id="filter-open" style="display:none">🎛 Filters</a><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
+  </div>
+  <div id="dining" style="display:none"></div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
   <footer>
-    Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.
-    Unofficial fan tool — not affiliated with The Walt Disney Company.
-    <a href="#" id="howworks">How it works</a> · <a href="/guide">Free strategy guide</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>
+    <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>.
+    <span id="ft-unofficial">Unofficial fan tool — not affiliated with any park operator.</span>
+    <a href="#" id="howworks">How it works</a> · <a href="/guide" id="ft-guide">Free strategy guide</a> · <a href="/terms" id="ft-terms">Terms</a> · <a href="/privacy" id="ft-privacy">Privacy</a>
   </footer>
 </div>
 
-<div class="filterbar" id="filterbar" style="display:none">
-  <span>🎡</span>
-  <select id="f-vibe" aria-label="Attraction type">
-    <option value="all">All types</option>
-    <option value="gentle">😌 Easy-going</option>
-    <option value="family">👨‍👩‍👧 Family</option>
-    <option value="thrill">🎢 Thrilling</option>
-    <option value="water">💦 Water</option>
-    <option value="show">🎭 Shows</option>
-  </select>
-  <select id="f-age" aria-label="Age rating">
-    <option value="99">Any age rating</option>
-    <option value="0">👶 Toddler-friendly</option>
-    <option value="3">🧒 Ages 3+</option>
-    <option value="7">🧑 Ages 7+</option>
-    <option value="12">🎓 Ages 12+</option>
-  </select>
+<div class="sheet" id="filter-sheet">
+  <h3 id="filter-title">🎛 Filters</h3>
+  <div id="filter-body"></div>
+  <button class="cancel" id="filter-close">Close</button>
 </div>
 
 <div class="planbar" id="planbar">
@@ -255,7 +284,7 @@
     <strong id="picked-count"></strong>
     <label class="lunch"><input type="checkbox" id="lunch"> lunch</label>
     <label class="lunch" id="show-wrap" style="display:none"><input type="checkbox" id="show-cb"> <span id="show-short">show</span></label>
-    <button class="btn" id="build" style="margin-left:auto">Plan it</button>
+    <button class="btn" id="build" style="margin-inline-start:auto">Plan it</button>
   </div>
 </div>
 
@@ -292,7 +321,7 @@
 <div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="How ParkPulse works">
   <div class="card">
     <h2>Welcome to ParkPulse 🎢</h2>
-    <p class="sub">Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:</p>
+    <p class="sub" id="ob-sub">Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:</p>
     <div class="ob-step"><span>📡</span><div><b>See every wait, live</b>Pick your park up top. Waits refresh every minute, grouped by land, with hints like <i>"▼ 20 min below typical — go now"</i> so you catch the steals.</div></div>
     <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b>Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</div></div>
     <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b>One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</div></div>
@@ -420,16 +449,16 @@
 
   function crowdNow() {
     const p = parks[current] || {};
-    const hoursTxt = p.open != null ? `Typical hours ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
+    const hoursTxt = p.open != null ? `${tr('Typical hours')} ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
     const showTxt = p.show ? ` · 🎆 ${p.show.name} ~${hourLabel(p.show.hour)}` : '';
     const h = new Date().getHours();
     const m = HOURLY[h];
     let crowd;
-    if (p.open != null && (h < p.open || h >= p.close)) crowd = 'Park likely closed right now.';
+    if (p.open != null && (h < p.open || h >= p.close)) crowd = tr('Park likely closed right now.');
     else if (m == null) crowd = '';
-    else if (m <= 0.6) crowd = '<b>Light crowds right now</b> — best time to hit a headliner.';
-    else if (m >= 1.05) crowd = '<b>Peak crowds right now</b> — good time for shows, food, or short lines.';
-    else crowd = '<b>Moderate crowds right now</b> — pick your battles.';
+    else if (m <= 0.6) crowd = `<b>${tr('Light crowds right now')}</b> — ${tr('best time to hit a headliner.')}`;
+    else if (m >= 1.05) crowd = `<b>${tr('Peak crowds right now')}</b> — ${tr('good time for shows, food, or short lines.')}`;
+    else crowd = `<b>${tr('Moderate crowds right now')}</b> — ${tr('pick your battles.')}`;
     return `${crowd} ${hoursTxt}${showTxt}`;
   }
 
@@ -437,7 +466,7 @@
     const p = parks[current] || { open: 9, close: 21 };
     const hours = [];
     for (let h = p.open; h <= p.close; h++) hours.push(h);
-    $('start-hour').innerHTML = `<option value="now">Now</option>` + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+    $('start-hour').innerHTML = `<option value="now">${tr('Now')}</option>` + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
     $('end-hour').innerHTML = hours.slice(1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
     $('end-hour').value = String(p.close);
     if (p.show) {
@@ -458,14 +487,33 @@
   const tagsCache = {};
   let fVibe = 'all';
   let fAge = 99;
+
+  // Per-ride single-rider opt-in. Only asked when the AI tags say the ride
+  // actually runs a single-rider line and the ride is picked for the plan.
+  let srChoice = {};
+  try { srChoice = JSON.parse(localStorage.getItem('pp-single') || '{}'); } catch {}
+  const saveSr = () => { try { localStorage.setItem('pp-single', JSON.stringify(srChoice)); } catch {} };
+  const srAvailable = (name) => Boolean(tagsCache[current] && tagsCache[current][name] && tagsCache[current][name].sr);
+  const srOn = (name) => srAvailable(name) && srChoice[name] === true;
+
+  function srPromptHtml(r) {
+    if (!r.open || !pickedNames.has(r.name) || !srAvailable(r.name)) return '';
+    const c = srChoice[r.name];
+    if (c === undefined) {
+      return `<div class="sr-ask" data-name="${encodeURIComponent(r.name)}">🚶 <b>${tr('Single-rider line available')}</b>
+        <span class="sr-warn">${tr('Open to riding separately? Each party member rides alone.')}</span>
+        <span class="sr-btns"><button data-v="1">${tr('Yes')}</button><button data-v="0">${tr('No')}</button></span></div>`;
+    }
+    return `<div class="sr-set" data-name="${encodeURIComponent(r.name)}" role="button" tabindex="0">🚶 ${tr('Single rider')}: <b class="${c ? 'on' : ''}">${c ? tr('Yes') : tr('No')}</b> ⇄</div>`;
+  }
   async function loadTags() {
-    if (tagsCache[current] !== undefined) { $('filterbar').style.display = tagsCache[current] ? 'flex' : 'none'; return; }
+    if (tagsCache[current] !== undefined) { syncFilterButton(); return; }
     try {
       const r = await api(`/api/ride-tags/${current}`);
       tagsCache[current] = r.ok ? (await r.json()).tags : null;
     } catch { tagsCache[current] = null; }
-    $('filterbar').style.display = tagsCache[current] ? 'flex' : 'none';
-    if (tagsCache[current] && (fVibe !== 'all' || fAge !== 99)) renderRides();
+    syncFilterButton();
+    if (tagsCache[current]) renderRides();
   }
   function passesFilter(r) {
     const tags = tagsCache[current];
@@ -523,7 +571,7 @@
       : `<b>⚡ ${skip.name}</b><span class="sk-price">${skip.cur}${skip.low}–${skip.cur}${skip.high}</span>`;
     const askable = consultantOn && window.ParkPulseChat;
     const tripAdvice = (skip.type !== 'none' && savedTrip && savedTrip.dest === parks[current].group) ? bookAdvice(savedTrip) : '';
-    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${skip.note}</div>${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
+    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${tr(skip.note)}</div>${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
@@ -547,10 +595,10 @@
       const f = await res.json();
       lastForecast = f;
       el.innerHTML = `<div class="fcast">
-        <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 Trip</a> · ${tr('Lightest:')} ${f.best} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
+        <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 ${tr('Trip')}</a> · ${tr('Lightest:')} ${tr(f.best)} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.map((d) => `
           <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
-            ${d.dow}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
+            ${tr(d.dow)}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
           </div>`).join('')}
         </div>
       </div>`;
@@ -631,6 +679,7 @@
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
         ${openDesc.has(r.name) ? `<div class="ride-desc">${descCache[current + '|' + r.name] || '…'}</div>` : ''}
+        ${srPromptHtml(r)}
       </div>`;
   }
 
@@ -663,6 +712,7 @@
       const name = decodeURIComponent(cb.dataset.name);
       cb.checked ? pickedNames.add(name) : pickedNames.delete(name);
       updatePlanbar();
+      if (srAvailable(name)) renderRides();
     }));
     $('rides').querySelectorAll('.star').forEach((btn) => btn.addEventListener('click', () => {
       const name = decodeURIComponent(btn.dataset.name);
@@ -671,6 +721,19 @@
       renderRides();
     }));
     $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
+    $('rides').querySelectorAll('.sr-ask button').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = decodeURIComponent(btn.closest('.sr-ask').dataset.name);
+      srChoice[name] = btn.dataset.v === '1';
+      saveSr();
+      renderRides();
+    }));
+    $('rides').querySelectorAll('.sr-set').forEach((el) => el.addEventListener('click', () => {
+      const name = decodeURIComponent(el.dataset.name);
+      srChoice[name] = !srChoice[name];
+      saveSr();
+      renderRides();
+    }));
     $('rides').querySelectorAll('.mid').forEach((m) => m.addEventListener('click', () => {
       const name = decodeURIComponent(m.dataset.ride);
       if (openDesc.has(name)) openDesc.delete(name);
@@ -731,8 +794,10 @@
     }
   }
 
-  function updatePlanbar() {
-    const n = pickedNames.size;
+  function updatePlanbar(plannedCount) {
+    // While picking, the bar counts your selection; once a plan is built it
+    // counts the attractions actually in the plan (starters + suggestions).
+    const n = plannedCount ?? pickedNames.size;
     $('planbar').classList.toggle('visible', n > 0);
     $('picked-count').textContent = `${n} ${n === 1 ? tr('ride') : tr('rides')}`;
   }
@@ -740,16 +805,25 @@
   function updatedLabel() {
     if (!lastData) return '';
     const mins = Math.round((Date.now() - new Date(lastData.updatedAt)) / 60000);
-    const age = mins <= 0 ? 'just now' : `${mins} min ago`;
-    return `${lastData.source === 'live' ? 'Live' : 'Typical (demo)'} · ${age}`;
+    const age = mins <= 0 ? tr('just now') : `${mins} ${tr('min ago')}`;
+    return `${lastData.source === 'live' ? tr('Live') : tr('Typical (demo)')} · ${age}`;
   }
 
+  // Clock style follows the chosen language — 24-hour where that's the norm,
+  // AM/PM where it isn't — instead of forcing US formatting on everyone.
+  let hourFmt = null;
   function hourLabel(h) {
     const whole = Math.floor(h) % 24;
     const mins = Math.round((h - Math.floor(h)) * 60);
-    const ampm = whole >= 12 ? 'PM' : 'AM';
-    const disp = whole % 12 === 0 ? 12 : whole % 12;
-    return `${disp}:${String(mins).padStart(2, '0')} ${ampm}`;
+    try {
+      if (!hourFmt) hourFmt = new Intl.DateTimeFormat(window.PP_LANG || 'en', { hour: 'numeric', minute: '2-digit' });
+      const d = new Date(2020, 0, 1, whole, mins);
+      return hourFmt.format(d);
+    } catch {
+      const ampm = whole >= 12 ? 'PM' : 'AM';
+      const disp = whole % 12 === 0 ? 12 : whole % 12;
+      return `${disp}:${String(mins).padStart(2, '0')} ${ampm}`;
+    }
   }
 
   function buildPlan() {
@@ -827,7 +901,8 @@
         if (r.open && anchorH > 0) anchor = Math.min(1.8, Math.max(0.55, r.wait / (r.typical * todayF * anchorH)));
         return r.typical * todayF * anchor;
       };
-      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : baseWait(r) * mult);
+      const srF = (r) => (srOn(r.name) ? 0.35 : 1); // single-rider line moves ~3x faster
+      const eff = (r) => (llSet.has(r.name) ? Math.min(10, r.wait) : baseWait(r) * mult * srF(r));
       // Low-crowd window: grab the biggest headliner (walk cost eats savings).
       // Otherwise: shortest effective wait, where changing lands adds a walk.
       const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r));
@@ -835,8 +910,8 @@
       const ride = pool.splice(bestIdx, 1)[0];
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
-      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult / 5) * 5);
-      steps.push({ time: t, ride, predicted, suggested: fillMode, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
+      const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult * srF(ride) / 5) * 5);
+      steps.push({ time: t, ride, predicted, suggested: fillMode, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : srOn(ride.name) ? '🚶 ' + tr('single rider — party rides separately') : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
     }
     if (!showDone && end > show.hour) {
@@ -854,8 +929,8 @@
       : "that's one more ride together instead of a queue";
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
-      <h2>${tr('Your plan')}</h2>
-      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 Waits predicted for today's crowds (${tr(lastForecast.days[0].label)}) from each ride's popularity — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">refine with AI</a></p>` : ''}
+      <h2>${tr('Your plan for the day')}</h2>
+      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${tr("Waits predicted for today's crowds")} (${tr(lastForecast.days[0].label)}) ${tr("from each ride's popularity")} — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">${tr('refine with AI')}</a></p>` : ''}
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
@@ -866,6 +941,7 @@
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
+    updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     const refine = document.getElementById('plan-refine');
     if (refine) refine.addEventListener('click', (e) => {
       e.preventDefault();
@@ -955,8 +1031,8 @@
   $('pick-all').addEventListener('click', () => {
     const open = rides.filter((r) => r.open && passesFilter(r));
     const allPicked = open.length && open.every((r) => pickedNames.has(r.name));
-    if (allPicked) { pickedNames.clear(); $('pick-all').textContent = 'Select all'; }
-    else { open.forEach((r) => pickedNames.add(r.name)); $('pick-all').textContent = 'Clear all'; }
+    if (allPicked) { pickedNames.clear(); $('pick-all').textContent = tr('Select all'); }
+    else { open.forEach((r) => pickedNames.add(r.name)); $('pick-all').textContent = tr('Clear all'); }
     renderRides();
     updatePlanbar();
   });
@@ -971,10 +1047,20 @@
   // (dynamic strings go through tr() at render time).
   (function initLang() {
     const sel = $('lang');
-    sel.innerHTML = Object.entries(window.PP_LANGS || { en: 'EN' })
-      .map(([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`).join('');
+    const entries = Object.entries(window.PP_LANGS || { en: 'EN' });
+    const opt = ([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`;
+    // The five most-spoken sit in their own group at the top of the list.
+    sel.innerHTML = entries.length > 6
+      ? `<optgroup label="${tr('Most spoken')}">${entries.slice(0, 5).map(opt).join('')}</optgroup>` +
+        `<optgroup label="${tr('More languages')}">${entries.slice(5).map(opt).join('')}</optgroup>`
+      : entries.map(opt).join('');
     sel.addEventListener('change', () => window.PP_SET_LANG(sel.value));
     if (!window.PP_LANG || window.PP_LANG === 'en') return;
+    // The dictionary may still be in flight on a first visit; retext once it lands.
+    (window.PP_READY || Promise.resolve()).then(applyStaticText);
+  })();
+
+  function applyStaticText() {
     $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
     $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
     $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
@@ -998,7 +1084,26 @@
     $('acct-forgot').textContent = tr('Forgot password?');
     $('acct-logout').textContent = tr('Log out');
     $('acct-cancel').textContent = tr('Close');
-  })();
+    $('pick-all').textContent = tr('Select all');
+    $('view-toggle').textContent = '🍽 ' + tr('Dining');
+    // Filter menus: translate the label, keep the emoji and the value
+    // The picker is built before the dictionary lands, so relabel its groups now.
+    const groups = $('lang').querySelectorAll('optgroup');
+    if (groups[0]) groups[0].label = tr('Most spoken');
+    if (groups[1]) groups[1].label = tr('More languages');
+    $('ft-data').textContent = tr('Wait-time data powered by');
+    $('ft-unofficial').textContent = tr('Unofficial fan tool — not affiliated with any park operator.');
+    $('ft-guide').textContent = tr('Free strategy guide');
+    $('ft-terms').textContent = tr('Terms');
+    $('ft-privacy').textContent = tr('Privacy');
+    $('ob-sub').textContent = tr("Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:");
+    document.querySelectorAll('#onboard .ob-step').forEach((stepEl) => {
+      const b = stepEl.querySelector('b');
+      if (b) b.textContent = tr(b.textContent);
+    });
+    // read the DOM, not viewMode — this can run before that binding exists
+    $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions');
+  }
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
   // biggest open headliners.
@@ -1086,7 +1191,7 @@
   function bookAdvice(trip) {
     if (!trip || !trip.start || !trip.dest) return '';
     const g = trip.dest, onsite = !!trip.onsite;
-    const fmt = (d) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const fmt = (d) => d.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
     const start = new Date(trip.start + 'T12:00:00');
     let msg = '';
     if (g === 'Walt Disney World') {
@@ -1129,7 +1234,7 @@
   function tripRows(plan) {
     return plan.map((d) => {
       const day = new Date(d.date + 'T12:00:00');
-      const dowName = day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const dowName = day.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}</span></div>`;
     }).join('');
   }
@@ -1234,17 +1339,29 @@
         if (!r.ok) throw new Error();
         diningCache[key] = await r.json();
       } catch {
-        el.innerHTML = '<div class="state">Dining guide unavailable right now — ask the AI instead via the 💬 bubble.</div>';
+        el.innerHTML = `<div class="state">${tr('Dining guide unavailable right now.')}<br>
+          <a href="#" id="dine-retry" style="color:var(--brand);font-weight:800">${tr('Try again')}</a>
+          ${consultantOn ? ` · <a href="#" id="dine-ask2" style="color:var(--brand);font-weight:800">${tr('Ask the AI instead')}</a>` : ''}</div>`;
+        const retry = document.getElementById('dine-retry');
+        if (retry) retry.addEventListener('click', (e) => { e.preventDefault(); renderDining(); });
+        const ask2 = document.getElementById('dine-ask2');
+        if (ask2) ask2.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (window.ParkPulseChat) ParkPulseChat.ask(`Where should we eat at ${parks[current].name} today, and what needs a reservation?`);
+        });
         return;
       }
     }
     const d = diningCache[key];
     const TYPE = { table: 'Table service', quick: 'Quick service', character: 'Character dining' };
     el.innerHTML = `
-      <div class="fcast">
-        <div class="fc-head"><b>🍽 Dining at ${parks[current].name}</b>${d.reserve ? `<a href="${d.reserve.url}" target="_blank" rel="noopener" style="font-weight:800">Reserve →</a>` : ''}</div>
-        ${d.reserve ? `<div class="sk-note">${d.reserve.note} — booking happens in the official app/site.</div>` : ''}
-        <div class="sk-note">Kitchens peak 12:00–1:30 &amp; 6:00–7:30 — mobile-order 30 min ahead or eat off-peak. Parks don't publish live dining waits.</div>
+      <div class="dinehero">
+        <h3>🍽 ${tr('Where to eat at')} ${parks[current].name}</h3>
+        <p class="dh-sub">${d.list.length} ${tr('places worth your time, picked for this park')}</p>
+        ${d.reserve ? `<a class="dh-cta" href="${d.reserve.url}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
+        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${d.reserve.note}</div></div>` : ''}
+        <div class="dh-row"><span>⏰</span><div><b>${tr('Beat the rush')}</b>${tr('Kitchens peak 12:00–1:30 and 6:00–7:30. Mobile-order 30 minutes ahead or eat either side of those windows.')}</div></div>
+        <div class="dh-row"><span>ℹ️</span><div><b>${tr('No live waits')}</b>${tr("Parks don't publish restaurant wait times, so we won't invent them.")}</div></div>
       </div>
       ${d.list.map((r) => `
         <div class="ride">
@@ -1264,6 +1381,7 @@
 
   function setViewMode(mode) {
     viewMode = mode;
+    $('listhead-title').textContent = mode === 'rides' ? '🎢 ' + tr('Park attractions') : '🍽 ' + tr('Dining');
     $('rides').style.display = mode === 'rides' ? '' : 'none';
     $('dining').style.display = mode === 'dining' ? '' : 'none';
     $('pick-all').style.display = mode === 'rides' ? '' : 'none';
@@ -1271,8 +1389,49 @@
     if (mode === 'dining') renderDining();
   }
   $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'rides' ? 'dining' : 'rides'); });
-  $('f-vibe').addEventListener('change', () => { fVibe = $('f-vibe').value; renderRides(); updatePlanbar(); });
-  $('f-age').addEventListener('change', () => { fAge = +$('f-age').value; renderRides(); updatePlanbar(); });
+  // Filter sheet: big tappable chips, opened from the section header — a
+  // fixed bottom bar sat in the iPhone home-indicator zone and fought taps.
+  const VIBE_OPTS = [['all', '🎡', 'All types'], ['gentle', '😌', 'Easy-going'], ['family', '👨‍👩‍👧', 'Family'], ['thrill', '🎢', 'Thrilling'], ['water', '💦', 'Water'], ['show', '🎭', 'Shows']];
+  const AGE_OPTS = [[99, '🎡', 'Any age rating'], [0, '👶', 'Toddler-friendly'], [3, '🧒', 'Ages 3+'], [7, '🧑', 'Ages 7+'], [12, '🎓', 'Ages 12+']];
+
+  function syncFilterButton() {
+    const btn = $('filter-open');
+    btn.style.display = tagsCache[current] ? '' : 'none';
+    const active = (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0);
+    btn.textContent = '🎛 ' + tr('Filters') + (active ? ` · ${active}` : '');
+    btn.classList.toggle('active', active > 0);
+  }
+
+  function renderFilterSheet() {
+    const group = (title, opts, cur, set) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'chipgroup';
+      wrap.innerHTML = `<h4>${title}</h4><div class="chipgrid"></div>`;
+      const grid = wrap.querySelector('.chipgrid');
+      for (const [val, emoji, label] of opts) {
+        const b = document.createElement('button');
+        b.className = String(val) === String(cur) ? 'on' : '';
+        b.textContent = `${emoji} ${tr(label)}`;
+        b.addEventListener('click', () => { set(val); renderFilterSheet(); syncFilterButton(); renderRides(); updatePlanbar(); });
+        grid.appendChild(b);
+      }
+      return wrap;
+    };
+    const body = $('filter-body');
+    body.innerHTML = '';
+    body.appendChild(group(tr('Attraction type'), VIBE_OPTS, fVibe, (v) => { fVibe = v; }));
+    body.appendChild(group(tr('Age rating'), AGE_OPTS, fAge, (v) => { fAge = +v; }));
+  }
+
+  $('filter-open').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('filter-title').textContent = '🎛 ' + tr('Filters');
+    $('filter-close').textContent = tr('Close');
+    renderFilterSheet();
+    $('filter-sheet').classList.add('open');
+    $('sheet-bg').classList.add('open');
+  });
+  $('filter-close').addEventListener('click', () => { $('filter-sheet').classList.remove('open'); $('sheet-bg').classList.remove('open'); });
 
   // 📍 Find my park: nearest covered park by straight-line distance.
   const haversineKm = (la1, lo1, la2, lo2) => {
@@ -1310,7 +1469,7 @@
   // immediately when the user returns to the tab.
   setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('#rides.skeleton')) load({ silent: true }); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load({ silent: true }); });
-  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); $('trip-sheet').classList.remove('open'); $('ll-sheet').classList.remove('open'); });
+  $('sheet-bg').addEventListener('click', () => { closeSheet(); closeAcct(); $('trip-sheet').classList.remove('open'); $('ll-sheet').classList.remove('open'); $('filter-sheet').classList.remove('open'); });
   // First-run welcome: shown once, reopenable from the footer link.
   function toggleOnboard(open) {
     $('onboard').classList.toggle('open', open);
@@ -1351,7 +1510,7 @@
 
   function planLabel(plan, exp) {
     if (!plan) return 'Free plan';
-    const until = new Date(exp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const until = new Date(exp).toLocaleDateString(window.PP_LANG || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const names = { 'day-pass': 'Day Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'year-pass': 'Annual Pass', 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer' };
     return `${names[plan] || plan} · active until ${until}`;
   }

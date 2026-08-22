@@ -864,7 +864,12 @@ const server = http.createServer(async (req, res) => {
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
     const cached = db.ridetags.get(slug);
-    if (cached) return sendJson(res, 200, { tags: JSON.parse(cached) });
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Tags cached before the single-rider flag existed regenerate once.
+      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t);
+      if (fresh) return sendJson(res, 200, { tags: parsed });
+    }
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
     if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
     try {
