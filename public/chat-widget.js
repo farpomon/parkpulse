@@ -150,10 +150,17 @@
     root.querySelectorAll('#ppc-chips button').forEach((b) => b.addEventListener('click', () => send(window.PP_LANG && window.PP_LANG !== 'en' ? b.textContent : b.dataset.q)));
   }
 
+  // The advisor writes light markdown; render just **bold** safely and keep
+  // everything else as escaped plain text.
+  const renderMd = (t) => String(t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+
   function bubble(role, text) {
     const div = document.createElement('div');
     div.className = 'ppc-bubble ppc-' + role;
-    div.textContent = text;
+    if (role === 'bot') div.innerHTML = renderMd(text);
+    else div.textContent = text;
     msgs.appendChild(div);
     scrollDown(role === 'user'); // your own message always pulls the view down
     return div;
@@ -239,7 +246,7 @@
     const appendDelta = (t) => {
       if (!replyText) { out.classList.remove('ppc-typing'); out.textContent = ''; }
       replyText += t;
-      out.textContent = replyText;
+      out.innerHTML = renderMd(replyText);
       scrollDown();
     };
     try {
@@ -283,7 +290,7 @@
       if (streamError) {
         // Partial reply then a mid-stream failure: show it honestly and do
         // not save the dangling half-answer as conversation context.
-        out.textContent = replyText + '\n\n⚠️ ' + streamError;
+        out.innerHTML = renderMd(replyText + '\n\n⚠️ ' + streamError);
         state.history.pop();
         saveHistory();
         actions.forEach(renderAction); // actions already happened server-side

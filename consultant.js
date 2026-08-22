@@ -283,10 +283,12 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
   let emittedText = false;
   let turnEmitted = false;
 
+  let continuations = 0;
+  let continuing = false; // true while resuming a max_tokens cut — no separator
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const stream = client.beta.messages.stream({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 3000,
       output_config: { effort: 'medium' },
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
@@ -298,13 +300,14 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     turnEmitted = false;
     for await (const ev of stream) {
       if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta' && ev.delta.text) {
-        if (!turnEmitted && emittedText) send('delta', { text: '\n\n' }); // separate pre-tool preamble from post-tool answer
+        if (!turnEmitted && emittedText && !continuing) send('delta', { text: '\n\n' }); // separate pre-tool preamble from post-tool answer
         turnEmitted = true;
         emittedText = true;
         send('delta', { text: ev.delta.text });
       }
     }
     const msg = await stream.finalMessage();
+    continuing = false;
 
     if (msg.stop_reason === 'refusal') {
       send('delta', { text: "I'll pass on that one — but ask me anything about beating the lines and I'm all yours! 🎢" });
@@ -324,7 +327,15 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
       continue;
     }
     if (msg.stop_reason === 'pause_turn') continue;
-    break; // end_turn / max_tokens
+    // Ran out of output budget mid-answer: pick up exactly where it stopped
+    // instead of leaving the user a sentence cut in half. One retry is plenty.
+    if (msg.stop_reason === 'max_tokens' && continuations < 1) {
+      continuations++;
+      continuing = true;
+      convo.push({ role: 'user', content: 'Your answer was cut off by the output limit. Continue exactly where it stopped — mid-sentence if needed, same language — without repeating anything or adding a preamble.' });
+      continue;
+    }
+    break; // end_turn
   }
 
   send('done', {});
