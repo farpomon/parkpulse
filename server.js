@@ -738,6 +738,20 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Android app-link verification for the Play Store TWA wrapper. Bubblewrap
+  // prints the signing-key SHA-256 fingerprint; paste it into the Railway
+  // ANDROID_FINGERPRINT variable (comma-separated for multiple keys, e.g. the
+  // upload key plus Play App Signing) and Chrome will drop the URL bar.
+  if (url.pathname === '/.well-known/assetlinks.json') {
+    const prints = (process.env.ANDROID_FINGERPRINT || '').split(',').map((f) => f.trim()).filter(Boolean);
+    const pkg = process.env.ANDROID_PACKAGE || 'fun.parkpulse.twa';
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' });
+    return res.end(JSON.stringify(prints.length ? [{
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: { namespace: 'android_app', package_name: pkg, sha256_cert_fingerprints: prints },
+    }] : []));
+  }
+
   // SEO surface: server-rendered park pages + sitemap + robots.
   const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
   if (parkPage) {
