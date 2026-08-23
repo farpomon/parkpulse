@@ -75,6 +75,7 @@ if (!process.env.PASS_SECRET) console.log('WARNING: PASS_SECRET not set — issu
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 // Legacy plan ids stay valid so previously issued passes keep working.
 const PLAN_DAYS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
+const PLAN_LABELS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])), 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass' };
 
 function signToken(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -405,6 +406,8 @@ const ALERT_CHECK_MS = 5 * 60 * 1000;
 const rideOpenState = new Map();
 async function checkAlerts() {
   for (const slug of db.alerts.parks()) {
+    // One park's failure must never cost the other parks their alerts.
+    try {
     const data = await getWaits(slug);
     if (data.source !== 'live') continue; // never alert off demo data
     // Guardian pass: closure/reopen notices (the alert itself stays armed).
@@ -441,6 +444,7 @@ async function checkAlerts() {
         } // transient errors: keep and retry next cycle
       }
     }
+    } catch (err) { console.log(`alert check failed for ${slug}: ${err.message}`); }
   }
 }
 // Booking-window reminders: Walt Disney World is the only chain with an
@@ -528,6 +532,9 @@ if (process.env.HISTORY !== 'off') {
 
 async function getWaits(slug) {
   const park = PARKS[slug];
+  // A slug that left the registry (or never existed) must not throw — stale
+  // alert rows and hand-typed URLs both funnel arbitrary slugs in here.
+  if (!park) return { park: slug, source: 'unavailable', attribution: '', updatedAt: new Date().toISOString(), rides: [] };
   const cached = waitsCache.get(slug);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
   try {
@@ -1138,7 +1145,7 @@ const server = http.createServer(async (req, res) => {
           const s = sessionUser(req);
           if (s) grantToUser(s.email, plan, verifyPass(token).exp);
           recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null });
-          return sendJson(res, 200, { token, plan, exp: verifyPass(token).exp });
+          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp: verifyPass(token).exp });
         } catch (err) {
           return sendJson(res, 502, { error: 'could not verify payment' });
         }

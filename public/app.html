@@ -428,6 +428,9 @@
 <script src="/chat-widget.js"></script>
 <script>
   const FREE_PARK = 'magic-kingdom';
+  // Ride names come from the third-party waits feed and descriptions/dining
+  // text from the model — all of it must be escaped before touching innerHTML.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // Crowd multiplier on current wait by hour (rope drop low, midday peak, last hour lowest).
   const HOURLY = { 7: .45, 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35, 23: .3 };
   const RIDE_MINUTES = 15;
@@ -735,13 +738,13 @@
     const rode = doneOrder.includes(r.name);
     return `
       <div class="ride${rode ? ' isdone' : ''}">
-        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${r.name} to plan">
-        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
-        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
+        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${esc(r.name)} to plan">
+        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${esc(r.name)}">★</button>
+        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}</span>
         <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
-        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
+        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${esc(r.name)}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
-        ${openDesc.has(r.name) ? `<div class="ride-desc">${descCache[current + '|' + r.name] || '…'}</div>` : ''}
+        ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}</div>` : ''}
         ${srPromptHtml(r)}
       </div>`;
   }
@@ -768,7 +771,7 @@
       }
       const done = new Set(doneOrder);
       $('rides').innerHTML = [...lands.entries()].map(([land, list]) =>
-        `<div class="landhead">${land}</div>` +
+        `<div class="landhead">${esc(land)}</div>` +
         [...list].sort((a, b) => (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
       ).join('');
     }
@@ -1012,10 +1015,10 @@
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ll ? ' 🎟' : ''}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} ${tr('min')}<br>
-           <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${s.ride.name} ridden">✓</button></div>`
+        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
+           <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${esc(s.ride.name)} ridden">✓</button></div>`
       ).join('')}
-      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
+      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
@@ -1451,17 +1454,17 @@
       <div class="dinehero">
         <h3>🍽 ${tr('Where to eat at')} ${parks[current].name}</h3>
         <p class="dh-sub">${d.list.length} ${tr('places worth your time, picked for this park')}</p>
-        ${d.reserve ? `<a class="dh-cta" href="${d.reserve.url}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
-        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${d.reserve.note}</div></div>` : ''}
+        ${d.reserve && /^https?:\/\//i.test(d.reserve.url || '') ? `<a class="dh-cta" href="${esc(d.reserve.url)}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
+        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${esc(d.reserve.note)}</div></div>` : ''}
         <div class="dh-row"><span>⏰</span><div><b>${tr('Beat the rush')}</b>${tr('Kitchens peak 12:00–1:30 and 6:00–7:30. Mobile-order 30 minutes ahead or eat either side of those windows.')}</div></div>
         <div class="dh-row"><span>ℹ️</span><div><b>${tr('No live waits')}</b>${tr("Parks don't publish restaurant wait times, so we won't invent them.")}</div></div>
       </div>
       ${d.list.map((r) => `
         <div class="ride">
           <span class="mid">
-            <span class="name">${r.name}${r.mustBook ? ' 🔒' : ''}</span>
-            <div class="dine-tags">${TYPE[r.type] || r.type} · ${r.price}${r.mustBook ? ' · book early!' : ''}</div>
-            <div class="dine-blurb">${r.blurb}</div>
+            <span class="name">${esc(r.name)}${r.mustBook ? ' 🔒' : ''}</span>
+            <div class="dine-tags">${TYPE[r.type] || esc(r.type)} · ${esc(r.price)}${r.mustBook ? ' · book early!' : ''}</div>
+            <div class="dine-blurb">${esc(r.blurb)}</div>
           </span>
         </div>`).join('')}
       <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 Ask the AI for a dining plan for today</a></p>`;
