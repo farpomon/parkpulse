@@ -212,5 +212,10 @@
  "WhatsApp concierge": "WhatsApp 컨시어지",
  "Text your AI planner — it knows your park, group and plan.": "AI 플래너에게 문자하세요 — 파크, 일행, 일정을 알고 있어요.",
  "Connect on WhatsApp": "WhatsApp 연결",
- "Invite accepted — full access unlocked! 🎉": "초대 수락 — 전체 이용 잠금 해제! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "초대 수락 — 전체 이용 잠금 해제! 🎉",
+ "Map": "지도",
+ "Park map": "파크 지도",
+ "Mapping this park — the first visit takes a minute.": "이 파크를 지도화하는 중 — 처음에는 1분 정도 걸려요.",
+ "Map unavailable for this park.": "이 파크의 지도를 사용할 수 없습니다.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "이 파크는 아직 OpenStreetMap에 없어요 — 등록되면 핀이 표시됩니다."
 }

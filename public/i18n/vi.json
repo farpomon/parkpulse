@@ -212,5 +212,10 @@
  "WhatsApp concierge": "Trợ lý WhatsApp",
  "Text your AI planner — it knows your park, group and plan.": "Nhắn tin cho trợ lý AI — nó biết công viên, nhóm và kế hoạch của bạn.",
  "Connect on WhatsApp": "Kết nối WhatsApp",
- "Invite accepted — full access unlocked! 🎉": "Đã nhận lời mời — mở khóa toàn quyền truy cập! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "Đã nhận lời mời — mở khóa toàn quyền truy cập! 🎉",
+ "Map": "Bản đồ",
+ "Park map": "Bản đồ công viên",
+ "Mapping this park — the first visit takes a minute.": "Đang lập bản đồ công viên — lần đầu mất khoảng một phút.",
+ "Map unavailable for this park.": "Không có bản đồ cho công viên này.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Công viên này chưa có trên OpenStreetMap — ghim sẽ xuất hiện khi có."
 }

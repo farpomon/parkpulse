@@ -212,5 +212,10 @@
  "WhatsApp concierge": "Conserje de WhatsApp",
  "Text your AI planner — it knows your park, group and plan.": "Escribe a tu planificador IA: conoce tu parque, tu grupo y tu plan.",
  "Connect on WhatsApp": "Conectar WhatsApp",
- "Invite accepted — full access unlocked! 🎉": "¡Invitación aceptada: acceso completo desbloqueado! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "¡Invitación aceptada: acceso completo desbloqueado! 🎉",
+ "Map": "Mapa",
+ "Park map": "Mapa del parque",
+ "Mapping this park — the first visit takes a minute.": "Cartografiando este parque: la primera visita tarda un minuto.",
+ "Map unavailable for this park.": "Mapa no disponible para este parque.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Este parque aún no está en OpenStreetMap; los pines aparecerán cuando lo esté."
 }

@@ -212,5 +212,10 @@
  "WhatsApp concierge": "WhatsApp కన్సియర్జ్",
  "Text your AI planner — it knows your park, group and plan.": "మీ AI ప్లానర్‌కు మెసేజ్ చేయండి — మీ పార్క్, బృందం, ప్లాన్ అన్నీ తెలుసు.",
  "Connect on WhatsApp": "WhatsApp కనెక్ట్ చేయండి",
- "Invite accepted — full access unlocked! 🎉": "ఆహ్వానం అంగీకరించారు — పూర్తి యాక్సెస్ అన్‌లాక్! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "ఆహ్వానం అంగీకరించారు — పూర్తి యాక్సెస్ అన్‌లాక్! 🎉",
+ "Map": "మ్యాప్",
+ "Park map": "పార్క్ మ్యాప్",
+ "Mapping this park — the first visit takes a minute.": "ఈ పార్క్ మ్యాప్ అవుతోంది — మొదటిసారి ఒక నిమిషం పడుతుంది.",
+ "Map unavailable for this park.": "ఈ పార్క్‌కు మ్యాప్ అందుబాటులో లేదు.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "ఈ పార్క్ ఇంకా OpenStreetMap‌లో లేదు — వచ్చాక పిన్‌లు కనిపిస్తాయి."
 }

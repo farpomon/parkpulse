@@ -212,5 +212,10 @@
  "WhatsApp concierge": "Консьерж в WhatsApp",
  "Text your AI planner — it knows your park, group and plan.": "Напишите своему ИИ-планировщику — он знает ваш парк, компанию и план.",
  "Connect on WhatsApp": "Подключить WhatsApp",
- "Invite accepted — full access unlocked! 🎉": "Приглашение принято — полный доступ открыт! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "Приглашение принято — полный доступ открыт! 🎉",
+ "Map": "Карта",
+ "Park map": "Карта парка",
+ "Mapping this park — the first visit takes a minute.": "Составляем карту парка — первый раз занимает минуту.",
+ "Map unavailable for this park.": "Карта для этого парка недоступна.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Этот парк ещё не нанесён на OpenStreetMap — метки появятся, как только он там будет."
 }

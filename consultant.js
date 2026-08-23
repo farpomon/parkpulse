@@ -424,6 +424,26 @@ async function diningGuide(parkName, group, lang) {
 
 // One-shot ride classification for a park: vibe + minimum enjoyment age,
 // strict JSON, generated once per park and cached by the caller.
+// Reconcile wait-feed ride names with OpenStreetMap attraction names when
+// normalization alone couldn't pair them ("Rock 'n' Roller Coaster" vs
+// "Rock 'n' Roller Coaster Starring Aerosmith"). One shot per park, cached.
+async function matchNames(parkName, feedNames, osmNames) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 2000,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You match theme-park attraction names between two lists that describe the SAME park: list A from a wait-time feed, list B from OpenStreetMap. Output STRICT JSON only — a JSON array of {"a": string, "b": string} pairs, names copied verbatim from each list, one pair per A-name that clearly refers to the same physical attraction as a B-name. Omit A-names with no confident match. Never pair different attractions just because they are similar types.',
+    messages: [{ role: 'user', content: `Park: ${parkName}\nList A (wait feed):\n${feedNames.map((n) => `- ${n}`).join('\n')}\nList B (OpenStreetMap):\n${osmNames.map((n) => `- ${n}`).join('\n')}` }],
+  });
+  if (msg.stop_reason === 'refusal') return [];
+  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+  const list = JSON.parse(raw);
+  return Array.isArray(list) ? list.filter((p) => p && typeof p.a === 'string' && typeof p.b === 'string') : [];
+}
+
 async function rideTags(parkName, rideNames) {
   const msg = await client.beta.messages.create({
     model: MODEL,
@@ -451,4 +471,4 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

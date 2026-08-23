@@ -212,5 +212,10 @@
  "WhatsApp concierge": "WhatsAppコンシェルジュ",
  "Text your AI planner — it knows your park, group and plan.": "AIプランナーにメッセージ — パーク・グループ・プランを把握しています。",
  "Connect on WhatsApp": "WhatsAppと連携",
- "Invite accepted — full access unlocked! 🎉": "招待を承認 — フルアクセス解除! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "招待を承認 — フルアクセス解除! 🎉",
+ "Map": "マップ",
+ "Park map": "パークマップ",
+ "Mapping this park — the first visit takes a minute.": "このパークを地図化中 — 初回は1分ほどかかります。",
+ "Map unavailable for this park.": "このパークのマップは利用できません。",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "このパークはまだOpenStreetMapに登録されていません — 登録され次第ピンが表示されます。"
 }

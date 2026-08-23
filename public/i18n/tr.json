@@ -212,5 +212,10 @@
  "WhatsApp concierge": "WhatsApp konsiyerj",
  "Text your AI planner — it knows your park, group and plan.": "AI planlayıcına yaz — parkını, grubunu ve planını biliyor.",
  "Connect on WhatsApp": "WhatsApp'ı bağla",
- "Invite accepted — full access unlocked! 🎉": "Davet kabul edildi — tam erişim açıldı! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "Davet kabul edildi — tam erişim açıldı! 🎉",
+ "Map": "Harita",
+ "Park map": "Park haritası",
+ "Mapping this park — the first visit takes a minute.": "Bu park haritalanıyor — ilk ziyaret bir dakika sürer.",
+ "Map unavailable for this park.": "Bu park için harita yok.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Bu park henüz OpenStreetMap'te yok — eklenince pinler görünecek."
 }
