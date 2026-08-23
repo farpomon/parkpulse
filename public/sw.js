@@ -1,8 +1,9 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v59';
-const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json', '/chat-widget.js', '/i18n.js'];
+const CACHE = 'parkpulse-v60';
+const TILES = 'pp-tiles-v1'; // OSM map tiles, capped, survives app-cache bumps
+const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json', '/chat-widget.js', '/i18n.js', '/vendor/leaflet.js', '/vendor/leaflet.css'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(STATIC_ASSETS)).then(() => self.skipWaiting()));
@@ -11,7 +12,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== TILES).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -37,7 +38,23 @@ self.addEventListener('notificationclick', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (e.request.method !== 'GET') return;
+  // Map tiles: cache-first with a soft cap so revisited park maps work on
+  // flaky in-park connections without hoarding storage.
+  if (url.hostname === 'tile.openstreetmap.org') {
+    e.respondWith(caches.open(TILES).then(async (c) => {
+      const hit = await c.match(e.request);
+      if (hit) return hit;
+      const res = await fetch(e.request);
+      if (res.ok) {
+        c.put(e.request, res.clone());
+        c.keys().then((ks) => { if (ks.length > 400) c.delete(ks[0]); });
+      }
+      return res;
+    }).catch(() => fetch(e.request)));
+    return;
+  }
+  if (url.origin !== location.origin) return;
 
   if (url.pathname.startsWith('/api/waits/')) {
     e.respondWith(

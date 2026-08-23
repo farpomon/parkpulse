@@ -120,6 +120,12 @@ db.exec(`
     history TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS geo (
+    park TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS invites (
     token TEXT PRIMARY KEY,
     channel TEXT NOT NULL,
@@ -447,6 +453,19 @@ const wa = {
     db.prepare('UPDATE wa_links SET history = ? WHERE phone = ?').run(JSON.stringify(history.slice(-12)), phone),
 };
 
+// Ride coordinates per park, extracted once from OpenStreetMap via Overpass.
+const geo = {
+  get: (park) => {
+    const row = db.prepare('SELECT * FROM geo WHERE park = ?').get(park);
+    if (!row) return null;
+    try { return { status: row.status, rides: JSON.parse(row.data), updatedAt: row.updated_at }; } catch { return null; }
+  },
+  set: (park, status, rides) =>
+    db.prepare(`INSERT INTO geo (park, status, data, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(park) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`)
+      .run(park, status, JSON.stringify(rides), new Date().toISOString()),
+};
+
 // Admin-minted comp-access invites: single-use, optionally bound to an email.
 const invites = {
   create: (token, channel, target, days, note, createdBy) =>
@@ -460,4 +479,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, invites, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, invites, geo, DB_FILE };

@@ -140,6 +140,15 @@
     font-size: .92rem; box-shadow: 0 1px 3px rgba(20,12,48,.06); }
   .sectionhead .listtools a:active { transform: scale(.96); }
   .sectionhead #filter-open.active { color: var(--gold); border-color: var(--gold); background: var(--gold-soft); }
+  /* Park map: Leaflet canvas + wait-number pins colored like the wait chips. */
+  #parkmap { height: 62vh; min-height: 320px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg); z-index: 0; margin-top: .5rem; }
+  .wpin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px;
+    border: 2px solid #fff; color: #fff; font-weight: 800; font-size: .76rem; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .wpin.low { background: #1d7a4f; } .wpin.mid { background: #b07800; } .wpin.high { background: #c43c3c; } .wpin.closed { background: #8a8798; }
+  .wpin.isdone { opacity: .45; }
+  .leaflet-popup-content { font: inherit; }
+  .leaflet-popup-content button { border: 1.5px solid var(--border); background: var(--card); color: var(--ink);
+    border-radius: 8px; padding: .35rem .6rem; font-weight: 700; cursor: pointer; font-size: .82rem; }
   .dinehero { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem 1.15rem 1rem;
     margin: .5rem 0 .9rem; position: relative; overflow: hidden;
     box-shadow: 0 2px 6px rgba(20,12,48,.06), 0 10px 30px rgba(20,12,48,.07); }
@@ -299,9 +308,13 @@
   <div id="plan-out"></div>
   <div class="sectionhead">
     <h2 id="listhead-title">🎢 Park attractions</h2>
-    <div class="listtools"><a id="filter-open" style="display:none">🎛 Filters</a><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
+    <div class="listtools"><a id="filter-open" style="display:none">🎛 Filters</a><a id="map-toggle">🗺 Map</a><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
   </div>
   <div id="dining" style="display:none"></div>
+  <div id="mapwrap" style="display:none">
+    <div id="parkmap"></div>
+    <p id="map-note" class="dine-note" style="text-align:center"></p>
+  </div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
   <footer>
@@ -1125,6 +1138,7 @@
       }
       renderRides();
       updatePlanbar();
+      if (viewMode === 'map') renderMap();
     } catch {
       $('rides').classList.remove('skeleton');
       $('rides').innerHTML = `<div class="state">Couldn't load wait times — check your connection.<br><br><button class="btn" id="retry">Try again</button></div>`;
@@ -1520,14 +1534,109 @@
 
   function setViewMode(mode) {
     viewMode = mode;
-    $('listhead-title').textContent = mode === 'rides' ? '🎢 ' + tr('Park attractions') : '🍽 ' + tr('Dining');
+    $('listhead-title').textContent = mode === 'rides' ? '🎢 ' + tr('Park attractions') : mode === 'dining' ? '🍽 ' + tr('Dining') : '🗺 ' + tr('Park map');
     $('rides').style.display = mode === 'rides' ? '' : 'none';
     $('dining').style.display = mode === 'dining' ? '' : 'none';
+    $('mapwrap').style.display = mode === 'map' ? '' : 'none';
     $('pick-all').style.display = mode === 'rides' ? '' : 'none';
-    $('view-toggle').textContent = mode === 'rides' ? '🍽 Dining' : '🎢 Rides';
+    $('view-toggle').textContent = mode === 'dining' ? '🎢 Rides' : '🍽 Dining';
+    $('map-toggle').textContent = mode === 'map' ? '🎢 Rides' : '🗺 ' + tr('Map');
     if (mode === 'dining') renderDining();
+    if (mode === 'map') renderMap();
   }
-  $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'rides' ? 'dining' : 'rides'); });
+  $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'dining' ? 'rides' : 'dining'); });
+  $('map-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'map' ? 'rides' : 'map'); });
+
+  // --- Park map: OpenStreetMap tiles via vendored Leaflet, ride pins from the
+  // per-park OSM extraction, colored by live wait. -------------------------
+  let mapObj = null;
+  let mapPins = [];
+  let leafletLoading = null;
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    if (!leafletLoading) leafletLoading = new Promise((resolve, reject) => {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet'; css.href = '/vendor/leaflet.css';
+      document.head.appendChild(css);
+      const s = document.createElement('script');
+      s.src = '/vendor/leaflet.js'; s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return leafletLoading;
+  }
+  function mapPopup(name) {
+    const live = rides.find((r) => r.name === name);
+    const el = document.createElement('div');
+    el.innerHTML = `<b>${esc(name)}</b><br>${live ? (live.open ? `${live.wait} ${tr('min')}` : tr('Closed')) : ''}
+      <div style="margin-top:.45rem;display:flex;gap:.4rem">
+        <button data-a="pick">${pickedNames.has(name) ? '✓ ' : ''}${tr('Plan it')}</button>
+        <button data-a="done">${doneOrder.includes(name) ? '↩︎' : '✓'} ${tr('Done')}</button>
+      </div>`;
+    el.querySelector('[data-a=pick]').addEventListener('click', () => {
+      pickedNames.has(name) ? pickedNames.delete(name) : pickedNames.add(name);
+      updatePlanbar(); renderRides(); renderMap();
+    });
+    el.querySelector('[data-a=done]').addEventListener('click', () => {
+      const i = doneOrder.indexOf(name);
+      if (i >= 0) doneOrder.splice(i, 1); else doneOrder.push(name);
+      saveDone(); renderRides(); renderMap();
+    });
+    return el;
+  }
+  async function renderMap(pollCount = 0) {
+    if (viewMode !== 'map') return;
+    const note = $('map-note');
+    try { await loadLeaflet(); } catch { note.textContent = tr('Map unavailable for this park.'); return; }
+    const p = parks[current];
+    if (!p || !p.lat) { note.textContent = tr('Map unavailable for this park.'); return; }
+    if (mapObj && mapObj._ppPark !== current) { mapObj.remove(); mapObj = null; mapPins = []; }
+    if (!mapObj) {
+      mapObj = L.map('parkmap').setView([p.lat, p.lng], 16);
+      mapObj._ppPark = current;
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(mapObj);
+      // You-are-here: silent if permission was already granted for Find-my-park.
+      navigator.geolocation?.getCurrentPosition((pos) => {
+        if (!mapObj) return;
+        L.circleMarker([pos.coords.latitude, pos.coords.longitude],
+          { radius: 8, color: '#fff', weight: 2.5, fillColor: '#2a7fff', fillOpacity: 1 }).addTo(mapObj);
+      }, () => {}, { maximumAge: 120000, timeout: 8000 });
+    }
+    setTimeout(() => { if (mapObj) mapObj.invalidateSize(); }, 120);
+    let geo;
+    try {
+      const parkAtStart = current;
+      const res = await api(`/api/geo/${current}`);
+      geo = await res.json();
+      if (res.status === 202) {
+        note.textContent = '🗺 ' + tr('Mapping this park — the first visit takes a minute.');
+        if (pollCount < 20) setTimeout(() => { if (viewMode === 'map' && current === parkAtStart) renderMap(pollCount + 1); }, 3000);
+        else note.textContent = tr('Map unavailable for this park.');
+        return;
+      }
+      if (!res.ok) throw new Error('geo failed');
+    } catch { note.textContent = tr('Map unavailable for this park.'); return; }
+    mapPins.forEach((m) => m.remove());
+    mapPins = [];
+    if (geo.status !== 'ok' || !geo.rides.length) {
+      note.textContent = tr("This park isn't mapped in OpenStreetMap yet — pins will appear once it is.");
+      return;
+    }
+    note.textContent = '';
+    for (const g of geo.rides) {
+      const live = rides.find((r) => r.name === g.name);
+      const cls = live ? waitClass(live) : 'closed';
+      const label = live && live.open ? live.wait : '–';
+      const pin = L.marker([g.lat, g.lng], {
+        icon: L.divIcon({ className: '', html: `<div class="wpin ${cls}${doneOrder.includes(g.name) ? ' isdone' : ''}">${label}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }),
+        title: g.name,
+      }).addTo(mapObj);
+      pin.bindPopup(() => mapPopup(g.name));
+      mapPins.push(pin);
+    }
+  }
   // Filter sheet: big tappable chips, opened from the section header — a
   // fixed bottom bar sat in the iPhone home-indicator zone and fought taps.
   const VIBE_OPTS = [['all', '🎡', 'All types'], ['gentle', '😌', 'Easy-going'], ['family', '👨‍👩‍👧', 'Family'], ['thrill', '🎢', 'Thrilling'], ['water', '💦', 'Water'], ['show', '🎭', 'Shows']];

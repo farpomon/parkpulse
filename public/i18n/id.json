@@ -212,5 +212,10 @@
  "WhatsApp concierge": "Concierge WhatsApp",
  "Text your AI planner — it knows your park, group and plan.": "Kirim pesan ke perencana AI Anda — ia tahu taman, grup, dan rencana Anda.",
  "Connect on WhatsApp": "Hubungkan WhatsApp",
- "Invite accepted — full access unlocked! 🎉": "Undangan diterima — akses penuh terbuka! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "Undangan diterima — akses penuh terbuka! 🎉",
+ "Map": "Peta",
+ "Park map": "Peta taman",
+ "Mapping this park — the first visit takes a minute.": "Memetakan taman ini — kunjungan pertama butuh satu menit.",
+ "Map unavailable for this park.": "Peta tidak tersedia untuk taman ini.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Taman ini belum terpetakan di OpenStreetMap — pin akan muncul begitu tersedia."
 }

@@ -212,5 +212,10 @@
  "WhatsApp concierge": "WhatsApp 礼宾服务",
  "Text your AI planner — it knows your park, group and plan.": "给你的 AI 规划师发消息——它了解你的园区、同行人和计划。",
  "Connect on WhatsApp": "连接 WhatsApp",
- "Invite accepted — full access unlocked! 🎉": "邀请已接受——已解锁完整访问权限！🎉"
+ "Invite accepted — full access unlocked! 🎉": "邀请已接受——已解锁完整访问权限！🎉",
+ "Map": "地图",
+ "Park map": "园区地图",
+ "Mapping this park — the first visit takes a minute.": "正在绘制该园区——首次访问需要一分钟。",
+ "Map unavailable for this park.": "该园区暂无地图。",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "该园区在 OpenStreetMap 上尚未绘制——绘制后图钉会自动出现。"
 }

@@ -212,5 +212,10 @@
  "WhatsApp concierge": "كونسيرج واتساب",
  "Text your AI planner — it knows your park, group and plan.": "راسل مخطط رحلتك الذكي — يعرف حديقتك ومجموعتك وخطتك.",
  "Connect on WhatsApp": "الربط عبر واتساب",
- "Invite accepted — full access unlocked! 🎉": "تم قبول الدعوة — تم فتح الوصول الكامل! 🎉"
+ "Invite accepted — full access unlocked! 🎉": "تم قبول الدعوة — تم فتح الوصول الكامل! 🎉",
+ "Map": "الخريطة",
+ "Park map": "خريطة الحديقة",
+ "Mapping this park — the first visit takes a minute.": "جارٍ رسم خريطة هذه الحديقة — الزيارة الأولى تستغرق دقيقة.",
+ "Map unavailable for this park.": "الخريطة غير متاحة لهذه الحديقة.",
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "هذه الحديقة غير مرسومة بعد على OpenStreetMap — ستظهر الدبابيس فور توفرها."
 }
