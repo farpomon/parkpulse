@@ -466,7 +466,7 @@ async function geoEstimate(parkName, group, center, rideNames) {
       output_config: { effort: 'medium' },
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      system: 'You place theme-park attractions on a map from your knowledge of the park\'s real layout. Output STRICT JSON only — a JSON array of {"name": string, "lat": number, "lng": number}, names copied verbatim from the input list. Include ONLY attractions whose physical location inside this specific park you genuinely know (which land/area it is in and roughly where); OMIT any you are unsure about — a missing pin is fine, a wrong pin is not. Coordinates are WGS84 decimal degrees. Spread pins across the park according to the real layout; never cluster everything on the park centre.',
+      system: 'You place theme-park attractions on a map from your knowledge of the park\'s real layout. Output STRICT JSON only — a JSON array of {"name": string, "lat": number, "lng": number}, names copied verbatim from the input list. These pins are labeled APPROXIMATE in the app, so best-guess placement is expected: place EVERY attraction in the list, using the land/area it belongs to (e.g. a Diagon Alley ride goes in that corner of the park, not the centre). Only omit an attraction if you have no idea which area of the park it is in. Coordinates are WGS84 decimal degrees. Spread pins according to the real layout; never stack multiple attractions on the exact same point.',
       messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Park centre reference: ${center.lat}, ${center.lng}. Attractions:\n${batch.map((n) => `- ${n}`).join('\n')}` }],
     }, { timeout: 60000, maxRetries: 1 });
     if (msg.stop_reason === 'refusal') continue;

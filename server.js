@@ -606,10 +606,10 @@ const geoNorm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 async function buildParkGeo(park) {
   const query = `[out:json][timeout:25];(
-    node["attraction"](around:1700,${park.lat},${park.lng});
-    way["attraction"](around:1700,${park.lat},${park.lng});
-    node["tourism"="attraction"](around:1700,${park.lat},${park.lng});
-    way["tourism"="attraction"](around:1700,${park.lat},${park.lng});
+    node["attraction"](around:2500,${park.lat},${park.lng});
+    way["attraction"](around:2500,${park.lat},${park.lng});
+    node["tourism"="attraction"](around:2500,${park.lat},${park.lng});
+    way["tourism"="attraction"](around:2500,${park.lat},${park.lng});
   );out center;`;
   // Overpass public endpoints rate-limit and hiccup; try each in turn, and
   // an outage just means the AI fallback below carries the park.
@@ -656,19 +656,19 @@ async function buildParkGeo(park) {
       }
     } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
   }
-  // OSM came up (nearly) empty — the model's knowledge of the park layout
-  // beats an empty map. These pins are explicitly approximate.
+  // Full coverage: whatever OSM couldn't place, the model fills in with its
+  // best-guess placement — exact OSM pins win, AI pins are labeled approximate.
   let est = [];
-  if (matched.length < 3 && consultant.enabled()) {
+  const missing = feedNames.filter((n) => !matched.some((m) => m.name === n));
+  if (missing.length && consultant.enabled()) {
     try {
-      est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, feedNames);
+      est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, missing);
     } catch (err) { console.log(`geo estimate (${park.slug}): ${err.message}`); }
   }
-  const result = est.length >= 3
-    ? { rides: est, status: 'approx' }
-    : { rides: matched, status: matched.length >= 3 ? 'ok' : 'sparse' };
-  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${est.length} feed=${feedNames.length} -> ${result.status}`);
-  return result;
+  const rides = [...matched, ...est.filter((e) => !matched.some((m) => m.name === e.name))];
+  const status = !rides.length ? 'sparse' : est.length ? 'approx' : 'ok';
+  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${est.length} feed=${feedNames.length} -> ${status}`);
+  return { rides, status };
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -1085,9 +1085,12 @@ const server = http.createServer(async (req, res) => {
     // Admins can force a rebuild instead of waiting out the retry window.
     const forceRebuild = url.searchParams.get('rebuild') === '1' && adminUser(req);
     const cached = forceRebuild ? null : db.geo.get(park.slug);
-    // Real coordinate sets are cached forever; empty/failed results retry
-    // after 15 minutes so an Overpass hiccup doesn't blank a park for long.
-    const fresh = cached && (cached.status === 'ok' || cached.status === 'approx' || Date.now() - Date.parse(cached.updatedAt) < 15 * 60000);
+    // Fully-OSM maps cache forever; approximate ones refresh daily (OSM may
+    // have caught up, upgrading pins to exact); empty results retry in 15 min.
+    const age = cached ? Date.now() - Date.parse(cached.updatedAt) : 0;
+    const fresh = cached && (cached.status === 'ok' ||
+      (cached.status === 'approx' && age < 24 * 3600000) ||
+      age < 15 * 60000);
     if (fresh) {
       return sendJson(res, 200, { status: cached.status, rides: cached.rides, center: { lat: park.lat, lng: park.lng } });
     }
