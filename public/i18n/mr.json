@@ -218,5 +218,6 @@
  "Mapping this park — the first visit takes a minute.": "या पार्कचा नकाशा बनत आहे — पहिल्यांदा एक मिनिट लागते.",
  "Map unavailable for this park.": "या पार्कसाठी नकाशा उपलब्ध नाही.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "हे पार्क अजून OpenStreetMap वर नाही — झाल्यावर पिन दिसतील.",
- "Pin locations are approximate.": "पिनची ठिकाणे अंदाजे आहेत."
+ "Pin locations are approximate.": "पिनची ठिकाणे अंदाजे आहेत.",
+ "Map data": "नकाशा डेटा"
 }

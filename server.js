@@ -604,15 +604,47 @@ const geoJobs = new Map();
 const geoNorm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9 ]+/g, ' ').replace(/\b(the|and|a|an)\b/g, ' ').replace(/\s+/g, ' ').trim();
 
-async function buildParkGeo(park) {
+// ThemeParks.wiki: free, open API with official attraction coordinates for
+// most major chains — the precision tier of the pin pipeline.
+const THEMEPARKS_API = process.env.THEMEPARKS_API || 'https://api.themeparks.wiki/v1';
+
+async function themeParksCoords(park) {
+  const res = await fetch(`${THEMEPARKS_API}/destinations`, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`themeparks destinations ${res.status}`);
+  const { destinations } = await res.json();
+  // Resolve our park to a themeparks.wiki park id: name must match, the
+  // destination matching our group breaks ties ("Disneyland Park" exists in
+  // both California and Paris).
+  let best = null;
+  for (const d of destinations || []) {
+    const dn = geoNorm(d.name || '');
+    const gn = geoNorm(park.group);
+    const destHit = dn.includes(gn) || gn.includes(dn);
+    for (const p of d.parks || []) {
+      const pn = geoNorm(p.name || '');
+      const on = geoNorm(park.name);
+      if (!(pn === on || pn.includes(on) || on.includes(pn))) continue;
+      const score = (destHit ? 2 : 0) + (pn === on ? 2 : 1);
+      if (!best || score > best.score) best = { id: p.id, score };
+    }
+  }
+  if (!best) return [];
+  const cr = await fetch(`${THEMEPARKS_API}/entity/${best.id}/children`, { signal: AbortSignal.timeout(15000) });
+  if (!cr.ok) throw new Error(`themeparks children ${cr.status}`);
+  const { children } = await cr.json();
+  return (children || [])
+    .filter((c) => c.entityType === 'ATTRACTION' && c.location &&
+      Number.isFinite(c.location.latitude) && Number.isFinite(c.location.longitude))
+    .map((c) => ({ name: c.name, lat: c.location.latitude, lng: c.location.longitude }));
+}
+
+async function fetchOsmSpots(park) {
   const query = `[out:json][timeout:25];(
     node["attraction"](around:2500,${park.lat},${park.lng});
     way["attraction"](around:2500,${park.lat},${park.lng});
     node["tourism"="attraction"](around:2500,${park.lat},${park.lng});
     way["tourism"="attraction"](around:2500,${park.lat},${park.lng});
   );out center;`;
-  // Overpass public endpoints rate-limit and hiccup; try each in turn, and
-  // an outage just means the AI fallback below carries the park.
   let json = { elements: [] };
   for (const api of OVERPASS_APIS) {
     try {
@@ -627,40 +659,59 @@ async function buildParkGeo(park) {
       break;
     } catch (err) { console.log(`overpass (${api}): ${err.message}`); }
   }
-  const spots = new Map(); // osm name -> {lat, lng}
+  const spots = new Map(); // name -> {lat, lng}
   for (const el of json.elements || []) {
     const name = el.tags?.name;
     const lat = el.lat ?? el.center?.lat;
     const lng = el.lon ?? el.center?.lon;
     if (name && Number.isFinite(lat) && Number.isFinite(lng) && !spots.has(name)) spots.set(name, { lat, lng });
   }
+  return spots;
+}
+
+// Full coverage is a hard requirement: every ride on the wait list gets a
+// pin. Tiers by accuracy — themeparks.wiki official coordinates, then OSM,
+// then AI best-guess (two passes, labeled approximate), then a deterministic
+// ring near the park centre so nothing is ever missing from the map.
+async function buildParkGeo(park) {
   const waits = await getWaits(park.slug);
   const feedNames = waits.rides.map((r) => r.name);
-  const matched = [];
-  const leftoverFeed = [];
-  const byNorm = new Map([...spots.keys()].map((n) => [geoNorm(n), n]));
-  for (const feedName of feedNames) {
-    const n = geoNorm(feedName);
-    let osm = byNorm.get(n) || null;
-    if (!osm) for (const [on, orig] of byNorm) { if (on.includes(n) || n.includes(on)) { osm = orig; break; } }
-    if (osm) matched.push({ name: feedName, ...spots.get(osm) });
-    else leftoverFeed.push(feedName);
+  const placed = new Map(); // feed name -> {name, lat, lng, approx?}
+
+  // Match a named coordinate set against still-unplaced feed names.
+  const matchSpots = (spots) => {
+    const byNorm = new Map([...spots.keys()].map((n) => [geoNorm(n), n]));
+    for (const feedName of feedNames) {
+      if (placed.has(feedName)) continue;
+      const n = geoNorm(feedName);
+      let hit = byNorm.get(n) || null;
+      if (!hit) for (const [sn, orig] of byNorm) { if (sn.includes(n) || n.includes(sn)) { hit = orig; break; } }
+      if (hit) placed.set(feedName, { name: feedName, ...spots.get(hit) });
+    }
+  };
+
+  let tpw = 0;
+  try {
+    const coords = await themeParksCoords(park);
+    matchSpots(new Map(coords.map((t) => [t.name, { lat: t.lat, lng: t.lng }])));
+    tpw = placed.size;
+  } catch (err) { console.log(`themeparks (${park.slug}): ${err.message}`); }
+
+  let osm = 0;
+  if (placed.size < feedNames.length) {
+    const spots = await fetchOsmSpots(park);
+    matchSpots(spots);
+    // AI reconciles oddly-named OSM entries with the still-unplaced rides.
+    const leftover = feedNames.filter((n) => !placed.has(n));
+    if (leftover.length && spots.size && consultant.enabled()) {
+      try {
+        const pairs = await consultant.matchNames(park.name, leftover, [...spots.keys()]);
+        for (const p of pairs) if (spots.has(p.b) && !placed.has(p.a) && leftover.includes(p.a)) placed.set(p.a, { name: p.a, ...spots.get(p.b) });
+      } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
+    }
+    osm = placed.size - tpw;
   }
-  if (leftoverFeed.length && spots.size && consultant.enabled()) {
-    try {
-      const usedOsm = new Set(matched.map((m) => JSON.stringify([m.lat, m.lng])));
-      const freeOsm = [...spots.keys()].filter((n) => !usedOsm.has(JSON.stringify([spots.get(n).lat, spots.get(n).lng])));
-      if (freeOsm.length) {
-        const pairs = await consultant.matchNames(park.name, leftoverFeed, freeOsm);
-        for (const p of pairs) if (spots.has(p.b) && leftoverFeed.includes(p.a)) matched.push({ name: p.a, ...spots.get(p.b) });
-      }
-    } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
-  }
-  // Full coverage is a hard requirement: every ride on the wait list gets a
-  // pin. Exact OSM pins win; the model best-guesses the rest (two passes),
-  // and anything still unplaced lands on a deterministic ring near the park
-  // centre — a visibly rough pin beats a ride missing from the map.
-  const placed = new Map(matched.map((m) => [m.name, m]));
+
   if (consultant.enabled()) {
     for (let pass = 0; pass < 2; pass++) {
       const missing = feedNames.filter((n) => !placed.has(n));
@@ -679,7 +730,7 @@ async function buildParkGeo(park) {
   const rides = feedNames.map((n) => placed.get(n));
   const estimated = rides.filter((r) => r.approx).length;
   const status = !rides.length ? 'sparse' : estimated ? 'approx' : 'ok';
-  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${estimated} ringed=${stillMissing.length} feed=${feedNames.length} -> ${status}`);
+  console.log(`geo ${park.slug}: feed=${feedNames.length} tpw=${tpw} osm=${osm} estimated=${estimated} ringed=${stillMissing.length} -> ${status}`);
   return { rides, status };
 }
 
