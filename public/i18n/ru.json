@@ -206,5 +206,7 @@
  "Something went wrong.": "Что-то пошло не так.",
  "You're in — welcome to ParkPulse! 🎢": "Готово — добро пожаловать в ParkPulse! 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "Сначала введите email выше, затем нажмите «Забыли пароль?».",
- "If that account exists, a reset link is on its way.": "Если такой аккаунт существует, ссылка для сброса уже в пути."
+ "If that account exists, a reset link is on its way.": "Если такой аккаунт существует, ссылка для сброса уже в пути.",
+ "Ridden it? Tick it off": "Уже прокатились? Отметьте",
+ "Ridden — tap to undo": "Готово — нажмите, чтобы отменить"
 }

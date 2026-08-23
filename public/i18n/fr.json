@@ -206,5 +206,7 @@
  "Something went wrong.": "Une erreur est survenue.",
  "You're in — welcome to ParkPulse! 🎢": "C'est fait — bienvenue sur ParkPulse ! 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "Saisissez d'abord votre e-mail ci-dessus, puis touchez « Mot de passe oublié ? ».",
- "If that account exists, a reset link is on its way.": "Si ce compte existe, le lien de réinitialisation est en route."
+ "If that account exists, a reset link is on its way.": "Si ce compte existe, le lien de réinitialisation est en route.",
+ "Ridden it? Tick it off": "Déjà faite ? Cochez-la",
+ "Ridden — tap to undo": "Faite — touchez pour annuler"
 }
