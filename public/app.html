@@ -1620,11 +1620,11 @@
     } catch { note.textContent = tr('Map unavailable for this park.'); return; }
     mapPins.forEach((m) => m.remove());
     mapPins = [];
-    if (geo.status !== 'ok' || !geo.rides.length) {
+    if (!geo.rides || !geo.rides.length) {
       note.textContent = tr("This park isn't mapped in OpenStreetMap yet — pins will appear once it is.");
       return;
     }
-    note.textContent = '';
+    note.textContent = geo.status === 'approx' ? '≈ ' + tr('Pin locations are approximate.') : '';
     for (const g of geo.rides) {
       const live = rides.find((r) => r.name === g.name);
       const cls = live ? waitClass(live) : 'closed';

@@ -444,6 +444,36 @@ async function matchNames(parkName, feedNames, osmNames) {
   return Array.isArray(list) ? list.filter((p) => p && typeof p.a === 'string' && typeof p.b === 'string') : [];
 }
 
+// Fallback when OpenStreetMap has nothing for a park: ask the model to place
+// the attractions it is confident about. Approximate by nature — the caller
+// labels these pins as such — and sanity-filtered to the park's vicinity.
+async function geoEstimate(parkName, group, center, rideNames) {
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 4000,
+    output_config: { effort: 'medium' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: 'You place theme-park attractions on a map from your knowledge of the park\'s real layout. Output STRICT JSON only — a JSON array of {"name": string, "lat": number, "lng": number}, names copied verbatim from the input list. Include ONLY attractions whose physical location inside this specific park you genuinely know (which land/area it is in and roughly where); OMIT any you are unsure about — a missing pin is fine, a wrong pin is not. Coordinates are WGS84 decimal degrees. Spread pins across the park according to the real layout; never cluster everything on the park centre.',
+    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Park centre reference: ${center.lat}, ${center.lng}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
+  });
+  if (msg.stop_reason === 'refusal') return [];
+  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+  let list;
+  try { list = JSON.parse(raw); } catch { return []; }
+  if (!Array.isArray(list)) return [];
+  const names = new Set(rideNames);
+  const km = (a, b) => {
+    const r = Math.PI / 180;
+    const x = (b.lng - a.lng) * r * Math.cos((a.lat + b.lat) / 2 * r);
+    const y = (b.lat - a.lat) * r;
+    return Math.sqrt(x * x + y * y) * 6371;
+  };
+  return list.filter((p) => p && names.has(p.name) && Number.isFinite(p.lat) && Number.isFinite(p.lng) && km(center, p) < 2.5)
+    .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng }));
+}
+
 async function rideTags(parkName, rideNames) {
   const msg = await client.beta.messages.create({
     model: MODEL,
@@ -471,4 +501,4 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, geoEstimate, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

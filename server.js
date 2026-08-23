@@ -599,7 +599,7 @@ const diningJobs = new Map();
 // --- Ride coordinates from OpenStreetMap -------------------------------------
 // One Overpass extraction per park, matched to the wait feed's ride names
 // (normalized text first, one AI pass for the stragglers), cached forever.
-const OVERPASS_API = process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter';
+const OVERPASS_APIS = (process.env.OVERPASS_API || 'https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter').split(/\s+/);
 const geoJobs = new Map();
 const geoNorm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9 ]+/g, ' ').replace(/\b(the|and|a|an)\b/g, ' ').replace(/\s+/g, ' ').trim();
@@ -611,14 +611,22 @@ async function buildParkGeo(park) {
     node["tourism"="attraction"](around:1700,${park.lat},${park.lng});
     way["tourism"="attraction"](around:1700,${park.lat},${park.lng});
   );out center tags;`;
-  const res = await fetch(OVERPASS_API, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: 'data=' + encodeURIComponent(query),
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!res.ok) throw new Error(`overpass ${res.status}`);
-  const json = await res.json();
+  // Overpass public endpoints rate-limit and hiccup; try each in turn, and
+  // an outage just means the AI fallback below carries the park.
+  let json = { elements: [] };
+  for (const api of OVERPASS_APIS) {
+    try {
+      const res = await fetch(api, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(query),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) throw new Error(`overpass ${res.status}`);
+      json = await res.json();
+      break;
+    } catch (err) { console.log(`overpass (${api}): ${err.message}`); }
+  }
   const spots = new Map(); // osm name -> {lat, lng}
   for (const el of json.elements || []) {
     const name = el.tags?.name;
@@ -648,7 +656,15 @@ async function buildParkGeo(park) {
       }
     } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
   }
-  return matched;
+  // OSM came up (nearly) empty — the model's knowledge of the park layout
+  // beats an empty map. These pins are explicitly approximate.
+  if (matched.length < 3 && consultant.enabled()) {
+    try {
+      const est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, feedNames);
+      if (est.length >= 3) return { rides: est, status: 'approx' };
+    } catch (err) { console.log(`geo estimate (${park.slug}): ${err.message}`); }
+  }
+  return { rides: matched, status: matched.length >= 3 ? 'ok' : 'sparse' };
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -1063,13 +1079,15 @@ const server = http.createServer(async (req, res) => {
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     if (!park.lat || !park.lng) return sendJson(res, 200, { status: 'sparse', rides: [], center: null });
     const cached = db.geo.get(park.slug);
-    const fresh = cached && (cached.status === 'ok' || Date.now() - Date.parse(cached.updatedAt) < 3600000);
+    // Real coordinate sets are cached forever; empty/failed results retry
+    // after 15 minutes so an Overpass hiccup doesn't blank a park for long.
+    const fresh = cached && (cached.status === 'ok' || cached.status === 'approx' || Date.now() - Date.parse(cached.updatedAt) < 15 * 60000);
     if (fresh) {
       return sendJson(res, 200, { status: cached.status, rides: cached.rides, center: { lat: park.lat, lng: park.lng } });
     }
     if (!geoJobs.has(park.slug)) {
       const job = buildParkGeo(park)
-        .then((rides) => db.geo.set(park.slug, rides.length >= 3 ? 'ok' : 'sparse', rides))
+        .then(({ rides, status }) => db.geo.set(park.slug, status, rides))
         .catch((err) => { console.log(`geo error (${park.slug}): ${err.message}`); db.geo.set(park.slug, 'failed', []); })
         .finally(() => geoJobs.delete(park.slug));
       geoJobs.set(park.slug, job);

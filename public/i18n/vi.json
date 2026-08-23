@@ -217,5 +217,6 @@
  "Park map": "Bản đồ công viên",
  "Mapping this park — the first visit takes a minute.": "Đang lập bản đồ công viên — lần đầu mất khoảng một phút.",
  "Map unavailable for this park.": "Không có bản đồ cho công viên này.",
- "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Công viên này chưa có trên OpenStreetMap — ghim sẽ xuất hiện khi có."
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Công viên này chưa có trên OpenStreetMap — ghim sẽ xuất hiện khi có.",
+ "Pin locations are approximate.": "Vị trí ghim chỉ là ước lượng."
 }
