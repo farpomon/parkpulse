@@ -217,5 +217,6 @@
  "Park map": "Plan du parc",
  "Mapping this park — the first visit takes a minute.": "Cartographie du parc en cours — la première visite prend une minute.",
  "Map unavailable for this park.": "Carte indisponible pour ce parc.",
- "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Ce parc n'est pas encore cartographié sur OpenStreetMap — les repères apparaîtront dès qu'il le sera."
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Ce parc n'est pas encore cartographié sur OpenStreetMap — les repères apparaîtront dès qu'il le sera.",
+ "Pin locations are approximate.": "Les emplacements des repères sont approximatifs."
 }

@@ -217,5 +217,6 @@
  "Park map": "পার্কের মানচিত্র",
  "Mapping this park — the first visit takes a minute.": "এই পার্কের মানচিত্র তৈরি হচ্ছে — প্রথমবারে এক মিনিট লাগে।",
  "Map unavailable for this park.": "এই পার্কের মানচিত্র নেই।",
- "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "এই পার্ক এখনো OpenStreetMap-এ নেই — হলেই পিন দেখা যাবে।"
+ "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "এই পার্ক এখনো OpenStreetMap-এ নেই — হলেই পিন দেখা যাবে।",
+ "Pin locations are approximate.": "পিনের অবস্থান আনুমানিক।"
 }
