@@ -1612,7 +1612,7 @@
       geo = await res.json();
       if (res.status === 202) {
         note.textContent = '🗺 ' + tr('Mapping this park — the first visit takes a minute.');
-        if (pollCount < 20) setTimeout(() => { if (viewMode === 'map' && current === parkAtStart) renderMap(pollCount + 1); }, 3000);
+        if (pollCount < 40) setTimeout(() => { if (viewMode === 'map' && current === parkAtStart) renderMap(pollCount + 1); }, 3000);
         else note.textContent = tr('Map unavailable for this park.');
         return;
       }

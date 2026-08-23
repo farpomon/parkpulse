@@ -610,7 +610,7 @@ async function buildParkGeo(park) {
     way["attraction"](around:1700,${park.lat},${park.lng});
     node["tourism"="attraction"](around:1700,${park.lat},${park.lng});
     way["tourism"="attraction"](around:1700,${park.lat},${park.lng});
-  );out center tags;`;
+  );out center;`;
   // Overpass public endpoints rate-limit and hiccup; try each in turn, and
   // an outage just means the AI fallback below carries the park.
   let json = { elements: [] };
@@ -658,13 +658,17 @@ async function buildParkGeo(park) {
   }
   // OSM came up (nearly) empty — the model's knowledge of the park layout
   // beats an empty map. These pins are explicitly approximate.
+  let est = [];
   if (matched.length < 3 && consultant.enabled()) {
     try {
-      const est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, feedNames);
-      if (est.length >= 3) return { rides: est, status: 'approx' };
+      est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, feedNames);
     } catch (err) { console.log(`geo estimate (${park.slug}): ${err.message}`); }
   }
-  return { rides: matched, status: matched.length >= 3 ? 'ok' : 'sparse' };
+  const result = est.length >= 3
+    ? { rides: est, status: 'approx' }
+    : { rides: matched, status: matched.length >= 3 ? 'ok' : 'sparse' };
+  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${est.length} feed=${feedNames.length} -> ${result.status}`);
+  return result;
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -1078,7 +1082,9 @@ const server = http.createServer(async (req, res) => {
     const park = PARKS[geoMatch[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     if (!park.lat || !park.lng) return sendJson(res, 200, { status: 'sparse', rides: [], center: null });
-    const cached = db.geo.get(park.slug);
+    // Admins can force a rebuild instead of waiting out the retry window.
+    const forceRebuild = url.searchParams.get('rebuild') === '1' && adminUser(req);
+    const cached = forceRebuild ? null : db.geo.get(park.slug);
     // Real coordinate sets are cached forever; empty/failed results retry
     // after 15 minutes so an Overpass hiccup doesn't blank a park for long.
     const fresh = cached && (cached.status === 'ok' || cached.status === 'approx' || Date.now() - Date.parse(cached.updatedAt) < 15 * 60000);

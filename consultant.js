@@ -436,7 +436,7 @@ async function matchNames(parkName, feedNames, osmNames) {
     fallbacks: 'default',
     system: 'You match theme-park attraction names between two lists that describe the SAME park: list A from a wait-time feed, list B from OpenStreetMap. Output STRICT JSON only — a JSON array of {"a": string, "b": string} pairs, names copied verbatim from each list, one pair per A-name that clearly refers to the same physical attraction as a B-name. Omit A-names with no confident match. Never pair different attractions just because they are similar types.',
     messages: [{ role: 'user', content: `Park: ${parkName}\nList A (wait feed):\n${feedNames.map((n) => `- ${n}`).join('\n')}\nList B (OpenStreetMap):\n${osmNames.map((n) => `- ${n}`).join('\n')}` }],
-  });
+  }, { timeout: 60000, maxRetries: 1 });
   if (msg.stop_reason === 'refusal') return [];
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
@@ -448,21 +448,9 @@ async function matchNames(parkName, feedNames, osmNames) {
 // the attractions it is confident about. Approximate by nature — the caller
 // labels these pins as such — and sanity-filtered to the park's vicinity.
 async function geoEstimate(parkName, group, center, rideNames) {
-  const msg = await client.beta.messages.create({
-    model: MODEL,
-    max_tokens: 4000,
-    output_config: { effort: 'medium' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    system: 'You place theme-park attractions on a map from your knowledge of the park\'s real layout. Output STRICT JSON only — a JSON array of {"name": string, "lat": number, "lng": number}, names copied verbatim from the input list. Include ONLY attractions whose physical location inside this specific park you genuinely know (which land/area it is in and roughly where); OMIT any you are unsure about — a missing pin is fine, a wrong pin is not. Coordinates are WGS84 decimal degrees. Spread pins across the park according to the real layout; never cluster everything on the park centre.',
-    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Park centre reference: ${center.lat}, ${center.lng}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
-  });
-  if (msg.stop_reason === 'refusal') return [];
-  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
-    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
-  let list;
-  try { list = JSON.parse(raw); } catch { return []; }
-  if (!Array.isArray(list)) return [];
+  // Batched: one giant JSON answer for a 45-ride park truncates mid-array
+  // and parses to nothing. Small chunks keep every reply well under budget.
+  const out = [];
   const names = new Set(rideNames);
   const km = (a, b) => {
     const r = Math.PI / 180;
@@ -470,8 +458,32 @@ async function geoEstimate(parkName, group, center, rideNames) {
     const y = (b.lat - a.lat) * r;
     return Math.sqrt(x * x + y * y) * 6371;
   };
-  return list.filter((p) => p && names.has(p.name) && Number.isFinite(p.lat) && Number.isFinite(p.lng) && km(center, p) < 2.5)
-    .map((p) => ({ name: p.name, lat: p.lat, lng: p.lng }));
+  for (let i = 0; i < rideNames.length; i += 15) {
+    const batch = rideNames.slice(i, i + 15);
+    const msg = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 3000,
+      output_config: { effort: 'medium' },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      system: 'You place theme-park attractions on a map from your knowledge of the park\'s real layout. Output STRICT JSON only — a JSON array of {"name": string, "lat": number, "lng": number}, names copied verbatim from the input list. Include ONLY attractions whose physical location inside this specific park you genuinely know (which land/area it is in and roughly where); OMIT any you are unsure about — a missing pin is fine, a wrong pin is not. Coordinates are WGS84 decimal degrees. Spread pins across the park according to the real layout; never cluster everything on the park centre.',
+      messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Park centre reference: ${center.lat}, ${center.lng}. Attractions:\n${batch.map((n) => `- ${n}`).join('\n')}` }],
+    }, { timeout: 60000, maxRetries: 1 });
+    if (msg.stop_reason === 'refusal') continue;
+    const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+      .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+    let list = parseJsonArray(raw);
+    if (!Array.isArray(list)) {
+      // Truncated or chatty output: salvage every complete {...} object.
+      list = [...raw.matchAll(/\{[^{}]*\}/g)].map((m) => { try { return JSON.parse(m[0]); } catch { return null; } });
+    }
+    for (const p of list) {
+      if (p && names.has(p.name) && Number.isFinite(p.lat) && Number.isFinite(p.lng) && km(center, p) < 2.5) {
+        out.push({ name: p.name, lat: p.lat, lng: p.lng });
+      }
+    }
+  }
+  return out;
 }
 
 async function rideTags(parkName, rideNames) {
