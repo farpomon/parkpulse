@@ -129,10 +129,17 @@
   .btn:hover { filter: brightness(1.06); }
   .btn:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(79,58,201,.30); }
   .listtools { display: flex; justify-content: space-between; margin: 0 0 .1rem; }
-  .sectionhead { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem 1rem;
+  .sectionhead { display: flex; align-items: center; justify-content: space-between; gap: .5rem .8rem;
     flex-wrap: wrap; margin: 1.5rem 0 .2rem; padding-top: .9rem; border-top: 2px solid var(--border); }
   .sectionhead h2 { margin: 0; font-size: 1.06rem; font-weight: 800; letter-spacing: -.015em; }
-  .sectionhead .listtools { margin: 0; gap: 1rem; flex: 0 0 auto; }
+  .sectionhead .listtools { margin: 0; gap: .5rem; flex: 0 0 auto; }
+  /* The section tools are primary in-park controls — card-sized tap targets,
+     not text links a thumb has to aim for. */
+  .sectionhead .listtools a { display: inline-flex; align-items: center; gap: .3rem; min-height: 2.75rem;
+    padding: .5rem .9rem; border: 1.5px solid var(--border); background: var(--card); border-radius: 13px;
+    font-size: .92rem; box-shadow: 0 1px 3px rgba(20,12,48,.06); }
+  .sectionhead .listtools a:active { transform: scale(.96); }
+  .sectionhead #filter-open.active { color: var(--gold); border-color: var(--gold); background: var(--gold-soft); }
   .dinehero { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.1rem 1.15rem 1rem;
     margin: .5rem 0 .9rem; position: relative; overflow: hidden;
     box-shadow: 0 2px 6px rgba(20,12,48,.06), 0 10px 30px rgba(20,12,48,.07); }
