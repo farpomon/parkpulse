@@ -1640,12 +1640,33 @@
     body.innerHTML = '';
     if (wizStep === 0) {
       body.innerHTML = `<h2>📍 ${tr('Where are you headed today?')}</h2>
-        <p class="wiz-note" style="margin:0 0 .9rem">🎢 <b>${parks[current]?.name || ''}</b> · ${parks[current]?.group || ''}</p>
+        <select id="wiz-park" aria-label="${tr('Where are you headed today?')}"
+          style="width:100%;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.65rem .9rem;font-size:1rem;margin-bottom:.8rem"></select>
         <div class="chipgrid" id="wiz-where"></div>
         <p class="wiz-note">${tr('You can switch parks anytime from the picker at the top.')}</p>`;
+      // Full park list, grouped by destination, so the day can start here
+      // instead of bouncing back out to the header picker.
+      const sel = body.querySelector('#wiz-park');
+      const groups = [...new Set(Object.values(parks).map((p) => p.group))];
+      sel.innerHTML = groups.map((g) =>
+        `<optgroup label="${g}">${Object.entries(parks).filter(([, p]) => p.group === g)
+          .map(([slug, p]) => `<option value="${slug}" ${slug === current ? 'selected' : ''}>${p.name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</option>`).join('')}</optgroup>`).join('');
+      const switchPark = (slug) => {
+        if (!parks[slug] || slug === current) return;
+        if (!isPro && slug !== FREE_PARK) { sel.value = current; closeWizard(false); showUpsell(); return; }
+        current = slug;
+        dest = parks[slug].group;
+        localStorage.setItem('pp-park', slug);
+        pickedNames.clear();
+        load();
+        renderWiz(); // park may gain/lose the on-site hotel step
+      };
+      sel.addEventListener('change', () => switchPark(sel.value));
       const grid = body.querySelector('#wiz-where');
       grid.appendChild(chip('📍 ' + tr('Find my park'), false, () => { $('locate').click(); wizStep = 1; renderWiz(); }));
-      grid.appendChild(chip('✅ ' + tr('This is the one'), false, () => { wizStep = 1; renderWiz(); }));
+      if (tripToday && tripToday.park && tripToday.park !== current && parks[tripToday.park]) {
+        grid.appendChild(chip(`📅 ${parks[tripToday.park].name}`, false, () => switchPark(tripToday.park)));
+      }
     } else if (wizStep === 1) {
       body.innerHTML = `<h2>👥 ${tr("Who's going?")}</h2>
         <div class="stepper"><button id="wiz-minus">−</button><b id="wiz-count">${wizDraft.party}</b><button id="wiz-plus">+</button></div>
