@@ -656,18 +656,30 @@ async function buildParkGeo(park) {
       }
     } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
   }
-  // Full coverage: whatever OSM couldn't place, the model fills in with its
-  // best-guess placement — exact OSM pins win, AI pins are labeled approximate.
-  let est = [];
-  const missing = feedNames.filter((n) => !matched.some((m) => m.name === n));
-  if (missing.length && consultant.enabled()) {
-    try {
-      est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, missing);
-    } catch (err) { console.log(`geo estimate (${park.slug}): ${err.message}`); }
+  // Full coverage is a hard requirement: every ride on the wait list gets a
+  // pin. Exact OSM pins win; the model best-guesses the rest (two passes),
+  // and anything still unplaced lands on a deterministic ring near the park
+  // centre — a visibly rough pin beats a ride missing from the map.
+  const placed = new Map(matched.map((m) => [m.name, m]));
+  if (consultant.enabled()) {
+    for (let pass = 0; pass < 2; pass++) {
+      const missing = feedNames.filter((n) => !placed.has(n));
+      if (!missing.length) break;
+      try {
+        const est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, missing);
+        for (const e of est) if (!placed.has(e.name)) placed.set(e.name, { ...e, approx: true });
+      } catch (err) { console.log(`geo estimate pass ${pass + 1} (${park.slug}): ${err.message}`); }
+    }
   }
-  const rides = [...matched, ...est.filter((e) => !matched.some((m) => m.name === e.name))];
-  const status = !rides.length ? 'sparse' : est.length ? 'approx' : 'ok';
-  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${est.length} feed=${feedNames.length} -> ${status}`);
+  const stillMissing = feedNames.filter((n) => !placed.has(n));
+  stillMissing.forEach((name, i) => {
+    const angle = (i / Math.max(stillMissing.length, 1)) * 2 * Math.PI;
+    placed.set(name, { name, lat: park.lat + 0.0012 * Math.sin(angle), lng: park.lng + 0.0012 * Math.cos(angle), approx: true });
+  });
+  const rides = feedNames.map((n) => placed.get(n));
+  const estimated = rides.filter((r) => r.approx).length;
+  const status = !rides.length ? 'sparse' : estimated ? 'approx' : 'ok';
+  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${estimated} ringed=${stillMissing.length} feed=${feedNames.length} -> ${status}`);
   return { rides, status };
 }
 
@@ -874,6 +886,24 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/admin/invites') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     return sendJson(res, 200, { invites: db.invites.list(50) });
+  }
+
+  // Per-park map coverage, so "every ride is pinned" can be verified before
+  // a promote: pins vs the live feed, split into exact / approximate.
+  if (req.method === 'GET' && url.pathname === '/api/admin/geo') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const out = [];
+    for (const p of REGISTRY) {
+      const g = db.geo.get(p.slug);
+      if (!g) continue;
+      out.push({
+        park: p.slug, status: g.status, updatedAt: g.updatedAt,
+        pins: g.rides.length,
+        exact: g.rides.filter((r) => !r.approx).length,
+        approx: g.rides.filter((r) => r.approx).length,
+      });
+    }
+    return sendJson(res, 200, { parks: out, note: 'Parks appear here after their map is first opened. rebuild: GET /api/geo/<slug>?rebuild=1' });
   }
 
   if (url.pathname === '/api/config') {
