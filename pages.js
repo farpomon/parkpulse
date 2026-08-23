@@ -70,6 +70,12 @@ function renderParkPage(park, sample, allParks) {
 <meta name="description" content="Live ${esc(park.name)} wait times, typical waits for every ride, park hours, and whether ${DISNEY_GROUPS.has(park.group) ? 'Lightning Lane' : 'Express Pass'} is worth it today.">
 <link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
 <link rel="canonical" href="https://www.parkpulse.fun/parks/${park.slug}">
+<meta property="og:title" content="${esc(park.name)} Wait Times &amp; Strategy | ParkPulse">
+<meta property="og:description" content="Live ${esc(park.name)} wait times, typical waits for every ride, park hours, and today's line strategy.">
+<meta property="og:image" content="https://www.parkpulse.fun/og.png">
+<meta property="og:url" content="https://www.parkpulse.fun/parks/${park.slug}">
+<meta property="og:type" content="website">
+<script type="application/ld+json">${jsonLd(park)}</script>
 <style>${CSS}</style></head><body><div class="wrap">
 <nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/guide">Guide</a></span></nav>
 <h1>${esc(park.name)} Wait Times &amp; Strategy</h1>
@@ -90,10 +96,38 @@ ${passStrategy(park)}
 </div><script src="/i18n.js"></script><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
 }
 
-const renderSitemap = (origin, slugs) => `<?xml version="1.0" encoding="UTF-8"?>
+// Structured data for the park pages: what the place is, where it is, and
+// how the page sits in the site. Escaped against </script> breakout.
+function jsonLd(park) {
+  const data = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'ParkPulse', item: 'https://www.parkpulse.fun/' },
+          { '@type': 'ListItem', position: 2, name: `${park.name} Wait Times`, item: `https://www.parkpulse.fun/parks/${park.slug}` },
+        ],
+      },
+      {
+        '@type': 'TouristAttraction',
+        name: park.name,
+        url: `https://www.parkpulse.fun/parks/${park.slug}`,
+        ...(park.lat && park.lng ? { geo: { '@type': 'GeoCoordinates', latitude: park.lat, longitude: park.lng } } : {}),
+        isPartOf: { '@type': 'Organization', name: park.group },
+      },
+    ],
+  };
+  return JSON.stringify(data).replace(/</g, '\\u003c');
+}
+
+const renderSitemap = (origin, slugs) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', '/app', '/guide', '/terms', '/privacy', ...slugs.map((s) => `/parks/${s}`)].map((p) => `  <url><loc>${origin}${p}</loc></url>`).join('\n')}
+${['', '/app', '/guide', '/terms', '/privacy', ...slugs.map((s) => `/parks/${s}`)].map((p) => `  <url><loc>${origin}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}
 </urlset>`;
+};
 
 const renderRobots = (origin) => `User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`;
 
