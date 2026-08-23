@@ -232,6 +232,7 @@ async function waAgentReply(link, text) {
     memory: db.advisor.getMemory(link.email),
     trip: db.trips.get(link.email),
     lang: LANG_NAMES[ds.lang] || 'English',
+    channel: 'whatsapp',
     send: (event, data) => { if (event === 'delta' && data.text) reply += data.text; },
   });
   db.wa.saveHistory(link.phone, [...messages, { role: 'assistant', content: (reply || '').slice(0, 2000) }]);
