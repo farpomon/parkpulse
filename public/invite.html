@@ -1,0 +1,51 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2c2154">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Your ParkPulse invite</title>
+<style>
+  :root { --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485; --brand: #4f3ac9; --border: #e3dff2; --green: #1d7a4f; --red: #c43c3c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4; --brand: #8f7bf0; --border: #362c5c; --green: #5ecb96; --red: #ff8b8b; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Segoe UI", system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 2.5rem 2rem; max-width: 420px; margin: 1rem; text-align: center; }
+  h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
+  p { color: var(--muted); }
+  .ok { color: var(--green); font-weight: 700; }
+  .err { color: var(--red); font-weight: 700; }
+  .btn { display: inline-block; background: var(--brand); color: #fff; border: none; border-radius: 12px; padding: .75rem 1.75rem; font-weight: 700; font-size: 1rem; text-decoration: none; cursor: pointer; margin-top: 1rem; }
+</style>
+<div class="card" id="card">
+  <h1>🎟 Checking your invite…</h1>
+  <p>One moment.</p>
+</div>
+<script>
+  (async () => {
+    const card = document.getElementById('card');
+    const token = new URLSearchParams(location.search).get('t');
+    if (!token) {
+      card.innerHTML = '<h1>Hmm, no invite here</h1><p>This page activates a ParkPulse guest invite — the link you got should include a code.</p><a class="btn" href="/">Back to ParkPulse</a>';
+      return;
+    }
+    try {
+      const res = await fetch('/api/invite/info?t=' + encodeURIComponent(token));
+      const info = await res.json();
+      if (!res.ok) throw new Error(info.error || 'not found');
+      if (!info.valid) {
+        card.innerHTML = '<h1>Invite already used</h1><p>This invite has been redeemed. If that was you, just open the app — your access is on your account.</p><a class="btn" href="/app">Open ParkPulse →</a>';
+        return;
+      }
+      // Hold the token; the app claims it right after login/signup.
+      try { localStorage.setItem('pp-invite', token); } catch {}
+      const who = info.boundEmail ? `<p>This invite is for <b>${info.boundEmail}</b> — sign up or log in with that email.</p>` : '';
+      card.innerHTML = `<h1>You're invited! 🎢</h1>
+        <p class="ok">Full ParkPulse access for ${info.days} days</p>
+        <p>Live waits for 56 parks worldwide, the AI day planner and wait-drop alerts.</p>${who}
+        <p>Open the app and log in (or create a free account) — your access unlocks automatically.</p>
+        <a class="btn" href="/app">Open ParkPulse →</a>`;
+    } catch {
+      card.innerHTML = '<h1 class="err">Invite not found</h1><p>This link is invalid or was revoked. Ask the person who invited you for a new one.</p><a class="btn" href="/">Back to ParkPulse</a>';
+    }
+  })();
+</script>

@@ -90,6 +90,7 @@ YOUR TOOLS:
 ADVICE STYLE:
 - You are a continuing advisor, not a one-off chatbot. If saved traveler notes are provided, use them — greet returning context naturally ("since you're going with two kids under 8…") instead of re-asking. When the user shares new durable facts, update your notes with remember.
 - Any request for a plan or itinerary for the current park = a propose_plan call alongside your reply, every time, so the Apply button is right there in the chat. Applying is the user's option, never automatic — invite it, don't announce it as done. Personalize the ride list: skip rides their kids can't ride, lead with their favorites and saved must-dos.
+- NEVER mention the Apply button unless your propose_plan call succeeded in this same turn. If the tool errored, fix the input and call it again before answering; if you didn't call it, don't reference a button that isn't there.
 - Use the live data provided or fetched. If today's waits are short, say so and tell them to keep their money. Recommending "don't buy" builds trust.
 - Be concrete: name rides, name times, name dollar amounts and the per-person math for their party size. Ask party size if it matters and they haven't said.
 - The user's local park time is in the live data — anchor "rest of the day" advice to it.
@@ -157,13 +158,26 @@ function waitsBlock(park, waits) {
   const rides = waits.rides
     .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
     .join('\n');
-  return `Park: ${park.name} (${park.group})
+  return `Park: ${park.name} (${park.group})${park.slug ? ` — slug for tool calls: ${park.slug}` : ''}
 Local time now: ${localTime(park.tz)}
 Typical hours: ${park.open}:00-${park.close}:00 local.
 ${park.show ? `Tonight's show: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
 Data: ${waits.source === 'live' ? 'live, updated within minutes' : 'TYPICAL-DAY ESTIMATES (live feed unavailable) — caveat advice accordingly'}
 ${waits.forecast ? `7-day crowd outlook (based on ${waits.forecast.basis}): ${waits.forecast.days.map((d) => `${d.dow} ${d.label}${d.holiday ? ` (${d.holiday})` : ''}`).join(', ')}. Lightest day: ${waits.forecast.best}.\n` : ''}Standby waits:
 ${rides}`;
+}
+
+// Models sometimes pass the park's display name (or a stale slug) instead of
+// the slug; resolve generously, then fall back to the park being viewed —
+// both tools are documented as current-park-only anyway.
+function resolvePark(ref, ctx) {
+  if (typeof ref === 'string' && ref) {
+    if (deps.parks[ref]) return deps.parks[ref];
+    const needle = ref.trim().toLowerCase();
+    const byName = Object.values(deps.parks).find((p) => p.name.toLowerCase() === needle || p.slug === needle);
+    if (byName) return byName;
+  }
+  return ctx.park || null;
 }
 
 async function runTool(block, ctx) {
@@ -175,7 +189,7 @@ async function runTool(block, ctx) {
       return { text: waitsBlock(park, await deps.getWaits(park.slug)) };
     }
     if (block.name === 'set_alert') {
-      const park = deps.parks[input.park];
+      const park = resolvePark(input.park, ctx);
       const threshold = Math.round(Number(input.threshold));
       const ride = typeof input.ride === 'string' ? input.ride.slice(0, 120) : null;
       if (!park || !ride || !Number.isFinite(threshold) || threshold < 5 || threshold > 240) {
@@ -189,10 +203,13 @@ async function runTool(block, ctx) {
       return { text: `Alert created: the user will get a push notification when ${ride} drops to ${threshold} minutes or less.` };
     }
     if (block.name === 'propose_plan') {
-      const park = deps.parks[input.park];
+      const park = resolvePark(input.park, ctx);
       const rides = Array.isArray(input.rides) ? input.rides.filter((r) => typeof r === 'string').slice(0, 20) : [];
       if (!park || !rides.length) return { text: 'Invalid plan (need a valid park slug and at least one ride name).', isError: true };
       ctx.send('action', { type: 'plan', park: park.slug, rides });
+      if (ctx.channel === 'whatsapp') {
+        return { text: 'Noted — but this conversation is over WhatsApp, where there is NO Apply button. Do not mention any button; instead write the plan as a clear numbered ride order they can follow, and mention they can also build it in the ParkPulse app.' };
+      }
       return { text: 'Plan delivered to the chat — the user now sees an OPTIONAL Apply button. Briefly summarize the plan and invite them to tap Apply if they want it loaded into their plan builder; do not say it was applied.' };
     }
     if (block.name === 'remember') {
@@ -228,10 +245,12 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile }) {
+function userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile, done }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
+  const rode = Array.isArray(done) ? done.filter((f) => typeof f === 'string').slice(0, 40) : [];
   const lines = [];
+  if (rode.length) lines.push(`Already ridden today (ticked off in the app): ${rode.join(', ')}. Don't schedule these again unless they ask for a re-ride.`);
   if (profile && (profile.party || profile.ages.length || profile.vibes.length || profile.onsite !== null)) {
     const bits = [];
     if (profile.party) bits.push(`party of ${profile.party}`);
@@ -270,7 +289,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, trip, profile, send }) {
+async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -282,12 +301,12 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     ...clean.slice(0, -1),
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile })}\n</user_context>\n\n${last.content}`,
+      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile, done })}\n</user_context>\n\n${last.content}`,
     },
   ];
   // Actions are emitted the moment their side effect happens, so a later
   // turn failing (or the client disconnecting) can't orphan a created alert.
-  const ctx = { subscription, email: email || null, send };
+  const ctx = { subscription, email: email || null, park, channel: channel || 'app', send };
   let emittedText = false;
   let turnEmitted = false;
 

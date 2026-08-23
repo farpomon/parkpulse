@@ -95,6 +95,28 @@
       <button id="test-email">Send me a test email</button>
       <span id="email-result" class="muted" style="font-size:.85rem;margin-left:.6rem"></span>
     </div>
+    <div class="card" id="invite-card">
+      <h2>Invite guests · full access</h2>
+      <p class="muted" style="font-size:.85rem;margin:.2rem 0 .7rem">Comp a Guest Pass by email, phone (share over WhatsApp), or a bare link. Single-use; email invites only redeem on that email's account.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+        <select id="inv-channel" style="padding:.45rem .6rem;border-radius:8px">
+          <option value="link">Unique link</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone (WhatsApp)</option>
+        </select>
+        <input id="inv-target" placeholder="—" style="flex:1;min-width:12rem;padding:.45rem .6rem;border-radius:8px" disabled>
+        <select id="inv-days" style="padding:.45rem .6rem;border-radius:8px">
+          <option value="7">7 days</option>
+          <option value="30" selected>30 days</option>
+          <option value="90">90 days</option>
+          <option value="365">1 year</option>
+        </select>
+        <input id="inv-note" placeholder="Note (optional, shown in email)" style="flex:1;min-width:12rem;padding:.45rem .6rem;border-radius:8px">
+        <button id="inv-create">Create invite</button>
+      </div>
+      <p id="inv-result" style="font-size:.88rem;margin:.6rem 0 0;word-break:break-all"></p>
+      <div class="overflow" style="margin-top:.8rem"><table id="inv-table"></table></div>
+    </div>
     <div class="tiles" id="tiles"></div>
     <div class="card"><h2>Page views · last 14 days</h2><div class="chart" id="views-chart"></div><div class="axis" id="views-axis"></div></div>
     <div class="card"><h2>Signups · last 30 days</h2><div class="chart" id="signup-chart"></div><div class="axis" id="signup-axis"></div></div>
@@ -197,6 +219,7 @@ async function load() {
   if (status === 200) {
     $('login').hidden = true; $('dash').hidden = false; $('refresh').hidden = false; $('logout').hidden = false;
     render(data);
+    loadInvites();
     return true;
   }
   if (status === 403 && localStorage.getItem(KEY)) $('err').textContent = 'This account does not have admin access.';
@@ -231,6 +254,55 @@ $('verify').onclick = async () => {
   const { status, data } = await api('/api/auth/verify', { email: $('email').value.trim().toLowerCase(), code: $('code').value.trim(), device });
   if (status !== 200) { $('err2').textContent = data.error || 'Verification failed'; return; }
   afterAuth(data);
+};
+$('inv-channel').onchange = () => {
+  const ch = $('inv-channel').value;
+  $('inv-target').disabled = ch === 'link';
+  $('inv-target').placeholder = ch === 'email' ? 'guest@example.com' : ch === 'phone' ? 'Phone with country code, e.g. 15551234567' : '—';
+  if (ch === 'link') $('inv-target').value = '';
+};
+async function loadInvites() {
+  const { status, data } = await api('/api/admin/invites');
+  if (status !== 200) return;
+  const rows = (data.invites || []).map((i) => `<tr>
+    <td>${esc(i.channel)}${i.target ? ` · ${esc(i.target)}` : ''}</td>
+    <td>${i.days}d</td>
+    <td>${i.redeemed_by ? `✅ ${esc(i.redeemed_by)}` : '⏳ open'}</td>
+    <td>${i.redeemed_by ? '' : `<a href="#" data-copy="${esc(i.token)}">copy link</a> · <a href="#" data-revoke="${esc(i.token)}" style="color:#e5484d">revoke</a>`}</td>
+  </tr>`).join('');
+  $('inv-table').innerHTML = rows ? `<tr><th>Invite</th><th>Access</th><th>Status</th><th></th></tr>${rows}` : '<tr><td class="muted">No invites yet.</td></tr>';
+  $('inv-table').querySelectorAll('[data-copy]').forEach((a) => a.onclick = (e) => {
+    e.preventDefault();
+    navigator.clipboard?.writeText(`${location.origin}/invite?t=${a.dataset.copy}`);
+    a.textContent = 'copied!';
+    setTimeout(() => { a.textContent = 'copy link'; }, 1500);
+  });
+  $('inv-table').querySelectorAll('[data-revoke]').forEach((a) => a.onclick = async (e) => {
+    e.preventDefault();
+    await api('/api/admin/invite/revoke', { token: a.dataset.revoke });
+    loadInvites();
+  });
+}
+$('inv-create').onclick = async () => {
+  $('inv-result').textContent = 'Creating…';
+  const { status, data } = await api('/api/admin/invite', {
+    channel: $('inv-channel').value,
+    target: $('inv-target').value.trim(),
+    days: Number($('inv-days').value),
+    note: $('inv-note').value.trim(),
+  });
+  if (status !== 200) { $('inv-result').textContent = `Error: ${data.error || 'failed'}`; return; }
+  if (data.channel === 'email') {
+    $('inv-result').innerHTML = data.sent
+      ? `✅ Invite emailed to <b>${esc(data.target)}</b>. Backup link: ${esc(data.link)}`
+      : `⚠️ Email didn't send (check email config) — share the link yourself: ${esc(data.link)}`;
+  } else if (data.channel === 'phone') {
+    $('inv-result').innerHTML = `✅ Ready — <a href="${esc(data.waShare)}" target="_blank" rel="noopener"><b>tap to send via WhatsApp</b></a> or copy: ${esc(data.link)}`;
+  } else {
+    $('inv-result').innerHTML = `✅ Link created (copied to clipboard): ${esc(data.link)}`;
+    navigator.clipboard?.writeText(data.link);
+  }
+  loadInvites();
 };
 $('test-email').onclick = async () => {
   $('email-result').textContent = 'Sending…';
