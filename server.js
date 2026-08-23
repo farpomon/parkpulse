@@ -74,8 +74,8 @@ if (!process.env.PASS_SECRET) console.log('WARNING: PASS_SECRET not set — issu
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 // Legacy plan ids stay valid so previously issued passes keep working.
-const PLAN_DAYS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650 };
-const PLAN_LABELS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])), 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass' };
+const PLAN_DAYS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650, 'comp': 365 };
+const PLAN_LABELS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])), 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass', 'comp': 'Guest Pass' };
 
 function signToken(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -286,6 +286,16 @@ const sendDeletionEmail = (origin, email, token, deleteAt) => {
 };
 
 // One-time welcome after the account verifies. Fire-and-forget, never blocks.
+const sendInviteEmail = (origin, email, token, days, note) => {
+  const link = `${origin}/invite?t=${token}`;
+  return sendEmail(email, "You're invited to ParkPulse 🎢",
+    `<p>You've been given <b>full ParkPulse access for ${days} days</b> — live wait times for 56 parks worldwide, the AI day planner, and wait-drop alerts.</p>
+     ${note ? `<p><i>${note.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i></p>` : ''}
+     <p><a href="${link}" style="display:inline-block;background:#5b3df5;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Accept your invite →</a></p>
+     <p>Or open this link: ${link}</p>`,
+    `Invite for ${email} (no RESEND_API_KEY set) — link: ${link}`);
+};
+
 const sendWelcomeEmail = (email) => sendEmail(email, 'Welcome to ParkPulse 🎢',
   `<p>Your account is verified — you're in!</p>
 <p>Three things worth trying on your next park day:</p>
@@ -774,6 +784,23 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { state: db.daystate.get(s.email) });
   }
 
+  // Public invite lookup for the /invite landing page.
+  if (req.method === 'GET' && url.pathname === '/api/invite/info') {
+    const token = String(url.searchParams.get('t') || '');
+    const inv = /^[a-f0-9]{32}$/.test(token) ? db.invites.get(token) : null;
+    if (!inv) return sendJson(res, 404, { error: 'invite not found' });
+    return sendJson(res, 200, {
+      valid: !inv.redeemed_by,
+      days: inv.days,
+      boundEmail: inv.channel === 'email' ? inv.target : null,
+    });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/invites') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    return sendJson(res, 200, { invites: db.invites.list(50) });
+  }
+
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {
       env: APP_ENV,
@@ -1077,6 +1104,71 @@ const server = http.createServer(async (req, res) => {
           console.log(`whatsapp webhook error: ${err.message}`);
         }
         return;
+      }
+
+      // Admin: mint a full-access invite, delivered by email, phone (as a
+      // WhatsApp share link from the admin's own phone), or a bare link.
+      if (url.pathname === '/api/admin/invite') {
+        const adm = adminUser(req);
+        if (!adm) return sendJson(res, 403, { error: 'admin account required' });
+        const channel = ['email', 'phone', 'link'].includes(parsed.channel) ? parsed.channel : 'link';
+        const days = [7, 30, 90, 365].includes(parsed.days) ? parsed.days : 30;
+        const note = typeof parsed.note === 'string' ? parsed.note.trim().slice(0, 200) : '';
+        let target = null;
+        if (channel === 'email') {
+          target = typeof parsed.target === 'string' ? parsed.target.trim().toLowerCase().slice(0, 254) : '';
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(target)) return sendJson(res, 400, { error: 'invalid email' });
+        }
+        if (channel === 'phone') {
+          target = typeof parsed.target === 'string' ? parsed.target.replace(/[^\d]/g, '').slice(0, 20) : '';
+          if (target.length < 7) return sendJson(res, 400, { error: 'invalid phone number' });
+        }
+        const token = crypto.randomBytes(16).toString('hex');
+        db.invites.create(token, channel, target, days, note, adm.email);
+        const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+        const link = `${origin}/invite?t=${token}`;
+        let sent = false;
+        if (channel === 'email') {
+          try { const r = await sendInviteEmail(origin, target, token, days, note); sent = Boolean(r.sent); }
+          catch (err) { console.log(`invite email failed: ${err.message}`); }
+        }
+        const shareText = `You're invited to ParkPulse — full access for ${days} days! ${link}`;
+        return sendJson(res, 200, {
+          token, link, days, channel, target, sent,
+          waShare: channel === 'phone' ? `https://wa.me/${target}?text=${encodeURIComponent(shareText)}` : null,
+        });
+      }
+
+      if (url.pathname === '/api/admin/invite/revoke') {
+        if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+        const token = typeof parsed.token === 'string' ? parsed.token : '';
+        const removed = db.invites.revoke(token);
+        return sendJson(res, removed ? 200 : 409, removed ? { ok: true } : { error: 'not found or already redeemed' });
+      }
+
+      // Redeem an invite on the signed-in account.
+      if (url.pathname === '/api/invite/claim') {
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'log in first' });
+        const token = typeof parsed.token === 'string' && /^[a-f0-9]{32}$/.test(parsed.token) ? parsed.token : '';
+        const inv = token ? db.invites.get(token) : null;
+        if (!inv) return sendJson(res, 404, { error: 'invite not found' });
+        if (inv.redeemed_by && inv.redeemed_by !== s.email) return sendJson(res, 409, { error: 'invite already used' });
+        if (inv.channel === 'email' && inv.target !== s.email) {
+          return sendJson(res, 403, { error: `this invite is for ${inv.target} — log in with that account` });
+        }
+        if (!inv.redeemed_by) {
+          db.invites.redeem(token, s.email);
+          grantToUser(s.email, 'comp', Date.now() + inv.days * 86400000);
+        }
+        const u = db.users.get(s.email);
+        const active = accountPassActive(u);
+        return sendJson(res, 200, {
+          ok: true,
+          plan: active ? u.plan : null,
+          exp: active ? u.plan_exp : null,
+          passToken: active ? signPass(u.plan, u.plan_exp) : null,
+        });
       }
 
       // Mint a connect code for the signed-in user and hand back the wa.me link.

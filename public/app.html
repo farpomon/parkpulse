@@ -1831,7 +1831,7 @@
   function planLabel(plan, exp) {
     if (!plan) return 'Free plan';
     const until = new Date(exp).toLocaleDateString(window.PP_LANG || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    const names = { 'day-pass': 'Day Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'year-pass': 'Annual Pass', 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer' };
+    const names = { 'day-pass': 'Day Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'year-pass': 'Annual Pass', 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer', 'comp': 'Guest Pass' };
     return `${names[plan] || plan} · active until ${until}`;
   }
 
@@ -1875,6 +1875,30 @@
       localStorage.setItem('pp-pass', data.passToken);
       isPro = true;
     }
+    claimInvite();
+  }
+
+  // A guest invite from /invite waits in storage until there's an account
+  // to attach it to, then redeems itself.
+  async function claimInvite() {
+    let token = null;
+    try { token = localStorage.getItem('pp-invite'); } catch {}
+    if (!token || !localStorage.getItem('pp-email')) return;
+    try {
+      const r = await api('/api/invite/claim', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) });
+      const d = await r.json();
+      if (r.status === 404 || r.status === 409) { localStorage.removeItem('pp-invite'); return; }
+      if (!r.ok) return; // e.g. bound to another email — keep it for the right login
+      localStorage.removeItem('pp-invite');
+      if (d.passToken) {
+        localStorage.setItem('pp-pass', d.passToken);
+        localStorage.setItem('pp-plan', d.plan);
+        localStorage.setItem('pp-plan-exp', String(d.exp));
+        isPro = true;
+      }
+      toast(tr('Invite accepted — full access unlocked! 🎉'));
+      load();
+    } catch {}
   }
 
   async function pushSubscriptionOrNull() {

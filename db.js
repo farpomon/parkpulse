@@ -120,6 +120,17 @@ db.exec(`
     history TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS invites (
+    token TEXT PRIMARY KEY,
+    channel TEXT NOT NULL,
+    target TEXT,
+    days INTEGER NOT NULL,
+    note TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    redeemed_by TEXT,
+    redeemed_at TEXT
+  );
 `);
 
 // Guarded column additions (CREATE TABLE IF NOT EXISTS won't alter existing
@@ -436,4 +447,17 @@ const wa = {
     db.prepare('UPDATE wa_links SET history = ? WHERE phone = ?').run(JSON.stringify(history.slice(-12)), phone),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, DB_FILE };
+// Admin-minted comp-access invites: single-use, optionally bound to an email.
+const invites = {
+  create: (token, channel, target, days, note, createdBy) =>
+    db.prepare('INSERT INTO invites (token, channel, target, days, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(token, channel, target, days, note, createdBy, new Date().toISOString()),
+  get: (token) => db.prepare('SELECT * FROM invites WHERE token = ?').get(token),
+  redeem: (token, email) =>
+    db.prepare('UPDATE invites SET redeemed_by = ?, redeemed_at = ? WHERE token = ? AND redeemed_by IS NULL')
+      .run(email, new Date().toISOString(), token).changes,
+  revoke: (token) => db.prepare('DELETE FROM invites WHERE token = ? AND redeemed_by IS NULL').run(token).changes,
+  list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
+};
+
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, invites, DB_FILE };
