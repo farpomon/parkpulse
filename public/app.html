@@ -85,6 +85,10 @@
   .star.on { color: var(--star); }
   .bell { border: none; background: none; font-size: 1.05rem; cursor: pointer; padding: .2rem; flex-shrink: 0; filter: grayscale(1); opacity: .45; }
   .bell.on { filter: none; opacity: 1; }
+  .rode { border: 1.5px solid var(--border); background: none; color: var(--muted); width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .9rem; font-weight: 800; line-height: 1; cursor: pointer; flex-shrink: 0; padding: 0; }
+  .rode.on { background: var(--green); border-color: var(--green); color: #fff; }
+  .ride.isdone { opacity: .55; }
+  .ride.isdone .name { text-decoration: line-through; }
   .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: none; }
   .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-radius: 20px 20px 0 0; padding: 1.25rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom)); z-index: 31; display: none; max-width: 640px; margin: 0 auto; box-shadow: 0 -10px 40px rgba(20,12,48,.25); }
   .sheet.open, .sheet-bg.open { display: block; }
@@ -424,6 +428,9 @@
 <script src="/chat-widget.js"></script>
 <script>
   const FREE_PARK = 'magic-kingdom';
+  // Ride names come from the third-party waits feed and descriptions/dining
+  // text from the model — all of it must be escaped before touching innerHTML.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // Crowd multiplier on current wait by hour (rope drop low, midday peak, last hour lowest).
   const HOURLY = { 7: .45, 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35, 23: .3 };
   const RIDE_MINUTES = 15;
@@ -587,9 +594,19 @@
     if (openDesc.has(name)) renderRides();
   }
 
+  // The park's calendar day — "today" rolls over at midnight park time, so
+  // done-lists and the group wizard reset together, wherever the phone is from.
+  // The tz is cached because boot-time checks run before the config arrives;
+  // falling back to the device tz across a date line would fake a new day.
+  const parkDay = () => {
+    const tz = parks[current]?.tz || localStorage.getItem('pp-tz') || undefined;
+    try { return new Date().toLocaleDateString('en-CA', { timeZone: tz }); }
+    catch { return new Date().toLocaleDateString('en-CA'); }
+  };
+
   // Rides completed today, per park (ordered — the newest one doubles as our
   // best guess for which land the family is standing in right now).
-  const doneKey = () => `pp-done-${current}-${new Date().toISOString().slice(0, 10)}`;
+  const doneKey = () => `pp-done-${current}-${parkDay()}`;
   let doneOrder = [];
   const loadDone = () => { try { doneOrder = JSON.parse(localStorage.getItem(doneKey()) || '[]'); } catch { doneOrder = []; } };
   const saveDone = () => { try { localStorage.setItem(doneKey(), JSON.stringify(doneOrder.slice(-60))); } catch {} };
@@ -711,20 +728,23 @@
     const q = query.trim().toLowerCase();
     let list = q ? rides.filter((r) => r.name.toLowerCase().includes(q)) : rides;
     list = list.filter(passesFilter);
+    const done = new Set(doneOrder);
     return [...list].sort((a, b) =>
-      (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)
+      (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)
     );
   }
 
   function rideRow(r) {
+    const rode = doneOrder.includes(r.name);
     return `
-      <div class="ride">
-        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${r.name} to plan">
-        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${r.name}">★</button>
-        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${r.name}</span>${deltaHtml(r)}</span>
-        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${r.name}">🔔</button>
+      <div class="ride${rode ? ' isdone' : ''}">
+        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${esc(r.name)} to plan">
+        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${esc(r.name)}">★</button>
+        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}</span>
+        <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
+        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${esc(r.name)}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
-        ${openDesc.has(r.name) ? `<div class="ride-desc">${descCache[current + '|' + r.name] || '…'}</div>` : ''}
+        ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}</div>` : ''}
         ${srPromptHtml(r)}
       </div>`;
   }
@@ -749,9 +769,10 @@
         if (!lands.has(key)) lands.set(key, []);
         lands.get(key).push(r);
       }
+      const done = new Set(doneOrder);
       $('rides').innerHTML = [...lands.entries()].map(([land, list]) =>
-        `<div class="landhead">${land}</div>` +
-        [...list].sort((a, b) => (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
+        `<div class="landhead">${esc(land)}</div>` +
+        [...list].sort((a, b) => (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
       ).join('');
     }
     $('rides').querySelectorAll('input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
@@ -765,6 +786,15 @@
       favs.has(name) ? favs.delete(name) : favs.add(name);
       saveFavs();
       renderRides();
+    }));
+    $('rides').querySelectorAll('.rode').forEach((btn) => btn.addEventListener('click', () => {
+      const name = decodeURIComponent(btn.dataset.name);
+      const i = doneOrder.indexOf(name);
+      if (i >= 0) doneOrder.splice(i, 1); else doneOrder.push(name);
+      saveDone();
+      renderRides();
+      const rp = document.getElementById('replan');
+      if (rp && $('plan-out').innerHTML.trim()) rp.style.display = 'inline-block';
     }));
     $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
     $('rides').querySelectorAll('.sr-ask button').forEach((btn) => btn.addEventListener('click', (e) => {
@@ -985,10 +1015,10 @@
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${s.ride.name}</b>${s.ll ? ' 🎟' : ''}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${s.ride.land}` : ''} · ~${s.predicted} ${tr('min')}<br>
-           <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${s.ride.name} ridden">✓</button></div>`
+        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
+           <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${esc(s.ride.name)} ridden">✓</button></div>`
       ).join('')}
-      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${remaining.map((r) => r.name).join(', ')}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
+      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
     </div>`;
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
@@ -1017,6 +1047,7 @@
 
   async function load(opts = {}) {
     renderTabs();
+    try { if (parks[current]?.tz) localStorage.setItem('pp-tz', parks[current].tz); } catch {}
     loadDone();
     if (plannerPark !== null && plannerPark !== current) { llSet.clear(); hidePlanNote(); openDesc.clear(); if (viewMode === 'dining') renderDining(); }
     if (plannerPark !== current) { setupPlanner(); plannerPark = current; }
@@ -1423,17 +1454,17 @@
       <div class="dinehero">
         <h3>🍽 ${tr('Where to eat at')} ${parks[current].name}</h3>
         <p class="dh-sub">${d.list.length} ${tr('places worth your time, picked for this park')}</p>
-        ${d.reserve ? `<a class="dh-cta" href="${d.reserve.url}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
-        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${d.reserve.note}</div></div>` : ''}
+        ${d.reserve && /^https?:\/\//i.test(d.reserve.url || '') ? `<a class="dh-cta" href="${esc(d.reserve.url)}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
+        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${esc(d.reserve.note)}</div></div>` : ''}
         <div class="dh-row"><span>⏰</span><div><b>${tr('Beat the rush')}</b>${tr('Kitchens peak 12:00–1:30 and 6:00–7:30. Mobile-order 30 minutes ahead or eat either side of those windows.')}</div></div>
         <div class="dh-row"><span>ℹ️</span><div><b>${tr('No live waits')}</b>${tr("Parks don't publish restaurant wait times, so we won't invent them.")}</div></div>
       </div>
       ${d.list.map((r) => `
         <div class="ride">
           <span class="mid">
-            <span class="name">${r.name}${r.mustBook ? ' 🔒' : ''}</span>
-            <div class="dine-tags">${TYPE[r.type] || r.type} · ${r.price}${r.mustBook ? ' · book early!' : ''}</div>
-            <div class="dine-blurb">${r.blurb}</div>
+            <span class="name">${esc(r.name)}${r.mustBook ? ' 🔒' : ''}</span>
+            <div class="dine-tags">${TYPE[r.type] || esc(r.type)} · ${esc(r.price)}${r.mustBook ? ' · book early!' : ''}</div>
+            <div class="dine-blurb">${esc(r.blurb)}</div>
           </span>
         </div>`).join('')}
       <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 Ask the AI for a dining plan for today</a></p>`;
@@ -1521,12 +1552,8 @@
 
   let wizStep = 0;
   let wizDraft = null;
-  // The park's calendar day — answers reset at midnight park time, so each
-  // new park day starts by re-confirming the group (prefilled from yesterday).
-  const parkDay = () => {
-    try { return new Date().toLocaleDateString('en-CA', { timeZone: parks[current]?.tz }); }
-    catch { return new Date().toLocaleDateString('en-CA'); }
-  };
+  // Wizard answers reset at midnight park time too — each new park day
+  // starts by re-confirming the group (prefilled from yesterday).
   const needsWizard = () => (profile ? profile.day !== parkDay() : localStorage.getItem('pp-wiz-seen') !== parkDay());
   const wizIsResort = () => /Disney|Universal/.test(parks[current]?.group || '');
   const wizStepCount = () => (wizIsResort() ? 4 : 3);

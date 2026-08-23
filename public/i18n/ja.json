@@ -206,5 +206,7 @@
  "Something went wrong.": "エラーが発生しました。",
  "You're in — welcome to ParkPulse! 🎢": "登録完了 — ParkPulseへようこそ! 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "まず上にメールアドレスを入力してから「パスワードをお忘れですか?」をタップしてください。",
- "If that account exists, a reset link is on its way.": "そのアカウントが存在すれば、リセットリンクを送信しました。"
+ "If that account exists, a reset link is on its way.": "そのアカウントが存在すれば、リセットリンクを送信しました。",
+ "Ridden it? Tick it off": "乗った? チェック",
+ "Ridden — tap to undo": "完了 — タップで取り消し"
 }

@@ -188,7 +188,7 @@ function render(d) {
     d.users.recent.map((u) => `<tr><td>${esc(u.email)}</td><td>${fmtDay(u.created_at.slice(0, 10))}</td><td>${u.verified ? '<span class="ok">verified</span>' : '<span class="muted">pending</span>'}${u.plan && u.plan_exp > Date.now() ? ` · ${esc(u.plan)}` : ''}</td></tr>`).join('');
 
   $('sharing').innerHTML = d.sharingSignals.length
-    ? d.sharingSignals.map((s) => `<div class="quote"><b>${esc(s.email)}</b> — ${esc(s.parkA)} ↔ ${esc(s.parkB)} (${Math.round(s.km)} km apart)</div>`).join('')
+    ? d.sharingSignals.map((s) => `<div class="quote"><b>${esc(s.email)}</b> — ${esc(s.parks?.[0])} ↔ ${esc(s.parks?.[1])} (${Math.round(s.km)} km apart)</div>`).join('')
     : '<p class="muted" style="font-size:.85rem">None detected. 🎉</p>';
 }
 

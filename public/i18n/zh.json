@@ -206,5 +206,7 @@
  "Something went wrong.": "出了点问题。",
  "You're in — welcome to ParkPulse! 🎢": "注册成功——欢迎来到 ParkPulse！🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "请先在上方输入邮箱，再点击\"忘记密码？\"。",
- "If that account exists, a reset link is on its way.": "如果该账户存在，重置链接已在路上。"
+ "If that account exists, a reset link is on its way.": "如果该账户存在，重置链接已在路上。",
+ "Ridden it? Tick it off": "玩过了？打个勾",
+ "Ridden — tap to undo": "已完成——点击撤销"
 }

@@ -40,7 +40,7 @@
       const until = new Date(data.exp).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
       const hasAccount = Boolean(localStorage.getItem('pp-email'));
       card.innerHTML = `<h1>You're in! 🎉</h1>
-        <p class="ok">${data.plan === 'trip-pass' ? 'Trip Pass' : 'Pro Annual'} active until ${until}</p>
+        <p class="ok">${data.label || 'Your pass is'} active until ${until}</p>
         <p>Every park, the plan builder, and wait-drop alerts are unlocked${hasAccount ? ' on your account' : ' on this device'}.</p>
         ${hasAccount ? '' : '<p>Tip: create a free account (👤 in the app) and your pass will follow your login onto any device.</p>'}
         <a class="btn" href="/app">Open ParkPulse →</a>`;

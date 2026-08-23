@@ -206,5 +206,7 @@
  "Something went wrong.": "ஏதோ தவறு நடந்தது.",
  "You're in — welcome to ParkPulse! 🎢": "முடிந்தது — ParkPulse-க்கு வரவேற்கிறோம்! 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "முதலில் மேலே உங்கள் மின்னஞ்சலை உள்ளிட்டு, பிறகு \"கடவுச்சொல் மறந்துவிட்டதா?\" என்பதைத் தட்டவும்.",
- "If that account exists, a reset link is on its way.": "அந்தக் கணக்கு இருந்தால், மீட்டமைப்பு இணைப்பு அனுப்பப்பட்டுள்ளது."
+ "If that account exists, a reset link is on its way.": "அந்தக் கணக்கு இருந்தால், மீட்டமைப்பு இணைப்பு அனுப்பப்பட்டுள்ளது.",
+ "Ridden it? Tick it off": "சவாரி முடிந்ததா? டிக் செய்யவும்",
+ "Ridden — tap to undo": "முடிந்தது — செயல்தவிர்க்க தட்டவும்"
 }

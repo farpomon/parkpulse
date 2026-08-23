@@ -206,5 +206,7 @@
  "Something went wrong.": "কিছু একটা ভুল হয়েছে।",
  "You're in — welcome to ParkPulse! 🎢": "হয়ে গেছে — ParkPulse-এ স্বাগতম! 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "আগে উপরে আপনার ইমেল লিখুন, তারপর \"পাসওয়ার্ড ভুলে গেছেন?\" চাপুন।",
- "If that account exists, a reset link is on its way.": "অ্যাকাউন্টটি থাকলে রিসেট লিঙ্ক পাঠানো হয়েছে।"
+ "If that account exists, a reset link is on its way.": "অ্যাকাউন্টটি থাকলে রিসেট লিঙ্ক পাঠানো হয়েছে।",
+ "Ridden it? Tick it off": "রাইড করেছেন? টিক দিন",
+ "Ridden — tap to undo": "হয়ে গেছে — বাতিল করতে ট্যাপ করুন"
 }

@@ -206,5 +206,7 @@
  "Something went wrong.": "حدث خطأ ما.",
  "You're in — welcome to ParkPulse! 🎢": "تم! أهلاً بك في ParkPulse 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "أدخل بريدك الإلكتروني أعلاه أولاً، ثم اضغط \"نسيت كلمة المرور؟\".",
- "If that account exists, a reset link is on its way.": "إذا كان هذا الحساب موجودًا، فرابط إعادة التعيين في الطريق."
+ "If that account exists, a reset link is on its way.": "إذا كان هذا الحساب موجودًا، فرابط إعادة التعيين في الطريق.",
+ "Ridden it? Tick it off": "ركبتها؟ ضع علامة",
+ "Ridden — tap to undo": "تمت — اضغط للتراجع"
 }

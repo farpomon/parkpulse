@@ -206,5 +206,7 @@
  "Something went wrong.": "Bir şeyler ters gitti.",
  "You're in — welcome to ParkPulse! 🎢": "Tamamdır — ParkPulse'a hoş geldin! 🎢",
  "Enter your email above first, then tap \"Forgot password?\".": "Önce yukarıya e-postanı yaz, sonra \"Şifreni mi unuttun?\" seçeneğine dokun.",
- "If that account exists, a reset link is on its way.": "O hesap varsa sıfırlama bağlantısı yolda."
+ "If that account exists, a reset link is on its way.": "O hesap varsa sıfırlama bağlantısı yolda.",
+ "Ridden it? Tick it off": "Bindin mi? İşaretle",
+ "Ridden — tap to undo": "Tamam — geri almak için dokun"
 }
