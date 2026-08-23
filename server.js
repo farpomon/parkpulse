@@ -158,6 +158,87 @@ function grantToUser(email, plan, exp) {
 const RESEND_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'ParkPulse <onboarding@resend.dev>';
 
+// WhatsApp concierge: the same AI advisor, reachable by texting our WhatsApp
+// Business number. Dormant until the Meta Cloud API credentials are set.
+const WA_TOKEN = process.env.WHATSAPP_TOKEN || '';
+const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '';
+const WA_VERIFY = process.env.WHATSAPP_VERIFY_TOKEN || '';
+const WA_NUMBER = (process.env.WHATSAPP_NUMBER || '').replace(/[^\d]/g, ''); // digits only, for wa.me links
+const WA_API_BASE = process.env.WHATSAPP_API_BASE || 'https://graph.facebook.com/v21.0';
+const WA_ENABLED = Boolean(WA_TOKEN && WA_PHONE_ID && WA_VERIFY);
+
+async function sendWhatsApp(to, text) {
+  // WhatsApp caps a text body at 4096 chars; split long replies politely.
+  const chunks = [];
+  let rest = String(text || '').trim();
+  while (rest.length > 3500) {
+    let cut = rest.lastIndexOf('\n', 3500);
+    if (cut < 500) cut = 3500;
+    chunks.push(rest.slice(0, cut));
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) chunks.push(rest);
+  for (const chunk of chunks) {
+    const res = await fetch(`${WA_API_BASE}/${WA_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WA_TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: chunk } }),
+    });
+    if (!res.ok) throw new Error(`whatsapp send ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  }
+}
+
+// One-time codes minted in the app to bind a WhatsApp number to an account.
+const waCodes = new Map(); // code -> { email, exp }
+function mintWaCode(email) {
+  for (const [c, v] of waCodes) if (v.exp < Date.now()) waCodes.delete(c);
+  const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+  waCodes.set(code, { email, exp: Date.now() + 15 * 60000 });
+  return code;
+}
+
+function sanitizeProfile(rawP) {
+  const AGES = ['toddler', 'kid', 'teen', 'adult'];
+  const VIBES = ['gentle', 'family', 'thrill', 'water', 'show'];
+  return rawP && typeof rawP === 'object' ? {
+    party: Number.isInteger(rawP.party) && rawP.party >= 1 && rawP.party <= 20 ? rawP.party : null,
+    ages: Array.isArray(rawP.ages) ? rawP.ages.filter((a) => AGES.includes(a)).slice(0, 4) : [],
+    vibes: Array.isArray(rawP.vibes) ? rawP.vibes.filter((v) => VIBES.includes(v)).slice(0, 5) : [],
+    onsite: typeof rawP.onsite === 'boolean' ? rawP.onsite : null,
+  } : null;
+}
+
+const strList = (v, max) => Array.isArray(v) ? v.filter((x) => typeof x === 'string').map((x) => x.slice(0, 120)).slice(0, max) : [];
+
+// The live agent behind the WhatsApp number: same consultant, same live
+// waits, plus everything the visitor set up in the app today.
+async function waAgentReply(link, text) {
+  const ds = db.daystate.get(link.email) || {};
+  const slug = PARKS[ds.park] ? ds.park : 'magic-kingdom';
+  const waits = await getWaits(slug);
+  try { waits.forecast = forecastFor(slug); } catch {}
+  const history = db.wa.history(link.phone);
+  const messages = [...history, { role: 'user', content: String(text).trim().slice(0, 2000) }];
+  while (messages.length && messages[0].role !== 'user') messages.shift();
+  let reply = '';
+  await consultant.consult({
+    park: PARKS[slug], waits, messages,
+    favorites: strList(ds.favorites, 30),
+    planPicks: strList(ds.picked, 30),
+    done: strList(ds.done, 40),
+    profile: sanitizeProfile(ds.profile),
+    subscription: null,
+    email: link.email,
+    memory: db.advisor.getMemory(link.email),
+    trip: db.trips.get(link.email),
+    lang: LANG_NAMES[ds.lang] || 'English',
+    send: (event, data) => { if (event === 'delta' && data.text) reply += data.text; },
+  });
+  db.wa.saveHistory(link.phone, [...messages, { role: 'assistant', content: (reply || '').slice(0, 2000) }]);
+  // WhatsApp bolds with single asterisks, not markdown's double.
+  return (reply || "I couldn't come up with an answer just now — try asking again in a moment.").replace(/\*\*(.+?)\*\*/g, '*$1*');
+}
+
 async function sendEmail(to, subject, html, logFallback) {
   if (!RESEND_KEY) {
     console.log(logFallback || `Email not sent to ${to} (no RESEND_API_KEY set): ${subject}`);
@@ -676,6 +757,22 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  // Meta's webhook handshake: echo hub.challenge when the verify token matches.
+  if (req.method === 'GET' && url.pathname === '/api/whatsapp/webhook') {
+    if (WA_ENABLED && url.searchParams.get('hub.mode') === 'subscribe' &&
+        url.searchParams.get('hub.verify_token') === WA_VERIFY) {
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      return res.end(url.searchParams.get('hub.challenge') || '');
+    }
+    return sendJson(res, 403, { error: 'verification failed' });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/daystate') {
+    const s = sessionUser(req);
+    if (!s) return sendJson(res, 401, { error: 'not logged in' });
+    return sendJson(res, 200, { state: db.daystate.get(s.email) });
+  }
+
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {
       env: APP_ENV,
@@ -684,6 +781,7 @@ const server = http.createServer(async (req, res) => {
       checkout: CHECKOUT_ENABLED,
       plans: PLAN_CATALOG,
       consultant: consultant.enabled(),
+      whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng, tz: p.tz }])),
     });
@@ -928,6 +1026,88 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       let parsed;
       try { parsed = JSON.parse(body || '{}'); } catch { return sendJson(res, 400, { error: 'bad request' }); }
+
+      // Inbound WhatsApp messages. Meta expects a fast 200; the agent reply
+      // happens after we answer, so a slow model turn can't time the hook out.
+      if (url.pathname === '/api/whatsapp/webhook') {
+        if (!WA_ENABLED) return sendJson(res, 503, { error: 'whatsapp not configured' });
+        sendJson(res, 200, { ok: true });
+        try {
+          const msg = parsed.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+          if (!msg || msg.type !== 'text' || !msg.from) return;
+          const phone = String(msg.from).replace(/[^\d]/g, '').slice(0, 20);
+          const text = String(msg.text?.body || '').trim();
+          if (!phone || !text) return;
+
+          const linkMatch = text.match(/^link[\s:-]*([a-f0-9]{8})$/i);
+          if (linkMatch) {
+            const code = linkMatch[1].toUpperCase();
+            const pending = waCodes.get(code);
+            if (pending && pending.exp > Date.now()) {
+              waCodes.delete(code);
+              db.wa.link(phone, pending.email);
+              await sendWhatsApp(phone, `✅ Connected to ${pending.email}. I'm your ParkPulse planner — I can see today's park, your group and what you've already ridden. Ask me anything, like "what should we ride next?" Text STOP to disconnect.`);
+            } else {
+              await sendWhatsApp(phone, 'That connect code is invalid or expired. Open the ParkPulse app → 👤 Account → WhatsApp concierge to get a fresh one.');
+            }
+            return;
+          }
+          const link = db.wa.get(phone);
+          if (!link) {
+            await sendWhatsApp(phone, 'Hi! I\'m the ParkPulse planner. To connect me to your account, open the app at www.parkpulse.fun → 👤 Account → WhatsApp concierge, and send me the code it gives you.');
+            return;
+          }
+          if (/^(stop|unlink|disconnect)$/i.test(text)) {
+            db.wa.unlink(phone);
+            await sendWhatsApp(phone, 'Disconnected — I\'ve unlinked this number and cleared our chat. Reconnect anytime from the app. Have a great day at the parks! 👋');
+            return;
+          }
+          if (consultant.throttled('wa:' + phone)) {
+            await sendWhatsApp(phone, 'We\'ve chatted a lot in the last few hours — give me a short break and ask again soon.');
+            return;
+          }
+          if (!consultant.enabled()) {
+            await sendWhatsApp(phone, 'The planner is offline right now — please try again shortly.');
+            return;
+          }
+          const reply = await waAgentReply(link, text);
+          await sendWhatsApp(phone, reply);
+        } catch (err) {
+          console.log(`whatsapp webhook error: ${err.message}`);
+        }
+        return;
+      }
+
+      // Mint a connect code for the signed-in user and hand back the wa.me link.
+      if (url.pathname === '/api/whatsapp/link') {
+        if (!WA_ENABLED || !WA_NUMBER) return sendJson(res, 503, { error: 'whatsapp not configured' });
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'log in first' });
+        const code = mintWaCode(s.email);
+        return sendJson(res, 200, {
+          code,
+          number: WA_NUMBER,
+          url: `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('LINK ' + code)}`,
+        });
+      }
+
+      // Mirror of the device's in-park choices for the WhatsApp agent (and
+      // for restoring a reinstalled app). Client pushes, server sanitizes.
+      if (url.pathname === '/api/daystate') {
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'not logged in' });
+        const d = parsed.state && typeof parsed.state === 'object' ? parsed.state : {};
+        db.daystate.set(s.email, {
+          park: typeof d.park === 'string' && PARKS[d.park] ? d.park : null,
+          day: typeof d.day === 'string' ? d.day.slice(0, 10) : null,
+          lang: typeof d.lang === 'string' ? d.lang.slice(0, 8) : null,
+          profile: sanitizeProfile(d.profile),
+          picked: strList(d.picked, 30),
+          done: strList(d.done, 40),
+          favorites: strList(d.favorites, 30),
+        });
+        return sendJson(res, 200, { ok: true });
+      }
 
       if (url.pathname === '/api/auth/signup' || url.pathname === '/api/auth/login') {
         const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
@@ -1177,15 +1357,8 @@ const server = http.createServer(async (req, res) => {
         if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
         const { park, messages, favorites, planPicks, subscription } = parsed;
         // Group profile from the setup wizard — whitelisted, never trusted raw.
-        const AGES = ['toddler', 'kid', 'teen', 'adult'];
-        const VIBES = ['gentle', 'family', 'thrill', 'water', 'show'];
-        const rawP = parsed.profile;
-        const profile = rawP && typeof rawP === 'object' ? {
-          party: Number.isInteger(rawP.party) && rawP.party >= 1 && rawP.party <= 20 ? rawP.party : null,
-          ages: Array.isArray(rawP.ages) ? rawP.ages.filter((a) => AGES.includes(a)).slice(0, 4) : [],
-          vibes: Array.isArray(rawP.vibes) ? rawP.vibes.filter((v) => VIBES.includes(v)).slice(0, 5) : [],
-          onsite: typeof rawP.onsite === 'boolean' ? rawP.onsite : null,
-        } : null;
+        const profile = sanitizeProfile(parsed.profile);
+        const done = strList(parsed.done, 40);
         const lang = Object.values(LANG_NAMES).includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per pass/session identity, falling back to IP.
@@ -1209,7 +1382,7 @@ const server = http.createServer(async (req, res) => {
           let failed = false;
           try {
             await consultant.consult({
-              park: PARKS[park], waits, messages, favorites, planPicks, profile,
+              park: PARKS[park], waits, messages, favorites, planPicks, profile, done,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,

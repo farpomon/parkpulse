@@ -109,6 +109,17 @@ db.exec(`
     message TEXT,
     at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS daystate (
+    email TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS wa_links (
+    phone TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    history TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
+  );
 `);
 
 // Guarded column additions (CREATE TABLE IF NOT EXISTS won't alter existing
@@ -355,6 +366,8 @@ const accounts = {
     try {
       run('sessions', 'DELETE FROM sessions WHERE email = ?');
       run('trips', 'DELETE FROM trips WHERE email = ?');
+      run('daystate', 'DELETE FROM daystate WHERE email = ?');
+      run('whatsappLinks', 'DELETE FROM wa_links WHERE email = ?');
       run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
       run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
       run('leads', 'DELETE FROM leads WHERE email = ?');
@@ -392,4 +405,35 @@ const admin = {
 
 migrateLegacy();
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, DB_FILE };
+// Today's in-park choices, mirrored from the device so the WhatsApp agent
+// (and a reinstalled app) can see what the visitor already set up.
+const daystate = {
+  get: (email) => {
+    const row = db.prepare('SELECT data, updated_at FROM daystate WHERE email = ?').get(email);
+    if (!row) return null;
+    try { return { ...JSON.parse(row.data), updatedAt: row.updated_at }; } catch { return null; }
+  },
+  set: (email, data) =>
+    db.prepare(`INSERT INTO daystate (email, data, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`)
+      .run(email, JSON.stringify(data), new Date().toISOString()),
+  delete: (email) => db.prepare('DELETE FROM daystate WHERE email = ?').run(email),
+};
+
+const wa = {
+  get: (phone) => db.prepare('SELECT * FROM wa_links WHERE phone = ?').get(phone),
+  link: (phone, email) =>
+    db.prepare(`INSERT INTO wa_links (phone, email, history, created_at) VALUES (?, ?, '[]', ?)
+      ON CONFLICT(phone) DO UPDATE SET email = excluded.email, history = '[]'`)
+      .run(phone, email, new Date().toISOString()),
+  unlink: (phone) => db.prepare('DELETE FROM wa_links WHERE phone = ?').run(phone).changes,
+  unlinkEmail: (email) => db.prepare('DELETE FROM wa_links WHERE email = ?').run(email).changes,
+  history: (phone) => {
+    const row = db.prepare('SELECT history FROM wa_links WHERE phone = ?').get(phone);
+    try { return row ? JSON.parse(row.history) : []; } catch { return []; }
+  },
+  saveHistory: (phone, history) =>
+    db.prepare('UPDATE wa_links SET history = ? WHERE phone = ?').run(JSON.stringify(history.slice(-12)), phone),
+};
+
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, DB_FILE };
