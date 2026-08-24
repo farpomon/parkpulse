@@ -1227,6 +1227,93 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+// --- Landing-page hero board ------------------------------------------------
+// The design puts live product proof above the fold. Rendered server-side for
+// three featured parks so the board is filled on first paint and works with
+// JavaScript off; the tabs only toggle which panel is visible.
+const HERO_PARKS = ['magic-kingdom', 'universal-studios-florida', 'cedar-point'];
+
+const waitChip = (w) => (w >= 60 ? 'hot' : w >= 30 ? 'warm' : 'cool');
+
+// A verdict has to come from the board itself, not a copywriter — otherwise it
+// is just decoration that can contradict the numbers directly above it.
+function boardVerdict(park, rides) {
+  const scored = rides.filter((r) => r.delta != null);
+  if (!scored.length) return `Open the app for today's read on ${park.name}.`;
+  const avg = scored.reduce((a, r) => a + r.delta, 0) / scored.length;
+  const pass = (park.skip && park.skip.name) || 'the paid pass';
+  if (avg <= -8) return `Skip ${pass} today — waits are running below typical across the board.`;
+  if (avg >= 12) return `${pass} is earning its keep — headliners are well above typical.`;
+  return `Middling day — rope drop covers the headliners, so ${pass} is optional.`;
+}
+
+async function heroBoardPanels() {
+  const panels = [];
+  for (const slug of HERO_PARKS) {
+    const park = PARKS[slug];
+    if (!park) continue;
+    let waits;
+    try { waits = await getWaits(slug); } catch { waits = null; }
+    const rides = ((waits && waits.rides) || [])
+      .filter((r) => r.open !== false && typeof r.wait === 'number')
+      .sort((a, b) => b.wait - a.wait)
+      .slice(0, 6)
+      .map((r) => ({
+        name: r.name,
+        land: r.land || '',
+        wait: r.wait,
+        delta: typeof r.typical === 'number' ? r.wait - r.typical : null,
+      }));
+    // Without a live feed the "typical" baseline equals the posted wait, so
+    // every delta is zero. Showing "typical" on every row is noise, not data.
+    const hasBaseline = rides.some((r) => r.delta);
+    if (!hasBaseline) rides.forEach((r) => { r.delta = null; });
+    panels.push({ park, rides, live: Boolean(waits && waits.source === 'live'), verdict: boardVerdict(park, rides) });
+  }
+  return panels;
+}
+
+function heroBoardHtml(panels) {
+  if (!panels.length) return '';
+  const rail = (active) => `<div class="board-tabs">${panels.map((p, i) =>
+    `<button class="board-tab${i === active ? ' on' : ''}" data-board-tab="${i}" type="button">${esc(p.park.name)}</button>`).join('')}</div>`;
+  const bodies = panels.map((p, i) => {
+    const rows = p.rides.map((r) => {
+      const d = r.delta == null ? ''
+        : r.delta <= -5 ? `<span class="delta down">&#9660; ${Math.abs(r.delta)} below typical</span>`
+        : r.delta >= 5 ? `<span class="delta up">&#9650; ${r.delta} above typical</span>`
+        : '<span class="delta flat">typical</span>';
+      const meta = [d, r.land ? `<span class="land">${esc(r.land)}</span>` : ''].filter(Boolean).join('');
+      return `<div class="board-row"><div class="board-ride"><div class="rn">${esc(r.name)}</div>
+${meta ? `<div class="rm">${meta}</div>` : ''}</div>
+<div class="chip ${waitChip(r.wait)}"><b>${r.wait}</b><span>min</span></div></div>`;
+    }).join('');
+    const empty = '<div class="board-empty">Live waits for this park are momentarily unavailable — the app retries every minute.</div>';
+    return `<div class="board-panel${i ? '' : ' on'}" data-board-panel="${i}">
+<div class="board-head"><span class="board-name">${esc(p.park.name)}</span>
+<span class="board-live ${p.live ? '' : 'off'}"><i></i>${p.live ? 'LIVE' : 'TYPICAL WAITS'}</span></div>
+${rail(i)}
+<div class="board-rows">${rows || empty}</div>
+<div class="board-foot"><div><div class="vk">TODAY&rsquo;S VERDICT</div><div class="vv">${esc(p.verdict)}</div></div>
+<a class="whybtn" href="/app">Why?</a></div></div>`;
+  }).join('');
+  return `<div class="board">${bodies}</div>`;
+}
+
+// Four regional columns of real parks, each linking to its own guide page.
+function parkGuides(registry) {
+  const by = (fn) => registry.filter(fn);
+  const groups = [
+    ['Walt Disney World', by((p) => p.group === 'Walt Disney World')],
+    ['Universal &amp; Orlando', by((p) => p.group === 'Universal Orlando' || (p.region === 'Florida' && p.group !== 'Walt Disney World' && p.group !== 'Universal Orlando'))],
+    ['California &amp; West', by((p) => p.region === 'California')],
+    ['Worldwide', by((p) => p.region === 'Asia' || p.region === 'Europe')],
+  ];
+  return groups.map(([region, parks]) => `<div class="pg-col"><div class="pg-head">${region}</div>${
+    parks.slice(0, 6).map((p) => `<a href="/parks/${p.slug}">${esc(p.name)}</a>`).join('')
+  }</div>`).join('');
+}
+
 const SHOTS = [
   { file: 'plan.png', alt: 'The ParkPulse day plan: eight rides sequenced by time, each with its predicted wait and the reason for its slot.',
     cap: '<strong>Your day, sequenced.</strong> Pick the rides you care about; ParkPulse orders them against the hourly crowd curve and tells you why each one sits where it does.' },
@@ -1254,12 +1341,6 @@ function serveStatic(res, urlPath) {
       // The landing page carries the full park index so every one of the
       // parks we cover is one click from the front door, for readers and
       // crawlers alike. Injected here so the list has a single source.
-      if (rel === 'index.html') {
-        const html = fs.readFileSync(candidate, 'utf8')
-          .replace('<!--PARKS_INDEX-->', () => pages.allParksIndex(REGISTRY, null))
-          .replace('<!--SHOTS-->', () => productShots());
-        return res.end(html);
-      }
       return fs.createReadStream(candidate).pipe(res);
     }
   }
@@ -1464,6 +1545,19 @@ const server = http.createServer(async (req, res) => {
       relation: ['delegate_permission/common.handle_all_urls'],
       target: { namespace: 'android_app', package_name: pkg, sha256_cert_fingerprints: prints },
     }] : []));
+  }
+
+  // The landing page is templated (hero board, park guides, screenshots), so
+  // it is rendered here rather than streamed by the static handler.
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    let board = '';
+    try { board = heroBoardHtml(await heroBoardPanels()); } catch (err) { console.log(`hero board: ${err.message}`); }
+    const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
+      .replace('<!--HERO_BOARD-->', () => board)
+      .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
+      .replace('<!--SHOTS-->', () => productShots());
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    return res.end(html);
   }
 
   // SEO surface: server-rendered park pages + sitemap + robots.

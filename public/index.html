@@ -1,3 +1,6 @@
+<!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ParkPulse | Live Theme Park Wait Times &amp; Smart Day Plans</title>
@@ -26,196 +29,309 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #fbfaff; --card: #fff; --ink: #1c1630; --muted: #6b6485;
-    --brand: #4f3ac9; --brand-soft: #f0edff; --green: #1d7a4f; --border: #e8e4f6;
-    --amber: #b8791a; --amber-soft: #fdf3e0;
-    --ring: 0 1px 2px rgba(28,22,48,.05), 0 8px 24px -12px rgba(28,22,48,.16);
-    --s1: .5rem; --s2: 1rem; --s3: 1.5rem; --s4: 2.5rem; --s5: 4rem; --s6: 6rem;
+    --bg:#fbfaff; --card:#fff; --ink:#1c1630; --muted:#6b6485;
+    --brand:#4f3ac9; --brand-hover:#4331b3; --brand-soft:#f0edff; --border:#e8e4f6;
+    --green:#1d7a4f; --green-soft:#e2f5ea; --amber:#b8791a; --amber-soft:#fdf3e0;
+    --red:#b23a48; --red-soft:#fbe9ec; --gold:#ffd75e; --deep:#1c1630;
+    --nav-bg:rgba(251,250,255,.9);
+    --shadow:0 1px 2px rgba(28,22,48,.05), 0 8px 24px -14px rgba(28,22,48,.18);
+    --shadow-hover:0 2px 4px rgba(28,22,48,.06), 0 18px 40px -18px rgba(28,22,48,.3);
   }
+  /* The handoff shipped without a dark pass; these keep the same relationships
+     (card lifts off canvas, chips read as traffic lights) on the dark tokens. */
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #141024; --card: #1e1836; --ink: #efecfc; --muted: #a79fc4;
-      --brand: #9b87f5; --brand-soft: #2a2150; --green: #5ecb96; --border: #322a54;
-      --amber: #e8b45e; --amber-soft: #33280f;
-      --ring: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+      --bg:#141024; --card:#1e1836; --ink:#efecfc; --muted:#a79fc4;
+      --brand:#9b87f5; --brand-hover:#ab9aff; --brand-soft:#2a2150; --border:#322a54;
+      --green:#5ecb96; --green-soft:#183828; --amber:#e8b45e; --amber-soft:#33280f;
+      --red:#ef8b96; --red-soft:#3f2027; --deep:#0f0b1e;
+      --nav-bg:rgba(20,16,36,.9);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+      --shadow-hover:0 2px 4px rgba(0,0,0,.5), 0 18px 40px -18px rgba(0,0,0,.85);
     }
-    .price-card .price { color: #a794f5; }
-    form.capture input { background: var(--card); color: var(--ink); }
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "DM Sans", "Segoe UI", system-ui, sans-serif; }
-  /* Fraunces carries the display type; DM Sans everything else. */
-  h1, h2, h3, .logo, .price { font-family: "Fraunces", Georgia, "Times New Roman", serif; font-weight: 600; letter-spacing: -.015em; }
-  h1 { font-weight: 700; letter-spacing: -.025em; }
-  .wrap { max-width: 980px; margin: 0 auto; padding: .9rem 1.1rem var(--s6); }
-  html, body { overflow-x: hidden; } /* belt and braces against the 100vw hero */
-  nav { display: flex; align-items: center; gap: .9rem; padding: .4rem 0 1.1rem; }
-  nav .logo { font-weight: 700; font-size: 1.22rem; text-decoration: none; white-space: nowrap;
-    color: var(--ink); letter-spacing: -.02em; }
-  nav .links { margin-left: auto; display: flex; gap: 1rem; align-items: center; }
-  nav .links a { color: var(--ink); text-decoration: none; font-weight: 700; font-size: .92rem; white-space: nowrap; }
-  nav .btn.small { padding: .5rem .95rem; font-size: .88rem; border-radius: 999px; }
-  /* Full-bleed hero: layered radial light over a deep base reads far less like a
-     template block than a rounded gradient rectangle sitting in the page. */
-  .hero { position: relative; color: #fff; text-align: center; overflow: hidden;
-    margin: 0 calc(50% - 50vw) var(--s5); padding: clamp(3.5rem, 11vw, 6.5rem) 1.1rem clamp(3rem, 9vw, 5rem);
-    background:
-      radial-gradient(90rem 40rem at 50% -30%, rgba(155,120,255,.55), transparent 60%),
-      radial-gradient(50rem 30rem at 12% 110%, rgba(255,180,94,.14), transparent 65%),
-      linear-gradient(180deg, #241b46 0%, #2f2359 55%, #382a68 100%); }
-  .hero > * { position: relative; max-width: 900px; margin-left: auto; margin-right: auto; }
-  .hero h1 { font-size: clamp(2rem, 5.6vw, 3.25rem); margin: 0 0 var(--s2); line-height: 1.05; letter-spacing: -.03em; }
-  .hero p { margin: 0 auto var(--s3); max-width: 46ch; color: #cfc6f2; font-size: clamp(1rem, 2.6vw, 1.2rem); line-height: 1.55; }
-  .eyebrow { display: inline-flex; align-items: center; gap: .5rem; margin-bottom: var(--s3);
-    font-family: "DM Sans", system-ui, sans-serif; font-size: .78rem; font-weight: 600; letter-spacing: .09em;
-    text-transform: uppercase; color: #e8c98a; }
-  .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e8c98a; }
-  /* Facts, not pills — a quiet inline row instead of three bordered chips. */
-  .chiprow { display: flex; gap: .4rem 1.6rem; flex-wrap: wrap; justify-content: center; margin: var(--s3) 0 0;
-    color: #a99fd0; font-size: .86rem; font-weight: 500; }
-  .chiprow span { display: inline-flex; align-items: center; gap: .45rem; }
-  .chiprow span::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .6; }
-  .cta { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
-  .btn { display: inline-block; border-radius: 11px; padding: .8rem 1.6rem; font-weight: 600; text-decoration: none;
-    cursor: pointer; border: none; font-size: .98rem; letter-spacing: -.005em;
-    transition: transform .12s ease, box-shadow .18s ease, background .18s ease; }
-  .btn:active { transform: translateY(1px); }
-  .btn.primary { background: #fff; color: #2f2359; box-shadow: 0 2px 4px rgba(0,0,0,.12), 0 12px 28px -10px rgba(0,0,0,.5); }
-  .btn.primary:hover { box-shadow: 0 2px 4px rgba(0,0,0,.12), 0 16px 34px -10px rgba(0,0,0,.55); }
-  .btn.brand { background: var(--brand); color: #fff; box-shadow: 0 2px 4px rgba(79,58,201,.2), 0 12px 26px -12px rgba(79,58,201,.6); }
-  .btn.brand:hover { background: #4331b3; }
-  .btn.ghost { background: rgba(255,255,255,.07); color: #fff; border: 1px solid rgba(255,255,255,.28); }
-  .btn.ghost:hover { background: rgba(255,255,255,.13); }
-  h2 { text-align: center; font-size: clamp(1.6rem, 4.2vw, 2.1rem); margin: var(--s5) 0 var(--s2);
-    letter-spacing: -.02em; line-height: 1.15; }
-  .sectionlead { text-align: center; color: var(--muted); max-width: 56ch; margin: 0 auto var(--s3); font-size: 1.02rem; }
-  @media (max-width: 560px) {
-    nav .links { gap: .7rem; }
-    nav .links a { font-size: .85rem; }
-    nav .btn.small { display: none; } /* the hero CTA is right below */
-    .cta .btn { flex: 1 1 100%; text-align: center; }
+  *{box-sizing:border-box}
+  html,body{overflow-x:hidden} /* the hero is full-bleed */
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 "DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--brand);text-decoration:none}
+  h1,h2,h3,.logo,.serif{font-family:"Fraunces",Georgia,"Times New Roman",serif}
+  .row{max-width:1180px;margin:0 auto;padding:0 32px}
+  .sec{max-width:1180px;margin:0 auto;padding:88px 32px 0}
+  h2{font-weight:600;font-size:clamp(28px,4vw,38px);letter-spacing:-1px;text-align:center;margin:0 0 12px;line-height:1.15}
+  .lead{text-align:center;color:var(--muted);max-width:62ch;margin:0 auto 40px;font-size:17px;line-height:1.6}
+
+  /* Nav */
+  .nav{position:sticky;top:0;z-index:20;background:var(--nav-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .nav .row{padding:14px 32px;display:flex;align-items:center;gap:28px}
+  .nav .logo{display:flex;align-items:center;gap:9px;color:var(--ink);font-weight:700;font-size:20px;letter-spacing:-.4px}
+  .nav .spacer{flex:1}
+  .navlinks{display:flex;align-items:center;gap:26px;flex-wrap:wrap;justify-content:flex-end}
+  .navlinks a{color:var(--ink);font-weight:600;font-size:14.5px}
+  .navlinks a.mut{color:var(--muted)}
+  .navcta{padding:10px 20px;border-radius:999px;background:var(--brand);color:#fff!important;font-weight:600;font-size:14.5px;box-shadow:0 8px 20px -10px rgba(79,58,201,.8)}
+  .navcta:hover{background:var(--brand-hover)}
+
+  /* Hero */
+  .hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#241b46 0%,#2f2359 55%,#382a68 100%)}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(90rem 40rem at 50% -30%,rgba(155,120,255,.5),transparent 60%),radial-gradient(50rem 30rem at 10% 115%,rgba(255,180,94,.13),transparent 65%)}
+  .heroin{position:relative;max-width:1180px;margin:0 auto;padding:88px 32px 96px;display:flex;flex-wrap:wrap;gap:56px;align-items:center}
+  .herocopy{flex:1 1 420px;min-width:min(100%,340px)}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:22px;font-size:12.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#e8c98a}
+  .eyebrow::before{content:"";width:6px;height:6px;border-radius:99px;background:#e8c98a}
+  .hero h1{font-weight:700;font-size:clamp(38px,5vw,60px);line-height:1.03;letter-spacing:-2px;color:#fff;margin:0 0 20px;text-wrap:balance}
+  .hero .sub{margin:0 0 30px;max-width:46ch;font-size:19px;line-height:1.55;color:#cfc6f2}
+  .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{display:inline-block;padding:15px 28px;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;border:none;font-family:inherit;text-align:center}
+  .btn.primary{background:#fff;color:#2f2359;box-shadow:0 12px 28px -10px rgba(0,0,0,.5)}
+  .btn.primary:hover{box-shadow:0 18px 36px -10px rgba(0,0,0,.6)}
+  .btn.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.3);color:#fff}
+  .btn.ghost:hover{background:rgba(255,255,255,.15)}
+  .facts{display:flex;gap:8px 30px;flex-wrap:wrap;margin-top:30px;color:#a99fd0;font-size:14px;font-weight:500}
+  .facts span{display:inline-flex;align-items:center;gap:8px}
+  .facts span::before{content:"";width:4px;height:4px;border-radius:99px;background:currentColor;opacity:.6}
+
+  /* Live board */
+  .board{flex:1 1 400px;min-width:min(100%,330px);background:var(--card);border-radius:22px;box-shadow:0 30px 70px -24px rgba(12,6,40,.7);overflow:hidden}
+  .board-tabs{display:flex;gap:7px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none}
+  .board-tabs::-webkit-scrollbar{display:none}
+  .board-tab{padding:8px 13px;border-radius:999px;font:inherit;font-size:13px;font-weight:650;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--muted);border:1px solid var(--border)}
+  .board-tab.on{background:var(--deep);color:#fff;border-color:var(--deep)}
+  @media (prefers-color-scheme: dark){ .board-tab.on{background:var(--brand);border-color:var(--brand)} }
+  .board-panel{display:none}
+  .board-panel.on{display:block}
+  .board-head{display:flex;align-items:center;gap:10px;padding:18px 20px 13px}
+  .board-name{font-family:"Fraunces",Georgia,serif;font-size:17px;font-weight:600;letter-spacing:-.3px}
+  .board-live{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;letter-spacing:.4px;color:var(--green)}
+  .board-live i{width:7px;height:7px;border-radius:99px;background:currentColor}
+  .board-live.off{color:var(--muted)}
+  .board-rows{padding:6px 0;border-top:1px solid var(--border)}
+  .board-row{display:flex;align-items:center;gap:12px;padding:11px 20px}
+  .board-row:hover{background:var(--brand-soft)}
+  .board-ride{flex:1;min-width:0}
+  .rn{font-size:15px;font-weight:650;letter-spacing:-.1px}
+  .rm{display:flex;gap:7px;align-items:center;margin-top:3px;flex-wrap:wrap}
+  .delta{font-size:11.5px;font-weight:700}
+  .delta.down{color:var(--green)} .delta.up{color:var(--red)} .delta.flat{color:var(--muted)}
+  .land{font-size:11.5px;color:var(--muted)}
+  .chip{min-width:64px;text-align:center;padding:7px 6px;border-radius:11px}
+  .chip b{font-size:18px;font-weight:750;letter-spacing:-.4px}
+  .chip span{font-size:11px;font-weight:650;opacity:.75;margin-left:2px}
+  .chip.cool{background:var(--green-soft);color:var(--green)}
+  .chip.warm{background:var(--amber-soft);color:var(--amber)}
+  .chip.hot{background:var(--red-soft);color:var(--red)}
+  .board-empty{padding:26px 20px;color:var(--muted);font-size:14px;line-height:1.55}
+  .board-foot{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--deep);color:#fff}
+  .vk{font-size:10.5px;font-weight:800;letter-spacing:1.3px;color:var(--gold)}
+  .vv{font-size:14.5px;font-weight:650;margin-top:4px;line-height:1.4}
+  .whybtn{padding:10px 15px;border-radius:10px;background:rgba(255,255,255,.13);color:#fff!important;font-size:13px;font-weight:650;white-space:nowrap}
+  .whybtn:hover{background:rgba(255,255,255,.22)}
+
+  /* How it works */
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+  .fcard{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px 22px;box-shadow:var(--shadow)}
+  .fcard:hover{box-shadow:var(--shadow-hover)}
+  .fnum{width:40px;height:40px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:"Fraunces",Georgia,serif;font-size:17px;font-weight:700}
+  .fcard h3{font-size:19px;font-weight:600;letter-spacing:-.4px;margin:0 0 8px}
+  .fcard p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.6}
+
+  /* VIP panel */
+  .vip{background:var(--card);border:1px solid var(--border);border-radius:26px;padding:clamp(28px,4vw,48px);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;box-shadow:var(--shadow)}
+  .vip h2{text-align:left;margin:0 0 12px}
+  .vipbrow{font-size:12.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
+  .vip .note{margin:0;padding:14px 16px;background:var(--amber-soft);border-radius:12px;color:var(--amber);font-size:14px;line-height:1.55}
+  .spec{list-style:none;margin:0;padding:0}
+  .spec li{display:flex;gap:14px;padding:13px 0;border-top:1px solid var(--border);line-height:1.5;align-items:flex-start;font-size:15px}
+  .spec svg{flex:none;margin-top:4px;color:var(--green)}
+  .spec b{font-weight:650}
+  .spec .t{color:var(--muted)}
+
+  /* Pricing */
+  .plans{display:grid;grid-template-columns:1fr;gap:14px;align-items:stretch}
+  @media (min-width:560px){ .plans{grid-template-columns:repeat(2,1fr)} }
+  @media (min-width:980px){ .plans{grid-template-columns:repeat(3,1fr)} }
+  .plan{position:relative;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px 18px 22px;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .plan .pl{font-family:"Fraunces",Georgia,serif;font-size:15.5px;font-weight:600}
+  .plan .pp{font-family:"Fraunces",Georgia,serif;font-size:31px;font-weight:700;letter-spacing:-1.2px;color:var(--brand);margin-top:8px;line-height:1}
+  .plan .pper{font-size:13px;color:var(--muted);margin-top:4px}
+  .plan .pn{margin:14px 0 20px;font-size:13px;line-height:1.55;color:var(--muted);flex:1}
+  .plan .pbtn{text-align:center;padding:12px;border-radius:11px;font:inherit;font-size:14px;font-weight:650;cursor:pointer;background:var(--brand-soft);color:var(--brand);border:1px solid transparent;width:100%}
+  .plan .pbtn:hover{background:var(--brand);color:#fff}
+  .plan.hi{background:var(--deep);border:2px solid var(--brand);box-shadow:0 18px 46px -18px rgba(79,58,201,.65)}
+  .plan.hi .pl,.plan.hi .pp{color:#fff}
+  .plan.hi .pper,.plan.hi .pn{color:#b9b0dd}
+  .plan.hi .pbtn{background:var(--gold);color:#2a1f52;border-color:transparent}
+  .plan.hi .pbtn:hover{background:#ffe08a}
+  .plan.sel .pbtn{background:var(--green);color:#fff;border-color:transparent}
+  .pbadge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;font-size:10.5px;font-weight:750;letter-spacing:.8px;padding:4px 12px;border-radius:999px;white-space:nowrap}
+  .pnote{text-align:center;color:var(--muted);font-size:14px;margin:22px 0 0}
+
+  /* Email capture */
+  .capture{background:linear-gradient(180deg,#241b46,#332759);border-radius:26px;padding:clamp(32px,4vw,52px);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;align-items:center;color:#fff}
+  .capture h2{text-align:left;font-size:32px;letter-spacing:-.8px;margin:0 0 10px}
+  .capture p{margin:0;color:#cfc6f2;font-size:16.5px;line-height:1.6;max-width:44ch}
+  .cform{display:flex;gap:10px}
+  .cform input{flex:1;min-width:0;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff;border-radius:11px;padding:14px 16px;font-size:15.5px;font-family:inherit;outline:none}
+  .cform input::placeholder{color:#a99fd0}
+  .cform button{padding:14px 22px;border-radius:11px;background:var(--gold);color:#2a1f52;font:inherit;font-size:15px;font-weight:700;cursor:pointer;border:none;white-space:nowrap}
+  .chelp{font-size:13px;color:#a99fd0;margin-top:10px}
+  .chelp.ok{color:#8ee0b4}
+
+  /* Park guides */
+  .pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:32px}
+  .pg-head{font-size:12.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--ink);padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .pg-col a{display:block;font-size:14.5px;color:var(--muted);padding:7px 0}
+  .pg-col a:hover{color:var(--brand)}
+
+  /* Screenshots */
+  .shots{display:flex;flex-wrap:wrap;gap:2rem;justify-content:center;align-items:center;max-width:760px;margin:0 auto}
+  .shots figure{margin:0;display:flex;gap:2rem;align-items:center;flex:1 1 auto}
+  .shots img{width:250px;max-width:100%;height:auto;max-height:470px;object-fit:cover;object-position:top;border-radius:18px;border:1px solid var(--border);box-shadow:var(--shadow-hover)}
+  .shots figcaption{font-size:15px;color:var(--muted);line-height:1.6}
+  @media (max-width:620px){ .shots figure{flex-direction:column;gap:1.2rem} }
+
+  footer{max-width:1180px;margin:0 auto;padding:64px 32px 40px}
+  .footin{border-top:1px solid var(--border);padding-top:28px;display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+  .footin .disc{flex:1;min-width:280px;color:var(--muted);font-size:13.5px;line-height:1.7}
+  .footlinks{display:flex;gap:22px;font-size:13.5px;flex-wrap:wrap}
+
+  @media (max-width:720px){
+    .sec,.row,.nav .row,.heroin,footer{padding-left:20px;padding-right:20px}
+    .heroin{padding-top:56px;padding-bottom:64px;gap:40px}
+    .sec{padding-top:64px}
+    .navlinks a.hide-sm{display:none}
   }
-  @media (max-width: 380px) { nav .links a.hide-tiny { display: none; } }
-  .grid { display: grid; gap: var(--s2); grid-template-columns: 1fr; }
-  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.6rem;
-    box-shadow: var(--ring); }
-  .card h3 { margin: 0 0 .5rem; font-size: 1.08rem; letter-spacing: -.01em; }
-  .card p { margin: 0; color: var(--muted); font-size: .95rem; line-height: 1.6; }
-  .icon { width: 38px; height: 38px; border-radius: 11px; background: var(--brand-soft); color: var(--brand);
-    display: flex; align-items: center; justify-content: center; margin-bottom: .9rem; }
-  .icon svg { width: 20px; height: 20px; }
-  /* The value list reads as a spec sheet, not a checkbox dump. */
-  .speclist { list-style: none; margin: 0; padding: 0; }
-  .speclist li { display: flex; gap: .8rem; padding: .7rem 0; border-top: 1px solid var(--border); line-height: 1.5; }
-  .speclist li:first-child { border-top: 0; padding-top: 0; }
-  .speclist svg { width: 17px; height: 17px; flex: 0 0 17px; margin-top: .25rem; color: var(--green); }
-  .speclist b { font-weight: 600; }
-  .price-card { text-align: center; position: relative; }
-  .price-card .price { font-size: 2.2rem; font-weight: 800; color: var(--brand); margin: .25rem 0; }
-  .price-card .per { color: var(--muted); font-size: .9rem; }
-  .price-card ul { text-align: left; padding-left: 1.2rem; margin: 1rem 0 1.5rem; }
-  .price-card.featured { border: 2px solid var(--brand); box-shadow: 0 8px 30px rgba(79,58,201,.15); }
-  .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--brand); color: #fff; font-size: .75rem; font-weight: 700; padding: .2rem .9rem; border-radius: 999px; letter-spacing: .05em; }
-  form.capture { display: flex; gap: .5rem; max-width: 440px; margin: 1rem auto 0; flex-wrap: wrap; }
-  form.capture input { flex: 1 1 12rem; min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: .7rem 1rem; font-size: 1rem; }
-  form.capture .btn { flex: 1 1 auto; }
-  .fine { text-align: center; color: var(--muted); font-size: .85rem; }
-  footer { margin-top: var(--s6); color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; text-align: center; }
-  #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: .6rem 1.25rem; border-radius: 10px; display: none; }
-  .allparks{columns:4;column-gap:1.4rem;font-size:.82rem;max-width:900px;margin:0 auto 1rem;text-align:left}
-  .allparks a{display:block;color:var(--muted,#6b6485);text-decoration:none;padding:.1rem 0;break-inside:avoid}
-  .allparks a:hover{color:var(--brand,#4f3ac9)}
-  .allparks b{display:block;color:inherit;margin:.6rem 0 .2rem;break-after:avoid;font-size:.86rem}
-  @media (max-width:900px){ .allparks{columns:3} }
-  @media (max-width:640px){ .allparks{columns:2} }
-  .shots{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;align-items:flex-start;max-width:900px;margin:0 auto 1rem}
-  .shots figure{margin:0;max-width:290px;flex:1 1 250px}
-  .shots img{width:100%;height:auto;border-radius:16px;border:1px solid var(--border,#e3dff2);box-shadow:0 8px 30px rgba(40,25,90,.16);display:block}
-  .shots figcaption{font-size:.85rem;color:var(--muted,#6b6485);margin-top:.6rem;text-align:left;line-height:1.5}
-  .shots:has(figure:only-child){max-width:700px;gap:2rem}
-  .shots:has(figure:only-child) figure{display:flex;gap:2rem;align-items:center;max-width:none;flex:1 1 auto;text-align:left}
-  .shots:has(figure:only-child) img{max-width:250px;flex:0 0 250px;max-height:460px;object-fit:cover;object-position:top}
-  .shots:has(figure:only-child) figcaption{margin-top:0;font-size:1rem;line-height:1.6}
-  @media (max-width:620px){ .shots:has(figure:only-child) figure{flex-direction:column;gap:1.2rem} }
+  @media (max-width:420px){ .navcta{display:none} .cta .btn{flex:1 1 100%} }
 </style>
+</head>
+<body>
 
-<div class="wrap">
-  <nav>
-    <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-right:.2rem"> ParkPulse</a>
-    <span class="links">
-      <a href="/guide" class="hide-tiny">Guide</a><a href="#pricing">Pricing</a><a href="/app#account">Sign in</a>
-      <a class="btn brand small" href="/app">Open app</a>
-    </span>
-  </nav>
-
-  <header class="hero">
-    <div class="eyebrow">Launch preview &mdash; everything is free</div>
-    <h1>Stop standing in line at the parks</h1>
-    <p>Live waits, a smart day plan, and an AI advisor that tells you when a skip pass is worth it — and when to keep your money.</p>
-    <div class="cta"><a class="btn primary" href="/app">See live waits free</a><a class="btn ghost" href="#pricing">Get a Trip Pass</a></div>
-    <div class="chiprow"><span>56 parks worldwide</span><span>Disney · Universal · Six Flags &amp; more</span><span>Works in your browser</span></div>
-  </header>
-
-  <h2>How it works</h2>
-  <div class="grid">
-    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><h3>Live waits</h3><p>Real-time standby waits for every ride at 56 parks worldwide — from Magic Kingdom to Cedar Point to Europa-Park to Tokyo DisneySea — refreshed every minute.</p></div>
-    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg></div><h3>Smart plan</h3><p>Pick your must-do rides and your hours in the park. ParkPulse sequences them against hourly crowd curves — headliners at rope drop and close, shows at peak.</p></div>
-    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M17 12h.01"/></svg></div><h3>Spend less on passes</h3><p>Know which rides you can walk onto before paying $15–$45 a head for Lightning Lane or $80+ for Express Pass. Most days, a good plan replaces half the passes you'd have bought.</p></div>
-    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-4-.9L3 21l1.9-4.6A8.4 8.4 0 0 1 4 11.5a8.4 8.4 0 0 1 9-8.4 8.4 8.4 0 0 1 8 8.4Z"/></svg></div><h3>AI park consultant</h3><p>Ask "is Lightning Lane worth it today for a family of 4?" and get a straight answer computed from live waits — including "keep your money" when that's the truth.</p></div>
-  </div>
-
-  <h2>See it before you buy</h2>
-  <!--SHOTS-->
-
-  <h2>Like a VIP tour guide — for $19.99, not $500 a day</h2>
-  <p class="sectionlead">Private park guides charge US$300–600 <em>per day</em>. Here's their playbook — and how ParkPulse runs it for you:</p>
-  <div class="card" style="max-width:640px;margin:0 auto">
-    <ul class="speclist">
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pre-trip planning</b> &mdash; the AI advisor remembers your family, dates, and must-dos</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Best park each day</b> &mdash; 7-day crowd forecasts + a multi-day trip planner</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Personalized daily route</b> &mdash; land-by-land plans built from live waits, arrival to exit</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>&ldquo;Go now&rdquo; calls</b> &mdash; wait-drop alerts, below-typical signals, ride-closure &amp; reopen pushes</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pass strategy</b> &mdash; Lightning Lane, Express, Fast Lane, Flash Pass: a buy-or-skip verdict every day</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Dining strategy</b> &mdash; what's worth booking and exactly when the windows open</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Plan B, instantly</b> &mdash; ride down or kids melting? Replan from right where you stand</span></li>
-    </ul>
-    <p class="fine" style="margin:.9rem 0 0">One honest difference: we tell you what to book — the booking itself stays safely in the official park app.</p>
-  </div>
-
-  <h2 id="pricing">Pricing</h2>
-  <p class="sectionlead">Every pass includes all 56 parks, the smart plan builder, the AI park advisor, and wait-drop alerts — for your whole family's devices. One Lightning Lane costs $15–$45 <i>per person, per day</i>; a good plan often replaces it.</p>
-  <div class="grid" id="price-grid">
-    <div class="card price-card">
-      <h3>Free</h3>
-      <div class="price">$0</div><div class="per">forever</div>
-      <ul><li>Complete strategy guide</li><li>Live waits for one park</li><li>Trip-countdown email tips</li></ul>
-      <a class="btn brand" href="/app">Start free</a>
+<div class="nav">
+  <div class="row">
+    <a class="logo" href="/"><img src="/icon.svg" alt="" width="26" height="26">ParkPulse</a>
+    <div class="spacer"></div>
+    <div class="navlinks">
+      <a href="#how" class="hide-sm">How it works</a>
+      <a href="#parks" class="hide-sm">Parks</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/app#account" class="mut">Sign in</a>
+      <a class="navcta" href="/app">Open app</a>
     </div>
   </div>
-
-  <h2>Planning a trip?</h2>
-  <p class="fine">Get the 7-days-out checklist — exactly what to book the morning your Lightning Lane window opens.</p>
-  <form class="capture" id="capture">
-    <input type="email" name="email" placeholder="you@example.com" required>
-    <button class="btn brand" type="submit">Send it</button>
-  </form>
-
-  <h2>Park guides</h2>
-  <p class="sectionlead">Hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; for every park we cover. <a href="/parks">Browse all parks &rarr;</a></p>
-  <div class="allparks"><!--PARKS_INDEX--></div>
-
-  <footer>
-    Unofficial fan tool. Not affiliated with or endorsed by The Walt Disney Company.<br>
-    Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.<br>
-    <a href="/terms">Terms &amp; Refunds</a> · <a href="/privacy">Privacy</a> · <a href="/delete-account">Delete account</a> · <a href="mailto:support@parkpulse.fun">Support</a>
-  </footer>
 </div>
-<div id="toast">You're on the list! 🎉</div>
+
+<header class="hero" id="top">
+  <div class="heroin">
+    <div class="herocopy">
+      <div class="eyebrow">Launch preview &mdash; everything is free</div>
+      <h1>Stop standing in line at the parks</h1>
+      <p class="sub">Live waits, a smart day plan, and an AI advisor that tells you when a skip pass is worth it &mdash; and when to keep your money.</p>
+      <div class="cta">
+        <a class="btn primary" href="/app">See live waits free</a>
+        <a class="btn ghost" href="#pricing">Get a Trip Pass</a>
+      </div>
+      <div class="facts">
+        <span>56 parks worldwide</span>
+        <span>Disney &middot; Universal &middot; Six Flags &amp; more</span>
+        <span>No app install</span>
+      </div>
+    </div>
+    <!--HERO_BOARD-->
+  </div>
+</header>
+
+<section class="sec" id="how">
+  <h2>How it works</h2>
+  <p class="lead">Four things a good park day needs. ParkPulse does all four from one live data feed.</p>
+  <div class="feat">
+    <div class="fcard"><div class="fnum">01</div><h3>Live waits</h3><p>Real-time standby waits for every ride at 56 parks worldwide &mdash; Magic Kingdom to Cedar Point to Tokyo DisneySea &mdash; refreshed every minute.</p></div>
+    <div class="fcard"><div class="fnum">02</div><h3>Smart plan</h3><p>Pick your must-dos and your hours. ParkPulse sequences them against hourly crowd curves: headliners at rope drop and close, shows at peak.</p></div>
+    <div class="fcard"><div class="fnum">03</div><h3>Spend less on passes</h3><p>Know which rides you can walk onto before paying $15&ndash;$45 a head for Lightning Lane, or $80+ for Express Pass.</p></div>
+    <div class="fcard"><div class="fnum">04</div><h3>AI park advisor</h3><p>Ask &ldquo;is Lightning Lane worth it today for a family of 4?&rdquo; and get an answer computed from live waits &mdash; including &ldquo;keep your money&rdquo;.</p></div>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>See it before you buy</h2>
+  <!--SHOTS-->
+</section>
+
+<section class="sec">
+  <div class="vip">
+    <div>
+      <div class="vipbrow">The VIP-guide playbook</div>
+      <h2>Like a VIP tour guide &mdash; for $19.99, not $500 a day</h2>
+      <p class="lead" style="text-align:left;margin:0 0 20px">Private park guides charge US$300&ndash;600 <em>per day</em>. Here&rsquo;s their playbook, run for you from live data.</p>
+      <p class="note">One honest difference: we tell you what to book &mdash; the booking itself stays safely in the official park app.</p>
+    </div>
+    <div>
+      <ul class="spec">
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pre-trip planning</b> &mdash; <span class="t">the advisor remembers your family, dates and must-dos</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Best park each day</b> &mdash; <span class="t">7-day crowd forecasts plus a multi-day trip planner</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Personalized daily route</b> &mdash; <span class="t">land-by-land plans built from live waits, arrival to exit</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>&ldquo;Go now&rdquo; calls</b> &mdash; <span class="t">wait-drop alerts, below-typical signals, closure and reopen pushes</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pass strategy</b> &mdash; <span class="t">Lightning Lane, Express, Fast Lane, Flash Pass &mdash; a verdict every day</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Dining strategy</b> &mdash; <span class="t">what&rsquo;s worth booking, and exactly when the windows open</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Plan B, instantly</b> &mdash; <span class="t">ride down or kids melting? Replan from where you stand</span></span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="pricing">
+  <h2>Pay for the trip, not a subscription</h2>
+  <p class="lead">Every pass includes all 56 parks, the plan builder, the AI advisor and wait-drop alerts, on every device in your family. One Lightning Lane costs $15&ndash;$45 <i>per person, per day</i>.</p>
+  <div class="plans" id="price-grid"></div>
+  <p class="pnote" id="plan-note">Passes are one-time, not subscriptions. Nothing auto-renews.</p>
+</section>
+
+<section class="sec">
+  <div class="capture">
+    <div>
+      <h2>Planning a trip?</h2>
+      <p>Get the 7-days-out checklist &mdash; exactly what to book the morning your Lightning Lane window opens.</p>
+    </div>
+    <div>
+      <form class="cform" id="capture">
+        <input type="email" name="email" placeholder="you@example.com" required aria-label="Your email">
+        <button type="submit">Send it</button>
+      </form>
+      <div class="chelp" id="chelp">One email, seven days before you go. No spam.</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="parks">
+  <h2>Park guides</h2>
+  <p class="lead">Hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; for every park we cover. <a href="/parks">Browse all 56 &rarr;</a></p>
+  <div class="pg"><!--PARK_GUIDES--></div>
+</section>
+
+<footer>
+  <div class="footin">
+    <div class="disc">
+      Unofficial fan tool. Not affiliated with or endorsed by The Walt Disney Company.<br>
+      Wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>.
+    </div>
+    <div class="footlinks">
+      <a href="/terms">Terms &amp; Refunds</a><a href="/privacy">Privacy</a><a href="/delete-account">Delete account</a><a href="mailto:support@parkpulse.fun">Support</a>
+    </div>
+  </div>
+</footer>
 
 <script>
+  // ---- Hero board tabs: panels are server-rendered, this only toggles them.
+  document.querySelectorAll('[data-board-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const i = tab.dataset.boardTab;
+      document.querySelectorAll('[data-board-tab]').forEach((t) => t.classList.toggle('on', t === tab));
+      document.querySelectorAll('[data-board-panel]').forEach((p) => p.classList.toggle('on', p.dataset.boardPanel === i));
+    });
+  });
+
+  // ---- Pricing
   let paymentLink = '';
   let checkoutEnabled = false;
+  let picked = null;
 
   // The pass ladder comes from the server so prices live in one place.
   const FALLBACK_PLANS = [
@@ -226,26 +342,31 @@
     { id: 'year-pass', usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
   ];
   const PLAN_NOTES = {
-    'day-pass': 'The price of one person’s Lightning Lane — and it tells your whole family whether to buy any',
-    'week-pass': 'One full trip — $7 a day for the family',
-    'month-pass': 'Long or split trips, fully covered',
-    'half-year-pass': 'A season of park days',
-    'year-pass': 'For locals and passholders — under 55¢ a day',
+    free: 'Live waits for one park, the full strategy guide, trip-countdown tips.',
+    'day-pass': 'The price of one person’s Lightning Lane — and it tells the whole family whether to buy any.',
+    'week-pass': 'One full trip, covered — about $7 a day for the family.',
+    'month-pass': 'Long trips or split stays, fully covered.',
+    'half-year-pass': 'A whole season of park days.',
+    'year-pass': 'For locals and passholders — under 55¢ a day.',
   };
+  const DEFAULT_NOTE = 'Passes are one-time, not subscriptions. Nothing auto-renews.';
+
   function renderPlans(plans) {
     const grid = document.getElementById('price-grid');
-    grid.querySelectorAll('[data-plan-card]').forEach((n) => n.remove());
-    for (const p of plans) {
+    grid.innerHTML = '';
+    const all = [{ id: 'free', usd: '0', label: 'Free', per: 'forever', free: true }, ...plans];
+    for (const p of all) {
       const div = document.createElement('div');
-      div.className = 'card price-card' + (p.badge === 'MOST POPULAR' ? ' featured' : '');
+      div.className = 'plan' + (p.badge === 'MOST POPULAR' ? ' hi' : '');
       div.dataset.planCard = p.id;
-      div.innerHTML = `${p.badge ? `<span class="badge">${p.badge}</span>` : ''}
-        <h3>${p.label}</h3>
-        <div class="price">$${p.usd}</div><div class="per">${p.per}</div>
-        <ul><li>${PLAN_NOTES[p.id] || 'Everything included'}</li></ul>
-        <button class="btn brand" data-plan="${p.id}">${checkoutEnabled ? 'Get ' + p.label : 'Lock in this price'}</button>`;
+      const cta = p.free ? 'Start free' : (checkoutEnabled ? 'Get ' + p.label : 'Lock in this price');
+      div.innerHTML = `${p.badge ? `<span class="pbadge">${p.badge}</span>` : ''}
+        <div class="pl">${p.label}</div>
+        <div class="pp">$${p.usd}</div><div class="pper">${p.per}</div>
+        <p class="pn">${PLAN_NOTES[p.id] || 'Everything included.'}</p>
+        <button class="pbtn" data-plan="${p.id}" type="button">${cta}</button>`;
       grid.appendChild(div);
-      div.querySelector('button[data-plan]').addEventListener('click', buyHandler);
+      div.querySelector('button[data-plan]').addEventListener('click', p.free ? () => { location.href = '/app'; } : buyHandler);
     }
   }
   renderPlans(FALLBACK_PLANS);
@@ -257,6 +378,19 @@
     else if (checkoutEnabled) renderPlans(FALLBACK_PLANS);
   }).catch(() => {});
 
+  function markSelected(planId, label) {
+    picked = planId;
+    document.querySelectorAll('[data-plan-card]').forEach((card) => {
+      const on = card.dataset.planCard === planId;
+      card.classList.toggle('sel', on);
+      const btn = card.querySelector('.pbtn');
+      if (on) { btn.dataset.label = btn.dataset.label || btn.textContent; btn.textContent = 'Selected ✓'; }
+      else if (btn.dataset.label) { btn.textContent = btn.dataset.label; }
+    });
+    document.getElementById('plan-note').textContent =
+      `${label} selected — checkout opens in the app. Refunds within 24h if the park is closed.`;
+  }
+
   function capture(email, plan) {
     return fetch('/api/subscribe', {
       method: 'POST',
@@ -265,18 +399,22 @@
     });
   }
 
+  // Inline confirmation rather than a fixed toast — calmer, no positioning.
   document.getElementById('capture').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = e.target.email.value;
+    if (!email.includes('@')) return;
     await capture(email, 'free').catch(() => {});
     e.target.reset();
-    const toast = document.getElementById('toast');
-    toast.style.display = 'block';
-    setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    const help = document.getElementById('chelp');
+    help.textContent = "You're on the list — checklist on its way.";
+    help.classList.add('ok');
   });
 
   async function buyHandler(e) {
     const btn = e.currentTarget;
+    const card = btn.closest('[data-plan-card]');
+    const label = card ? card.querySelector('.pl').textContent : 'Pass';
     if (checkoutEnabled) {
       btn.disabled = true;
       try {
@@ -294,13 +432,12 @@
     if (paymentLink) { location.href = paymentLink; return; }
     // Pre-launch: checkout not configured yet, capture intent instead.
     const email = prompt("We're launching soon! Leave your email and lock in this price:");
-    if (email) {
+    if (email && email.includes('@')) {
       capture(email, btn.dataset.plan).catch(() => {});
-      const toast = document.getElementById('toast');
-      toast.textContent = "Price locked — we'll email you at launch! 🎉";
-      toast.style.display = 'block';
-      setTimeout(() => { toast.style.display = 'none'; }, 3500);
+      markSelected(btn.dataset.plan, label);
     }
   }
 </script>
 <script src="/chat-widget.js" defer></script>
+</body>
+</html>
