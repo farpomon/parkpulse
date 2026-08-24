@@ -26,13 +26,18 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f7f5ff; --card: #fff; --ink: #251d3d; --muted: #6b6485;
-    --brand: #4f3ac9; --brand-soft: #eceaff; --green: #1d7a4f; --border: #e3dff2;
+    --bg: #fbfaff; --card: #fff; --ink: #1c1630; --muted: #6b6485;
+    --brand: #4f3ac9; --brand-soft: #f0edff; --green: #1d7a4f; --border: #e8e4f6;
+    --amber: #b8791a; --amber-soft: #fdf3e0;
+    --ring: 0 1px 2px rgba(28,22,48,.05), 0 8px 24px -12px rgba(28,22,48,.16);
+    --s1: .5rem; --s2: 1rem; --s3: 1.5rem; --s4: 2.5rem; --s5: 4rem; --s6: 6rem;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #17122b; --card: #221b3d; --ink: #efecfc; --muted: #a79fc4;
-      --brand: #8f7bf0; --brand-soft: #2e2455; --green: #5ecb96; --border: #362c5c;
+      --bg: #141024; --card: #1e1836; --ink: #efecfc; --muted: #a79fc4;
+      --brand: #9b87f5; --brand-soft: #2a2150; --green: #5ecb96; --border: #322a54;
+      --amber: #e8b45e; --amber-soft: #33280f;
+      --ring: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
     }
     .price-card .price { color: #a794f5; }
     form.capture input { background: var(--card); color: var(--ink); }
@@ -42,27 +47,48 @@
   /* Fraunces carries the display type; DM Sans everything else. */
   h1, h2, h3, .logo, .price { font-family: "Fraunces", Georgia, "Times New Roman", serif; font-weight: 600; letter-spacing: -.015em; }
   h1 { font-weight: 700; letter-spacing: -.025em; }
-  .wrap { max-width: 960px; margin: 0 auto; padding: .9rem 1.1rem 4rem; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: .9rem 1.1rem var(--s6); }
+  html, body { overflow-x: hidden; } /* belt and braces against the 100vw hero */
   nav { display: flex; align-items: center; gap: .9rem; padding: .4rem 0 1.1rem; }
-  nav .logo { font-weight: 900; font-size: 1.2rem; text-decoration: none; white-space: nowrap;
-    background: linear-gradient(120deg, var(--brand), #9b6bf0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  nav .logo { font-weight: 700; font-size: 1.22rem; text-decoration: none; white-space: nowrap;
+    color: var(--ink); letter-spacing: -.02em; }
   nav .links { margin-left: auto; display: flex; gap: 1rem; align-items: center; }
   nav .links a { color: var(--ink); text-decoration: none; font-weight: 700; font-size: .92rem; white-space: nowrap; }
   nav .btn.small { padding: .5rem .95rem; font-size: .88rem; border-radius: 999px; }
-  .hero { background: linear-gradient(135deg, #2c2154 0%, #4f3ac9 60%, #7b5fe0 100%); color: #fff; border-radius: 20px;
-    padding: clamp(1.7rem, 5vw, 3rem) clamp(1.1rem, 4vw, 2rem); text-align: center; }
-  .hero h1 { font-size: clamp(1.85rem, 7.5vw, 2.6rem); margin: 0 0 .6rem; line-height: 1.12; letter-spacing: -.02em; }
-  .hero p { margin: 0 auto 1.1rem; max-width: 42ch; color: #e6e1ff; font-size: clamp(.98rem, 3.6vw, 1.1rem); }
-  .chiprow { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin: 0 0 1.4rem; }
-  .chiprow span { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.3); border-radius: 999px;
-    padding: .3rem .8rem; font-size: .8rem; font-weight: 700; }
+  /* Full-bleed hero: layered radial light over a deep base reads far less like a
+     template block than a rounded gradient rectangle sitting in the page. */
+  .hero { position: relative; color: #fff; text-align: center; overflow: hidden;
+    margin: 0 calc(50% - 50vw) var(--s5); padding: clamp(3.5rem, 11vw, 6.5rem) 1.1rem clamp(3rem, 9vw, 5rem);
+    background:
+      radial-gradient(90rem 40rem at 50% -30%, rgba(155,120,255,.55), transparent 60%),
+      radial-gradient(50rem 30rem at 12% 110%, rgba(255,180,94,.14), transparent 65%),
+      linear-gradient(180deg, #241b46 0%, #2f2359 55%, #382a68 100%); }
+  .hero > * { position: relative; max-width: 900px; margin-left: auto; margin-right: auto; }
+  .hero h1 { font-size: clamp(2rem, 5.6vw, 3.25rem); margin: 0 0 var(--s2); line-height: 1.05; letter-spacing: -.03em; }
+  .hero p { margin: 0 auto var(--s3); max-width: 46ch; color: #cfc6f2; font-size: clamp(1rem, 2.6vw, 1.2rem); line-height: 1.55; }
+  .eyebrow { display: inline-flex; align-items: center; gap: .5rem; margin-bottom: var(--s3);
+    font-family: "DM Sans", system-ui, sans-serif; font-size: .78rem; font-weight: 600; letter-spacing: .09em;
+    text-transform: uppercase; color: #e8c98a; }
+  .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #e8c98a; }
+  /* Facts, not pills — a quiet inline row instead of three bordered chips. */
+  .chiprow { display: flex; gap: .4rem 1.6rem; flex-wrap: wrap; justify-content: center; margin: var(--s3) 0 0;
+    color: #a99fd0; font-size: .86rem; font-weight: 500; }
+  .chiprow span { display: inline-flex; align-items: center; gap: .45rem; }
+  .chiprow span::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .6; }
   .cta { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
-  .btn { display: inline-block; border-radius: 12px; padding: .72rem 1.5rem; font-weight: 800; text-decoration: none; cursor: pointer; border: none; font-size: 1rem; transition: transform .12s ease, filter .12s ease; }
-  .btn:active { transform: scale(.97); }
-  .btn.primary { background: #fff; color: var(--brand); box-shadow: 0 4px 16px rgba(0,0,0,.18); }
-  .btn.brand { background: linear-gradient(135deg, var(--brand), #7b5fe0); color: #fff; box-shadow: 0 4px 14px rgba(79,58,201,.30); }
-  .btn.ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
-  h2 { text-align: center; font-size: clamp(1.35rem, 4.5vw, 1.6rem); margin: clamp(2rem, 6vw, 3rem) 0 1.2rem; letter-spacing: -.01em; }
+  .btn { display: inline-block; border-radius: 11px; padding: .8rem 1.6rem; font-weight: 600; text-decoration: none;
+    cursor: pointer; border: none; font-size: .98rem; letter-spacing: -.005em;
+    transition: transform .12s ease, box-shadow .18s ease, background .18s ease; }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: #fff; color: #2f2359; box-shadow: 0 2px 4px rgba(0,0,0,.12), 0 12px 28px -10px rgba(0,0,0,.5); }
+  .btn.primary:hover { box-shadow: 0 2px 4px rgba(0,0,0,.12), 0 16px 34px -10px rgba(0,0,0,.55); }
+  .btn.brand { background: var(--brand); color: #fff; box-shadow: 0 2px 4px rgba(79,58,201,.2), 0 12px 26px -12px rgba(79,58,201,.6); }
+  .btn.brand:hover { background: #4331b3; }
+  .btn.ghost { background: rgba(255,255,255,.07); color: #fff; border: 1px solid rgba(255,255,255,.28); }
+  .btn.ghost:hover { background: rgba(255,255,255,.13); }
+  h2 { text-align: center; font-size: clamp(1.6rem, 4.2vw, 2.1rem); margin: var(--s5) 0 var(--s2);
+    letter-spacing: -.02em; line-height: 1.15; }
+  .sectionlead { text-align: center; color: var(--muted); max-width: 56ch; margin: 0 auto var(--s3); font-size: 1.02rem; }
   @media (max-width: 560px) {
     nav .links { gap: .7rem; }
     nav .links a { font-size: .85rem; }
@@ -70,9 +96,21 @@
     .cta .btn { flex: 1 1 100%; text-align: center; }
   }
   @media (max-width: 380px) { nav .links a.hide-tiny { display: none; } }
-  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
-  .card h3 { margin-top: 0; }
+  .grid { display: grid; gap: var(--s2); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.6rem;
+    box-shadow: var(--ring); }
+  .card h3 { margin: 0 0 .5rem; font-size: 1.08rem; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: .95rem; line-height: 1.6; }
+  .icon { width: 38px; height: 38px; border-radius: 11px; background: var(--brand-soft); color: var(--brand);
+    display: flex; align-items: center; justify-content: center; margin-bottom: .9rem; }
+  .icon svg { width: 20px; height: 20px; }
+  /* The value list reads as a spec sheet, not a checkbox dump. */
+  .speclist { list-style: none; margin: 0; padding: 0; }
+  .speclist li { display: flex; gap: .8rem; padding: .7rem 0; border-top: 1px solid var(--border); line-height: 1.5; }
+  .speclist li:first-child { border-top: 0; padding-top: 0; }
+  .speclist svg { width: 17px; height: 17px; flex: 0 0 17px; margin-top: .25rem; color: var(--green); }
+  .speclist b { font-weight: 600; }
   .price-card { text-align: center; position: relative; }
   .price-card .price { font-size: 2.2rem; font-weight: 800; color: var(--brand); margin: .25rem 0; }
   .price-card .per { color: var(--muted); font-size: .9rem; }
@@ -83,7 +121,7 @@
   form.capture input { flex: 1 1 12rem; min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: .7rem 1rem; font-size: 1rem; }
   form.capture .btn { flex: 1 1 auto; }
   .fine { text-align: center; color: var(--muted); font-size: .85rem; }
-  footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; text-align: center; }
+  footer { margin-top: var(--s6); color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; text-align: center; }
   #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: .6rem 1.25rem; border-radius: 10px; display: none; }
   .allparks{columns:4;column-gap:1.4rem;font-size:.82rem;max-width:900px;margin:0 auto 1rem;text-align:left}
   .allparks a{display:block;color:var(--muted,#6b6485);text-decoration:none;padding:.1rem 0;break-inside:avoid}
@@ -95,6 +133,11 @@
   .shots figure{margin:0;max-width:290px;flex:1 1 250px}
   .shots img{width:100%;height:auto;border-radius:16px;border:1px solid var(--border,#e3dff2);box-shadow:0 8px 30px rgba(40,25,90,.16);display:block}
   .shots figcaption{font-size:.85rem;color:var(--muted,#6b6485);margin-top:.6rem;text-align:left;line-height:1.5}
+  .shots:has(figure:only-child){max-width:700px;gap:2rem}
+  .shots:has(figure:only-child) figure{display:flex;gap:2rem;align-items:center;max-width:none;flex:1 1 auto;text-align:left}
+  .shots:has(figure:only-child) img{max-width:250px;flex:0 0 250px;max-height:460px;object-fit:cover;object-position:top}
+  .shots:has(figure:only-child) figcaption{margin-top:0;font-size:1rem;line-height:1.6}
+  @media (max-width:620px){ .shots:has(figure:only-child) figure{flex-direction:column;gap:1.2rem} }
 </style>
 
 <div class="wrap">
@@ -107,42 +150,41 @@
   </nav>
 
   <header class="hero">
-    <div style="display:inline-block;background:rgba(255,215,94,.18);border:1px solid rgba(255,215,94,.55);color:#ffd75e;border-radius:999px;padding:.25rem 1rem;font-size:.82rem;font-weight:700;margin-bottom:1rem">🎉 Launch preview — everything is free</div>
+    <div class="eyebrow">Launch preview &mdash; everything is free</div>
     <h1>Stop standing in line at the parks</h1>
     <p>Live waits, a smart day plan, and an AI advisor that tells you when a skip pass is worth it — and when to keep your money.</p>
-    <div class="chiprow"><span>56 parks worldwide</span><span>Disney · Universal · Six Flags &amp; more</span><span>Works in your browser</span></div>
     <div class="cta"><a class="btn primary" href="/app">See live waits free</a><a class="btn ghost" href="#pricing">Get a Trip Pass</a></div>
+    <div class="chiprow"><span>56 parks worldwide</span><span>Disney · Universal · Six Flags &amp; more</span><span>Works in your browser</span></div>
   </header>
 
   <h2>How it works</h2>
   <div class="grid">
-    <div class="card"><h3>📡 Live waits</h3>Real-time standby waits for every ride at 56 parks worldwide — from Magic Kingdom to Cedar Point to Europa-Park to Tokyo DisneySea — refreshed every minute.</div>
-    <div class="card"><h3>🧭 Smart plan</h3>Pick your must-do rides and your hours in the park. ParkPulse sequences them against hourly crowd curves — headliners at rope drop and close, shows at peak.</div>
-    <div class="card"><h3>💸 Spend less on passes</h3>Know which rides you can walk onto before paying $15–$45 a head for Lightning Lane or $80+ for Express Pass. Most days, a good plan replaces half the passes you'd have bought.</div>
-    <div class="card"><h3>🤖 AI park consultant</h3>Ask "is Lightning Lane worth it today for a family of 4?" and get a straight answer computed from live waits — including "keep your money" when that's the truth.</div>
+    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><h3>Live waits</h3><p>Real-time standby waits for every ride at 56 parks worldwide — from Magic Kingdom to Cedar Point to Europa-Park to Tokyo DisneySea — refreshed every minute.</p></div>
+    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg></div><h3>Smart plan</h3><p>Pick your must-do rides and your hours in the park. ParkPulse sequences them against hourly crowd curves — headliners at rope drop and close, shows at peak.</p></div>
+    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><path d="M17 12h.01"/></svg></div><h3>Spend less on passes</h3><p>Know which rides you can walk onto before paying $15–$45 a head for Lightning Lane or $80+ for Express Pass. Most days, a good plan replaces half the passes you'd have bought.</p></div>
+    <div class="card"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-4-.9L3 21l1.9-4.6A8.4 8.4 0 0 1 4 11.5a8.4 8.4 0 0 1 9-8.4 8.4 8.4 0 0 1 8 8.4Z"/></svg></div><h3>AI park consultant</h3><p>Ask "is Lightning Lane worth it today for a family of 4?" and get a straight answer computed from live waits — including "keep your money" when that's the truth.</p></div>
   </div>
 
   <h2>See it before you buy</h2>
-  <p class="fine" style="max-width:640px;margin:0 auto 1.25rem">Two screens do most of the work &mdash; the plan that sequences your day, and the consultant that tells you when not to spend.</p>
   <!--SHOTS-->
 
   <h2>Like a VIP tour guide — for $19.99, not $500 a day</h2>
-  <p class="fine" style="max-width:640px;margin:0 auto 1rem">Private park guides charge US$300–600 <em>per day</em>. Here's their playbook — and how ParkPulse runs it for you:</p>
+  <p class="sectionlead">Private park guides charge US$300–600 <em>per day</em>. Here's their playbook — and how ParkPulse runs it for you:</p>
   <div class="card" style="max-width:640px;margin:0 auto">
-    <ul style="margin:0;padding-left:1.3rem;line-height:2.05">
-      <li>✅ <b>Pre-trip planning</b> — the AI advisor remembers your family, dates, and must-dos</li>
-      <li>✅ <b>Best park each day</b> — 7-day crowd forecasts + a multi-day trip planner</li>
-      <li>✅ <b>Personalized daily route</b> — land-by-land plans built from live waits, arrival to exit</li>
-      <li>✅ <b>"Go now" calls</b> — wait-drop alerts, below-typical signals, ride-closure &amp; reopen pushes</li>
-      <li>✅ <b>Pass strategy</b> — Lightning Lane, Express, Fast Lane, Flash Pass: a buy-or-skip verdict every day</li>
-      <li>✅ <b>Dining strategy</b> — what's worth booking and exactly when the windows open</li>
-      <li>✅ <b>Plan B, instantly</b> — ride down or kids melting? Replan from right where you stand</li>
+    <ul class="speclist">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pre-trip planning</b> &mdash; the AI advisor remembers your family, dates, and must-dos</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Best park each day</b> &mdash; 7-day crowd forecasts + a multi-day trip planner</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Personalized daily route</b> &mdash; land-by-land plans built from live waits, arrival to exit</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>&ldquo;Go now&rdquo; calls</b> &mdash; wait-drop alerts, below-typical signals, ride-closure &amp; reopen pushes</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pass strategy</b> &mdash; Lightning Lane, Express, Fast Lane, Flash Pass: a buy-or-skip verdict every day</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Dining strategy</b> &mdash; what's worth booking and exactly when the windows open</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Plan B, instantly</b> &mdash; ride down or kids melting? Replan from right where you stand</span></li>
     </ul>
     <p class="fine" style="margin:.9rem 0 0">One honest difference: we tell you what to book — the booking itself stays safely in the official park app.</p>
   </div>
 
   <h2 id="pricing">Pricing</h2>
-  <p class="fine" style="max-width:560px;margin:0 auto 1rem">Every pass includes all 56 parks, the smart plan builder, the AI park advisor, and wait-drop alerts — for your whole family's devices. One Lightning Lane costs $15–$45 <i>per person, per day</i>; a good plan often replaces it.</p>
+  <p class="sectionlead">Every pass includes all 56 parks, the smart plan builder, the AI park advisor, and wait-drop alerts — for your whole family's devices. One Lightning Lane costs $15–$45 <i>per person, per day</i>; a good plan often replaces it.</p>
   <div class="grid" id="price-grid">
     <div class="card price-card">
       <h3>Free</h3>
@@ -160,7 +202,7 @@
   </form>
 
   <h2>Park guides</h2>
-  <p class="fine" style="max-width:640px;margin:0 auto 1.25rem">Hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; for every park we cover. <a href="/parks">Browse all parks &rarr;</a></p>
+  <p class="sectionlead">Hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; for every park we cover. <a href="/parks">Browse all parks &rarr;</a></p>
   <div class="allparks"><!--PARKS_INDEX--></div>
 
   <footer>

@@ -1236,7 +1236,11 @@ const SHOTS = [
 function productShots() {
   const have = SHOTS.filter((s) => fs.existsSync(path.join(PUBLIC_DIR, 'shots', s.file)));
   if (!have.length) return '';
-  return `<div class="shots">${have.map((s) => `<figure><img src="/shots/${s.file}" alt="${s.alt}" loading="lazy" width="430" height="932"><figcaption>${s.cap}</figcaption></figure>`).join('')}</div>`;
+  const lead = have.length > 1
+    ? 'Two screens do most of the work &mdash; the plan that sequences your day, and the consultant that tells you when not to spend.'
+    : 'The screen that does most of the work: the plan that sequences your day around the crowd curve.';
+  const figures = have.map((s) => `<figure><img src="/shots/${s.file}" alt="${s.alt}" loading="lazy" width="430" height="932"><figcaption>${s.cap}</figcaption></figure>`).join('');
+  return `<p class="sectionlead">${lead}</p><div class="shots">${figures}</div>`;
 }
 
 function serveStatic(res, urlPath) {
