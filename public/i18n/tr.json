@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "Bu park için harita yok.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Bu park henüz OpenStreetMap'te yok — eklenince pinler görünecek.",
  "Pin locations are approximate.": "Pin konumları yaklaşıktır.",
- "Map data": "Harita verileri"
+ "Map data": "Harita verileri",
+ "stops in plan order": "durak, plan sırasıyla",
+ "Stop": "Durak"
 }

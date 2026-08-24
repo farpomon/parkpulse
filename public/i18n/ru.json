@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "Карта для этого парка недоступна.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Этот парк ещё не нанесён на OpenStreetMap — метки появятся, как только он там будет.",
  "Pin locations are approximate.": "Расположение меток приблизительное.",
- "Map data": "Картографические данные"
+ "Map data": "Картографические данные",
+ "stops in plan order": "остановок по плану",
+ "Stop": "Остановка"
 }

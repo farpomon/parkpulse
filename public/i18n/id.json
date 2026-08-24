@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "Peta tidak tersedia untuk taman ini.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Taman ini belum terpetakan di OpenStreetMap — pin akan muncul begitu tersedia.",
  "Pin locations are approximate.": "Lokasi pin bersifat perkiraan.",
- "Map data": "Data peta"
+ "Map data": "Data peta",
+ "stops in plan order": "perhentian sesuai urutan rencana",
+ "Stop": "Perhentian"
 }

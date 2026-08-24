@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "该园区暂无地图。",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "该园区在 OpenStreetMap 上尚未绘制——绘制后图钉会自动出现。",
  "Pin locations are approximate.": "图钉位置为大致位置。",
- "Map data": "地图数据"
+ "Map data": "地图数据",
+ "stops in plan order": "个站点，按计划顺序",
+ "Stop": "第"
 }

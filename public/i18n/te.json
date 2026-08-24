@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "ఈ పార్క్‌కు మ్యాప్ అందుబాటులో లేదు.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "ఈ పార్క్ ఇంకా OpenStreetMap‌లో లేదు — వచ్చాక పిన్‌లు కనిపిస్తాయి.",
  "Pin locations are approximate.": "పిన్ స్థానాలు సుమారుగా ఉన్నాయి.",
- "Map data": "మ్యాప్ డేటా"
+ "Map data": "మ్యాప్ డేటా",
+ "stops in plan order": "స్టాప్‌లు, ప్లాన్ క్రమంలో",
+ "Stop": "స్టాప్"
 }

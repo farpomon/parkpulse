@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "이 파크의 지도를 사용할 수 없습니다.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "이 파크는 아직 OpenStreetMap에 없어요 — 등록되면 핀이 표시됩니다.",
  "Pin locations are approximate.": "핀 위치는 대략적입니다.",
- "Map data": "지도 데이터"
+ "Map data": "지도 데이터",
+ "stops in plan order": "개 코스 (계획 순서)",
+ "Stop": "코스"
 }

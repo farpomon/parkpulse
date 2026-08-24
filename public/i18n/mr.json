@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "या पार्कसाठी नकाशा उपलब्ध नाही.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "हे पार्क अजून OpenStreetMap वर नाही — झाल्यावर पिन दिसतील.",
  "Pin locations are approximate.": "पिनची ठिकाणे अंदाजे आहेत.",
- "Map data": "नकाशा डेटा"
+ "Map data": "नकाशा डेटा",
+ "stops in plan order": "थांबे, योजनेच्या क्रमाने",
+ "Stop": "थांबा"
 }

@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "Mapa indisponível para este parque.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Este parque ainda não está no OpenStreetMap — os pinos aparecem assim que estiver.",
  "Pin locations are approximate.": "As posições dos pinos são aproximadas.",
- "Map data": "Dados do mapa"
+ "Map data": "Dados do mapa",
+ "stops in plan order": "paradas na ordem do plano",
+ "Stop": "Parada"
 }
