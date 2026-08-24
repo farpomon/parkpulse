@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "इस पार्क का नक्शा उपलब्ध नहीं है।",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "यह पार्क अभी OpenStreetMap पर मैप नहीं हुआ है — मैप होते ही पिन दिखेंगे।",
  "Pin locations are approximate.": "पिन के स्थान अनुमानित हैं।",
- "Map data": "मानचित्र डेटा"
+ "Map data": "मानचित्र डेटा",
+ "stops in plan order": "पड़ाव, योजना क्रम में",
+ "Stop": "पड़ाव"
 }

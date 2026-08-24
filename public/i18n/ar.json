@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "الخريطة غير متاحة لهذه الحديقة.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "هذه الحديقة غير مرسومة بعد على OpenStreetMap — ستظهر الدبابيس فور توفرها.",
  "Pin locations are approximate.": "مواقع الدبابيس تقريبية.",
- "Map data": "بيانات الخريطة"
+ "Map data": "بيانات الخريطة",
+ "stops in plan order": "محطات بترتيب الخطة",
+ "Stop": "محطة"
 }

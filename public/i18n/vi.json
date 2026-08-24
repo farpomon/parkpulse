@@ -219,5 +219,7 @@
  "Map unavailable for this park.": "Không có bản đồ cho công viên này.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Công viên này chưa có trên OpenStreetMap — ghim sẽ xuất hiện khi có.",
  "Pin locations are approximate.": "Vị trí ghim chỉ là ước lượng.",
- "Map data": "Dữ liệu bản đồ"
+ "Map data": "Dữ liệu bản đồ",
+ "stops in plan order": "điểm dừng theo thứ tự kế hoạch",
+ "Stop": "Điểm"
 }

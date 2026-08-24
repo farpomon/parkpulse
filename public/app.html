@@ -144,6 +144,7 @@
   #parkmap { height: 62vh; min-height: 320px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg); z-index: 0; margin-top: .5rem; }
   .wpin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px;
     border: 2px solid #fff; color: #fff; font-weight: 800; font-size: .76rem; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .wpin.step { background: #5b3df5; box-shadow: 0 0 0 3px rgba(91,61,245,.28), 0 2px 8px rgba(0,0,0,.35); }
   .wpin.low { background: #1d7a4f; } .wpin.mid { background: #b07800; } .wpin.high { background: #c43c3c; } .wpin.closed { background: #8a8798; }
   .wpin.isdone { opacity: .45; }
   .leaflet-popup-content { font: inherit; }
@@ -1060,6 +1061,7 @@
     const savedPerk = saved >= 90 ? "that's 3-4 extra rides together (or one very peaceful sit-down lunch)"
       : saved >= 45 ? "that's an extra headliner AND an ice-cream stop"
       : "that's one more ride together instead of a queue";
+    planOrder = steps.filter((s) => s.ride).map((s) => s.ride.name);
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
@@ -1092,7 +1094,7 @@
       document.getElementById('replan').style.display = 'inline-block';
     }));
     document.getElementById('replan').addEventListener('click', () => { $('start-hour').value = 'now'; buildPlan(); });
-    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); });
+    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; if (viewMode === 'map') renderMap(); });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -1552,6 +1554,10 @@
   // per-park OSM extraction, colored by live wait. -------------------------
   let mapObj = null;
   let mapPins = [];
+  let mapRoute = null;
+  // Ride names in the order the current plan visits them — drives the
+  // numbered pins and the route line on the map.
+  let planOrder = [];
   let leafletLoading = null;
   function loadLeaflet() {
     if (window.L) return Promise.resolve();
@@ -1568,7 +1574,8 @@
   function mapPopup(name) {
     const live = rides.find((r) => r.name === name);
     const el = document.createElement('div');
-    el.innerHTML = `<b>${esc(name)}</b><br>${live ? (live.open ? `${live.wait} ${tr('min')}` : tr('Closed')) : ''}
+    const step = planOrder.indexOf(name);
+    el.innerHTML = `${step >= 0 ? `<span style="color:var(--brand);font-weight:800">${tr('Stop')} ${step + 1}</span> · ` : ''}<b>${esc(name)}</b><br>${live ? (live.open ? `${live.wait} ${tr('min')}` : tr('Closed')) : ''}
       <div style="margin-top:.45rem;display:flex;gap:.4rem">
         <button data-a="pick">${pickedNames.has(name) ? '✓ ' : ''}${tr('Plan it')}</button>
         <button data-a="done">${doneOrder.includes(name) ? '↩︎' : '✓'} ${tr('Done')}</button>
@@ -1626,17 +1633,30 @@
       return;
     }
     note.textContent = geo.status === 'approx' ? '≈ ' + tr('Pin locations are approximate.') : '';
+    // With a plan on screen the pins become numbered stops in visiting
+    // order; everything else keeps showing its live wait.
+    const byName = new Map(geo.rides.map((g) => [g.name, g]));
+    const routePts = [];
     for (const g of geo.rides) {
       const live = rides.find((r) => r.name === g.name);
-      const cls = live ? waitClass(live) : 'closed';
-      const label = live && live.open ? live.wait : '–';
+      const step = planOrder.indexOf(g.name);
+      const done = doneOrder.includes(g.name);
+      const cls = step >= 0 ? 'step' : (live ? waitClass(live) : 'closed');
+      const label = step >= 0 ? step + 1 : (live && live.open ? live.wait : '–');
       const pin = L.marker([g.lat, g.lng], {
-        icon: L.divIcon({ className: '', html: `<div class="wpin ${cls}${doneOrder.includes(g.name) ? ' isdone' : ''}">${label}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }),
-        title: g.name,
+        icon: L.divIcon({ className: '', html: `<div class="wpin ${cls}${done ? ' isdone' : ''}">${label}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }),
+        title: step >= 0 ? `${step + 1}. ${g.name}` : g.name,
+        zIndexOffset: step >= 0 ? 1000 - step : 0,
       }).addTo(mapObj);
       pin.bindPopup(() => mapPopup(g.name));
       mapPins.push(pin);
     }
+    for (const name of planOrder) { const g = byName.get(name); if (g) routePts.push([g.lat, g.lng]); }
+    if (mapRoute) { mapRoute.remove(); mapRoute = null; }
+    if (routePts.length > 1) {
+      mapRoute = L.polyline(routePts, { color: '#5b3df5', weight: 3, opacity: .65, dashArray: '7 6' }).addTo(mapObj);
+    }
+    if (planOrder.length) note.textContent = `${planOrder.length} ${tr('stops in plan order')}${geo.status === 'approx' ? ' · ≈ ' + tr('Pin locations are approximate.') : ''}`;
   }
   // Filter sheet: big tappable chips, opened from the section header — a
   // fixed bottom bar sat in the iPhone home-indicator zone and fought taps.
