@@ -157,6 +157,9 @@ function grantToUser(email, plan, exp) {
 // required before emailing real users.
 const RESEND_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'ParkPulse <onboarding@resend.dev>';
+// Replies to any transactional mail land in the support inbox, which
+// forwards to a human — otherwise they vanish into the sender domain.
+const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'support@parkpulse.fun';
 
 // WhatsApp concierge: the same AI advisor, reachable by texting our WhatsApp
 // Business number. Dormant until the Meta Cloud API credentials are set.
@@ -249,7 +252,7 @@ async function sendEmail(to, subject, html, logFallback) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { authorization: `Bearer ${RESEND_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ from: MAIL_FROM, to: [to], subject, html }),
+    body: JSON.stringify({ from: MAIL_FROM, to: [to], reply_to: MAIL_REPLY_TO, subject, html }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`resend ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
@@ -1217,11 +1220,159 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  // Photography is served from public/img; without these, JPEGs and WebP go
+  // out as application/octet-stream and browsers download rather than render.
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.woff2': 'font/woff2',
 };
 
 function sendJson(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
+}
+
+// --- Landing-page photography -----------------------------------------------
+// Art direction lives here, files live in public/img. Every slot renders only
+// when its file is present, so a missing photo degrades to the typographic
+// layout rather than a broken image.
+const PHOTOS = {
+  hero: { file: 'parkpulse-hero-cinematic.jpg', alt: '' },
+  vip: { file: 'parkpulse-checklist-cover.jpg', alt: 'A trip checklist and a hand-drawn park route in a notebook.' },
+  band: { file: 'parkpulse-family-visual.jpg', alt: 'A family pausing on a park path below a coaster, checking their plan on a phone.' },
+  capture: { file: 'parkpulse-snack-break.jpg', alt: '' },
+};
+const photoPath = (slot) => {
+  const p = PHOTOS[slot];
+  if (!p) return null;
+  return fs.existsSync(path.join(PUBLIC_DIR, 'img', p.file)) ? `/img/${p.file}` : null;
+};
+// The hero photo sits under the gradient, not over it — it adds depth without
+// competing with the headline.
+const heroPhoto = () => {
+  const src = photoPath('hero');
+  return src ? `<div class="hero-photo" style="background-image:url('${src}')"></div>` : '';
+};
+const vipPhoto = () => {
+  const src = photoPath('vip');
+  return src ? `<img class="vip-photo" src="${src}" alt="${esc(PHOTOS.vip.alt)}" loading="lazy">` : '';
+};
+const photoBand = () => {
+  const src = photoPath('band');
+  return src ? `<section class="sec"><figure class="band"><img src="${src}" alt="${esc(PHOTOS.band.alt)}" loading="lazy"></figure></section>` : '';
+};
+const captureStyle = () => {
+  const src = photoPath('capture');
+  // The band is very wide and short, so `cover` crops a square photo hard. Bias
+  // the crop low: the counter -- paper map, drinks, a phone face-down -- is both
+  // the most on-brand part of the frame and the part that survives being cut to
+  // a 200px strip. Centring it instead slices the faces off mid-forehead.
+  return src ? ` style="background-image:linear-gradient(180deg,rgba(36,27,70,.9),rgba(51,39,89,.95)),url('${src}');background-size:cover;background-position:50% 82%"` : '';
+};
+
+// --- Landing-page hero board ------------------------------------------------
+// The design puts live product proof above the fold. Rendered server-side for
+// three featured parks so the board is filled on first paint and works with
+// JavaScript off; the tabs only toggle which panel is visible.
+const HERO_PARKS = ['magic-kingdom', 'universal-studios-florida', 'cedar-point'];
+
+const waitChip = (w) => (w >= 60 ? 'hot' : w >= 30 ? 'warm' : 'cool');
+
+// A verdict has to come from the board itself, not a copywriter — otherwise it
+// is just decoration that can contradict the numbers directly above it.
+function boardVerdict(park, rides) {
+  const scored = rides.filter((r) => r.delta != null);
+  if (!scored.length) return `Open the app for today's read on ${park.name}.`;
+  const avg = scored.reduce((a, r) => a + r.delta, 0) / scored.length;
+  const pass = (park.skip && park.skip.name) || 'the paid pass';
+  if (avg <= -8) return `Skip ${pass} today — waits are running below typical across the board.`;
+  if (avg >= 12) return `${pass} is earning its keep — headliners are well above typical.`;
+  return `Middling day — rope drop covers the headliners, so ${pass} is optional.`;
+}
+
+async function heroBoardPanels() {
+  const panels = [];
+  for (const slug of HERO_PARKS) {
+    const park = PARKS[slug];
+    if (!park) continue;
+    let waits;
+    try { waits = await getWaits(slug); } catch { waits = null; }
+    const rides = ((waits && waits.rides) || [])
+      .filter((r) => r.open !== false && typeof r.wait === 'number')
+      .sort((a, b) => b.wait - a.wait)
+      .slice(0, 6)
+      .map((r) => ({
+        name: r.name,
+        land: r.land || '',
+        wait: r.wait,
+        delta: typeof r.typical === 'number' ? r.wait - r.typical : null,
+      }));
+    // Without a live feed the "typical" baseline equals the posted wait, so
+    // every delta is zero. Showing "typical" on every row is noise, not data.
+    const hasBaseline = rides.some((r) => r.delta);
+    if (!hasBaseline) rides.forEach((r) => { r.delta = null; });
+    panels.push({ park, rides, live: Boolean(waits && waits.source === 'live'), verdict: boardVerdict(park, rides) });
+  }
+  return panels;
+}
+
+function heroBoardHtml(panels) {
+  if (!panels.length) return '';
+  const rail = (active) => `<div class="board-tabs">${panels.map((p, i) =>
+    `<button class="board-tab${i === active ? ' on' : ''}" data-board-tab="${i}" type="button">${esc(p.park.name)}</button>`).join('')}</div>`;
+  const bodies = panels.map((p, i) => {
+    const rows = p.rides.map((r) => {
+      const d = r.delta == null ? ''
+        : r.delta <= -5 ? `<span class="delta down">&#9660; ${Math.abs(r.delta)} below typical</span>`
+        : r.delta >= 5 ? `<span class="delta up">&#9650; ${r.delta} above typical</span>`
+        : '<span class="delta flat">typical</span>';
+      const meta = [d, r.land ? `<span class="land">${esc(r.land)}</span>` : ''].filter(Boolean).join('');
+      return `<div class="board-row"><div class="board-ride"><div class="rn">${esc(r.name)}</div>
+${meta ? `<div class="rm">${meta}</div>` : ''}</div>
+<div class="chip ${waitChip(r.wait)}"><b>${r.wait}</b><span>min</span></div></div>`;
+    }).join('');
+    const empty = '<div class="board-empty">Live waits for this park are momentarily unavailable — the app retries every minute.</div>';
+    return `<div class="board-panel${i ? '' : ' on'}" data-board-panel="${i}">
+<div class="board-head"><span class="board-name">${esc(p.park.name)}</span>
+<span class="board-live ${p.live ? '' : 'off'}"><i></i>${p.live ? 'LIVE' : 'TYPICAL WAITS'}</span></div>
+${rail(i)}
+<div class="board-rows">${rows || empty}</div>
+<div class="board-foot"><div><div class="vk">TODAY&rsquo;S VERDICT</div><div class="vv">${esc(p.verdict)}</div></div>
+<a class="whybtn" href="/app">Why?</a></div></div>`;
+  }).join('');
+  return `<div class="board">${bodies}</div>`;
+}
+
+// Four regional columns of real parks, each linking to its own guide page.
+function parkGuides(registry) {
+  const by = (fn) => registry.filter(fn);
+  const groups = [
+    ['Walt Disney World', by((p) => p.group === 'Walt Disney World')],
+    ['Universal &amp; Orlando', by((p) => p.group === 'Universal Orlando' || (p.region === 'Florida' && p.group !== 'Walt Disney World' && p.group !== 'Universal Orlando'))],
+    ['California &amp; West', by((p) => p.region === 'California')],
+    ['Worldwide', by((p) => p.region === 'Asia' || p.region === 'Europe')],
+  ];
+  return groups.map(([region, parks]) => `<div class="pg-col"><div class="pg-head">${region}</div>${
+    parks.slice(0, 6).map((p) => `<a href="/parks/${p.slug}">${esc(p.name)}</a>`).join('')
+  }</div>`).join('');
+}
+
+const SHOTS = [
+  { file: 'plan.png', alt: 'The ParkPulse day plan: eight rides sequenced by time, each with its predicted wait and the reason for its slot.',
+    cap: '<strong>Your day, sequenced.</strong> Pick the rides you care about; ParkPulse orders them against the hourly crowd curve and tells you why each one sits where it does.' },
+  { file: 'advisor.png', alt: 'The ParkPulse AI consultant answering whether Lightning Lane is worth buying today.',
+    cap: '<strong>Straight answers, including no.</strong> Ask whether the paid pass is worth it today and the consultant works it out from live waits &mdash; and tells you to keep your money when that is the truth.' },
+];
+function productShots() {
+  const have = SHOTS.filter((s) => fs.existsSync(path.join(PUBLIC_DIR, 'shots', s.file)));
+  if (!have.length) return '';
+  const lead = have.length > 1
+    ? 'Two screens do most of the work &mdash; the plan that sequences your day, and the consultant that tells you when not to spend.'
+    : 'The screen that does most of the work: the plan that sequences your day around the crowd curve.';
+  const figures = have.map((s) => `<figure><img src="/shots/${s.file}" alt="${s.alt}" loading="lazy" width="430" height="932"><figcaption>${s.cap}</figcaption></figure>`).join('');
+  return `<p class="sectionlead">${lead}</p><div class="shots">${figures}</div>`;
 }
 
 function serveStatic(res, urlPath) {
@@ -1232,6 +1383,9 @@ function serveStatic(res, urlPath) {
   for (const candidate of candidates) {
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
       res.writeHead(200, { 'content-type': MIME[path.extname(candidate)] || 'application/octet-stream' });
+      // The landing page carries the full park index so every one of the
+      // parks we cover is one click from the front door, for readers and
+      // crawlers alike. Injected here so the list has a single source.
       return fs.createReadStream(candidate).pipe(res);
     }
   }
@@ -1401,7 +1555,7 @@ const server = http.createServer(async (req, res) => {
     const parkName = (p) => PARKS[p.path.slice(5)]?.name || p.path.slice(5);
     return sendJson(res, 200, {
       env: APP_ENV,
-      email: { configured: Boolean(RESEND_KEY), from: MAIL_FROM, customSender: !MAIL_FROM.includes('resend.dev') },
+      email: { configured: Boolean(RESEND_KEY), from: MAIL_FROM, replyTo: MAIL_REPLY_TO, customSender: !MAIL_FROM.includes('resend.dev') },
       users: {
         ...db.admin.userTotals(),
         new7d: db.admin.newUsers(7),
@@ -1438,7 +1592,28 @@ const server = http.createServer(async (req, res) => {
     }] : []));
   }
 
+  // The landing page is templated (hero board, park guides, screenshots), so
+  // it is rendered here rather than streamed by the static handler.
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    let board = '';
+    try { board = heroBoardHtml(await heroBoardPanels()); } catch (err) { console.log(`hero board: ${err.message}`); }
+    const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
+      .replace('<!--HERO_BOARD-->', () => board)
+      .replace('<!--HERO_PHOTO-->', () => heroPhoto())
+      .replace('<!--VIP_PHOTO-->', () => vipPhoto())
+      .replace('<!--PHOTO_BAND-->', () => photoBand())
+      .replace('<!--CAPTURE_BG-->', () => captureStyle())
+      .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
+      .replace('<!--SHOTS-->', () => productShots());
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    return res.end(html);
+  }
+
   // SEO surface: server-rendered park pages + sitemap + robots.
+  if (url.pathname === '/parks' || url.pathname === '/parks/') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderParksIndex(REGISTRY));
+  }
   const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
   if (parkPage) {
     const park = PARKS[parkPage[1]];
