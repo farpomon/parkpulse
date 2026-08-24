@@ -82,6 +82,16 @@
   .fine { text-align: center; color: var(--muted); font-size: .85rem; }
   footer { margin-top: 4rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; text-align: center; }
   #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: .6rem 1.25rem; border-radius: 10px; display: none; }
+  .allparks{columns:4;column-gap:1.4rem;font-size:.82rem;max-width:900px;margin:0 auto 1rem;text-align:left}
+  .allparks a{display:block;color:var(--muted,#6b6485);text-decoration:none;padding:.1rem 0;break-inside:avoid}
+  .allparks a:hover{color:var(--brand,#4f3ac9)}
+  .allparks b{display:block;color:inherit;margin:.6rem 0 .2rem;break-after:avoid;font-size:.86rem}
+  @media (max-width:900px){ .allparks{columns:3} }
+  @media (max-width:640px){ .allparks{columns:2} }
+  .shots{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;align-items:flex-start;max-width:900px;margin:0 auto 1rem}
+  .shots figure{margin:0;max-width:290px;flex:1 1 250px}
+  .shots img{width:100%;height:auto;border-radius:16px;border:1px solid var(--border,#e3dff2);box-shadow:0 8px 30px rgba(40,25,90,.16);display:block}
+  .shots figcaption{font-size:.85rem;color:var(--muted,#6b6485);margin-top:.6rem;text-align:left;line-height:1.5}
 </style>
 
 <div class="wrap">
@@ -108,6 +118,10 @@
     <div class="card"><h3>💸 Spend less on passes</h3>Know which rides you can walk onto before paying $15–$45 a head for Lightning Lane or $80+ for Express Pass. Most days, a good plan replaces half the passes you'd have bought.</div>
     <div class="card"><h3>🤖 AI park consultant</h3>Ask "is Lightning Lane worth it today for a family of 4?" and get a straight answer computed from live waits — including "keep your money" when that's the truth.</div>
   </div>
+
+  <h2>See it before you buy</h2>
+  <p class="fine" style="max-width:640px;margin:0 auto 1.25rem">Two screens do most of the work &mdash; the plan that sequences your day, and the consultant that tells you when not to spend.</p>
+  <!--SHOTS-->
 
   <h2>Like a VIP tour guide — for $19.99, not $500 a day</h2>
   <p class="fine" style="max-width:640px;margin:0 auto 1rem">Private park guides charge US$300–600 <em>per day</em>. Here's their playbook — and how ParkPulse runs it for you:</p>
@@ -143,17 +157,8 @@
   </form>
 
   <h2>Park guides</h2>
-  <p class="fine" style="max-width:640px;margin:0 auto 1rem">Wait-time patterns, hours, and pass strategy for every park we cover:</p>
-  <p class="fine" style="max-width:640px;margin:0 auto;line-height:2">
-    <a href="/parks/magic-kingdom">Magic Kingdom</a> · <a href="/parks/epcot">EPCOT</a> · <a href="/parks/hollywood-studios">Hollywood Studios</a> · <a href="/parks/animal-kingdom">Animal Kingdom</a> ·
-    <a href="/parks/disneyland">Disneyland</a> · <a href="/parks/california-adventure">California Adventure</a> ·
-    <a href="/parks/universal-studios-florida">Universal Studios Florida</a> · <a href="/parks/islands-of-adventure">Islands of Adventure</a> · <a href="/parks/epic-universe">Epic Universe</a> ·
-    <a href="/parks/universal-studios-hollywood">Universal Hollywood</a> ·
-    <a href="/parks/disneyland-paris">Disneyland Paris</a> · <a href="/parks/walt-disney-studios-paris">Walt Disney Studios</a> ·
-    <a href="/parks/tokyo-disneyland">Tokyo Disneyland</a> · <a href="/parks/tokyo-disneysea">Tokyo DisneySea</a> ·
-    <a href="/parks/hong-kong-disneyland">Hong Kong Disneyland</a> · <a href="/parks/shanghai-disneyland">Shanghai Disneyland</a> ·
-    <a href="/parks/cedar-point">Cedar Point</a> · <a href="/parks/six-flags-magic-mountain">Six Flags Magic Mountain</a> · <a href="/parks/europa-park">Europa-Park</a> · <a href="/parks/efteling">Efteling</a> · <a href="/app">…and 36 more in the app →</a>
-  </p>
+  <p class="fine" style="max-width:640px;margin:0 auto 1.25rem">Hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; for every park we cover. <a href="/parks">Browse all parks &rarr;</a></p>
+  <div class="allparks"><!--PARKS_INDEX--></div>
 
   <footer>
     Unofficial fan tool. Not affiliated with or endorsed by The Walt Disney Company.<br>

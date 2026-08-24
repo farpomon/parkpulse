@@ -1,25 +1,49 @@
 // Server-rendered, indexable park pages — the SEO top of funnel.
-// Each park gets /parks/<slug> with typical waits, hours, show info, and
-// pass strategy (Lightning Lane for Disney, Express Pass for Universal),
-// rendered from bundled data so pages are complete without the live feed.
+// Each park gets /parks/<slug> answering the queries people actually type:
+// "<park> wait times", "is Lightning Lane worth it at <park>", "best month
+// to visit <park>", "what to ride first at <park>". Content comes from
+// bundled data so a page is complete and useful even when the live feed is
+// down, with live waits layered on top when they are available.
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const SEO = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'park-seo.json'), 'utf8'));
 
 const DISNEY_GROUPS = new Set([
   'Walt Disney World', 'Disneyland (California)', 'Disneyland Paris',
   'Tokyo Disney Resort', 'Hong Kong Disneyland', 'Shanghai Disneyland',
 ]);
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+// How a typical day's queue builds, as a share of that day's own peak.
+// Sampled across the operating day so it scales to any park's hours — a
+// coaster park that opens at 10 peaks later than a Disney park opening at 8.
+const CURVES = {
+  disney: [0.35, 0.55, 0.80, 0.95, 1.00, 1.00, 0.95, 0.88, 0.80, 0.70, 0.55, 0.40],
+  universal: [0.40, 0.65, 0.88, 1.00, 1.00, 0.95, 0.90, 0.85, 0.75, 0.62, 0.48, 0.35],
+  coaster: [0.30, 0.45, 0.65, 0.82, 0.95, 1.00, 1.00, 0.92, 0.78, 0.60, 0.42, 0.30],
+  family: [0.35, 0.60, 0.85, 1.00, 0.98, 0.88, 0.72, 0.55, 0.42, 0.32, 0.25, 0.22],
+  europe: [0.40, 0.62, 0.85, 0.97, 1.00, 0.98, 0.90, 0.78, 0.62, 0.45, 0.33, 0.28],
+};
+
 const CSS = `
   :root { --bg:#f7f5ff; --card:#fff; --ink:#251d3d; --muted:#6b6485; --brand:#4f3ac9; --border:#e3dff2; --green:#1d7a4f; --green-soft:#e2f5ea; --gold:#a06f00; --gold-soft:#fdf3d7; --red:#b23a48; --red-soft:#fbe9ec; }
   @media (prefers-color-scheme: dark) { :root { --bg:#17122b; --card:#221b3d; --ink:#efecfc; --muted:#a79fc4; --brand:#8f7bf0; --border:#362c5c; --green:#5ecb96; --green-soft:#1c3a2c; --gold:#e5b955; --gold-soft:#3d331f; --red:#ef8b96; --red-soft:#46242a; } }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",system-ui,sans-serif}
-  .wrap{max-width:760px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+  .wrap{max-width:780px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
   nav{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0 1.5rem}
   .logo{font-weight:800;font-size:1.15rem;color:var(--brand);text-decoration:none}
   nav a.plain{color:var(--ink);text-decoration:none;font-weight:500;margin-left:1rem}
-  h1{font-size:1.7rem;line-height:1.2;margin:.25rem 0 .5rem}
+  h1{font-size:1.75rem;line-height:1.2;margin:.25rem 0 .5rem}
   .sub{color:var(--muted);margin:0 0 1.25rem}
-  h2{font-size:1.25rem;margin:2rem 0 .6rem}
+  h2{font-size:1.3rem;margin:2.25rem 0 .6rem;scroll-margin-top:1rem}
+  h3{font-size:1.02rem;margin:1.1rem 0 .3rem}
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.35rem;margin:.75rem 0}
+  .card p:first-child{margin-top:0} .card p:last-child{margin-bottom:0}
   table{width:100%;border-collapse:collapse;font-size:.95rem}
   th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--border)}
   th{color:var(--muted);font-weight:600;font-size:.85rem}
@@ -27,8 +51,38 @@ const CSS = `
   .w.low{background:var(--green-soft);color:var(--green)} .w.mid{background:var(--gold-soft);color:var(--gold)} .w.high{background:var(--red-soft);color:var(--red)}
   .cta{display:inline-block;background:var(--brand);color:#fff;border-radius:12px;padding:.7rem 1.4rem;font-weight:700;text-decoration:none;margin-top:.5rem}
   ul{padding-left:1.2rem} li{margin:.35rem 0}
+  ol.drop{padding-left:0;list-style:none;counter-reset:d}
+  ol.drop li{counter-increment:d;margin:.5rem 0;padding-left:2.4rem;position:relative}
+  ol.drop li::before{content:counter(d);position:absolute;left:0;top:.05rem;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+  .verdict{display:inline-block;border-radius:999px;padding:.2rem .8rem;font-weight:800;font-size:.8rem;letter-spacing:.02em;text-transform:uppercase}
+  .verdict.often{background:var(--red-soft);color:var(--red)}
+  .verdict.sometimes{background:var(--gold-soft);color:var(--gold)}
+  .verdict.rarely{background:var(--green-soft);color:var(--green)}
+  .verdict.none{background:var(--green-soft);color:var(--green)}
+  .chart{display:flex;align-items:flex-end;gap:3px;height:150px;margin:.6rem 0 .3rem}
+  .chart .bar{flex:1;border-radius:4px 4px 0 0;background:var(--brand);opacity:.35;position:relative;min-height:3px}
+  .chart .bar.pk{opacity:1}
+  .chart .bar.qt{opacity:.55;background:var(--green)}
+  .xaxis{display:flex;gap:3px;color:var(--muted);font-size:.7rem}
+  .xaxis span{flex:1;text-align:center;overflow:hidden}
+  .months{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:.5rem 0 .25rem}
+  .months div{text-align:center;font-size:.7rem;font-weight:700;padding:.45rem .1rem;border-radius:6px;background:var(--border);color:var(--muted)}
+  .months div.pk{background:var(--red-soft);color:var(--red)}
+  .months div.qt{background:var(--green-soft);color:var(--green)}
+  .legend{color:var(--muted);font-size:.8rem;margin:.25rem 0 0}
+  .tip{border-left:3px solid var(--brand);padding-left:.9rem;margin:1rem 0;color:var(--ink)}
+  .sibs{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+  .sibs a{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.45rem .8rem;text-decoration:none;color:var(--ink);font-weight:600;font-size:.92rem}
+  details{border-top:1px solid var(--border);padding:.7rem 0}
+  details summary{cursor:pointer;font-weight:700}
+  details p{margin:.6rem 0 0}
   footer{margin-top:3rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:1rem}
   footer a{color:var(--muted)}
+  .allparks{columns:3;column-gap:1.2rem;font-size:.82rem;margin:.6rem 0 1rem}
+  .allparks a{display:block;color:var(--muted);text-decoration:none;padding:.1rem 0;break-inside:avoid}
+  .allparks a:hover{color:var(--brand)}
+  .allparks b{display:block;color:var(--ink);margin:.5rem 0 .15rem;break-after:avoid}
+  @media (max-width:640px){ .allparks{columns:2} h1{font-size:1.45rem} }
 `;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -36,69 +90,307 @@ const hour12 = (h) => {
   const whole = Math.floor(h), mins = Math.round((h - whole) * 60);
   return `${whole % 12 === 0 ? 12 : whole % 12}${mins ? ':' + String(mins).padStart(2, '0') : ''} ${whole >= 12 ? 'PM' : 'AM'}`;
 };
+const hourShort = (h) => `${h % 12 === 0 ? 12 : h % 12}${h >= 12 ? 'p' : 'a'}`;
 const waitClass = (w) => (w >= 60 ? 'high' : w >= 30 ? 'mid' : 'low');
-
-function passStrategy(park) {
-  if (DISNEY_GROUPS.has(park.group)) {
-    return `<h2>Is Lightning Lane worth it at ${esc(park.name)}?</h2>
-<div class="card"><p>Disney's paid line-skipping system is <strong>Lightning Lane</strong> (FastPass was retired in 2021). Multi Pass runs roughly $15&ndash;$45 per person per day depending on park and date; Single Pass covers excluded headliners for about $12&ndash;$25 per ride. Resort guests book 7 days ahead at 7:00&nbsp;AM ET, off-site guests 3 days ahead &mdash; and the top headliners can sell out in minutes.</p>
-<p>Whether it's worth it depends on the day: on light-crowd days, rope drop plus the final operating hour covers most headliners for free. ParkPulse shows every wait live with a "vs typical" marker so you can decide with data &mdash; and the built-in AI consultant will run the math for your party.</p></div>`;
+// Hours arrive as a sorted list that may hold two separate runs (the opening
+// lull and the closing one). Describing them as one span would claim the busy
+// middle of the day is quiet, so group contiguous runs and name each.
+const span = (hrs) => {
+  if (!hrs.length) return '';
+  const runs = [];
+  for (const h of hrs) {
+    const last = runs[runs.length - 1];
+    if (last && h === last[last.length - 1] + 1) last.push(h);
+    else runs.push([h]);
   }
-  return `<h2>Is Express Pass worth it at ${esc(park.name)}?</h2>
-<div class="card"><p>Universal's system is <strong>Express Pass</strong> &mdash; no return times, just enter the Express line whenever. It's sold per park per day (roughly $80&ndash;$300 per person depending on date) in one-ride-each and Unlimited flavors.</p>
-<p>The classic money-saver at Universal Orlando: guests of the premier hotels (Hard Rock, Royal Pacific, Portofino Bay) get <strong>free Unlimited Express for the whole stay</strong> &mdash; on busy dates a one-night stay can cost less than buying passes for a family. Also check the single-rider lines, which are excellent here. ParkPulse shows every wait live so you can judge whether today needs Express at all.</p></div>`;
+  const parts = runs.map((r) => `${hour12(r[0])}\u2013${hour12(r[r.length - 1] + 1)}`);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+};
+const passName = (park) => (park.skip && park.skip.name) || (DISNEY_GROUPS.has(park.group) ? 'Lightning Lane' : 'a skip-the-line pass');
+// Turn a month-number list into "March, April and June".
+const monthList = (nums) => {
+  const names = nums.slice().sort((a, b) => a - b).map((m) => MONTHS_LONG[m - 1]);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] || '';
+};
+
+// Sample the archetype curve at each operating hour, so the shape stretches
+// to the park's own day rather than assuming everyone opens at nine.
+function hourlyCurve(park, seo) {
+  const curve = CURVES[seo.arch] || CURVES.disney;
+  const open = Math.floor(park.open), close = Math.ceil(park.close);
+  const out = [];
+  for (let h = open; h < close; h += 1) {
+    const pos = (close - open) <= 1 ? 0 : (h - open) / (close - open - 1);
+    const x = pos * (curve.length - 1);
+    const i = Math.floor(x), frac = x - i;
+    const v = curve[i] + (curve[Math.min(i + 1, curve.length - 1)] - curve[i]) * frac;
+    out.push({ hour: h, v });
+  }
+  return out;
+}
+
+function curveSection(park, seo) {
+  const pts = hourlyCurve(park, seo);
+  const max = Math.max(...pts.map((p) => p.v));
+  const min = Math.min(...pts.map((p) => p.v));
+  const isPeak = (v) => v >= max * 0.97;
+  const isQuiet = (v) => v <= min * 1.22;
+  const peakHours = pts.filter((p) => isPeak(p.v)).map((p) => p.hour);
+  const quietHours = pts.filter((p) => isQuiet(p.v)).map((p) => p.hour);
+  const bars = pts.map((p) => {
+    const cls = isPeak(p.v) ? 'pk' : isQuiet(p.v) ? 'qt' : '';
+    return `<div class="bar ${cls}" style="height:${Math.round((p.v / max) * 100)}%" title="${hour12(p.hour)}: ${Math.round(p.v * 100)}% of peak"></div>`;
+  }).join('');
+  const axis = pts.map((p, i) => `<span>${pts.length > 10 && i % 2 ? '' : hourShort(p.hour)}</span>`).join('');
+  const rows = pts.map((p) => `<tr><td>${hour12(p.hour)}</td><td>${Math.round(p.v * 100)}% of the day's peak</td></tr>`).join('');
+
+  return `<h2 id="hourly">${esc(park.name)} wait times by hour</h2>
+<div class="card">
+<p>Queues here follow a predictable daily shape. Lines are shortest in the first hour and the last, and peak <strong>${span(peakHours)}</strong> — that is the window to spend on shows, meals or indoor attractions rather than headliners.</p>
+<div class="chart" role="img" aria-label="Typical wait times at ${esc(park.name)} by hour of day, as a share of the day's peak. Busiest ${span(peakHours)}, quietest ${span(quietHours)}.">${bars}</div>
+<div class="xaxis">${axis}</div>
+<p class="legend">Typical shape of a ${esc(park.name)} day, shown as each hour's share of that day's own peak wait. Actual minutes vary by season and day of week — <a href="/app">check today's live waits</a>.</p>
+<details><summary>See the hour-by-hour numbers</summary>
+<table><tr><th>Hour</th><th>Typical wait level</th></tr>${rows}</table></details>
+</div>
+<div class="tip"><strong>Shortest lines:</strong> ${span(quietHours)}. <strong>Longest:</strong> ${span(peakHours)}.</div>`;
+}
+
+function monthsSection(park, seo) {
+  const peak = new Set(seo.peak.months), quiet = new Set(seo.quiet.months);
+  const strip = MONTHS.map((m, i) => {
+    const n = i + 1;
+    const cls = peak.has(n) ? 'pk' : quiet.has(n) ? 'qt' : '';
+    const label = peak.has(n) ? 'busiest' : quiet.has(n) ? 'quietest' : 'moderate';
+    return `<div class="${cls}" title="${m}: ${label}">${m}</div>`;
+  }).join('');
+  return `<h2 id="months">Best and worst months to visit ${esc(park.name)}</h2>
+<div class="card">
+<div class="months" role="img" aria-label="Crowd levels by month at ${esc(park.name)}. Busiest: ${monthList(seo.peak.months)}. Quietest: ${monthList(seo.quiet.months)}.">${strip}</div>
+<p class="legend">Red = busiest, green = quietest, grey = moderate.</p>
+<h3>Busiest: ${monthList(seo.peak.months)}</h3>
+<p>Expect the year's longest waits during ${esc(seo.peak.why)}.</p>
+<h3>Quietest: ${monthList(seo.quiet.months)}</h3>
+<p>The best value for short lines is ${esc(seo.quiet.why)}.</p>
+</div>`;
+}
+
+function dropSection(park, seo) {
+  const items = seo.drop.map((r) => `<li><strong>${esc(r)}</strong></li>`).join('');
+  return `<h2 id="rope-drop">What to ride first at ${esc(park.name)}: rope drop order</h2>
+<div class="card">
+<p>Be at the gate 30–45 minutes before opening and ride in this order. ${esc(seo.dropWhy)}</p>
+<ol class="drop">${items}</ol>
+<p class="legend">The first hour is the cheapest capacity of the day — no pass, no fee, and typically the shortest waits you will see.</p>
+</div>`;
+}
+
+const VERDICT_LABEL = {
+  often: 'Usually worth it',
+  sometimes: 'Worth it on busy days',
+  rarely: 'Usually not worth it',
+  none: 'Not sold here',
+};
+
+function passSection(park, seo) {
+  const name = passName(park);
+  const price = park.skip && park.skip.low != null
+    ? `<p><strong>Price:</strong> roughly ${park.skip.cur || '$'}${park.skip.low}–${park.skip.cur || '$'}${park.skip.high} ${esc(park.skip.note || 'per person, per day')}. Prices change often and by date — treat this as a range, not a quote.</p>`
+    : '';
+  const q = seo.worth === 'none'
+    ? `Does ${esc(park.name)} have a skip-the-line pass?`
+    : `Is ${esc(name)} worth it at ${esc(park.name)}?`;
+  return `<h2 id="pass">${q}</h2>
+<div class="card">
+<p><span class="verdict ${seo.worth}">${VERDICT_LABEL[seo.worth]}</span></p>
+<p>${esc(seo.verdict)}</p>
+${price}
+<p>ParkPulse shows every wait live with a "vs typical" marker, and its AI consultant will run the numbers for your party and date — including telling you to keep your money when the answer is no.</p>
+<a class="cta" href="/app">Check today's waits before you buy</a>
+</div>`;
+}
+
+function faqSection(park, seo) {
+  const name = passName(park);
+  const pts = hourlyCurve(park, seo);
+  const max = Math.max(...pts.map((p) => p.v)), min = Math.min(...pts.map((p) => p.v));
+  const peakH = pts.filter((p) => p.v >= max * 0.97).map((p) => p.hour);
+  const quietH = pts.filter((p) => p.v <= min * 1.22).map((p) => p.hour);
+  const fmt = span;
+
+  const qa = [
+    [`What time should I arrive at ${park.name}?`,
+      `Aim to be at the gate 30–45 minutes before the posted opening time of ${hour12(park.open)}. The first hour consistently has the day's shortest waits, and arriving even 45 minutes late typically costs you two headliners.`],
+    [`When are wait times shortest at ${park.name}?`,
+      `${fmt(quietH)} — the opening hour and the final hour of the operating day. Waits peak ${fmt(peakH)}, so plan meals, shows and indoor attractions for that window.`],
+    [`What should I ride first at ${park.name}?`,
+      `${seo.drop[0]}, then ${seo.drop.slice(1, 3).join(' and ')}. ${seo.dropWhy}`],
+    [`What is the best month to visit ${park.name}?`,
+      `${monthList(seo.quiet.months)} — ${seo.quiet.why}. Avoid ${monthList(seo.peak.months)}, when ${seo.peak.why}.`],
+    [seo.worth === 'none' ? `Does ${park.name} sell a skip-the-line pass?` : `Is ${name} worth it at ${park.name}?`,
+      seo.verdict],
+  ];
+  const html = qa.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('');
+  return { html: `<h2 id="faq">${esc(park.name)} FAQ</h2><div class="card" style="padding-top:.2rem">${html}</div>`, qa };
+}
+
+// Every park, grouped by region, on every page — the crawl path that turns
+// 56 separate pages into one site.
+function allParksIndex(allParks, currentSlug) {
+  const order = ['Florida', 'California', 'US & Canada', 'Europe', 'Asia'];
+  const byRegion = {};
+  for (const p of allParks) (byRegion[p.region] || (byRegion[p.region] = [])).push(p);
+  const regions = [...order.filter((r) => byRegion[r]), ...Object.keys(byRegion).filter((r) => !order.includes(r))];
+  return regions.map((r) => `<b>${esc(r)}</b>` + byRegion[r]
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => (p.slug === currentSlug
+      ? `<a href="/parks/${p.slug}" aria-current="page"><strong>${esc(p.name)}</strong></a>`
+      : `<a href="/parks/${p.slug}">${esc(p.name)}</a>`))
+    .join('')).join('');
 }
 
 function renderParkPage(park, sample, allParks) {
+  const seo = SEO[park.slug];
+  // A park without authored content still gets a working page rather than a 500.
+  if (!seo) return renderBasicParkPage(park, sample, allParks);
+
+  const name = passName(park);
+  const title = seo.worth === 'none'
+    ? `${park.name} Wait Times: Live Queues, Rope Drop Order & Best Months`
+    : `${park.name} Wait Times & Is ${name} Worth It? (Live Queues + Rope Drop)`;
+  const desc = `Live ${park.name} wait times, hour-by-hour queue patterns, the best and worst months to visit, what to ride first, and a straight answer on whether ${seo.worth === 'none' ? 'you can skip the lines' : name + ' is worth it'}.`;
+
   const waitsRows = sample
     ? sample.rides.map((r) => `<tr><td>${esc(r.name)}</td><td><span class="w ${waitClass(r.wait)}">${r.wait} min</span></td></tr>`).join('')
     : '';
   const waitsSection = sample
-    ? `<h2>Typical wait times at ${esc(park.name)}</h2>
+    ? `<h2 id="typical">Typical waits by ride at ${esc(park.name)}</h2>
 <div class="card"><table><tr><th>Attraction</th><th>Typical midday wait</th></tr>${waitsRows}</table>
-<p style="color:var(--muted);font-size:.85rem">Typical midday standby waits on a moderate day. <a href="/app">See today's live waits &rarr;</a></p></div>`
-    : `<h2>Wait times at ${esc(park.name)}</h2>
-<div class="card"><p>ParkPulse tracks live standby waits for every attraction at ${esc(park.name)}, updated every few minutes.</p><a class="cta" href="/app">See live waits</a></div>`;
+<p class="legend">Typical midday standby waits on a moderate day. <a href="/app">See today's live waits &rarr;</a></p></div>`
+    : '';
 
-  const showLine = park.show ? `The headline evening show is <strong>${esc(park.show.name)}</strong>, typically around ${hour12(park.show.hour)} &mdash; ride headliners while the crowds watch it and waits drop 30&ndash;50%.` : 'There is no headline evening show, so the final operating hour is usually the quietest time to ride.';
+  const showLine = park.show
+    ? `The headline evening show is <strong>${esc(park.show.name)}</strong>, typically around ${hour12(park.show.hour)} — ride headliners while the crowds watch it and waits drop 30–50%.`
+    : 'There is no headline evening show, so the final operating hour is usually the quietest time to ride.';
 
-  const others = allParks.filter((p) => p.slug !== park.slug).map((p) => `<a href="/parks/${p.slug}">${esc(p.name)}</a>`).join(' &middot; ');
+  const siblings = allParks.filter((p) => p.group === park.group && p.slug !== park.slug);
+  const sibSection = siblings.length
+    ? `<h2 id="resort">Other parks at ${esc(park.group)}</h2>
+<div class="card"><p>Planning more than one day? These share the resort — and usually the crowd calendar.</p>
+<div class="sibs">${siblings.map((p) => `<a href="/parks/${p.slug}">${esc(p.name)} wait times &rarr;</a>`).join('')}</div></div>`
+    : '';
+
+  const nearby = allParks
+    .filter((p) => p.region === park.region && p.group !== park.group)
+    .slice(0, 8);
+  const nearbySection = nearby.length
+    ? `<h2 id="nearby">More parks in ${esc(park.region)}</h2>
+<div class="sibs">${nearby.map((p) => `<a href="/parks/${p.slug}">${esc(p.name)}</a>`).join('')}</div>`
+    : '';
+
+  const faq = faqSection(park, seo);
 
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(park.name)} Wait Times &amp; ${DISNEY_GROUPS.has(park.group) ? 'Lightning Lane' : 'Express Pass'} Strategy | ParkPulse</title>
-<meta name="description" content="Live ${esc(park.name)} wait times, typical waits for every ride, park hours, and whether ${DISNEY_GROUPS.has(park.group) ? 'Lightning Lane' : 'Express Pass'} is worth it today.">
+<title>${esc(title)} | ParkPulse</title>
+<meta name="description" content="${esc(desc)}">
 <link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
 <link rel="canonical" href="https://www.parkpulse.fun/parks/${park.slug}">
-<meta property="og:title" content="${esc(park.name)} Wait Times &amp; Strategy | ParkPulse">
-<meta property="og:description" content="Live ${esc(park.name)} wait times, typical waits for every ride, park hours, and today's line strategy.">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
 <meta property="og:image" content="https://www.parkpulse.fun/og.png">
 <meta property="og:url" content="https://www.parkpulse.fun/parks/${park.slug}">
-<meta property="og:type" content="website">
-<script type="application/ld+json">${jsonLd(park)}</script>
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">${jsonLd(park, faq.qa)}</script>
 <style>${CSS}</style></head><body><div class="wrap">
-<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/guide">Guide</a></span></nav>
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/parks">All parks</a><a class="plain" href="/guide">Guide</a></span></nav>
 <h1>${esc(park.name)} Wait Times &amp; Strategy</h1>
-<p class="sub">${esc(park.group)} &middot; typical hours ${hour12(park.open)}&ndash;${hour12(park.close)}</p>
-<div class="card"><p><strong>The one-minute version:</strong> arrive before opening and ride a headliner first &mdash; the first hour has the day's shortest lines. Waits peak from 11&nbsp;AM to 4&nbsp;PM (do shows and meals then), and the final hour is often as quiet as rope drop. ${showLine}</p>
+<p class="sub">${esc(park.group)} &middot; ${esc(park.region)} &middot; typical hours ${hour12(park.open)}&ndash;${hour12(park.close)}</p>
+<div class="card"><p><strong>The one-minute version:</strong> be at the gate 30–45 minutes before opening and ride <strong>${esc(seo.drop[0])}</strong> first. Waits peak from late morning to mid-afternoon — do shows and meals then. The final hour is often as quiet as rope drop. ${showLine}</p>
+<p><strong>${VERDICT_LABEL[seo.worth]}:</strong> ${esc(seo.verdict.split('. ')[0])}.</p>
 <a class="cta" href="/app">See today's live waits free</a></div>
+${curveSection(park, seo)}
+${dropSection(park, seo)}
+${monthsSection(park, seo)}
+${passSection(park, seo)}
 ${waitsSection}
-${passStrategy(park)}
-<h2>Beat the lines without paying</h2>
+<h2 id="free">Beat the lines without paying at ${esc(park.name)}</h2>
 <div class="card"><ul>
-<li><strong>Rope drop:</strong> be at the gate 45&ndash;60 minutes before opening and walk onto one or two headliners.</li>
-<li><strong>The last hour:</strong> often the day's shortest waits &mdash; if you're in line at close, you ride.</li>
+<li><strong>Rope drop:</strong> at the gate 30–45 minutes early, straight to ${esc(seo.drop[0])}.</li>
+<li><strong>The last hour:</strong> often the day's shortest waits — if you are in line at close, you ride.</li>
 <li><strong>Show windows:</strong> ${park.show ? `during ${esc(park.show.name)}, major attractions quietly shrink` : 'evening hours thin out steadily after dinner'}.</li>
-<li><strong>Live data:</strong> a wait that's 15+ minutes below its typical level is a "go now" signal &mdash; ParkPulse flags these automatically.</li>
-</ul></div>
-<h2>More parks</h2><p>${others}</p>
-<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/guide">Free strategy guide</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
+<li><strong>Live data:</strong> a wait 15+ minutes below its typical level is a "go now" signal — ParkPulse flags these automatically.</li>
+</ul>
+<div class="tip"><strong>Local knowledge:</strong> ${esc(seo.tip)}</div>
+</div>
+${faq.html}
+${sibSection}
+${nearbySection}
+<h2 id="all">All parks we track</h2>
+<div class="allparks">${allParksIndex(allParks, park.slug)}</div>
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Prices, hours and ride line-ups change; verify with the operator before you buy. Live wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/parks">All parks</a> &middot; <a href="/guide">Free strategy guide</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
 </div><script src="/i18n.js"></script><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
 }
 
-// Structured data for the park pages: what the place is, where it is, and
-// how the page sits in the site. Escaped against </script> breakout.
-function jsonLd(park) {
+// Fallback for a park in the registry that has no authored content yet.
+function renderBasicParkPage(park, sample, allParks) {
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(park.name)} Wait Times | ParkPulse</title>
+<meta name="description" content="Live ${esc(park.name)} wait times, updated continuously.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://www.parkpulse.fun/parks/${park.slug}">
+<style>${CSS}</style></head><body><div class="wrap">
+<nav><a class="logo" href="/">ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/parks">All parks</a></span></nav>
+<h1>${esc(park.name)} Wait Times</h1>
+<p class="sub">${esc(park.group)} &middot; typical hours ${hour12(park.open)}&ndash;${hour12(park.close)}</p>
+<div class="card"><p>ParkPulse tracks live standby waits for every attraction at ${esc(park.name)}.</p><a class="cta" href="/app">See live waits</a></div>
+<h2>All parks we track</h2><div class="allparks">${allParksIndex(allParks, park.slug)}</div>
+<footer>Unofficial fan guide. Wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">Home</a></footer>
+</div></body></html>`;
+}
+
+// /parks — the hub every park page links back to, so crawlers reach all 56
+// from any entry point in two clicks.
+function renderParksIndex(allParks) {
+  const order = ['Florida', 'California', 'US & Canada', 'Europe', 'Asia'];
+  const byRegion = {};
+  for (const p of allParks) (byRegion[p.region] || (byRegion[p.region] = [])).push(p);
+  const regions = [...order.filter((r) => byRegion[r]), ...Object.keys(byRegion).filter((r) => !order.includes(r))];
+  const sections = regions.map((r) => {
+    const cards = byRegion[r].slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) => {
+      const seo = SEO[p.slug];
+      const line = seo ? `${VERDICT_LABEL[seo.worth]} · ${esc(passName(p))}` : 'Live wait times';
+      return `<a href="/parks/${p.slug}" style="display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;margin:.4rem 0">
+<strong>${esc(p.name)} wait times</strong><br><span style="color:var(--muted);font-size:.85rem">${esc(p.group)} &middot; ${line}</span></a>`;
+    }).join('');
+    return `<h2>${esc(r)}</h2>${cards}`;
+  }).join('');
+
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme Park Wait Times: All ${allParks.length} Parks | ParkPulse</title>
+<meta name="description" content="Live wait times, rope drop orders, best months and skip-the-line verdicts for ${allParks.length} theme parks across the US, Europe and Asia.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<link rel="canonical" href="https://www.parkpulse.fun/parks">
+<meta property="og:title" content="Theme Park Wait Times: All ${allParks.length} Parks | ParkPulse">
+<meta property="og:description" content="Live wait times, rope drop orders and skip-the-line verdicts for ${allParks.length} parks.">
+<meta property="og:image" content="https://www.parkpulse.fun/og.png">
+<style>${CSS}</style></head><body><div class="wrap">
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/guide">Guide</a></span></nav>
+<h1>Theme park wait times — all ${allParks.length} parks</h1>
+<p class="sub">Hour-by-hour queue patterns, rope drop orders, best and worst months, and a straight answer on whether the skip-the-line pass is worth it.</p>
+${sections}
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Live wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/guide">Free strategy guide</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
+</div></body></html>`;
+}
+
+// Structured data: what the place is, where it is, how the page sits in the
+// site, and the FAQ block that can win its own result. Escaped against
+// </script> breakout.
+function jsonLd(park, qa) {
   const data = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -106,7 +398,8 @@ function jsonLd(park) {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'ParkPulse', item: 'https://www.parkpulse.fun/' },
-          { '@type': 'ListItem', position: 2, name: `${park.name} Wait Times`, item: `https://www.parkpulse.fun/parks/${park.slug}` },
+          { '@type': 'ListItem', position: 2, name: 'Parks', item: 'https://www.parkpulse.fun/parks' },
+          { '@type': 'ListItem', position: 3, name: `${park.name} Wait Times`, item: `https://www.parkpulse.fun/parks/${park.slug}` },
         ],
       },
       {
@@ -116,6 +409,14 @@ function jsonLd(park) {
         ...(park.lat && park.lng ? { geo: { '@type': 'GeoCoordinates', latitude: park.lat, longitude: park.lng } } : {}),
         isPartOf: { '@type': 'Organization', name: park.group },
       },
+      ...(qa && qa.length ? [{
+        '@type': 'FAQPage',
+        mainEntity: qa.map(([q, a]) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a },
+        })),
+      }] : []),
     ],
   };
   return JSON.stringify(data).replace(/</g, '\\u003c');
@@ -123,12 +424,21 @@ function jsonLd(park) {
 
 const renderSitemap = (origin, slugs) => {
   const today = new Date().toISOString().slice(0, 10);
+  const entries = [
+    { p: '', pri: '1.0' },
+    { p: '/app', pri: '0.9' },
+    { p: '/parks', pri: '0.9' },
+    { p: '/guide', pri: '0.8' },
+    ...slugs.map((s) => ({ p: `/parks/${s}`, pri: '0.8' })),
+    { p: '/terms', pri: '0.3' },
+    { p: '/privacy', pri: '0.3' },
+  ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${['', '/app', '/guide', '/terms', '/privacy', ...slugs.map((s) => `/parks/${s}`)].map((p) => `  <url><loc>${origin}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n')}
+${entries.map((e) => `  <url><loc>${origin}${e.p}</loc><lastmod>${today}</lastmod><priority>${e.pri}</priority></url>`).join('\n')}
 </urlset>`;
 };
 
 const renderRobots = (origin) => `User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`;
 
-module.exports = { renderParkPage, renderSitemap, renderRobots };
+module.exports = { renderParkPage, renderParksIndex, renderSitemap, renderRobots, allParksIndex };

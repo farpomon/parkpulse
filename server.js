@@ -1227,6 +1227,18 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+const SHOTS = [
+  { file: 'plan.png', alt: 'The ParkPulse day plan: eight rides sequenced by time, each with its predicted wait and the reason for its slot.',
+    cap: '<strong>Your day, sequenced.</strong> Pick the rides you care about; ParkPulse orders them against the hourly crowd curve and tells you why each one sits where it does.' },
+  { file: 'advisor.png', alt: 'The ParkPulse AI consultant answering whether Lightning Lane is worth buying today.',
+    cap: '<strong>Straight answers, including no.</strong> Ask whether the paid pass is worth it today and the consultant works it out from live waits &mdash; and tells you to keep your money when that is the truth.' },
+];
+function productShots() {
+  const have = SHOTS.filter((s) => fs.existsSync(path.join(PUBLIC_DIR, 'shots', s.file)));
+  if (!have.length) return '';
+  return `<div class="shots">${have.map((s) => `<figure><img src="/shots/${s.file}" alt="${s.alt}" loading="lazy" width="430" height="932"><figcaption>${s.cap}</figcaption></figure>`).join('')}</div>`;
+}
+
 function serveStatic(res, urlPath) {
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
   const filePath = path.join(PUBLIC_DIR, rel);
@@ -1235,6 +1247,15 @@ function serveStatic(res, urlPath) {
   for (const candidate of candidates) {
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
       res.writeHead(200, { 'content-type': MIME[path.extname(candidate)] || 'application/octet-stream' });
+      // The landing page carries the full park index so every one of the
+      // parks we cover is one click from the front door, for readers and
+      // crawlers alike. Injected here so the list has a single source.
+      if (rel === 'index.html') {
+        const html = fs.readFileSync(candidate, 'utf8')
+          .replace('<!--PARKS_INDEX-->', () => pages.allParksIndex(REGISTRY, null))
+          .replace('<!--SHOTS-->', () => productShots());
+        return res.end(html);
+      }
       return fs.createReadStream(candidate).pipe(res);
     }
   }
@@ -1442,6 +1463,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   // SEO surface: server-rendered park pages + sitemap + robots.
+  if (url.pathname === '/parks' || url.pathname === '/parks/') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderParksIndex(REGISTRY));
+  }
   const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
   if (parkPage) {
     const park = PARKS[parkPage[1]];
