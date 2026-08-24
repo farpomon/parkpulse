@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "Pin konumları yaklaşıktır.",
  "Map data": "Harita verileri",
  "stops in plan order": "durak, plan sırasıyla",
- "Stop": "Durak"
+ "Stop": "Durak",
+ "Email me this plan": "Bu planı bana e-postala",
+ "Sending…": "Gönderiliyor…",
+ "Plan sent — check your inbox 📬": "Plan gönderildi — gelen kutunu kontrol et 📬"
 }

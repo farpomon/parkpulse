@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "Le posizioni dei segnaposto sono approssimative.",
  "Map data": "Dati della mappa",
  "stops in plan order": "tappe nell'ordine del piano",
- "Stop": "Tappa"
+ "Stop": "Tappa",
+ "Email me this plan": "Inviami questo piano",
+ "Sending…": "Invio…",
+ "Plan sent — check your inbox 📬": "Piano inviato — controlla la tua email 📬"
 }

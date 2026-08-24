@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "पिनची ठिकाणे अंदाजे आहेत.",
  "Map data": "नकाशा डेटा",
  "stops in plan order": "थांबे, योजनेच्या क्रमाने",
- "Stop": "थांबा"
+ "Stop": "थांबा",
+ "Email me this plan": "हा प्लॅन मला ईमेल करा",
+ "Sending…": "पाठवत आहे…",
+ "Plan sent — check your inbox 📬": "प्लॅन पाठवला — इनबॉक्स पाहा 📬"
 }

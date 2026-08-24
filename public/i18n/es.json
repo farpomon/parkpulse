@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "Las ubicaciones de los pines son aproximadas.",
  "Map data": "Datos del mapa",
  "stops in plan order": "paradas en orden del plan",
- "Stop": "Parada"
+ "Stop": "Parada",
+ "Email me this plan": "Enviarme este plan",
+ "Sending…": "Enviando…",
+ "Plan sent — check your inbox 📬": "Plan enviado: revisa tu correo 📬"
 }

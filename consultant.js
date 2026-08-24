@@ -496,6 +496,30 @@ async function geoEstimate(parkName, group, center, rideNames) {
   return out;
 }
 
+// A short, warm advisor note for the emailed day plan — the human voice on
+// top of the deterministic KPIs.
+async function dayBriefing({ parkName, group, day, stops, kpis, profile, savedMin, lang }) {
+  const who = profile && profile.party
+    ? `Party of ${profile.party}${profile.ages && profile.ages.length ? ` (${profile.ages.join(', ')})` : ''}${profile.vibes && profile.vibes.length ? `, into ${profile.vibes.join('/')}` : ''}.`
+    : 'Group size unknown.';
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 700,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: "You write the opening note of a theme-park day-plan email — the voice of a sharp, warm friend who knows this park cold. EXACTLY 2-3 sentences, under 60 words, plain text (no markdown, no bullet points, no greeting, no sign-off). Lead with the single smartest thing about THIS running order (a rope-drop steal, a smart mid-day breather, a well-timed headliner), then one concrete park-specific tip tied to a named attraction or land on the list — the kind of thing only a regular knows. Warm and confident, never breathless; no exclamation-mark pileups; never invent attractions that are not on the list.",
+    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Date: ${day}.
+${who}
+Plan (in order): ${stops.map((st, i) => `${i + 1}. ${st.name}${st.time ? ' at ' + st.time : ''}`).join('; ')}
+Stats: ${kpis.attractions} attractions, ${kpis.km} km walking, about ${savedMin} minutes of line time saved.
+Write the note in ${lang || 'English'}.` }],
+  }, { timeout: 45000, maxRetries: 1 });
+  noteUsage('day-brief', msg);
+  if (msg.stop_reason === 'refusal') return '';
+  return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim().slice(0, 600);
+}
+
 async function rideTags(parkName, rideNames) {
   const msg = await client.beta.messages.create({
     model: MODEL,
@@ -524,4 +548,4 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, geoEstimate, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

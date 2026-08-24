@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "ピンの位置はおおよそです。",
  "Map data": "地図データ",
  "stops in plan order": "か所（プラン順）",
- "Stop": "スポット"
+ "Stop": "スポット",
+ "Email me this plan": "このプランをメールで送る",
+ "Sending…": "送信中…",
+ "Plan sent — check your inbox 📬": "プランを送信しました — 受信箱をご確認ください 📬"
 }

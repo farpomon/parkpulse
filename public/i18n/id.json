@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "Lokasi pin bersifat perkiraan.",
  "Map data": "Data peta",
  "stops in plan order": "perhentian sesuai urutan rencana",
- "Stop": "Perhentian"
+ "Stop": "Perhentian",
+ "Email me this plan": "Kirim rencana ini ke email saya",
+ "Sending…": "Mengirim…",
+ "Plan sent — check your inbox 📬": "Rencana terkirim — cek kotak masuk 📬"
 }

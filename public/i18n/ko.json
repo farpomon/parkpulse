@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "핀 위치는 대략적입니다.",
  "Map data": "지도 데이터",
  "stops in plan order": "개 코스 (계획 순서)",
- "Stop": "코스"
+ "Stop": "코스",
+ "Email me this plan": "이 플랜 이메일로 받기",
+ "Sending…": "보내는 중…",
+ "Plan sent — check your inbox 📬": "플랜을 보냈어요 — 받은편지함을 확인하세요 📬"
 }
