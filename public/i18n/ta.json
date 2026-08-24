@@ -218,5 +218,6 @@
  "Mapping this park — the first visit takes a minute.": "இந்தப் பூங்கா வரைபடமாக்கப்படுகிறது — முதல் முறை ஒரு நிமிடம் ஆகும்.",
  "Map unavailable for this park.": "இந்தப் பூங்காவிற்கு வரைபடம் இல்லை.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "இந்தப் பூங்கா இன்னும் OpenStreetMap-இல் இல்லை — வந்ததும் குறிகள் தோன்றும்.",
- "Pin locations are approximate.": "குறிகளின் இடங்கள் தோராயமானவை."
+ "Pin locations are approximate.": "குறிகளின் இடங்கள் தோராயமானவை.",
+ "Map data": "வரைபடத் தரவு"
 }

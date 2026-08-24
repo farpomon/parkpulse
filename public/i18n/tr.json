@@ -218,5 +218,6 @@
  "Mapping this park — the first visit takes a minute.": "Bu park haritalanıyor — ilk ziyaret bir dakika sürer.",
  "Map unavailable for this park.": "Bu park için harita yok.",
  "This park isn't mapped in OpenStreetMap yet — pins will appear once it is.": "Bu park henüz OpenStreetMap'te yok — eklenince pinler görünecek.",
- "Pin locations are approximate.": "Pin konumları yaklaşıktır."
+ "Pin locations are approximate.": "Pin konumları yaklaşıktır.",
+ "Map data": "Harita verileri"
 }

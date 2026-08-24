@@ -554,6 +554,92 @@ const addDays = (dateStr, n) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+
+// --- AI spend tracking -------------------------------------------------------
+// Anthropic list prices per million tokens (docs: anthropic.com/pricing).
+// Cache writes bill at 1.25x the input rate, cache reads at 0.1x.
+const AI_PRICES = {
+  "claude-opus-5":    { in: 5.00,  out: 25.00 },
+  "claude-fable-5":   { in: 10.00, out: 50.00 },
+  "claude-sonnet-5":  { in: 3.00,  out: 15.00 },
+  "claude-haiku-4-5": { in: 1.00,  out: 5.00 },
+};
+const AI_REPORT_TO = process.env.AI_REPORT_TO || ADMIN_EMAILS.values().next().value || "";
+const AI_REPORT_HOUR = Number(process.env.AI_REPORT_HOUR || 8); // ET
+
+function priceUsage(model, usage) {
+  const p = AI_PRICES[model] || AI_PRICES["claude-opus-5"];
+  const input = usage.input_tokens || 0;
+  const output = usage.output_tokens || 0;
+  const cacheWrite = usage.cache_creation_input_tokens || 0;
+  const cacheRead = usage.cache_read_input_tokens || 0;
+  const cost = (input * p.in + cacheWrite * p.in * 1.25 + cacheRead * p.in * 0.1 + output * p.out) / 1e6;
+  return { input, output, cacheWrite, cacheRead, cost };
+}
+
+function recordUsage(feature, model, usage) {
+  try { db.aiusage.add(etNow().date, feature, model, priceUsage(model, usage)); }
+  catch (err) { console.log(`usage record failed: ${err.message}`); }
+}
+
+const usd = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
+const usd4 = (n) => "$" + n.toFixed(n < 1 ? 4 : 2);
+
+// Day / week / month spend, week and month being trailing 7 and 30 days
+// ending on the report day, so the numbers are comparable run to run.
+function aiCostReport(day) {
+  const win = (n) => db.aiusage.totals(addDays(day, -(n - 1)), day);
+  return {
+    day, today: win(1), week: win(7), month: win(30),
+    features: db.aiusage.byFeature(addDays(day, -29), day),
+    days: db.aiusage.byDay(addDays(day, -13), day),
+  };
+}
+
+function aiCostEmailHtml(r) {
+  const row = (label, t) => `<tr><td style="padding:6px 12px 6px 0"><b>${label}</b></td>
+    <td style="padding:6px 12px 6px 0;font-size:20px"><b>${usd(t.cost_usd)}</b></td>
+    <td style="padding:6px 0;color:#666">${t.calls} calls · ${(t.input_tokens + t.cache_read + t.cache_write).toLocaleString()} in / ${t.output_tokens.toLocaleString()} out</td></tr>`;
+  const feats = r.features.length
+    ? r.features.map((f) => `<tr><td style="padding:3px 12px 3px 0">${f.feature}</td><td style="padding:3px 0">${usd4(f.cost_usd)} <span style="color:#888">(${f.calls})</span></td></tr>`).join("")
+    : `<tr><td colspan="2" style="color:#888">No AI calls in the last 30 days.</td></tr>`;
+  const peak = Math.max(...r.days.map((d) => d.cost_usd), 0.0001);
+  const spark = r.days.map((d) => `<td style="vertical-align:bottom;padding:0 2px">
+      <div style="width:14px;height:${Math.max(2, Math.round((d.cost_usd / peak) * 46))}px;background:#5b3df5;border-radius:2px"></div>
+      <div style="font-size:9px;color:#999;text-align:center">${d.day.slice(8)}</div></td>`).join("");
+  return `<div style="font:15px/1.6 -apple-system,Segoe UI,sans-serif;color:#251d3d;max-width:560px">
+    <h2 style="margin:0 0 2px">ParkPulse AI spend</h2>
+    <p style="margin:0 0 18px;color:#666">for ${r.day} (Eastern)</p>
+    <table style="border-collapse:collapse;margin-bottom:22px">
+      ${row("Today", r.today)}${row("Last 7 days", r.week)}${row("Last 30 days", r.month)}
+    </table>
+    <p style="margin:0 0 6px"><b>By feature</b> <span style="color:#888">· last 30 days</span></p>
+    <table style="border-collapse:collapse;margin-bottom:22px">${feats}</table>
+    ${r.days.length ? `<p style="margin:0 0 6px"><b>Daily spend</b> <span style="color:#888">· last 14 days, peak ${usd4(peak)}</span></p>
+    <table style="border-collapse:collapse"><tr>${spark}</tr></table>` : ""}
+    <p style="margin:22px 0 0;font-size:12px;color:#888">Estimated from token counts at Anthropic list prices — your invoice is the source of truth.</p>
+  </div>`;
+}
+
+async function sendAiCostEmail(day) {
+  if (!AI_REPORT_TO) return { sent: false, reason: "no recipient configured" };
+  const r = aiCostReport(day);
+  return sendEmail(AI_REPORT_TO, `ParkPulse AI spend ${day}: ${usd(r.today.cost_usd)} today · ${usd(r.week.cost_usd)} this week`,
+    aiCostEmailHtml(r), `AI spend ${day}: today ${usd(r.today.cost_usd)}, week ${usd(r.week.cost_usd)}, month ${usd(r.month.cost_usd)}`);
+}
+
+// Fires once per day at AI_REPORT_HOUR Eastern, from the shared interval.
+async function maybeSendAiCostEmail() {
+  const { date, hour } = etNow();
+  if (hour < AI_REPORT_HOUR) return;
+  if (db.kv.get("ai-report-sent") === date) return;
+  db.kv.set("ai-report-sent", date);
+  try {
+    const r = await sendAiCostEmail(date);
+    console.log(`ai cost email ${r.sent ? "sent to " + AI_REPORT_TO : "skipped: " + r.reason}`);
+  } catch (err) { console.log(`ai cost email failed: ${err.message}`); }
+}
+
 async function checkBookingReminders() {
   for (const t of db.trips.pendingReminders()) {
     if (t.dest !== 'Walt Disney World') continue;
@@ -586,7 +672,7 @@ function sweepDeletedAccounts() {
     }
   }
 }
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); }, ALERT_CHECK_MS);
 setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
@@ -604,15 +690,47 @@ const geoJobs = new Map();
 const geoNorm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9 ]+/g, ' ').replace(/\b(the|and|a|an)\b/g, ' ').replace(/\s+/g, ' ').trim();
 
-async function buildParkGeo(park) {
+// ThemeParks.wiki: free, open API with official attraction coordinates for
+// most major chains — the precision tier of the pin pipeline.
+const THEMEPARKS_API = process.env.THEMEPARKS_API || 'https://api.themeparks.wiki/v1';
+
+async function themeParksCoords(park) {
+  const res = await fetch(`${THEMEPARKS_API}/destinations`, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`themeparks destinations ${res.status}`);
+  const { destinations } = await res.json();
+  // Resolve our park to a themeparks.wiki park id: name must match, the
+  // destination matching our group breaks ties ("Disneyland Park" exists in
+  // both California and Paris).
+  let best = null;
+  for (const d of destinations || []) {
+    const dn = geoNorm(d.name || '');
+    const gn = geoNorm(park.group);
+    const destHit = dn.includes(gn) || gn.includes(dn);
+    for (const p of d.parks || []) {
+      const pn = geoNorm(p.name || '');
+      const on = geoNorm(park.name);
+      if (!(pn === on || pn.includes(on) || on.includes(pn))) continue;
+      const score = (destHit ? 2 : 0) + (pn === on ? 2 : 1);
+      if (!best || score > best.score) best = { id: p.id, score };
+    }
+  }
+  if (!best) return [];
+  const cr = await fetch(`${THEMEPARKS_API}/entity/${best.id}/children`, { signal: AbortSignal.timeout(15000) });
+  if (!cr.ok) throw new Error(`themeparks children ${cr.status}`);
+  const { children } = await cr.json();
+  return (children || [])
+    .filter((c) => c.entityType === 'ATTRACTION' && c.location &&
+      Number.isFinite(c.location.latitude) && Number.isFinite(c.location.longitude))
+    .map((c) => ({ name: c.name, lat: c.location.latitude, lng: c.location.longitude }));
+}
+
+async function fetchOsmSpots(park) {
   const query = `[out:json][timeout:25];(
-    node["attraction"](around:1700,${park.lat},${park.lng});
-    way["attraction"](around:1700,${park.lat},${park.lng});
-    node["tourism"="attraction"](around:1700,${park.lat},${park.lng});
-    way["tourism"="attraction"](around:1700,${park.lat},${park.lng});
+    node["attraction"](around:2500,${park.lat},${park.lng});
+    way["attraction"](around:2500,${park.lat},${park.lng});
+    node["tourism"="attraction"](around:2500,${park.lat},${park.lng});
+    way["tourism"="attraction"](around:2500,${park.lat},${park.lng});
   );out center;`;
-  // Overpass public endpoints rate-limit and hiccup; try each in turn, and
-  // an outage just means the AI fallback below carries the park.
   let json = { elements: [] };
   for (const api of OVERPASS_APIS) {
     try {
@@ -627,48 +745,79 @@ async function buildParkGeo(park) {
       break;
     } catch (err) { console.log(`overpass (${api}): ${err.message}`); }
   }
-  const spots = new Map(); // osm name -> {lat, lng}
+  const spots = new Map(); // name -> {lat, lng}
   for (const el of json.elements || []) {
     const name = el.tags?.name;
     const lat = el.lat ?? el.center?.lat;
     const lng = el.lon ?? el.center?.lon;
     if (name && Number.isFinite(lat) && Number.isFinite(lng) && !spots.has(name)) spots.set(name, { lat, lng });
   }
+  return spots;
+}
+
+// Full coverage is a hard requirement: every ride on the wait list gets a
+// pin. Tiers by accuracy — themeparks.wiki official coordinates, then OSM,
+// then AI best-guess (two passes, labeled approximate), then a deterministic
+// ring near the park centre so nothing is ever missing from the map.
+async function buildParkGeo(park) {
   const waits = await getWaits(park.slug);
   const feedNames = waits.rides.map((r) => r.name);
-  const matched = [];
-  const leftoverFeed = [];
-  const byNorm = new Map([...spots.keys()].map((n) => [geoNorm(n), n]));
-  for (const feedName of feedNames) {
-    const n = geoNorm(feedName);
-    let osm = byNorm.get(n) || null;
-    if (!osm) for (const [on, orig] of byNorm) { if (on.includes(n) || n.includes(on)) { osm = orig; break; } }
-    if (osm) matched.push({ name: feedName, ...spots.get(osm) });
-    else leftoverFeed.push(feedName);
+  const placed = new Map(); // feed name -> {name, lat, lng, approx?}
+
+  // Match a named coordinate set against still-unplaced feed names.
+  const matchSpots = (spots) => {
+    const byNorm = new Map([...spots.keys()].map((n) => [geoNorm(n), n]));
+    for (const feedName of feedNames) {
+      if (placed.has(feedName)) continue;
+      const n = geoNorm(feedName);
+      let hit = byNorm.get(n) || null;
+      if (!hit) for (const [sn, orig] of byNorm) { if (sn.includes(n) || n.includes(sn)) { hit = orig; break; } }
+      if (hit) placed.set(feedName, { name: feedName, ...spots.get(hit) });
+    }
+  };
+
+  let tpw = 0;
+  try {
+    const coords = await themeParksCoords(park);
+    matchSpots(new Map(coords.map((t) => [t.name, { lat: t.lat, lng: t.lng }])));
+    tpw = placed.size;
+  } catch (err) { console.log(`themeparks (${park.slug}): ${err.message}`); }
+
+  let osm = 0;
+  if (placed.size < feedNames.length) {
+    const spots = await fetchOsmSpots(park);
+    matchSpots(spots);
+    // AI reconciles oddly-named OSM entries with the still-unplaced rides.
+    const leftover = feedNames.filter((n) => !placed.has(n));
+    if (leftover.length && spots.size && consultant.enabled()) {
+      try {
+        const pairs = await consultant.matchNames(park.name, leftover, [...spots.keys()]);
+        for (const p of pairs) if (spots.has(p.b) && !placed.has(p.a) && leftover.includes(p.a)) placed.set(p.a, { name: p.a, ...spots.get(p.b) });
+      } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
+    }
+    osm = placed.size - tpw;
   }
-  if (leftoverFeed.length && spots.size && consultant.enabled()) {
-    try {
-      const usedOsm = new Set(matched.map((m) => JSON.stringify([m.lat, m.lng])));
-      const freeOsm = [...spots.keys()].filter((n) => !usedOsm.has(JSON.stringify([spots.get(n).lat, spots.get(n).lng])));
-      if (freeOsm.length) {
-        const pairs = await consultant.matchNames(park.name, leftoverFeed, freeOsm);
-        for (const p of pairs) if (spots.has(p.b) && leftoverFeed.includes(p.a)) matched.push({ name: p.a, ...spots.get(p.b) });
-      }
-    } catch (err) { console.log(`geo match (${park.slug}): ${err.message}`); }
+
+  if (consultant.enabled()) {
+    for (let pass = 0; pass < 2; pass++) {
+      const missing = feedNames.filter((n) => !placed.has(n));
+      if (!missing.length) break;
+      try {
+        const est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, missing);
+        for (const e of est) if (!placed.has(e.name)) placed.set(e.name, { ...e, approx: true });
+      } catch (err) { console.log(`geo estimate pass ${pass + 1} (${park.slug}): ${err.message}`); }
+    }
   }
-  // OSM came up (nearly) empty — the model's knowledge of the park layout
-  // beats an empty map. These pins are explicitly approximate.
-  let est = [];
-  if (matched.length < 3 && consultant.enabled()) {
-    try {
-      est = await consultant.geoEstimate(park.name, park.group, { lat: park.lat, lng: park.lng }, feedNames);
-    } catch (err) { console.log(`geo estimate (${park.slug}): ${err.message}`); }
-  }
-  const result = est.length >= 3
-    ? { rides: est, status: 'approx' }
-    : { rides: matched, status: matched.length >= 3 ? 'ok' : 'sparse' };
-  console.log(`geo ${park.slug}: osm=${spots.size} matched=${matched.length} estimated=${est.length} feed=${feedNames.length} -> ${result.status}`);
-  return result;
+  const stillMissing = feedNames.filter((n) => !placed.has(n));
+  stillMissing.forEach((name, i) => {
+    const angle = (i / Math.max(stillMissing.length, 1)) * 2 * Math.PI;
+    placed.set(name, { name, lat: park.lat + 0.0012 * Math.sin(angle), lng: park.lng + 0.0012 * Math.cos(angle), approx: true });
+  });
+  const rides = feedNames.map((n) => placed.get(n));
+  const estimated = rides.filter((r) => r.approx).length;
+  const status = !rides.length ? 'sparse' : estimated ? 'approx' : 'ok';
+  console.log(`geo ${park.slug}: feed=${feedNames.length} tpw=${tpw} osm=${osm} estimated=${estimated} ringed=${stillMissing.length} -> ${status}`);
+  return { rides, status };
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -822,6 +971,7 @@ function serveStatic(res, urlPath) {
 // Give the consultant its tools: the park registry, live waits, and the
 // ability to create real wait-drop alerts (with the user's own subscription).
 consultant.init({
+  recordUsage,
   registry: REGISTRY,
   parks: PARKS,
   getWaits,
@@ -874,6 +1024,31 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/admin/invites') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     return sendJson(res, 200, { invites: db.invites.list(50) });
+  }
+
+  // Per-park map coverage, so "every ride is pinned" can be verified before
+  // a promote: pins vs the live feed, split into exact / approximate.
+  // AI spend: same numbers as the daily email, on demand.
+  if (req.method === 'GET' && url.pathname === '/api/admin/ai-cost') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const report = aiCostReport(etNow().date);
+    return sendJson(res, 200, { ...report, recipient: AI_REPORT_TO, hourET: AI_REPORT_HOUR });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/geo') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const out = [];
+    for (const p of REGISTRY) {
+      const g = db.geo.get(p.slug);
+      if (!g) continue;
+      out.push({
+        park: p.slug, status: g.status, updatedAt: g.updatedAt,
+        pins: g.rides.length,
+        exact: g.rides.filter((r) => !r.approx).length,
+        approx: g.rides.filter((r) => r.approx).length,
+      });
+    }
+    return sendJson(res, 200, { parks: out, note: 'Parks appear here after their map is first opened. rebuild: GET /api/geo/<slug>?rebuild=1' });
   }
 
   if (url.pathname === '/api/config') {
@@ -1085,9 +1260,12 @@ const server = http.createServer(async (req, res) => {
     // Admins can force a rebuild instead of waiting out the retry window.
     const forceRebuild = url.searchParams.get('rebuild') === '1' && adminUser(req);
     const cached = forceRebuild ? null : db.geo.get(park.slug);
-    // Real coordinate sets are cached forever; empty/failed results retry
-    // after 15 minutes so an Overpass hiccup doesn't blank a park for long.
-    const fresh = cached && (cached.status === 'ok' || cached.status === 'approx' || Date.now() - Date.parse(cached.updatedAt) < 15 * 60000);
+    // Fully-OSM maps cache forever; approximate ones refresh daily (OSM may
+    // have caught up, upgrading pins to exact); empty results retry in 15 min.
+    const age = cached ? Date.now() - Date.parse(cached.updatedAt) : 0;
+    const fresh = cached && (cached.status === 'ok' ||
+      (cached.status === 'approx' && age < 24 * 3600000) ||
+      age < 15 * 60000);
     if (fresh) {
       return sendJson(res, 200, { status: cached.status, rides: cached.rides, center: { lat: park.lat, lng: park.lng } });
     }
@@ -1238,6 +1416,14 @@ const server = http.createServer(async (req, res) => {
           token, link, days, channel, target, sent,
           waShare: channel === 'phone' ? `https://wa.me/${target}?text=${encodeURIComponent(shareText)}` : null,
         });
+      }
+
+      if (url.pathname === '/api/admin/ai-cost/send') {
+        if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+        try {
+          const r = await sendAiCostEmail(etNow().date);
+          return sendJson(res, 200, r.sent ? { sent: true, to: AI_REPORT_TO } : { sent: false, reason: r.reason });
+        } catch (err) { return sendJson(res, 502, { sent: false, reason: err.message }); }
       }
 
       if (url.pathname === '/api/admin/invite/revoke') {

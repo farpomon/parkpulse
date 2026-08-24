@@ -318,7 +318,7 @@
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
 
   <footer>
-    <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>.
+    <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>. <span id="ft-map">Map data</span> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://themeparks.wiki">ThemeParks.wiki</a>.
     <span id="ft-unofficial">Unofficial fan tool — not affiliated with any park operator.</span>
     <a href="#" id="howworks">How it works</a> · <a href="/guide" id="ft-guide">Free strategy guide</a> · <a href="/terms" id="ft-terms">Terms</a> · <a href="/privacy" id="ft-privacy">Privacy</a>
   </footer>
@@ -1228,6 +1228,7 @@
     if (groups[0]) groups[0].label = tr('Most spoken');
     if (groups[1]) groups[1].label = tr('More languages');
     $('ft-data').textContent = tr('Wait-time data powered by');
+    $('ft-map').textContent = tr('Map data');
     $('ft-unofficial').textContent = tr('Unofficial fan tool — not affiliated with any park operator.');
     $('ft-guide').textContent = tr('Free strategy guide');
     $('ft-terms').textContent = tr('Terms');
