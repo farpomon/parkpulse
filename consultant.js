@@ -527,7 +527,7 @@ async function rideTags(parkName, rideNames) {
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. If you do not know a specific attraction, infer conservatively from its name.',
+    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });
   noteUsage('ride-tags', msg);
@@ -543,6 +543,7 @@ async function rideTags(parkName, rideNames) {
       vibe: ['gentle', 'family', 'thrill', 'water', 'show'].includes(r.vibe) ? r.vibe : 'family',
       minAge: [0, 3, 7, 12].includes(r.minAge) ? r.minAge : 3,
       sr: Boolean(r.sr),
+      land: typeof r.land === 'string' ? r.land.trim().slice(0, 60) : '',
     };
   }
   return out;

@@ -599,6 +599,18 @@ async function planKpis(park, stops, profile) {
 
   let tags = {};
   try { tags = JSON.parse(db.ridetags.get(park.slug) || '{}'); } catch {}
+  // A park nobody has browsed yet has no tags — generate them now rather
+  // than send a half-empty email (cached forever afterwards).
+  if (!Object.keys(tags).length && consultant.enabled()) {
+    try {
+      const all = await getWaits(park.slug);
+      const names = all.rides.map((r) => r.name).slice(0, 120);
+      if (names.length) {
+        const made = await consultant.rideTags(park.name, names);
+        if (made && Object.keys(made).length) { tags = made; db.ridetags.set(park.slug, JSON.stringify(made)); }
+      }
+    } catch (err) { console.log(`plan tags (${park.slug}): ${err.message}`); }
+  }
   const vibes = {};
   let youngestOk = 0;
   let singleRider = 0;
@@ -614,12 +626,17 @@ async function planKpis(park, stops, profile) {
   // standby right now vs. what the plan predicts at the chosen hour.
   let lands = new Set();
   let dodged = null;
+  let live = new Map();
   try {
     const waits = await getWaits(park.slug);
-    const live = new Map(waits.rides.map((r) => [r.name, r]));
+    live = new Map(waits.rides.map((r) => [r.name, r]));
+  } catch {}
+  try {
     for (const st of stops) {
       const r = live.get(st.name);
-      if (r && r.land) lands.add(r.land);
+      // Feed lands are authoritative; the classifier covers feeds that omit them.
+      const land = (r && r.land) || (tags[st.name] && tags[st.name].land) || '';
+      if (land) lands.add(land);
       if (r && r.open && Number.isFinite(st.wait)) {
         const gap = r.wait - st.wait;
         if (gap > 0 && (!dodged || gap > dodged.minutes)) dodged = { name: st.name, minutes: Math.round(gap), standby: r.wait };
@@ -1466,8 +1483,8 @@ const server = http.createServer(async (req, res) => {
     const cached = db.ridetags.get(slug);
     if (cached) {
       const parsed = JSON.parse(cached);
-      // Tags cached before the single-rider flag existed regenerate once.
-      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t);
+      // Tags cached before the single-rider or land fields existed regenerate once.
+      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t && 'land' in t);
       if (fresh) return sendJson(res, 200, { tags: parsed });
     }
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
