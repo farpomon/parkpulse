@@ -70,7 +70,6 @@ const STRIPE_PRICES = {
 const CHECKOUT_ENABLED = Boolean(STRIPE_KEY && PLAN_CATALOG.every((p) => STRIPE_PRICES[p.id]));
 // MUST be set in production — the ephemeral default invalidates all passes on restart.
 const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.PASS_SECRET) console.log('WARNING: PASS_SECRET not set — issued passes will not survive a restart');
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 // Legacy plan ids stay valid so previously issued passes keep working.
@@ -2372,6 +2371,24 @@ const server = http.createServer(async (req, res) => {
   serveStatic(res, url.pathname);
 });
 
-server.listen(PORT, () => {
-  console.log(`ParkPulse running on http://localhost:${PORT}`);
-});
+// A deployment can look completely healthy while silently losing every account
+// on each redeploy. Print the two settings that decide that, at boot, where
+// the platform's own log viewer will show them.
+function bootBanner() {
+  const lines = [`ParkPulse running on http://localhost:${PORT}`];
+  // The default lives inside the repo, which on a container platform means
+  // inside the image: written on every boot, gone on every redeploy.
+  const persistent = !db.DB_FILE.startsWith(path.join(__dirname, 'data'));
+  lines.push(`  database    ${db.DB_FILE}${persistent ? ' (persistent)' : ''}`);
+  if (!persistent) {
+    lines.push('  !! EPHEMERAL — this path is inside the container image. Every');
+    lines.push('     redeploy destroys all accounts, passes, alerts and trips.');
+    lines.push('     Mount a volume and set DB_FILE=/data/parkpulse.db');
+  }
+  lines.push(process.env.PASS_SECRET
+    ? '  PASS_SECRET set'
+    : '  !! PASS_SECRET unset — a fresh random key is generated each boot, so\n     every issued pass stops validating on restart. Set a permanent one.');
+  console.log(lines.join('\n'));
+}
+
+server.listen(PORT, bootBanner);
