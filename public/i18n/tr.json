@@ -230,5 +230,12 @@
  "Today": "Bugün",
  "Tomorrow": "Yarın",
  "Planned for": "Şu gün için",
- "Day": "Gün"
+ "Day": "Gün",
+ "feels": "hissedilen",
+ "High": "En yüksek",
+ "Low": "En düşük",
+ "rain": "yağmur",
+ "Wettest around": "En yağışlı saat",
+ "good window for indoor rides or a sit-down meal.": "kapalı alan atraksiyonları veya oturarak yemek için iyi bir zaman.",
+ "Book a table at": "Masa rezervasyonu:"
 }

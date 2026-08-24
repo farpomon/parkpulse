@@ -159,6 +159,9 @@
   .wpin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px;
     border: 2px solid #fff; color: #fff; font-weight: 800; font-size: .76rem; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
   .parkclock { background: var(--brand-soft); color: var(--brand); border-radius: 999px; padding: .1rem .5rem; margin-inline-start: .35rem; white-space: nowrap; }
+  .wxline { font-size: .88rem; color: var(--muted); margin: .1rem 0 .5rem; line-height: 1.5; }
+  .wxline b { color: var(--ink); }
+  .wx-tip { margin-top: .3rem; background: var(--brand-soft); color: var(--brand); border-radius: 10px; padding: .4rem .6rem; font-weight: 600; }
   .wpin.step { background: #5b3df5; box-shadow: 0 0 0 3px rgba(91,61,245,.28), 0 2px 8px rgba(0,0,0,.35); }
   .wpin.low { background: #1d7a4f; } .wpin.mid { background: #b07800; } .wpin.high { background: #c43c3c; } .wpin.closed { background: #8a8798; }
   .wpin.isdone { opacity: .45; }
@@ -321,6 +324,7 @@
   </header>
 
   <p class="crowdline" id="crowdline"></p>
+  <div id="weatherline" class="wxline" style="display:none"></div>
   <div id="skipcard"></div>
   <div id="forecast"></div>
   <div id="plan-out"></div>
@@ -540,6 +544,41 @@
     if (d <= -10) return `<div class="delta below">▼ ${-d} min below typical — go now</div>`;
     if (d >= 10) return `<div class="delta above">▲ ${d} min above typical</div>`;
     return `<div class="delta even">≈ typical for this ride</div>`;
+  }
+
+  // Park weather. Degrees follow the park's own convention (°F in the US)
+  // so the number matches every sign and app around the visitor.
+  let lastWeather = null;
+  const usesFahrenheit = () => /United States|USA|US$/.test(parks[current]?.region || '') || /Florida|California|Orlando|Anaheim|Ohio|Texas|New Jersey/.test(parks[current]?.region || '');
+  const degrees = (c) => usesFahrenheit() ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
+  async function loadWeather() {
+    const parkAtStart = current;
+    try {
+      const r = await api(`/api/weather/${current}`);
+      const w = await r.json();
+      if (current !== parkAtStart) return;
+      lastWeather = w && !w.unavailable ? w : null;
+    } catch { lastWeather = null; }
+    renderWeather();
+  }
+  function renderWeather() {
+    const el = $('weatherline');
+    if (!el) return;
+    if (!lastWeather) { el.style.display = 'none'; return; }
+    const w = lastWeather;
+    el.style.display = '';
+    const bits = [
+      `${w.now.icon} <b>${degrees(w.now.temp)}</b>`,
+      w.now.feels - w.now.temp >= 3 ? `${tr('feels')} ${degrees(w.now.feels)}` : '',
+      `${tr('High')} ${degrees(w.today.high)} · ${tr('Low')} ${degrees(w.today.low)}`,
+      w.today.rainChance >= 20 ? `🌂 ${w.today.rainChance}% ${tr('rain')}` : '',
+      w.today.sunset ? `🌇 ${w.today.sunset}` : '',
+    ].filter(Boolean).join(' · ');
+    // The single most useful line: when to be indoors.
+    const tip = w.wettestHour
+      ? `<div class="wx-tip">☔ ${tr('Wettest around')} ${hourLabel(w.wettestHour.hour)} (${w.wettestHour.chance}%) — ${tr('good window for indoor rides or a sit-down meal.')}</div>`
+      : '';
+    el.innerHTML = bits + tip;
   }
 
   function crowdNow() {
@@ -1238,6 +1277,7 @@
       if (!opts.silent || !$('forecast').innerHTML) renderForecast();
       $('updated').textContent = updatedLabel();
       renderParkClock();
+      loadWeather();
       if (lastData.source === 'unavailable') {
         $('rides').classList.remove('skeleton');
         $('rides').innerHTML = `<div class="state">Live waits for ${lastData.park} aren't available right now — try again in a bit.<br><br><button class="btn" id="retry">Retry</button></div>`;
@@ -1640,7 +1680,7 @@
       <div class="dinehero">
         <h3>🍽 ${tr('Where to eat at')} ${parks[current].name}</h3>
         <p class="dh-sub">${d.list.length} ${tr('places worth your time, picked for this park')}</p>
-        ${d.reserve && /^https?:\/\//i.test(d.reserve.url || '') ? `<a class="dh-cta" href="${esc(d.reserve.url)}" target="_blank" rel="noopener">${tr('Book a table')} →</a>` : ''}
+        ${d.reserve && /^https?:\/\//i.test(d.reserve.url || '') ? `<a class="dh-cta" href="${esc(d.reserve.url)}" target="_blank" rel="noopener">${d.reserve.scoped ? `${tr('Book a table at')} ${esc(parks[current].name)}` : tr('Book a table')} →</a>` : ''}
         ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${esc(d.reserve.note)}</div></div>` : ''}
         <div class="dh-row"><span>⏰</span><div><b>${tr('Beat the rush')}</b>${tr('Kitchens peak 12:00–1:30 and 6:00–7:30. Mobile-order 30 minutes ahead or eat either side of those windows.')}</div></div>
         <div class="dh-row"><span>ℹ️</span><div><b>${tr('No live waits')}</b>${tr("Parks don't publish restaurant wait times, so we won't invent them.")}</div></div>

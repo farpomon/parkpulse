@@ -230,5 +230,12 @@
  "Today": "আজ",
  "Tomorrow": "আগামীকাল",
  "Planned for": "পরিকল্পিত",
- "Day": "দিন"
+ "Day": "দিন",
+ "feels": "অনুভূত",
+ "High": "সর্বোচ্চ",
+ "Low": "সর্বনিম্ন",
+ "rain": "বৃষ্টি",
+ "Wettest around": "সবচেয়ে বেশি বৃষ্টি প্রায়",
+ "good window for indoor rides or a sit-down meal.": "ইনডোর রাইড বা বসে খাওয়ার ভালো সময়।",
+ "Book a table at": "টেবিল বুক করুন:"
 }

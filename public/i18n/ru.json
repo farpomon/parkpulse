@@ -230,5 +230,12 @@
  "Today": "Сегодня",
  "Tomorrow": "Завтра",
  "Planned for": "Запланировано на",
- "Day": "День"
+ "Day": "День",
+ "feels": "ощущается",
+ "High": "Макс",
+ "Low": "Мин",
+ "rain": "дождь",
+ "Wettest around": "Больше всего дождя около",
+ "good window for indoor rides or a sit-down meal.": "хорошее время для крытых аттракционов или обеда в ресторане.",
+ "Book a table at": "Забронировать столик в"
 }

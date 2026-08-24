@@ -230,5 +230,12 @@
  "Today": "今天",
  "Tomorrow": "明天",
  "Planned for": "计划日期",
- "Day": "日期"
+ "Day": "日期",
+ "feels": "体感",
+ "High": "最高",
+ "Low": "最低",
+ "rain": "降雨",
+ "Wettest around": "降雨最强约在",
+ "good window for indoor rides or a sit-down meal.": "适合玩室内项目或坐下来吃顿饭。",
+ "Book a table at": "预订餐位："
 }

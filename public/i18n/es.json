@@ -230,5 +230,12 @@
  "Today": "Hoy",
  "Tomorrow": "Mañana",
  "Planned for": "Planificado para",
- "Day": "Día"
+ "Day": "Día",
+ "feels": "sensación",
+ "High": "Máx",
+ "Low": "Mín",
+ "rain": "lluvia",
+ "Wettest around": "Más lluvia hacia las",
+ "good window for indoor rides or a sit-down meal.": "buen momento para atracciones cubiertas o una comida sentados.",
+ "Book a table at": "Reservar mesa en"
 }
