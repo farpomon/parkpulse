@@ -575,7 +575,8 @@ function planMailBlocked(email) {
   return hits.length > 6;
 }
 
-function planKpis(park, rideNames) {
+async function planKpis(park, stops, profile) {
+  const rideNames = stops.map((st) => st.name);
   const geo = db.geo.get(park.slug);
   const coords = new Map((geo?.rides || []).map((r) => [r.name, r]));
   let meters = 0;
@@ -600,12 +601,34 @@ function planKpis(park, rideNames) {
   try { tags = JSON.parse(db.ridetags.get(park.slug) || '{}'); } catch {}
   const vibes = {};
   let youngestOk = 0;
+  let singleRider = 0;
   for (const n of rideNames) {
     const t = tags[n];
     if (!t) continue;
     vibes[t.vibe] = (vibes[t.vibe] || 0) + 1;
     if (t.minAge <= 3) youngestOk++;
+    if (t.sr) singleRider++;
   }
+
+  // Lands and the biggest line the timing dodges, both from the live feed:
+  // standby right now vs. what the plan predicts at the chosen hour.
+  let lands = new Set();
+  let dodged = null;
+  try {
+    const waits = await getWaits(park.slug);
+    const live = new Map(waits.rides.map((r) => [r.name, r]));
+    for (const st of stops) {
+      const r = live.get(st.name);
+      if (r && r.land) lands.add(r.land);
+      if (r && r.open && Number.isFinite(st.wait)) {
+        const gap = r.wait - st.wait;
+        if (gap > 0 && (!dodged || gap > dodged.minutes)) dodged = { name: st.name, minutes: Math.round(gap), standby: r.wait };
+      }
+    }
+  } catch {}
+
+  const party = profile && profile.party ? profile.party : 1;
+  const skip = park.skip && park.skip.type !== 'none' ? park.skip : null;
   const km = meters / 1000;
   return {
     attractions: rideNames.length,
@@ -619,6 +642,17 @@ function planKpis(park, rideNames) {
     shows: vibes.show || 0,
     gentle: (vibes.gentle || 0) + (vibes.family || 0),
     toddlerFriendly: youngestOk,
+    singleRider,
+    lands: lands.size,
+    landNames: [...lands].slice(0, 8),
+    dodged,
+    party,
+    skip: skip ? {
+      name: skip.name,
+      low: skip.low * party,
+      high: skip.high * party,
+      cur: skip.cur || '$',
+    } : null,
   };
 }
 
@@ -637,13 +671,27 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
       <b style="color:#251d3d">${esc(st.name)}</b>
       <span style="color:#8b83a8;font-size:13px">${st.time ? ' · ' + esc(st.time) : ''}${st.wait != null ? ' · ~' + st.wait + ' min' : ''}</span>
     </td></tr>`).join('');
-  const extras = [
-    kpis.thrills ? `🎢 ${kpis.thrills} thrill ride${kpis.thrills === 1 ? '' : 's'}` : '',
-    kpis.water ? `💦 ${kpis.water} chance${kpis.water === 1 ? '' : 's'} to get soaked` : '',
-    kpis.shows ? `🎭 ${kpis.shows} show${kpis.shows === 1 ? '' : 's'} to sit down for` : '',
-    profile?.party ? `👥 planned for ${profile.party}` : '',
-  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+  // Everything below is derived from the plan itself — ride tags, the live
+  // feed, and the park's own skip-pass pricing.
+  const fact = (icon, label) => `<tr><td width="26" valign="top" style="padding:4px 0;font-size:15px">${icon}</td>
+    <td valign="top" style="padding:4px 0;font-size:14px;color:#3f3762">${label}</td></tr>`;
+  const facts = [
+    kpis.thrills ? fact('🎢', `<b>${kpis.thrills}</b> thrill ride${kpis.thrills === 1 ? '' : 's'} on the list`) : '',
+    kpis.water ? fact('💦', `<b>${kpis.water}</b> chance${kpis.water === 1 ? '' : 's'} to get soaked — pack a poncho`) : '',
+    kpis.shows ? fact('🎭', `<b>${kpis.shows}</b> show${kpis.shows === 1 ? '' : 's'} to sit down and cool off`) : '',
+    kpis.lands ? fact('🗺️', `Crossing <b>${kpis.lands}</b> land${kpis.lands === 1 ? '' : 's'}${kpis.landNames.length ? ' · ' + esc(kpis.landNames.join(', ')) : ''}`) : '',
+    kpis.singleRider ? fact('🚶', `<b>${kpis.singleRider}</b> single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
+    kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
+      ? fact('👶', `<b>${kpis.toddlerFriendly}</b> of these work for your youngest`) : '',
+    kpis.steps ? fact('👟', `About <b>${kpis.steps.toLocaleString()}</b> steps`) : '',
+    kpis.skip ? fact('💳', `Built to work without <b>${esc(kpis.skip.name)}</b> — that\'s ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
+  ].filter(Boolean).join('');
 
+  const dodgedBanner = kpis.dodged
+    ? `<div style="padding:4px 26px 0"><div style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
+        ⏱️ <b>Biggest line dodged:</b> ${esc(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
+      </div></div>`
+    : '';
   return `<div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:#251d3d">
    <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 6px 28px rgba(20,12,48,.09)">
     <div style="background:linear-gradient(135deg,${B},#8b5cf6);padding:26px 26px 22px;color:#fff">
@@ -659,6 +707,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
         ${tile(savedMin >= 60 ? Math.round(savedMin / 60) + ' hr' : savedMin + ' min', 'Line time saved', 'vs. winging it')}
       </tr></table>
     </div>
+    ${dodgedBanner}
     ${briefing ? `<div style="padding:16px 26px 4px">
       <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
         <b>🧭 Your advisor's take</b><br>${esc(briefing).replace(/\n/g, '<br>')}
@@ -668,7 +717,9 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
       <div style="color:#8b83a8;font-size:13px;margin-bottom:8px">Follow the numbers — they match the pins on your map.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
     </div>
-    ${extras ? `<div style="padding:6px 26px 0;color:#5c5480;font-size:13.5px">${extras}</div>` : ''}
+    ${facts ? `<div style="padding:14px 26px 2px">
+      <div style="font-weight:800;font-size:16px;margin-bottom:6px">Your day at a glance</div>
+      <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
     <div style="padding:20px 26px 26px">
       <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
       <div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
@@ -1605,9 +1656,10 @@ const server = http.createServer(async (req, res) => {
         if (!stops.length) return sendJson(res, 400, { error: 'no plan to send' });
         if (planMailBlocked(sess.email)) return sendJson(res, 429, { error: 'you have sent a few plans already today — try again tomorrow' });
 
-        const kpis = planKpis(park, stops.map((st) => st.name));
+        const profileForKpi = sanitizeProfile(parsed.profile) || (db.daystate.get(sess.email) || {}).profile || null;
+        const kpis = await planKpis(park, stops, profileForKpi);
         const savedMin = Number.isFinite(parsed.savedMin) ? Math.max(0, Math.round(parsed.savedMin)) : 0;
-        const profile = sanitizeProfile(parsed.profile) || (db.daystate.get(sess.email) || {}).profile || null;
+        const profile = profileForKpi;
         const lang = LANG_NAMES[typeof parsed.lang === 'string' ? parsed.lang : 'en'] || 'English';
         const day = new Intl.DateTimeFormat('en-US', { timeZone: park.tz, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
 
