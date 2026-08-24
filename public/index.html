@@ -127,7 +127,10 @@
   .whybtn:hover{background:rgba(255,255,255,.22)}
 
   /* How it works */
-  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+  /* minmax(min(Xpx,100%),1fr): a bare minmax floor is a hard minimum, so on a
+     narrow phone the track stays wider than its container and the row spills
+     off-screen. min() lets the floor collapse to the available width. */
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:18px}
   .fcard{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px 22px;box-shadow:var(--shadow)}
   .fcard:hover{box-shadow:var(--shadow-hover)}
   .fnum{width:40px;height:40px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:"Fraunces",Georgia,serif;font-size:17px;font-weight:700}
@@ -135,7 +138,7 @@
   .fcard p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.6}
 
   /* VIP panel */
-  .vip{background:var(--card);border:1px solid var(--border);border-radius:26px;padding:clamp(28px,4vw,48px);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;box-shadow:var(--shadow)}
+  .vip{background:var(--card);border:1px solid var(--border);border-radius:26px;padding:clamp(28px,4vw,48px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:40px;box-shadow:var(--shadow)}
   .vip h2{text-align:left;margin:0 0 12px}
   .vipbrow{font-size:12.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
   .vip .note{margin:0;padding:14px 16px;background:var(--amber-soft);border-radius:12px;color:var(--amber);font-size:14px;line-height:1.55}
@@ -166,7 +169,7 @@
   .pnote{text-align:center;color:var(--muted);font-size:14px;margin:22px 0 0}
 
   /* Email capture */
-  .capture{background:linear-gradient(180deg,#241b46,#332759);border-radius:26px;padding:clamp(32px,4vw,52px);display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;align-items:center;color:#fff}
+  .capture{background:linear-gradient(180deg,#241b46,#332759);border-radius:26px;padding:clamp(32px,4vw,52px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:40px;align-items:center;color:#fff}
   .capture h2{text-align:left;font-size:32px;letter-spacing:-.8px;margin:0 0 10px}
   .capture p{margin:0;color:#cfc6f2;font-size:16.5px;line-height:1.6;max-width:44ch}
   .cform{display:flex;gap:10px}
@@ -177,7 +180,7 @@
   .chelp.ok{color:#8ee0b4}
 
   /* Park guides */
-  .pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:32px}
+  .pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:32px}
   .pg-head{font-size:12.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--ink);padding-bottom:10px;border-bottom:1px solid var(--border)}
   .pg-col a{display:block;font-size:14.5px;color:var(--muted);padding:7px 0}
   .pg-col a:hover{color:var(--brand)}
@@ -204,6 +207,9 @@
     linear-gradient(100deg,rgba(24,17,50,.93) 0%,rgba(24,17,50,.78) 34%,rgba(24,17,50,.42) 68%,rgba(24,17,50,.34) 100%),
     linear-gradient(180deg,rgba(24,17,50,.5) 0%,transparent 22%,transparent 74%,rgba(24,17,50,.45) 100%)}
   .vip-photo{width:100%;height:auto;max-height:260px;object-fit:cover;border-radius:16px;margin-top:22px;display:block}
+  /* Both photographs are lit high-key, so against a dark panel they glare
+     brighter than anything else on the page. Take the edge off. */
+  @media (prefers-color-scheme:dark){ .vip-photo,.band img{filter:brightness(.88) saturate(.96)} }
   .band{margin:0}
   .band img{width:100%;height:clamp(220px,32vw,380px);object-fit:cover;border-radius:26px;display:block;box-shadow:var(--shadow)}
   footer{max-width:1180px;margin:0 auto;padding:64px 32px 40px}
@@ -217,7 +223,10 @@
     .sec{padding-top:64px}
     .navlinks a.hide-sm{display:none}
   }
-  @media (max-width:420px){ .navcta{display:none} .cta .btn{flex:1 1 100%} }
+  @media (max-width:420px){ .navcta{display:none} .cta .btn{flex:1 1 100%}
+    /* Side by side, the email field gets narrow enough to clip its own
+       placeholder. Stack so both the field and the button get full width. */
+    .cform{flex-direction:column} .cform button{width:100%} }
 </style>
 </head>
 <body>

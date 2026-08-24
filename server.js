@@ -1265,7 +1265,11 @@ const photoBand = () => {
 };
 const captureStyle = () => {
   const src = photoPath('capture');
-  return src ? ` style="background-image:linear-gradient(180deg,rgba(36,27,70,.88),rgba(51,39,89,.94)),url('${src}');background-size:cover;background-position:center"` : '';
+  // The band is very wide and short, so `cover` crops a square photo hard. Bias
+  // the crop low: the counter -- paper map, drinks, a phone face-down -- is both
+  // the most on-brand part of the frame and the part that survives being cut to
+  // a 200px strip. Centring it instead slices the faces off mid-forehead.
+  return src ? ` style="background-image:linear-gradient(180deg,rgba(36,27,70,.9),rgba(51,39,89,.95)),url('${src}');background-size:cover;background-position:50% 82%"` : '';
 };
 
 // --- Landing-page hero board ------------------------------------------------
