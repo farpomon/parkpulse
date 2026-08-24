@@ -401,6 +401,33 @@ function hasAccess(req) {
   return Boolean(s && accountPassActive(s.user));
 }
 
+// Behind a platform proxy every connection arrives from the proxy, so
+// req.socket.remoteAddress is one address shared by every visitor. Keying a
+// rate limiter on it throttles the whole site as a single bucket. Trust the
+// first hop of x-forwarded-for, which the proxy sets, and fall back to the
+// socket for direct connections in development.
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim().slice(0, 64);
+  return req.socket.remoteAddress || 'anon';
+}
+
+// A rate limiter may only key on identity that has been *verified*. Reading the
+// raw x-pass header let a caller mint a fresh quota bucket per request simply
+// by sending a different value each time. That stays true with PRO_GATE on: a
+// signed-in account clears hasAccess through the session branch, so it can send
+// any x-pass it likes and still get an unlimited number of buckets.
+function throttleIdentity(req) {
+  const pass = passFromReq(req);
+  if (pass) {
+    const digest = crypto.createHash('sha256').update(String(req.headers['x-pass'])).digest('base64url');
+    return `p:${digest.slice(0, 32)}`;
+  }
+  const s = sessionUser(req);
+  if (s) return `u:${s.email}`;
+  return `i:${clientIp(req)}`;
+}
+
 async function stripeApi(endpoint, params) {
   const res = await fetch(`https://api.stripe.com${endpoint}`, {
     method: params ? 'POST' : 'GET',
@@ -1644,7 +1671,7 @@ const server = http.createServer(async (req, res) => {
     const cached = db.rideinfo.get(slug, key, langCode);
     if (cached) return sendJson(res, 200, { text: cached });
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
-    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    if (rideInfoBlocked(clientIp(req))) return sendJson(res, 429, { error: 'slow down' });
     try {
       const text = await consultant.describeRide(PARKS[slug].name, ride, LANG_NAMES[langCode]);
       if (!text) return sendJson(res, 502, { error: 'no description' });
@@ -1699,7 +1726,7 @@ const server = http.createServer(async (req, res) => {
     // concurrent visitors share one generation instead of stampeding it.
     const jobKey = `${slug}|${langCode}`;
     if (!diningJobs.has(jobKey)) {
-      if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+      if (rideInfoBlocked(clientIp(req))) return sendJson(res, 429, { error: 'slow down' });
       const job = consultant.diningGuide(park.name, park.group, LANG_NAMES[langCode])
         .then((list) => {
           if (list && list.length) db.dining.set(slug, langCode, JSON.stringify(list));
@@ -1769,7 +1796,7 @@ const server = http.createServer(async (req, res) => {
       if (fresh) return sendJson(res, 200, { tags: parsed });
     }
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
-    if (rideInfoBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+    if (rideInfoBlocked(clientIp(req))) return sendJson(res, 429, { error: 'slow down' });
     try {
       const waits = await getWaits(slug);
       const names = waits.rides.map((r) => r.name).slice(0, 120);
@@ -2260,9 +2287,8 @@ const server = http.createServer(async (req, res) => {
         const done = strList(parsed.done, 40);
         const lang = Object.values(LANG_NAMES).includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
-        // Throttle per pass/session identity, falling back to IP.
-        const throttleKey = req.headers['x-pass'] || req.headers['x-session'] || req.socket.remoteAddress || 'anon';
-        if (consultant.throttled(String(throttleKey).slice(0, 64))) {
+        // Throttle per verified pass, then verified account, then client IP.
+        if (consultant.throttled(throttleIdentity(req).slice(0, 64))) {
           return sendJson(res, 429, { error: "You've hit the consultant limit for now — try again in a few hours." });
         }
         try {
@@ -2336,7 +2362,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/advisor/feedback') {
         const vote = parsed.vote === 'up' || parsed.vote === 'down' ? parsed.vote : null;
         if (!vote) return sendJson(res, 400, { error: 'invalid vote' });
-        if (feedbackBlocked(req.socket.remoteAddress || 'anon')) return sendJson(res, 429, { error: 'slow down' });
+        if (feedbackBlocked(clientIp(req))) return sendJson(res, 429, { error: 'slow down' });
         const s = sessionUser(req);
         const park = typeof parsed.park === 'string' && PARKS[parsed.park] ? parsed.park : null;
         const message = typeof parsed.message === 'string' ? parsed.message.slice(0, 500) : null;
