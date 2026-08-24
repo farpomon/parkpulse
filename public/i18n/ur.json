@@ -224,5 +224,11 @@
  "Stop": "پڑاؤ",
  "Email me this plan": "یہ منصوبہ مجھے ای میل کریں",
  "Sending…": "بھیجا جا رہا ہے…",
- "Plan sent — check your inbox 📬": "منصوبہ بھیج دیا — ان باکس دیکھیں 📬"
+ "Plan sent — check your inbox 📬": "منصوبہ بھیج دیا — ان باکس دیکھیں 📬",
+ "Park time": "پارک کا وقت",
+ "Your plan is built on park local time.": "آپ کا منصوبہ پارک کے مقامی وقت پر ہے۔",
+ "Today": "آج",
+ "Tomorrow": "کل",
+ "Planned for": "کے لیے منصوبہ",
+ "Day": "دن"
 }

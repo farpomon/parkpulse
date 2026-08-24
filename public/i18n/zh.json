@@ -224,5 +224,11 @@
  "Stop": "第",
  "Email me this plan": "把计划发到我邮箱",
  "Sending…": "发送中…",
- "Plan sent — check your inbox 📬": "计划已发送——请查收邮箱 📬"
+ "Plan sent — check your inbox 📬": "计划已发送——请查收邮箱 📬",
+ "Park time": "园区时间",
+ "Your plan is built on park local time.": "你的计划按园区当地时间制定。",
+ "Today": "今天",
+ "Tomorrow": "明天",
+ "Planned for": "计划日期",
+ "Day": "日期"
 }

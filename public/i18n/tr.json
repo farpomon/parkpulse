@@ -224,5 +224,11 @@
  "Stop": "Durak",
  "Email me this plan": "Bu planı bana e-postala",
  "Sending…": "Gönderiliyor…",
- "Plan sent — check your inbox 📬": "Plan gönderildi — gelen kutunu kontrol et 📬"
+ "Plan sent — check your inbox 📬": "Plan gönderildi — gelen kutunu kontrol et 📬",
+ "Park time": "Park saati",
+ "Your plan is built on park local time.": "Planın parkın yerel saatine göre.",
+ "Today": "Bugün",
+ "Tomorrow": "Yarın",
+ "Planned for": "Şu gün için",
+ "Day": "Gün"
 }

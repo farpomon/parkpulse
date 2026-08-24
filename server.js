@@ -1104,12 +1104,13 @@ const isChristmasWeek = (iso) => {
 };
 const FORECAST_LEVELS = ['', 'Light', 'Mild', 'Moderate', 'Busy', 'Packed'];
 
-function forecastFor(slug) {
+function forecastFor(slug, horizon = 7) {
   const park = PARKS[slug];
   const measured = DOW_INDEX[slug];
   const weight = measured ? Math.min(1, measured.days / 21) : 0;
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  const span = Math.min(Math.max(Number(horizon) || 7, 7), 60);
+  for (let i = 0; i < span; i++) {
     const d = new Date(Date.now() + i * 86400000);
     // Date and weekday in the PARK's timezone, not the server's.
     const iso = d.toLocaleDateString('en-CA', { timeZone: park.tz });
@@ -1508,7 +1509,8 @@ const server = http.createServer(async (req, res) => {
     const slug = forecastMatch[1];
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
-    return sendJson(res, 200, forecastFor(slug));
+    // Planning ahead needs more than this week; the pass length caps it client-side.
+    return sendJson(res, 200, forecastFor(slug, url.searchParams.get('days')));
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);

@@ -224,5 +224,11 @@
  "Stop": "స్టాప్",
  "Email me this plan": "ఈ ప్లాన్ నాకు ఇమెయిల్ చేయండి",
  "Sending…": "పంపుతోంది…",
- "Plan sent — check your inbox 📬": "ప్లాన్ పంపాం — ఇన్‌బాక్స్ చూడండి 📬"
+ "Plan sent — check your inbox 📬": "ప్లాన్ పంపాం — ఇన్‌బాక్స్ చూడండి 📬",
+ "Park time": "పార్క్ సమయం",
+ "Your plan is built on park local time.": "మీ ప్లాన్ పార్క్ స్థానిక సమయం ప్రకారం.",
+ "Today": "ఈరోజు",
+ "Tomorrow": "రేపు",
+ "Planned for": "ప్లాన్ చేసినది",
+ "Day": "రోజు"
 }

@@ -224,5 +224,11 @@
  "Stop": "Perhentian",
  "Email me this plan": "Kirim rencana ini ke email saya",
  "Sending…": "Mengirim…",
- "Plan sent — check your inbox 📬": "Rencana terkirim — cek kotak masuk 📬"
+ "Plan sent — check your inbox 📬": "Rencana terkirim — cek kotak masuk 📬",
+ "Park time": "Waktu taman",
+ "Your plan is built on park local time.": "Rencana Anda mengikuti waktu setempat taman.",
+ "Today": "Hari ini",
+ "Tomorrow": "Besok",
+ "Planned for": "Direncanakan untuk",
+ "Day": "Hari"
 }

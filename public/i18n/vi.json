@@ -224,5 +224,11 @@
  "Stop": "Điểm",
  "Email me this plan": "Gửi kế hoạch này qua email",
  "Sending…": "Đang gửi…",
- "Plan sent — check your inbox 📬": "Đã gửi kế hoạch — kiểm tra hộp thư 📬"
+ "Plan sent — check your inbox 📬": "Đã gửi kế hoạch — kiểm tra hộp thư 📬",
+ "Park time": "Giờ công viên",
+ "Your plan is built on park local time.": "Kế hoạch của bạn theo giờ địa phương của công viên.",
+ "Today": "Hôm nay",
+ "Tomorrow": "Ngày mai",
+ "Planned for": "Lên kế hoạch cho",
+ "Day": "Ngày"
 }

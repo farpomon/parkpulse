@@ -224,5 +224,11 @@
  "Stop": "محطة",
  "Email me this plan": "أرسل لي هذه الخطة",
  "Sending…": "جارٍ الإرسال…",
- "Plan sent — check your inbox 📬": "تم إرسال الخطة — تفقّد بريدك 📬"
+ "Plan sent — check your inbox 📬": "تم إرسال الخطة — تفقّد بريدك 📬",
+ "Park time": "توقيت الحديقة",
+ "Your plan is built on park local time.": "خطتك مبنية على التوقيت المحلي للحديقة.",
+ "Today": "اليوم",
+ "Tomorrow": "غدًا",
+ "Planned for": "مخطط ليوم",
+ "Day": "اليوم"
 }

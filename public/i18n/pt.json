@@ -224,5 +224,11 @@
  "Stop": "Parada",
  "Email me this plan": "Enviar este plano por email",
  "Sending…": "Enviando…",
- "Plan sent — check your inbox 📬": "Plano enviado — confira sua caixa de entrada 📬"
+ "Plan sent — check your inbox 📬": "Plano enviado — confira sua caixa de entrada 📬",
+ "Park time": "Hora do parque",
+ "Your plan is built on park local time.": "Seu plano segue o horário local do parque.",
+ "Today": "Hoje",
+ "Tomorrow": "Amanhã",
+ "Planned for": "Planejado para",
+ "Day": "Dia"
 }

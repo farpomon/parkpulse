@@ -224,5 +224,11 @@
  "Stop": "Остановка",
  "Email me this plan": "Отправить план мне на почту",
  "Sending…": "Отправка…",
- "Plan sent — check your inbox 📬": "План отправлен — проверьте почту 📬"
+ "Plan sent — check your inbox 📬": "План отправлен — проверьте почту 📬",
+ "Park time": "Время парка",
+ "Your plan is built on park local time.": "План построен по местному времени парка.",
+ "Today": "Сегодня",
+ "Tomorrow": "Завтра",
+ "Planned for": "Запланировано на",
+ "Day": "День"
 }

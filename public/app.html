@@ -144,6 +144,7 @@
   #parkmap { height: 62vh; min-height: 320px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg); z-index: 0; margin-top: .5rem; }
   .wpin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px;
     border: 2px solid #fff; color: #fff; font-weight: 800; font-size: .76rem; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .parkclock { background: var(--brand-soft); color: var(--brand); border-radius: 999px; padding: .1rem .5rem; margin-inline-start: .35rem; white-space: nowrap; }
   .wpin.step { background: #5b3df5; box-shadow: 0 0 0 3px rgba(91,61,245,.28), 0 2px 8px rgba(0,0,0,.35); }
   .wpin.low { background: #1d7a4f; } .wpin.mid { background: #b07800; } .wpin.high { background: #c43c3c; } .wpin.closed { background: #8a8798; }
   .wpin.isdone { opacity: .45; }
@@ -279,6 +280,7 @@
       <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-inline-end:.2rem"> ParkPulse</a>
       <span class="right">
         <span class="updated" id="updated"></span>
+        <span class="updated parkclock" id="parkclock" style="display:none"></span>
         <select class="iconbtn" id="lang" title="Language" aria-label="Language"></select>
         <button class="iconbtn" id="locate" title="Find my park" aria-label="Find my park">📍</button>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
@@ -298,6 +300,7 @@
     <div class="planrow">
       <button class="btn planday" id="plan-day">🗓️ Plan my day</button>
       <div class="plan-note" id="plan-note" style="display:none"><span id="plan-note-txt"></span><button id="plan-note-x" aria-label="Dismiss">✕</button></div>
+      <label id="lab-day">Day <select id="plan-day-sel" aria-label="Which day"></select></label>
       <label id="lab-arrive">Arrive <select id="start-hour" aria-label="Arrival time"></select></label>
       <label id="lab-leave">Leave <select id="end-hour" aria-label="Exit time"></select></label>
     </div>
@@ -529,7 +532,7 @@
     const p = parks[current] || {};
     const hoursTxt = p.open != null ? `${tr('Typical hours')} ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
     const showTxt = p.show ? ` · 🎆 ${p.show.name} ~${hourLabel(p.show.hour)}` : '';
-    const h = new Date().getHours();
+    const h = parkNow().hour;
     const m = HOURLY[h];
     let crowd;
     if (p.open != null && (h < p.open || h >= p.close)) crowd = tr('Park likely closed right now.');
@@ -538,6 +541,25 @@
     else if (m >= 1.05) crowd = `<b>${tr('Peak crowds right now')}</b> — ${tr('good time for shows, food, or short lines.')}`;
     else crowd = `<b>${tr('Moderate crowds right now')}</b> — ${tr('pick your battles.')}`;
     return `${crowd} ${hoursTxt}${showTxt}`;
+  }
+
+  // Options come from the crowd forecast so each future day advertises its
+  // expected crowd level — picking the quiet day is the point.
+  function renderDayOptions() {
+    const sel = $('plan-day-sel');
+    const horizon = planHorizonDays();
+    const days = (lastForecast?.days || []).slice(0, horizon);
+    if (!days.length) {
+      sel.innerHTML = `<option value="">${tr('Today')}</option>`;
+      $('lab-day').style.display = horizon > 1 ? '' : 'none';
+      return;
+    }
+    sel.innerHTML = days.map((d, i) => {
+      const label = i === 0 ? tr('Today') : i === 1 ? tr('Tomorrow')
+        : new Date(d.date + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+      return `<option value="${i === 0 ? '' : d.date}"${(planDate || '') === (i === 0 ? '' : d.date) ? ' selected' : ''}>${label} · ${tr(d.label)}</option>`;
+    }).join('');
+    $('lab-day').style.display = days.length > 1 ? '' : 'none';
   }
 
   function setupPlanner() {
@@ -628,6 +650,31 @@
   // done-lists and the group wizard reset together, wherever the phone is from.
   // The tz is cached because boot-time checks run before the config arrives;
   // falling back to the device tz across a date line would fake a new day.
+  // Everything the planner reasons about happens on PARK time — a visitor
+  // checking a California park from Toronto must not plan against their own
+  // clock. parkNow() is the park's wall clock, whatever the device says.
+  const parkTz = () => parks[current]?.tz || localStorage.getItem('pp-tz') || undefined;
+  function parkNow() {
+    try {
+      const p = new Intl.DateTimeFormat('en-GB', { timeZone: parkTz(), hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' }).formatToParts(new Date());
+      const get = (t) => p.find((x) => x.type === t)?.value;
+      return { hour: Number(get('hour')), minute: Number(get('minute')), dow: get('weekday') };
+    } catch {
+      const d = new Date();
+      return { hour: d.getHours(), minute: d.getMinutes(), dow: d.toLocaleDateString(undefined, { weekday: 'short' }) };
+    }
+  }
+  // Minutes between the device clock and the park clock. Compared as full
+  // dates, not wall-clock minutes: real gaps reach ±14h (Tokyo↔Orlando is
+  // −13h), so folding into ±12h would report the wrong number and sign.
+  function parkOffsetMin() {
+    try {
+      const now = new Date();
+      const asPark = new Date(now.toLocaleString('en-US', { timeZone: parkTz() }));
+      return Math.round((asPark - now) / 60000);
+    } catch { return 0; }
+  }
+
   const parkDay = () => {
     const tz = parks[current]?.tz || localStorage.getItem('pp-tz') || undefined;
     try { return new Date().toLocaleDateString('en-CA', { timeZone: tz }); }
@@ -710,6 +757,7 @@
       if (!res.ok) { el.innerHTML = ''; return; }
       const f = await res.json();
       lastForecast = f;
+      renderDayOptions();
       el.innerHTML = `<div class="fcast">
         <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 ${tr('Trip')}</a> · ${tr('Lightest:')} ${tr(f.best)} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.map((d) => `
@@ -939,6 +987,21 @@
     return `${lastData.source === 'live' ? tr('Live') : tr('Typical (demo)')} · ${age}`;
   }
 
+  // Visible only when the device and the park disagree — a local visitor
+  // never sees it, a traveller always knows which clock the plan runs on.
+  function renderParkClock() {
+    const el = $('parkclock');
+    if (!el) return;
+    const off = parkOffsetMin();
+    if (!parks[current] || Math.abs(off) < 30) { el.style.display = 'none'; return; }
+    const n = parkNow();
+    const sign = off > 0 ? '+' : '−';
+    const hrs = Math.round(Math.abs(off) / 60 * 10) / 10;
+    el.style.display = '';
+    el.innerHTML = `🕘 ${tr('Park time')} <b>${hourLabel(n.hour + (n.minute >= 30 ? 0.5 : 0))}</b> <span style="opacity:.7">(${sign}${hrs}h)</span>`;
+    el.title = tr('Your plan is built on park local time.');
+  }
+
   // Clock style follows the chosen language — 24-hour where that's the norm,
   // AM/PM where it isn't — instead of forcing US formatting on everyone.
   let hourFmt = null;
@@ -959,16 +1022,21 @@
   function buildPlan() {
     if (!isPro) { showUpsell(); return; }
     const p = parks[current] || { open: 9, close: 21 };
-    let t = $('start-hour').value === 'now'
-      ? new Date().getHours() + Math.ceil(new Date().getMinutes() / 30) * 0.5
+    const futureDay = Boolean(planDate);
+    // Planning a future day: use THAT day's expected crowds, and drop the
+    // live-wait anchor — today's queues say nothing about next Saturday.
+    const planDay = planDate ? (lastForecast?.days || []).find((d) => d.date === planDate) : (lastForecast?.days || [])[0];
+    let t = ($('start-hour').value === 'now' && !futureDay)
+      ? (() => { const n = parkNow(); return n.hour + Math.ceil(n.minute / 30) * 0.5; })()
       : +$('start-hour').value;
     if (t < p.open) t = p.open;
     const end = +$('end-hour').value;
     // "Now" after closing means the day is over — plan a fresh day from open.
-    if ($('start-hour').value === 'now' && t >= end) t = p.open;
+    if ($('start-hour').value === 'now' && !futureDay && t >= end) t = p.open;
     if (end <= t) { alert('End time must be after start time.'); return; }
-    const doneSet = new Set(doneOrder);
-    const remaining = rides.filter((r) => pickedNames.has(r.name) && r.open && !doneSet.has(r.name));
+    const doneSet = new Set(planDate ? [] : doneOrder);
+    // On a future day, today's closures say nothing — plan the whole list.
+    const remaining = rides.filter((r) => pickedNames.has(r.name) && (r.open || futureDay) && !doneSet.has(r.name));
     if (!remaining.length) return;
     const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
     let lunchDone = !$('lunch').checked;
@@ -986,7 +1054,7 @@
     // Once every picked ride is scheduled, keep filling the day with the
     // best remaining attractions (marked as suggestions) so the plan covers
     // arrival to exit with no dead gaps.
-    const extras = rides.filter((r) => r.open && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
+    const extras = rides.filter((r) => (r.open || futureDay) && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
     let fillMode = false;
     while (t < end && steps.filter((x) => x.ride).length < 18) {
       if (!remaining.length) {
@@ -1020,8 +1088,8 @@
         return LAND_WALK + (unfinished ? LAND_WALK : 0);
       };
       // Skip-pass rides are near walk-ons regardless of the posted wait.
-      const todayF = lastForecast?.days?.[0]?.factor || 1;
-      const anchorH = HOURLY[new Date().getHours()] ?? 1;
+      const todayF = planDay?.factor || 1;
+      const anchorH = planDate ? 0 : (HOURLY[parkNow().hour] ?? 1);
       // Popularity-and-crowd model: a ride's expected wait later today comes
       // from its typical wait (popularity), today's forecast factor, and the
       // hour's crowd curve — anchored so it agrees with the live wait now.
@@ -1067,7 +1135,7 @@
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
-      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${tr("Waits predicted for today's crowds")} (${tr(lastForecast.days[0].label)}) ${tr("from each ride's popularity")} — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">${tr('refine with AI')}</a></p>` : ''}
+      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")} — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">${tr('refine with AI')}</a></p>` : ''}
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
@@ -1155,6 +1223,7 @@
       loadTags();
       if (!opts.silent || !$('forecast').innerHTML) renderForecast();
       $('updated').textContent = updatedLabel();
+      renderParkClock();
       if (lastData.source === 'unavailable') {
         $('rides').classList.remove('skeleton');
         $('rides').innerHTML = `<div class="state">Live waits for ${lastData.park} aren't available right now — try again in a bit.<br><br><button class="btn" id="retry">Retry</button></div>`;
@@ -1189,6 +1258,14 @@
     $('clear-search').style.display = 'none';
     renderRides();
   });
+  $('plan-day-sel').addEventListener('change', (e) => {
+    planDate = e.target.value || null;
+    // A future day has no "now" — start at opening unless they choose otherwise.
+    if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
+    if (!planDate) $('start-hour').value = 'now';
+    renderSkip();
+  });
+
   $('pick-all').addEventListener('click', () => {
     const open = rides.filter((r) => r.open && passesFilter(r));
     const allPicked = open.length && open.every((r) => pickedNames.has(r.name));
@@ -1243,6 +1320,7 @@
     $('acct-forgot').textContent = tr('Forgot password?');
     $('acct-logout').textContent = tr('Log out');
     $('acct-cancel').textContent = tr('Close');
+    $('lab-day').childNodes[0].nodeValue = tr('Day') + ' ';
     $('wa-title').textContent = tr('WhatsApp concierge');
     $('wa-sub').textContent = tr('Text your AI planner — it knows your park, group and plan.');
     $('wa-connect').textContent = tr('Connect on WhatsApp');
@@ -1492,6 +1570,16 @@
   // of live dining waits.
   let viewMode = 'rides';
   let lastForecast = null;
+  // How far ahead a visitor may plan: their pass length is the horizon, so a
+  // Week Pass plans the week and an Annual plans the season. Free = today.
+  let planDate = null;   // null = today; otherwise YYYY-MM-DD in park time
+  function planHorizonDays() {
+    if (!isPro) return 1;
+    const exp = Number(localStorage.getItem('pp-plan-exp') || 0);
+    if (!exp) return 7;
+    const left = Math.ceil((exp - Date.now()) / 86400000);
+    return Math.max(1, Math.min(60, left));
+  }
   const diningCache = {};
 
   async function renderDining(pollCount = 0) {
@@ -2349,7 +2437,7 @@
     load();
   })();
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
-  setInterval(() => { $('updated').textContent = updatedLabel(); }, 30 * 1000);
+  setInterval(() => { $('updated').textContent = updatedLabel(); renderParkClock(); }, 30 * 1000);
 
   if (location.hash === '#account') setTimeout(openAcct, 100);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
