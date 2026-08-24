@@ -126,6 +126,18 @@ db.exec(`
     data TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS ai_usage (
+    day TEXT NOT NULL,
+    feature TEXT NOT NULL,
+    model TEXT NOT NULL,
+    calls INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write INTEGER NOT NULL DEFAULT 0,
+    cache_read INTEGER NOT NULL DEFAULT 0,
+    cost_usd REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, feature, model)
+  );
   CREATE TABLE IF NOT EXISTS invites (
     token TEXT PRIMARY KEY,
     channel TEXT NOT NULL,
@@ -466,6 +478,30 @@ const geo = {
       .run(park, status, JSON.stringify(rides), new Date().toISOString()),
 };
 
+// AI spend, aggregated per day+feature+model so the table stays tiny.
+const aiusage = {
+  add: (day, feature, model, u) =>
+    db.prepare(`INSERT INTO ai_usage (day, feature, model, calls, input_tokens, output_tokens, cache_write, cache_read, cost_usd)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+      ON CONFLICT(day, feature, model) DO UPDATE SET
+        calls = calls + 1,
+        input_tokens = input_tokens + excluded.input_tokens,
+        output_tokens = output_tokens + excluded.output_tokens,
+        cache_write = cache_write + excluded.cache_write,
+        cache_read = cache_read + excluded.cache_read,
+        cost_usd = cost_usd + excluded.cost_usd`)
+      .run(day, feature, model, u.input, u.output, u.cacheWrite, u.cacheRead, u.cost),
+  // Inclusive day range (YYYY-MM-DD strings sort lexicographically).
+  totals: (from, to) => db.prepare(`SELECT COALESCE(SUM(calls),0) calls, COALESCE(SUM(input_tokens),0) input_tokens,
+      COALESCE(SUM(output_tokens),0) output_tokens, COALESCE(SUM(cache_write),0) cache_write,
+      COALESCE(SUM(cache_read),0) cache_read, COALESCE(SUM(cost_usd),0) cost_usd
+    FROM ai_usage WHERE day >= ? AND day <= ?`).get(from, to),
+  byFeature: (from, to) => db.prepare(`SELECT feature, SUM(calls) calls, SUM(cost_usd) cost_usd
+    FROM ai_usage WHERE day >= ? AND day <= ? GROUP BY feature ORDER BY cost_usd DESC`).all(from, to),
+  byDay: (from, to) => db.prepare(`SELECT day, SUM(calls) calls, SUM(cost_usd) cost_usd
+    FROM ai_usage WHERE day >= ? AND day <= ? GROUP BY day ORDER BY day`).all(from, to),
+};
+
 // Admin-minted comp-access invites: single-use, optionally bound to an email.
 const invites = {
   create: (token, channel, target, days, note, createdBy) =>
@@ -479,4 +515,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, invites, geo, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

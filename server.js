@@ -554,6 +554,92 @@ const addDays = (dateStr, n) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+
+// --- AI spend tracking -------------------------------------------------------
+// Anthropic list prices per million tokens (docs: anthropic.com/pricing).
+// Cache writes bill at 1.25x the input rate, cache reads at 0.1x.
+const AI_PRICES = {
+  "claude-opus-5":    { in: 5.00,  out: 25.00 },
+  "claude-fable-5":   { in: 10.00, out: 50.00 },
+  "claude-sonnet-5":  { in: 3.00,  out: 15.00 },
+  "claude-haiku-4-5": { in: 1.00,  out: 5.00 },
+};
+const AI_REPORT_TO = process.env.AI_REPORT_TO || ADMIN_EMAILS.values().next().value || "";
+const AI_REPORT_HOUR = Number(process.env.AI_REPORT_HOUR || 8); // ET
+
+function priceUsage(model, usage) {
+  const p = AI_PRICES[model] || AI_PRICES["claude-opus-5"];
+  const input = usage.input_tokens || 0;
+  const output = usage.output_tokens || 0;
+  const cacheWrite = usage.cache_creation_input_tokens || 0;
+  const cacheRead = usage.cache_read_input_tokens || 0;
+  const cost = (input * p.in + cacheWrite * p.in * 1.25 + cacheRead * p.in * 0.1 + output * p.out) / 1e6;
+  return { input, output, cacheWrite, cacheRead, cost };
+}
+
+function recordUsage(feature, model, usage) {
+  try { db.aiusage.add(etNow().date, feature, model, priceUsage(model, usage)); }
+  catch (err) { console.log(`usage record failed: ${err.message}`); }
+}
+
+const usd = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
+const usd4 = (n) => "$" + n.toFixed(n < 1 ? 4 : 2);
+
+// Day / week / month spend, week and month being trailing 7 and 30 days
+// ending on the report day, so the numbers are comparable run to run.
+function aiCostReport(day) {
+  const win = (n) => db.aiusage.totals(addDays(day, -(n - 1)), day);
+  return {
+    day, today: win(1), week: win(7), month: win(30),
+    features: db.aiusage.byFeature(addDays(day, -29), day),
+    days: db.aiusage.byDay(addDays(day, -13), day),
+  };
+}
+
+function aiCostEmailHtml(r) {
+  const row = (label, t) => `<tr><td style="padding:6px 12px 6px 0"><b>${label}</b></td>
+    <td style="padding:6px 12px 6px 0;font-size:20px"><b>${usd(t.cost_usd)}</b></td>
+    <td style="padding:6px 0;color:#666">${t.calls} calls · ${(t.input_tokens + t.cache_read + t.cache_write).toLocaleString()} in / ${t.output_tokens.toLocaleString()} out</td></tr>`;
+  const feats = r.features.length
+    ? r.features.map((f) => `<tr><td style="padding:3px 12px 3px 0">${f.feature}</td><td style="padding:3px 0">${usd4(f.cost_usd)} <span style="color:#888">(${f.calls})</span></td></tr>`).join("")
+    : `<tr><td colspan="2" style="color:#888">No AI calls in the last 30 days.</td></tr>`;
+  const peak = Math.max(...r.days.map((d) => d.cost_usd), 0.0001);
+  const spark = r.days.map((d) => `<td style="vertical-align:bottom;padding:0 2px">
+      <div style="width:14px;height:${Math.max(2, Math.round((d.cost_usd / peak) * 46))}px;background:#5b3df5;border-radius:2px"></div>
+      <div style="font-size:9px;color:#999;text-align:center">${d.day.slice(8)}</div></td>`).join("");
+  return `<div style="font:15px/1.6 -apple-system,Segoe UI,sans-serif;color:#251d3d;max-width:560px">
+    <h2 style="margin:0 0 2px">ParkPulse AI spend</h2>
+    <p style="margin:0 0 18px;color:#666">for ${r.day} (Eastern)</p>
+    <table style="border-collapse:collapse;margin-bottom:22px">
+      ${row("Today", r.today)}${row("Last 7 days", r.week)}${row("Last 30 days", r.month)}
+    </table>
+    <p style="margin:0 0 6px"><b>By feature</b> <span style="color:#888">· last 30 days</span></p>
+    <table style="border-collapse:collapse;margin-bottom:22px">${feats}</table>
+    ${r.days.length ? `<p style="margin:0 0 6px"><b>Daily spend</b> <span style="color:#888">· last 14 days, peak ${usd4(peak)}</span></p>
+    <table style="border-collapse:collapse"><tr>${spark}</tr></table>` : ""}
+    <p style="margin:22px 0 0;font-size:12px;color:#888">Estimated from token counts at Anthropic list prices — your invoice is the source of truth.</p>
+  </div>`;
+}
+
+async function sendAiCostEmail(day) {
+  if (!AI_REPORT_TO) return { sent: false, reason: "no recipient configured" };
+  const r = aiCostReport(day);
+  return sendEmail(AI_REPORT_TO, `ParkPulse AI spend ${day}: ${usd(r.today.cost_usd)} today · ${usd(r.week.cost_usd)} this week`,
+    aiCostEmailHtml(r), `AI spend ${day}: today ${usd(r.today.cost_usd)}, week ${usd(r.week.cost_usd)}, month ${usd(r.month.cost_usd)}`);
+}
+
+// Fires once per day at AI_REPORT_HOUR Eastern, from the shared interval.
+async function maybeSendAiCostEmail() {
+  const { date, hour } = etNow();
+  if (hour < AI_REPORT_HOUR) return;
+  if (db.kv.get("ai-report-sent") === date) return;
+  db.kv.set("ai-report-sent", date);
+  try {
+    const r = await sendAiCostEmail(date);
+    console.log(`ai cost email ${r.sent ? "sent to " + AI_REPORT_TO : "skipped: " + r.reason}`);
+  } catch (err) { console.log(`ai cost email failed: ${err.message}`); }
+}
+
 async function checkBookingReminders() {
   for (const t of db.trips.pendingReminders()) {
     if (t.dest !== 'Walt Disney World') continue;
@@ -586,7 +672,7 @@ function sweepDeletedAccounts() {
     }
   }
 }
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); }, ALERT_CHECK_MS);
 setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
@@ -885,6 +971,7 @@ function serveStatic(res, urlPath) {
 // Give the consultant its tools: the park registry, live waits, and the
 // ability to create real wait-drop alerts (with the user's own subscription).
 consultant.init({
+  recordUsage,
   registry: REGISTRY,
   parks: PARKS,
   getWaits,
@@ -941,6 +1028,13 @@ const server = http.createServer(async (req, res) => {
 
   // Per-park map coverage, so "every ride is pinned" can be verified before
   // a promote: pins vs the live feed, split into exact / approximate.
+  // AI spend: same numbers as the daily email, on demand.
+  if (req.method === 'GET' && url.pathname === '/api/admin/ai-cost') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const report = aiCostReport(etNow().date);
+    return sendJson(res, 200, { ...report, recipient: AI_REPORT_TO, hourET: AI_REPORT_HOUR });
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/admin/geo') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     const out = [];
@@ -1322,6 +1416,14 @@ const server = http.createServer(async (req, res) => {
           token, link, days, channel, target, sent,
           waShare: channel === 'phone' ? `https://wa.me/${target}?text=${encodeURIComponent(shareText)}` : null,
         });
+      }
+
+      if (url.pathname === '/api/admin/ai-cost/send') {
+        if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+        try {
+          const r = await sendAiCostEmail(etNow().date);
+          return sendJson(res, 200, r.sent ? { sent: true, to: AI_REPORT_TO } : { sent: false, reason: r.reason });
+        } catch (err) { return sendJson(res, 502, { sent: false, reason: err.message }); }
       }
 
       if (url.pathname === '/api/admin/invite/revoke') {

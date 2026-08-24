@@ -18,6 +18,11 @@ const MAX_TURNS = 6;
 let deps = null;
 function init(d) { deps = d; }
 
+// Every billed API call reports its token usage so the server can price it.
+const noteUsage = (feature, msg) => {
+  try { if (deps && deps.recordUsage && msg && msg.usage) deps.recordUsage(feature, MODEL, msg.usage); } catch {}
+};
+
 // Test hook: swap the Anthropic client for a fake.
 function _setClient(c) { client = c; }
 
@@ -334,6 +339,7 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
       }
     }
     const msg = await stream.finalMessage();
+    noteUsage('advisor', msg);
     continuing = false;
 
     if (msg.stop_reason === 'refusal') {
@@ -380,6 +386,7 @@ async function describeRide(parkName, rideName, lang) {
     system: 'You write tiny attraction blurbs for a theme-park app. At most 2 short sentences: what kind of ride or experience it is, thrill level, and who it suits (small kids? thrill seekers?). If you are not confident about this specific attraction, infer only its likely type from the name and park and keep it generic — never invent specifics like drops, speeds, or heights you are unsure of. No preamble, no quotes.',
     messages: [{ role: 'user', content: `Attraction: "${rideName}" at ${parkName}. Reply in ${lang || 'English'}.` }],
   });
+  noteUsage('ride-info', msg);
   if (msg.stop_reason === 'refusal') return null;
   return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || null;
 }
@@ -406,6 +413,7 @@ async function diningGuide(parkName, group, lang) {
     system: 'You produce dining guides for a theme-park app as STRICT JSON — no markdown, no code fences, no commentary. Output a JSON array of 5-8 objects: {"name": string, "type": "table"|"quick"|"character", "price": "$"|"$$"|"$$$", "blurb": string (one short sentence: cuisine + why it stands out), "mustBook": boolean (true only if reservations are genuinely hard to get)}. Include ONLY restaurants you are confident actually exist at this specific park — fewer correct entries beat more invented ones. Blurbs in the requested language; names in their official form.',
     messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Language for blurbs: ${lang || 'English'}.` }],
   }, { timeout: 90000, maxRetries: 1 }); // a hung call must fail, not pin the job
+  noteUsage('dining', msg);
   if (msg.stop_reason === 'refusal') return null;
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
@@ -437,6 +445,7 @@ async function matchNames(parkName, feedNames, osmNames) {
     system: 'You match theme-park attraction names between two lists that describe the SAME park: list A from a wait-time feed, list B from OpenStreetMap. Output STRICT JSON only — a JSON array of {"a": string, "b": string} pairs, names copied verbatim from each list, one pair per A-name that clearly refers to the same physical attraction as a B-name. Omit A-names with no confident match. Never pair different attractions just because they are similar types.',
     messages: [{ role: 'user', content: `Park: ${parkName}\nList A (wait feed):\n${feedNames.map((n) => `- ${n}`).join('\n')}\nList B (OpenStreetMap):\n${osmNames.map((n) => `- ${n}`).join('\n')}` }],
   }, { timeout: 60000, maxRetries: 1 });
+  noteUsage('geo-match', msg);
   if (msg.stop_reason === 'refusal') return [];
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
@@ -469,6 +478,7 @@ async function geoEstimate(parkName, group, center, rideNames) {
       system: 'You place theme-park attractions on a map from your knowledge of the park\'s real layout. Output STRICT JSON only — a JSON array of {"name": string, "lat": number, "lng": number}, names copied verbatim from the input list. These pins are labeled APPROXIMATE in the app, so best-guess placement is expected: place EVERY attraction in the list, using the land/area it belongs to (e.g. a Diagon Alley ride goes in that corner of the park, not the centre). Only omit an attraction if you have no idea which area of the park it is in. Coordinates are WGS84 decimal degrees. Spread pins according to the real layout; never stack multiple attractions on the exact same point.',
       messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Park centre reference: ${center.lat}, ${center.lng}. Attractions:\n${batch.map((n) => `- ${n}`).join('\n')}` }],
     }, { timeout: 60000, maxRetries: 1 });
+    noteUsage('geo-estimate', msg);
     if (msg.stop_reason === 'refusal') continue;
     const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
       .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
@@ -496,6 +506,7 @@ async function rideTags(parkName, rideNames) {
     system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });
+  noteUsage('ride-tags', msg);
   if (msg.stop_reason === 'refusal') return null;
   const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
     .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
