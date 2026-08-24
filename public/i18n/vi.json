@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "Vị trí ghim chỉ là ước lượng.",
  "Map data": "Dữ liệu bản đồ",
  "stops in plan order": "điểm dừng theo thứ tự kế hoạch",
- "Stop": "Điểm"
+ "Stop": "Điểm",
+ "Email me this plan": "Gửi kế hoạch này qua email",
+ "Sending…": "Đang gửi…",
+ "Plan sent — check your inbox 📬": "Đã gửi kế hoạch — kiểm tra hộp thư 📬"
 }

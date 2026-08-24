@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "图钉位置为大致位置。",
  "Map data": "地图数据",
  "stops in plan order": "个站点，按计划顺序",
- "Stop": "第"
+ "Stop": "第",
+ "Email me this plan": "把计划发到我邮箱",
+ "Sending…": "发送中…",
+ "Plan sent — check your inbox 📬": "计划已发送——请查收邮箱 📬"
 }

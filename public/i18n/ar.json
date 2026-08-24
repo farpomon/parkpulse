@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "مواقع الدبابيس تقريبية.",
  "Map data": "بيانات الخريطة",
  "stops in plan order": "محطات بترتيب الخطة",
- "Stop": "محطة"
+ "Stop": "محطة",
+ "Email me this plan": "أرسل لي هذه الخطة",
+ "Sending…": "جارٍ الإرسال…",
+ "Plan sent — check your inbox 📬": "تم إرسال الخطة — تفقّد بريدك 📬"
 }

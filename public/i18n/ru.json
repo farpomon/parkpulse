@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "Расположение меток приблизительное.",
  "Map data": "Картографические данные",
  "stops in plan order": "остановок по плану",
- "Stop": "Остановка"
+ "Stop": "Остановка",
+ "Email me this plan": "Отправить план мне на почту",
+ "Sending…": "Отправка…",
+ "Plan sent — check your inbox 📬": "План отправлен — проверьте почту 📬"
 }

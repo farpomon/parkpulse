@@ -1062,6 +1062,8 @@
       : saved >= 45 ? "that's an extra headliner AND an ice-cream stop"
       : "that's one more ride together instead of a queue";
     planOrder = steps.filter((s) => s.ride).map((s) => s.ride.name);
+    planStops = steps.filter((s) => s.ride).map((s) => ({ name: s.ride.name, time: hourLabel(s.time), wait: s.predicted }));
+    planSaved = saved;
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
@@ -1075,6 +1077,7 @@
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
+      <button class="btn replan" id="plan-mail" style="background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">📧 ${tr('Email me this plan')}</button>
     </div>`;
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     const refine = document.getElementById('plan-refine');
@@ -1094,6 +1097,27 @@
       document.getElementById('replan').style.display = 'inline-block';
     }));
     document.getElementById('replan').addEventListener('click', () => { $('start-hour').value = 'now'; buildPlan(); });
+    document.getElementById('plan-mail').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      if (!localStorage.getItem('pp-email')) { openAcct(); return; }
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = '📧 ' + tr('Sending…');
+      try {
+        const r = await api('/api/plan/email', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            park: current, stops: planStops, savedMin: planSaved,
+            lang: window.PP_LANG || 'en',
+            profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+          }),
+        });
+        const d = await r.json();
+        if (r.ok && d.sent) toast(tr('Plan sent — check your inbox 📬'));
+        else toast(d.error || d.reason || tr('Something went wrong.'));
+      } catch { toast(tr('Connection trouble — try again.')); }
+      finally { btn.disabled = false; btn.textContent = label; }
+    });
     $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; if (viewMode === 'map') renderMap(); });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
@@ -1558,6 +1582,8 @@
   // Ride names in the order the current plan visits them — drives the
   // numbered pins and the route line on the map.
   let planOrder = [];
+  let planStops = [];
+  let planSaved = 0;
   let leafletLoading = null;
   function loadLeaflet() {
     if (window.L) return Promise.resolve();

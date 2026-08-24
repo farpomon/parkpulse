@@ -496,6 +496,30 @@ async function geoEstimate(parkName, group, center, rideNames) {
   return out;
 }
 
+// A short, warm advisor note for the emailed day plan — the human voice on
+// top of the deterministic KPIs.
+async function dayBriefing({ parkName, group, day, stops, kpis, profile, savedMin, lang }) {
+  const who = profile && profile.party
+    ? `Party of ${profile.party}${profile.ages && profile.ages.length ? ` (${profile.ages.join(', ')})` : ''}${profile.vibes && profile.vibes.length ? `, into ${profile.vibes.join('/')}` : ''}.`
+    : 'Group size unknown.';
+  const msg = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 700,
+    output_config: { effort: 'low' },
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: "You write the opening note of a theme-park day-plan email — the voice of a sharp, warm friend who knows this park cold. EXACTLY 2-3 sentences, under 60 words, plain text (no markdown, no bullet points, no greeting, no sign-off). Lead with the single smartest thing about THIS running order (a rope-drop steal, a smart mid-day breather, a well-timed headliner), then one concrete park-specific tip tied to a named attraction or land on the list — the kind of thing only a regular knows. Warm and confident, never breathless; no exclamation-mark pileups; never invent attractions that are not on the list.",
+    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Date: ${day}.
+${who}
+Plan (in order): ${stops.map((st, i) => `${i + 1}. ${st.name}${st.time ? ' at ' + st.time : ''}`).join('; ')}
+Stats: ${kpis.attractions} attractions, ${kpis.km} km walking, about ${savedMin} minutes of line time saved.
+Write the note in ${lang || 'English'}.` }],
+  }, { timeout: 45000, maxRetries: 1 });
+  noteUsage('day-brief', msg);
+  if (msg.stop_reason === 'refusal') return '';
+  return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim().slice(0, 600);
+}
+
 async function rideTags(parkName, rideNames) {
   const msg = await client.beta.messages.create({
     model: MODEL,
@@ -503,7 +527,7 @@ async function rideTags(parkName, rideNames) {
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. If you do not know a specific attraction, infer conservatively from its name.',
+    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });
   noteUsage('ride-tags', msg);
@@ -519,9 +543,10 @@ async function rideTags(parkName, rideNames) {
       vibe: ['gentle', 'family', 'thrill', 'water', 'show'].includes(r.vibe) ? r.vibe : 'family',
       minAge: [0, 3, 7, 12].includes(r.minAge) ? r.minAge : 3,
       sr: Boolean(r.sr),
+      land: typeof r.land === 'string' ? r.land.trim().slice(0, 60) : '',
     };
   }
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, geoEstimate, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

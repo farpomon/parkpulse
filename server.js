@@ -555,6 +555,201 @@ const addDays = (dateStr, n) => {
   return d.toISOString().slice(0, 10);
 };
 
+// Ride names come from a third-party feed and reach email HTML — escape them.
+const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// --- Day-plan KPIs & the advisor email ---------------------------------------
+// Walking distance is real: it measures the plan's route through the park
+// using the same coordinates that drive the map pins.
+const STRIDE_M = 0.76;          // average adult stride
+const KCAL_PER_KG_KM = 0.53;    // walking, casual park pace
+const DEFAULT_KG = 70;
+
+const planMails = new Map(); // email -> [timestamps]
+function planMailBlocked(email) {
+  const now = Date.now();
+  const hits = (planMails.get(email) || []).filter((t) => now - t < 24 * 3600000);
+  hits.push(now);
+  planMails.set(email, hits);
+  if (planMails.size > 5000) planMails.delete(planMails.keys().next().value);
+  return hits.length > 6;
+}
+
+async function planKpis(park, stops, profile) {
+  const rideNames = stops.map((st) => st.name);
+  const geo = db.geo.get(park.slug);
+  const coords = new Map((geo?.rides || []).map((r) => [r.name, r]));
+  let meters = 0;
+  let legs = 0;
+  let prev = null;
+  for (const name of rideNames) {
+    const c = coords.get(name);
+    if (!c) continue;
+    if (prev) { meters += kmBetween(prev, c) * 1000; legs++; }
+    prev = c;
+  }
+  // Park entrance to the first stop and back at the end: most visitors walk
+  // it, and leaving it out understates the day by a kilometre or more.
+  const first = rideNames.map((n) => coords.get(n)).find(Boolean);
+  const last = [...rideNames].reverse().map((n) => coords.get(n)).find(Boolean);
+  if (first) meters += kmBetween({ lat: park.lat, lng: park.lng }, first) * 1000;
+  if (last) meters += kmBetween(last, { lat: park.lat, lng: park.lng }) * 1000;
+  // Wandering between the direct lines: queues, shops, restrooms, detours.
+  meters *= 1.35;
+
+  let tags = {};
+  try { tags = JSON.parse(db.ridetags.get(park.slug) || '{}'); } catch {}
+  // A park nobody has browsed yet has no tags — generate them now rather
+  // than send a half-empty email (cached forever afterwards).
+  if (!Object.keys(tags).length && consultant.enabled()) {
+    try {
+      const all = await getWaits(park.slug);
+      const names = all.rides.map((r) => r.name).slice(0, 120);
+      if (names.length) {
+        const made = await consultant.rideTags(park.name, names);
+        if (made && Object.keys(made).length) { tags = made; db.ridetags.set(park.slug, JSON.stringify(made)); }
+      }
+    } catch (err) { console.log(`plan tags (${park.slug}): ${err.message}`); }
+  }
+  const vibes = {};
+  let youngestOk = 0;
+  let singleRider = 0;
+  for (const n of rideNames) {
+    const t = tags[n];
+    if (!t) continue;
+    vibes[t.vibe] = (vibes[t.vibe] || 0) + 1;
+    if (t.minAge <= 3) youngestOk++;
+    if (t.sr) singleRider++;
+  }
+
+  // Lands and the biggest line the timing dodges, both from the live feed:
+  // standby right now vs. what the plan predicts at the chosen hour.
+  let lands = new Set();
+  let dodged = null;
+  let live = new Map();
+  try {
+    const waits = await getWaits(park.slug);
+    live = new Map(waits.rides.map((r) => [r.name, r]));
+  } catch {}
+  try {
+    for (const st of stops) {
+      const r = live.get(st.name);
+      // Feed lands are authoritative; the classifier covers feeds that omit them.
+      const land = (r && r.land) || (tags[st.name] && tags[st.name].land) || '';
+      if (land) lands.add(land);
+      if (r && r.open && Number.isFinite(st.wait)) {
+        const gap = r.wait - st.wait;
+        if (gap > 0 && (!dodged || gap > dodged.minutes)) dodged = { name: st.name, minutes: Math.round(gap), standby: r.wait };
+      }
+    }
+  } catch {}
+
+  const party = profile && profile.party ? profile.party : 1;
+  const skip = park.skip && park.skip.type !== 'none' ? park.skip : null;
+  const km = meters / 1000;
+  return {
+    attractions: rideNames.length,
+    mapped: legs + (first ? 1 : 0),
+    km: Math.round(km * 10) / 10,
+    miles: Math.round(km * 0.621371 * 10) / 10,
+    steps: Math.round(meters / STRIDE_M / 100) * 100,
+    kcal: Math.round(KCAL_PER_KG_KM * DEFAULT_KG * km),
+    thrills: vibes.thrill || 0,
+    water: vibes.water || 0,
+    shows: vibes.show || 0,
+    gentle: (vibes.gentle || 0) + (vibes.family || 0),
+    toddlerFriendly: youngestOk,
+    singleRider,
+    lands: lands.size,
+    landNames: [...lands].slice(0, 8),
+    dodged,
+    party,
+    skip: skip ? {
+      name: skip.name,
+      low: skip.low * party,
+      high: skip.high * party,
+      cur: skip.cur || '$',
+    } : null,
+  };
+}
+
+function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) {
+  const B = '#5b3df5';
+  const tile = (v, label, sub) => `<td style="padding:0 6px" width="25%" valign="top">
+    <div style="background:#f4f1ff;border-radius:14px;padding:14px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:${B};line-height:1.1">${v}</div>
+      <div style="font-size:11px;font-weight:700;color:#443b6b;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">${label}</div>
+      ${sub ? `<div style="font-size:10px;color:#8b83a8;margin-top:2px">${sub}</div>` : ''}
+    </div></td>`;
+  const rows = stops.map((st, i) => `<tr>
+    <td width="34" valign="top" style="padding:7px 0">
+      <div style="width:26px;height:26px;border-radius:99px;background:${B};color:#fff;font-weight:800;font-size:12px;text-align:center;line-height:26px">${i + 1}</div></td>
+    <td valign="top" style="padding:7px 0">
+      <b style="color:#251d3d">${esc(st.name)}</b>
+      <span style="color:#8b83a8;font-size:13px">${st.time ? ' · ' + esc(st.time) : ''}${st.wait != null ? ' · ~' + st.wait + ' min' : ''}</span>
+    </td></tr>`).join('');
+  // Everything below is derived from the plan itself — ride tags, the live
+  // feed, and the park's own skip-pass pricing.
+  const fact = (icon, label) => `<tr><td width="26" valign="top" style="padding:4px 0;font-size:15px">${icon}</td>
+    <td valign="top" style="padding:4px 0;font-size:14px;color:#3f3762">${label}</td></tr>`;
+  const facts = [
+    kpis.thrills ? fact('🎢', `<b>${kpis.thrills}</b> thrill ride${kpis.thrills === 1 ? '' : 's'} on the list`) : '',
+    kpis.water ? fact('💦', `<b>${kpis.water}</b> chance${kpis.water === 1 ? '' : 's'} to get soaked — pack a poncho`) : '',
+    kpis.shows ? fact('🎭', `<b>${kpis.shows}</b> show${kpis.shows === 1 ? '' : 's'} to sit down and cool off`) : '',
+    kpis.lands ? fact('🗺️', `Crossing <b>${kpis.lands}</b> land${kpis.lands === 1 ? '' : 's'}${kpis.landNames.length ? ' · ' + esc(kpis.landNames.join(', ')) : ''}`) : '',
+    kpis.singleRider ? fact('🚶', `<b>${kpis.singleRider}</b> single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
+    kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
+      ? fact('👶', `<b>${kpis.toddlerFriendly}</b> of these work for your youngest`) : '',
+    kpis.steps ? fact('👟', `About <b>${kpis.steps.toLocaleString()}</b> steps`) : '',
+    kpis.skip ? fact('💳', `Built to work without <b>${esc(kpis.skip.name)}</b> — that\'s ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
+  ].filter(Boolean).join('');
+
+  const dodgedBanner = kpis.dodged
+    ? `<div style="padding:4px 26px 0"><div style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
+        ⏱️ <b>Biggest line dodged:</b> ${esc(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
+      </div></div>`
+    : '';
+  return `<div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:#251d3d">
+   <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 6px 28px rgba(20,12,48,.09)">
+    <div style="background:linear-gradient(135deg,${B},#8b5cf6);padding:26px 26px 22px;color:#fff">
+      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · your day plan</div>
+      <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:6px">${esc(park.name)}</div>
+      <div style="opacity:.85;font-size:14px">${day}</div>
+    </div>
+    <div style="padding:22px 20px 6px">
+      <table width="100%" cellpadding="0" cellspacing="0"><tr>
+        ${tile(kpis.attractions, 'Attractions', 'on the plan')}
+        ${tile(kpis.km + ' km', 'Walking', kpis.miles + ' mi')}
+        ${tile(kpis.kcal, 'Calories', 'per adult')}
+        ${tile(savedMin >= 60 ? Math.round(savedMin / 60) + ' hr' : savedMin + ' min', 'Line time saved', 'vs. winging it')}
+      </tr></table>
+    </div>
+    ${dodgedBanner}
+    ${briefing ? `<div style="padding:16px 26px 4px">
+      <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
+        <b>🧭 Your advisor's take</b><br>${esc(briefing).replace(/\n/g, '<br>')}
+      </div></div>` : ''}
+    <div style="padding:18px 26px 6px">
+      <div style="font-weight:800;font-size:16px;margin-bottom:2px">Today's running order</div>
+      <div style="color:#8b83a8;font-size:13px;margin-bottom:8px">Follow the numbers — they match the pins on your map.</div>
+      <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+    </div>
+    ${facts ? `<div style="padding:14px 26px 2px">
+      <div style="font-weight:800;font-size:16px;margin-bottom:6px">Your day at a glance</div>
+      <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
+    <div style="padding:20px 26px 26px">
+      <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
+      <div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
+        Walking distance is measured along your planned route${kpis.mapped ? '' : ' (estimated)'} plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.
+      </div>
+    </div>
+   </div>
+   <div style="max-width:600px;margin:12px auto 0;text-align:center;color:#a49cc0;font-size:11.5px">
+     ParkPulse · unofficial fan tool, not affiliated with any park operator.
+   </div>
+  </div>`;
+}
+
 // --- AI spend tracking -------------------------------------------------------
 // Anthropic list prices per million tokens (docs: anthropic.com/pricing).
 // Cache writes bill at 1.25x the input rate, cache reads at 0.1x.
@@ -1288,8 +1483,8 @@ const server = http.createServer(async (req, res) => {
     const cached = db.ridetags.get(slug);
     if (cached) {
       const parsed = JSON.parse(cached);
-      // Tags cached before the single-rider flag existed regenerate once.
-      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t);
+      // Tags cached before the single-rider or land fields existed regenerate once.
+      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t && 'land' in t);
       if (fresh) return sendJson(res, 200, { tags: parsed });
     }
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
@@ -1459,6 +1654,48 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Mint a connect code for the signed-in user and hand back the wa.me link.
+      // Email the planned day to the signed-in user. Deliberately sends only
+      // to the account's own address — an endpoint that mails anywhere is an
+      // open relay. Rate-limited to a handful a day per account.
+      if (url.pathname === '/api/plan/email') {
+        const sess = sessionUser(req);
+        if (!sess) return sendJson(res, 401, { error: 'log in first' });
+        const park = PARKS[parsed.park];
+        if (!park) return sendJson(res, 400, { error: 'unknown park' });
+        const rawStops = Array.isArray(parsed.stops) ? parsed.stops.slice(0, 30) : [];
+        const stops = rawStops
+          .filter((st) => st && typeof st.name === 'string')
+          .map((st) => ({
+            name: st.name.slice(0, 120),
+            time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
+            wait: Number.isFinite(st.wait) ? Math.max(0, Math.round(st.wait)) : null,
+          }));
+        if (!stops.length) return sendJson(res, 400, { error: 'no plan to send' });
+        if (planMailBlocked(sess.email)) return sendJson(res, 429, { error: 'you have sent a few plans already today — try again tomorrow' });
+
+        const profileForKpi = sanitizeProfile(parsed.profile) || (db.daystate.get(sess.email) || {}).profile || null;
+        const kpis = await planKpis(park, stops, profileForKpi);
+        const savedMin = Number.isFinite(parsed.savedMin) ? Math.max(0, Math.round(parsed.savedMin)) : 0;
+        const profile = profileForKpi;
+        const lang = LANG_NAMES[typeof parsed.lang === 'string' ? parsed.lang : 'en'] || 'English';
+        const day = new Intl.DateTimeFormat('en-US', { timeZone: park.tz, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
+
+        let briefing = '';
+        if (consultant.enabled()) {
+          try {
+            briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, stops, kpis, profile, savedMin, lang });
+          } catch (err) { console.log(`day briefing failed: ${err.message}`); }
+        }
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile });
+        try {
+          const r = await sendEmail(sess.email, `Your ${park.name} plan — ${kpis.attractions} attractions, ${kpis.km} km`, html,
+            `Plan email for ${sess.email}: ${park.name}, ${kpis.attractions} stops, ${kpis.km} km, ${kpis.kcal} kcal`);
+          return sendJson(res, 200, r.sent ? { sent: true, to: sess.email, kpis } : { sent: false, reason: r.reason, kpis });
+        } catch (err) {
+          return sendJson(res, 502, { sent: false, reason: err.message });
+        }
+      }
+
       if (url.pathname === '/api/whatsapp/link') {
         if (!WA_ENABLED || !WA_NUMBER) return sendJson(res, 503, { error: 'whatsapp not configured' });
         const s = sessionUser(req);

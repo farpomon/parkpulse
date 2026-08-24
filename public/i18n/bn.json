@@ -221,5 +221,8 @@
  "Pin locations are approximate.": "পিনের অবস্থান আনুমানিক।",
  "Map data": "মানচিত্র ডেটা",
  "stops in plan order": "স্টপ, পরিকল্পনার ক্রমে",
- "Stop": "স্টপ"
+ "Stop": "স্টপ",
+ "Email me this plan": "এই প্ল্যান আমাকে ইমেল করুন",
+ "Sending…": "পাঠানো হচ্ছে…",
+ "Plan sent — check your inbox 📬": "প্ল্যান পাঠানো হয়েছে — ইনবক্স দেখুন 📬"
 }
