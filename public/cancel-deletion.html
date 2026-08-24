@@ -43,7 +43,7 @@
   if (!email || !token) {
     show('bad', '<div class="big">🤔</div><h1>This link is incomplete</h1>'
       + '<p>Open the cancellation link straight from the email we sent you.</p>'
-      + '<p class="muted">Still stuck? Email <a href="mailto:luisrubiof@gmail.com">luisrubiof@gmail.com</a> and we\'ll sort it out.</p>');
+      + '<p class="muted">Still stuck? Email <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a> and we\'ll sort it out.</p>');
   } else {
     fetch('/api/auth/cancel-deletion', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -58,7 +58,7 @@
         show('bad', '<div class="big">⌛</div><h1>This link no longer works</h1>'
           + '<p>' + (data.error || 'The cancellation link is not valid.') + '</p>'
           + '<p>If your account was already deleted, that is permanent — but you are welcome to start fresh anytime.</p>'
-          + '<p class="muted">If you think this is a mistake, email <a href="mailto:luisrubiof@gmail.com">luisrubiof@gmail.com</a>.</p>'
+          + '<p class="muted">If you think this is a mistake, email <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a>.</p>'
           + '<a class="btn" href="/app">Go to ParkPulse</a>');
       }
     }).catch(() => {

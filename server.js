@@ -157,6 +157,9 @@ function grantToUser(email, plan, exp) {
 // required before emailing real users.
 const RESEND_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'ParkPulse <onboarding@resend.dev>';
+// Replies to any transactional mail land in the support inbox, which
+// forwards to a human — otherwise they vanish into the sender domain.
+const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'support@parkpulse.fun';
 
 // WhatsApp concierge: the same AI advisor, reachable by texting our WhatsApp
 // Business number. Dormant until the Meta Cloud API credentials are set.
@@ -249,7 +252,7 @@ async function sendEmail(to, subject, html, logFallback) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { authorization: `Bearer ${RESEND_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ from: MAIL_FROM, to: [to], subject, html }),
+    body: JSON.stringify({ from: MAIL_FROM, to: [to], reply_to: MAIL_REPLY_TO, subject, html }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`resend ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
@@ -1401,7 +1404,7 @@ const server = http.createServer(async (req, res) => {
     const parkName = (p) => PARKS[p.path.slice(5)]?.name || p.path.slice(5);
     return sendJson(res, 200, {
       env: APP_ENV,
-      email: { configured: Boolean(RESEND_KEY), from: MAIL_FROM, customSender: !MAIL_FROM.includes('resend.dev') },
+      email: { configured: Boolean(RESEND_KEY), from: MAIL_FROM, replyTo: MAIL_REPLY_TO, customSender: !MAIL_FROM.includes('resend.dev') },
       users: {
         ...db.admin.userTotals(),
         new7d: db.admin.newUsers(7),
