@@ -224,5 +224,18 @@
  "Stop": "Arrêt",
  "Email me this plan": "M'envoyer ce plan",
  "Sending…": "Envoi…",
- "Plan sent — check your inbox 📬": "Plan envoyé — vérifiez votre boîte mail 📬"
+ "Plan sent — check your inbox 📬": "Plan envoyé — vérifiez votre boîte mail 📬",
+ "Park time": "Heure du parc",
+ "Your plan is built on park local time.": "Votre plan suit l'heure locale du parc.",
+ "Today": "Aujourd'hui",
+ "Tomorrow": "Demain",
+ "Planned for": "Prévu pour",
+ "Day": "Jour",
+ "feels": "ressenti",
+ "High": "Max",
+ "Low": "Min",
+ "rain": "pluie",
+ "Wettest around": "Pluie surtout vers",
+ "good window for indoor rides or a sit-down meal.": "bon moment pour les attractions couvertes ou un repas assis.",
+ "Book a table at": "Réserver une table à"
 }

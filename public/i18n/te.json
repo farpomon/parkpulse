@@ -224,5 +224,18 @@
  "Stop": "స్టాప్",
  "Email me this plan": "ఈ ప్లాన్ నాకు ఇమెయిల్ చేయండి",
  "Sending…": "పంపుతోంది…",
- "Plan sent — check your inbox 📬": "ప్లాన్ పంపాం — ఇన్‌బాక్స్ చూడండి 📬"
+ "Plan sent — check your inbox 📬": "ప్లాన్ పంపాం — ఇన్‌బాక్స్ చూడండి 📬",
+ "Park time": "పార్క్ సమయం",
+ "Your plan is built on park local time.": "మీ ప్లాన్ పార్క్ స్థానిక సమయం ప్రకారం.",
+ "Today": "ఈరోజు",
+ "Tomorrow": "రేపు",
+ "Planned for": "ప్లాన్ చేసినది",
+ "Day": "రోజు",
+ "feels": "అనుభూతి",
+ "High": "గరిష్ఠం",
+ "Low": "కనిష్ఠం",
+ "rain": "వర్షం",
+ "Wettest around": "ఎక్కువ వర్షం సుమారు",
+ "good window for indoor rides or a sit-down meal.": "ఇండోర్ రైడ్‌లకు లేదా కూర్చుని భోజనం చేయడానికి మంచి సమయం.",
+ "Book a table at": "టేబుల్ బుక్ చేయండి:"
 }

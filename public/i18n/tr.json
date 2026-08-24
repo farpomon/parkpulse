@@ -224,5 +224,18 @@
  "Stop": "Durak",
  "Email me this plan": "Bu planı bana e-postala",
  "Sending…": "Gönderiliyor…",
- "Plan sent — check your inbox 📬": "Plan gönderildi — gelen kutunu kontrol et 📬"
+ "Plan sent — check your inbox 📬": "Plan gönderildi — gelen kutunu kontrol et 📬",
+ "Park time": "Park saati",
+ "Your plan is built on park local time.": "Planın parkın yerel saatine göre.",
+ "Today": "Bugün",
+ "Tomorrow": "Yarın",
+ "Planned for": "Şu gün için",
+ "Day": "Gün",
+ "feels": "hissedilen",
+ "High": "En yüksek",
+ "Low": "En düşük",
+ "rain": "yağmur",
+ "Wettest around": "En yağışlı saat",
+ "good window for indoor rides or a sit-down meal.": "kapalı alan atraksiyonları veya oturarak yemek için iyi bir zaman.",
+ "Book a table at": "Masa rezervasyonu:"
 }

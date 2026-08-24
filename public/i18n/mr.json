@@ -224,5 +224,18 @@
  "Stop": "थांबा",
  "Email me this plan": "हा प्लॅन मला ईमेल करा",
  "Sending…": "पाठवत आहे…",
- "Plan sent — check your inbox 📬": "प्लॅन पाठवला — इनबॉक्स पाहा 📬"
+ "Plan sent — check your inbox 📬": "प्लॅन पाठवला — इनबॉक्स पाहा 📬",
+ "Park time": "पार्कची वेळ",
+ "Your plan is built on park local time.": "तुमची योजना पार्कच्या स्थानिक वेळेनुसार आहे.",
+ "Today": "आज",
+ "Tomorrow": "उद्या",
+ "Planned for": "साठी नियोजित",
+ "Day": "दिवस",
+ "feels": "जाणवते",
+ "High": "कमाल",
+ "Low": "किमान",
+ "rain": "पाऊस",
+ "Wettest around": "सर्वाधिक पाऊस सुमारे",
+ "good window for indoor rides or a sit-down meal.": "इनडोअर राइड्स किंवा बसून जेवणासाठी चांगली वेळ.",
+ "Book a table at": "टेबल बुक करा:"
 }

@@ -224,5 +224,18 @@
  "Stop": "محطة",
  "Email me this plan": "أرسل لي هذه الخطة",
  "Sending…": "جارٍ الإرسال…",
- "Plan sent — check your inbox 📬": "تم إرسال الخطة — تفقّد بريدك 📬"
+ "Plan sent — check your inbox 📬": "تم إرسال الخطة — تفقّد بريدك 📬",
+ "Park time": "توقيت الحديقة",
+ "Your plan is built on park local time.": "خطتك مبنية على التوقيت المحلي للحديقة.",
+ "Today": "اليوم",
+ "Tomorrow": "غدًا",
+ "Planned for": "مخطط ليوم",
+ "Day": "اليوم",
+ "feels": "الإحساس",
+ "High": "العظمى",
+ "Low": "الصغرى",
+ "rain": "مطر",
+ "Wettest around": "أغزر مطر حوالي",
+ "good window for indoor rides or a sit-down meal.": "وقت مناسب للألعاب المغلقة أو وجبة على طاولة.",
+ "Book a table at": "احجز طاولة في"
 }

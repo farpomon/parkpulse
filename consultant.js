@@ -168,6 +168,7 @@ Local time now: ${localTime(park.tz)}
 Typical hours: ${park.open}:00-${park.close}:00 local.
 ${park.show ? `Tonight's show: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
 Data: ${waits.source === 'live' ? 'live, updated within minutes' : 'TYPICAL-DAY ESTIMATES (live feed unavailable) — caveat advice accordingly'}
+${waits.weather ? `Weather at the park: ${waits.weather.now.label}, ${waits.weather.now.temp}°C (feels ${waits.weather.now.feels}°C); today's high ${waits.weather.today.high}°C, low ${waits.weather.today.low}°C, ${waits.weather.today.rainChance}% chance of rain${waits.weather.wettestHour ? `, wettest around ${waits.weather.wettestHour.hour}:00 (${waits.weather.wettestHour.chance}%)` : ''}${waits.weather.today.sunset ? `, sunset ${waits.weather.today.sunset}` : ''}. Work this into pacing: indoor rides, shows and sit-down meals during heat peaks and rain, outdoor coasters when it is dry, and warn about ponchos or heat when it matters.` : ''}
 ${waits.forecast ? `7-day crowd outlook (based on ${waits.forecast.basis}): ${waits.forecast.days.map((d) => `${d.dow} ${d.label}${d.holiday ? ` (${d.holiday})` : ''}`).join(', ')}. Lightest day: ${waits.forecast.best}.\n` : ''}Standby waits:
 ${rides}`;
 }

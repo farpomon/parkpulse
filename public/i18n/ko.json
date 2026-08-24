@@ -224,5 +224,18 @@
  "Stop": "코스",
  "Email me this plan": "이 플랜 이메일로 받기",
  "Sending…": "보내는 중…",
- "Plan sent — check your inbox 📬": "플랜을 보냈어요 — 받은편지함을 확인하세요 📬"
+ "Plan sent — check your inbox 📬": "플랜을 보냈어요 — 받은편지함을 확인하세요 📬",
+ "Park time": "파크 시간",
+ "Your plan is built on park local time.": "플랜은 파크 현지 시각 기준입니다.",
+ "Today": "오늘",
+ "Tomorrow": "내일",
+ "Planned for": "계획일",
+ "Day": "날짜",
+ "feels": "체감",
+ "High": "최고",
+ "Low": "최저",
+ "rain": "비",
+ "Wettest around": "비가 가장 많은 시간",
+ "good window for indoor rides or a sit-down meal.": "실내 어트랙션이나 식사하기 좋은 시간입니다.",
+ "Book a table at": "테이블 예약:"
 }

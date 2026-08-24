@@ -224,5 +224,18 @@
  "Stop": "স্টপ",
  "Email me this plan": "এই প্ল্যান আমাকে ইমেল করুন",
  "Sending…": "পাঠানো হচ্ছে…",
- "Plan sent — check your inbox 📬": "প্ল্যান পাঠানো হয়েছে — ইনবক্স দেখুন 📬"
+ "Plan sent — check your inbox 📬": "প্ল্যান পাঠানো হয়েছে — ইনবক্স দেখুন 📬",
+ "Park time": "পার্কের সময়",
+ "Your plan is built on park local time.": "আপনার পরিকল্পনা পার্কের স্থানীয় সময় অনুযায়ী।",
+ "Today": "আজ",
+ "Tomorrow": "আগামীকাল",
+ "Planned for": "পরিকল্পিত",
+ "Day": "দিন",
+ "feels": "অনুভূত",
+ "High": "সর্বোচ্চ",
+ "Low": "সর্বনিম্ন",
+ "rain": "বৃষ্টি",
+ "Wettest around": "সবচেয়ে বেশি বৃষ্টি প্রায়",
+ "good window for indoor rides or a sit-down meal.": "ইনডোর রাইড বা বসে খাওয়ার ভালো সময়।",
+ "Book a table at": "টেবিল বুক করুন:"
 }

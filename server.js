@@ -217,6 +217,7 @@ async function waAgentReply(link, text) {
   const slug = PARKS[ds.park] ? ds.park : 'magic-kingdom';
   const waits = await getWaits(slug);
   try { waits.forecast = forecastFor(slug); } catch {}
+  try { waits.weather = await getWeather(PARKS[slug]); } catch {}
   const history = db.wa.history(link.phone);
   const messages = [...history, { role: 'user', content: String(text).trim().slice(0, 2000) }];
   while (messages.length && messages[0].role !== 'user') messages.shift();
@@ -557,6 +558,79 @@ const addDays = (dateStr, n) => {
 
 // Ride names come from a third-party feed and reach email HTML — escape them.
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// --- Park weather ------------------------------------------------------------
+// Open-Meteo: free, no API key, no attribution string required. Cached per
+// park for 30 minutes — forecasts don't move faster than that, and a park's
+// visitors all share one lookup.
+const WEATHER_API = process.env.WEATHER_API || 'https://api.open-meteo.com/v1/forecast';
+const weatherCache = new Map();
+const WEATHER_TTL_MS = 30 * 60 * 1000;
+
+// WMO weather codes → a short label and an emoji the whole app can show.
+const WMO = [
+  [[0], 'Clear', '☀️'], [[1], 'Mostly sunny', '🌤️'], [[2], 'Partly cloudy', '⛅'], [[3], 'Overcast', '☁️'],
+  [[45, 48], 'Fog', '🌫️'], [[51, 53, 55, 56, 57], 'Drizzle', '🌦️'],
+  [[61, 63, 65, 66, 67], 'Rain', '🌧️'], [[71, 73, 75, 77], 'Snow', '🌨️'],
+  [[80, 81, 82], 'Showers', '🌦️'], [[85, 86], 'Snow showers', '🌨️'],
+  [[95, 96, 99], 'Thunderstorms', '⛈️'],
+];
+const wmo = (code) => {
+  const hit = WMO.find(([codes]) => codes.includes(code));
+  return { label: hit ? hit[1] : 'Mixed', icon: hit ? hit[2] : '🌡️' };
+};
+
+async function getWeather(park) {
+  const hit = weatherCache.get(park.slug);
+  if (hit && Date.now() - hit.at < WEATHER_TTL_MS) return hit.data;
+  const url = `${WEATHER_API}?latitude=${park.lat}&longitude=${park.lng}` +
+    '&current=temperature_2m,apparent_temperature,weather_code,precipitation' +
+    '&hourly=temperature_2m,precipitation_probability,weather_code' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset' +
+    `&timezone=${encodeURIComponent(park.tz || 'auto')}&forecast_days=7`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`open-meteo ${res.status}`);
+  const j = await res.json();
+  const cur = j.current || {};
+  const daily = j.daily || {};
+  const hourly = j.hourly || {};
+  // The rainiest hour while the park is open — that's the one worth planning
+  // an indoor ride around.
+  let wettest = null;
+  const times = hourly.time || [];
+  for (let i = 0; i < times.length; i++) {
+    const hr = Number(String(times[i]).slice(11, 13));
+    if (!String(times[i]).startsWith((daily.time || [])[0] || '')) continue;
+    if (park.open != null && (hr < park.open || hr >= park.close)) continue;
+    const p = hourly.precipitation_probability?.[i] ?? 0;
+    if (!wettest || p > wettest.chance) wettest = { hour: hr, chance: p };
+  }
+  const data = {
+    now: {
+      temp: Math.round(cur.temperature_2m),
+      feels: Math.round(cur.apparent_temperature ?? cur.temperature_2m),
+      ...wmo(cur.weather_code),
+    },
+    today: {
+      high: Math.round((daily.temperature_2m_max || [])[0]),
+      low: Math.round((daily.temperature_2m_min || [])[0]),
+      rainChance: (daily.precipitation_probability_max || [])[0] ?? 0,
+      sunset: ((daily.sunset || [])[0] || '').slice(11, 16),
+      ...wmo((daily.weather_code || [])[0]),
+    },
+    wettestHour: wettest && wettest.chance >= 30 ? wettest : null,
+    days: (daily.time || []).map((d, i) => ({
+      date: d,
+      high: Math.round(daily.temperature_2m_max[i]),
+      low: Math.round(daily.temperature_2m_min[i]),
+      rainChance: daily.precipitation_probability_max?.[i] ?? 0,
+      ...wmo(daily.weather_code[i]),
+    })),
+    units: 'celsius',
+  };
+  weatherCache.set(park.slug, { at: Date.now(), data });
+  return data;
+}
 
 // --- Day-plan KPIs & the advisor email ---------------------------------------
 // Walking distance is real: it measures the plan's route through the park
@@ -1104,12 +1178,13 @@ const isChristmasWeek = (iso) => {
 };
 const FORECAST_LEVELS = ['', 'Light', 'Mild', 'Moderate', 'Busy', 'Packed'];
 
-function forecastFor(slug) {
+function forecastFor(slug, horizon = 7) {
   const park = PARKS[slug];
   const measured = DOW_INDEX[slug];
   const weight = measured ? Math.min(1, measured.days / 21) : 0;
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  const span = Math.min(Math.max(Number(horizon) || 7, 7), 60);
+  for (let i = 0; i < span; i++) {
     const d = new Date(Date.now() + i * 86400000);
     // Date and weekday in the PARK's timezone, not the server's.
     const iso = d.toLocaleDateString('en-CA', { timeZone: park.tz });
@@ -1423,7 +1498,24 @@ const server = http.createServer(async (req, res) => {
       'Disneyland Paris': { url: 'https://www.disneylandparis.com/en-usd/restaurants/', note: 'Reservations open 2 months ahead' },
       'Tokyo Disney Resort': { url: 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html', note: 'Priority Seating opens 1 month ahead, 9:00 AM JST' },
     };
-    const reserve = RESERVE[park.group] || null;
+    // Per-park dining pages: the resort-wide link dumps every restaurant in
+    // the whole resort, which is useless when you're standing in one park.
+    const RESERVE_PARK = {
+      'magic-kingdom': 'https://disneyworld.disney.go.com/dining/magic-kingdom/',
+      'epcot': 'https://disneyworld.disney.go.com/dining/epcot/',
+      'hollywood-studios': 'https://disneyworld.disney.go.com/dining/hollywood-studios/',
+      'animal-kingdom': 'https://disneyworld.disney.go.com/dining/animal-kingdom/',
+      'disneyland': 'https://disneyland.disney.go.com/dining/disneyland/',
+      'california-adventure': 'https://disneyland.disney.go.com/dining/disney-california-adventure/',
+      'disneyland-paris': 'https://www.disneylandparis.com/en-usd/restaurants/disneyland-park/',
+      'walt-disney-studios-paris': 'https://www.disneylandparis.com/en-usd/restaurants/walt-disney-studios-park/',
+      'tokyo-disneyland': 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html',
+      'tokyo-disneysea': 'https://www.tokyodisneyresort.jp/en/tds/restaurant.html',
+    };
+    const groupReserve = RESERVE[park.group] || null;
+    const reserve = groupReserve
+      ? { ...groupReserve, url: RESERVE_PARK[slug] || groupReserve.url, scoped: Boolean(RESERVE_PARK[slug]) }
+      : null;
     const cached = db.dining.get(slug, langCode);
     if (cached) return sendJson(res, 200, { park: park.name, reserve, list: JSON.parse(cached) });
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
@@ -1447,6 +1539,20 @@ const server = http.createServer(async (req, res) => {
 
   // Ride coordinates for the park map. 202 while the one-time OSM
   // extraction runs; parks with thin OSM coverage end up status "sparse".
+  // Park weather — public, same access rules as live waits.
+  const weatherMatch = url.pathname.match(/^\/api\/weather\/([a-z-]+)$/);
+  if (weatherMatch) {
+    const park = PARKS[weatherMatch[1]];
+    if (!park) return sendJson(res, 404, { error: 'unknown park' });
+    if (!park.lat || !park.lng) return sendJson(res, 200, { unavailable: true });
+    try {
+      return sendJson(res, 200, await getWeather(park));
+    } catch (err) {
+      console.log(`weather (${park.slug}): ${err.message}`);
+      return sendJson(res, 200, { unavailable: true });
+    }
+  }
+
   const geoMatch = url.pathname.match(/^\/api\/geo\/([a-z-]+)$/);
   if (geoMatch) {
     const park = PARKS[geoMatch[1]];
@@ -1508,7 +1614,8 @@ const server = http.createServer(async (req, res) => {
     const slug = forecastMatch[1];
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
-    return sendJson(res, 200, forecastFor(slug));
+    // Planning ahead needs more than this week; the pass length caps it client-side.
+    return sendJson(res, 200, forecastFor(slug, url.searchParams.get('days')));
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
@@ -1986,6 +2093,7 @@ const server = http.createServer(async (req, res) => {
         try {
           const waits = await getWaits(park);
           try { waits.forecast = forecastFor(park); } catch {}
+          try { waits.weather = await getWeather(PARKS[park]); } catch {}
           const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });

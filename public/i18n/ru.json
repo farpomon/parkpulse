@@ -224,5 +224,18 @@
  "Stop": "Остановка",
  "Email me this plan": "Отправить план мне на почту",
  "Sending…": "Отправка…",
- "Plan sent — check your inbox 📬": "План отправлен — проверьте почту 📬"
+ "Plan sent — check your inbox 📬": "План отправлен — проверьте почту 📬",
+ "Park time": "Время парка",
+ "Your plan is built on park local time.": "План построен по местному времени парка.",
+ "Today": "Сегодня",
+ "Tomorrow": "Завтра",
+ "Planned for": "Запланировано на",
+ "Day": "День",
+ "feels": "ощущается",
+ "High": "Макс",
+ "Low": "Мин",
+ "rain": "дождь",
+ "Wettest around": "Больше всего дождя около",
+ "good window for indoor rides or a sit-down meal.": "хорошее время для крытых аттракционов или обеда в ресторане.",
+ "Book a table at": "Забронировать столик в"
 }
