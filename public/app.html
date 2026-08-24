@@ -29,7 +29,7 @@
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Nunito", "Segoe UI", system-ui, sans-serif; }
   .wrap { max-width: 640px; margin: 0 auto; padding: 0 1rem 10rem; }
-  header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: .75rem 0 .5rem; }
+  header { z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: .75rem 0 .5rem; }
   @supports not (background: color-mix(in srgb, red 50%, blue)) { header { background: var(--bg); } }
   .topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; }
   .logo { font-weight: 900; font-size: 1.2rem; letter-spacing: -.02em; text-decoration: none; white-space: nowrap;
@@ -129,10 +129,24 @@
   .btn:hover { filter: brightness(1.06); }
   .btn:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(79,58,201,.30); }
   .listtools { display: flex; justify-content: space-between; margin: 0 0 .1rem; }
+  /* Stays put under the header while the ride list scrolls — the view
+     switcher and filters are needed most when you're deep in the list. */
   .sectionhead { display: flex; align-items: center; justify-content: space-between; gap: .5rem .8rem;
-    flex-wrap: wrap; margin: 1.5rem 0 .2rem; padding-top: .9rem; border-top: 2px solid var(--border); }
+    flex-wrap: wrap; margin: 1.5rem 0 .2rem; padding: .7rem 0 .55rem; border-top: 2px solid var(--border);
+    position: sticky; top: 0; z-index: 9;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
   .sectionhead h2 { margin: 0; font-size: 1.06rem; font-weight: 800; letter-spacing: -.015em; }
-  .sectionhead .listtools { margin: 0; gap: .5rem; flex: 0 0 auto; }
+  .sectionhead .listtools { margin: 0; gap: .4rem; flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 430px) {
+    /* Four tools need ~416px and a phone offers ~358, so they use two rows
+       rather than shrinking into unreadable labels. Still a fraction of the
+       440px of chrome that used to be pinned here. */
+    .sectionhead { gap: .3rem .45rem; padding: .55rem 0 .5rem; }
+    .sectionhead h2 { font-size: 1rem; }
+    .sectionhead .listtools { justify-content: flex-start; gap: .35rem; }
+    .sectionhead .listtools a { padding: .5rem .6rem; font-size: .85rem; gap: .25rem; }
+  }
   /* The section tools are primary in-park controls — card-sized tap targets,
      not text links a thumb has to aim for. */
   .sectionhead .listtools a { display: inline-flex; align-items: center; gap: .3rem; min-height: 2.75rem;
