@@ -1,17 +1,21 @@
 # Landing-page photography
 
-Drop files here using the exact names below and redeploy — no code change.
-Each slot renders only when its file exists, so missing photos degrade to the
-typographic layout rather than a broken image.
+Slots are declared in `PHOTOS` in `server.js`. Each renders only when its file
+is present, so a missing photo degrades to the typographic layout rather than a
+broken image.
 
-| File | Slot |
-| --- | --- |
-| `hero-dusk.jpg` | Hero background wash |
-| `plan-map.jpg` | VIP-guide panel, left column |
-| `tickets.jpg` | Editorial band before pricing |
-| `family-cafe.jpg` | Email-capture panel ground |
+| File | Slot | Rendered at |
+| --- | --- | --- |
+| `parkpulse-hero-cinematic.jpg` | Hero background wash | full-bleed, under the gradient |
+| `parkpulse-checklist-cover.jpg` | VIP-guide panel, left column | ~400px wide |
+| `parkpulse-family-visual.jpg` | Editorial band before pricing | full-width, 220–380px tall |
+| `parkpulse-snack-break.jpg` | Email-capture panel ground | under a 88–94% purple overlay |
 
-Art direction, which supplied shot belongs where, and two brand-risk checks:
-see `docs/brand-imagery.md`.
+`parkpulse-sunrise-arrival.jpg` is unused — kept as an alternate hero.
 
-Export at roughly 2000px on the long edge, JPEG quality ~80, under ~400KB.
+All files here are re-encoded for the web (long edge 1000–2400px, JPEG ~80).
+Re-run the optimizer rather than committing camera-resolution originals: the
+first upload was 35MB across five files, which the hero alone would have made
+a multi-second blocking download on park wifi.
+
+Art direction and brand-risk notes: `docs/brand-imagery.md`.

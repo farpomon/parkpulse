@@ -192,13 +192,17 @@
 
   /* Photography ------------------------------------------------------------
      Slots degrade to the typographic layout when a file is absent. */
-  .hero-photo{position:absolute;inset:0;background-size:cover;background-position:center 35%;
-    opacity:.42;mix-blend-mode:luminosity}
+  /* Full colour, not luminosity — the warm sunset is the point of this frame
+     and a blend mode flattens it to monochrome purple. */
+  .hero-photo{position:absolute;inset:0;background-size:cover;background-position:50% 42%;opacity:.62}
   .hero::before{z-index:1}
   .heroin{z-index:2}
   /* A scrim keeps the headline legible over any photograph. */
-  .hero::after{content:"";position:absolute;inset:0;z-index:1;
-    background:linear-gradient(100deg,rgba(28,20,58,.86) 0%,rgba(28,20,58,.55) 45%,rgba(28,20,58,.25) 100%)}
+  /* Heavier on the left, where the headline sits; lighter on the right so the
+     photograph still reads behind the board. */
+  .hero::after{content:"";position:absolute;inset:0;z-index:1;background:
+    linear-gradient(100deg,rgba(24,17,50,.93) 0%,rgba(24,17,50,.78) 34%,rgba(24,17,50,.42) 68%,rgba(24,17,50,.34) 100%),
+    linear-gradient(180deg,rgba(24,17,50,.5) 0%,transparent 22%,transparent 74%,rgba(24,17,50,.45) 100%)}
   .vip-photo{width:100%;height:auto;max-height:260px;object-fit:cover;border-radius:16px;margin-top:22px;display:block}
   .band{margin:0}
   .band img{width:100%;height:clamp(220px,32vw,380px);object-fit:cover;border-radius:26px;display:block;box-shadow:var(--shadow)}

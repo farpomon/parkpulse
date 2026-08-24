@@ -1220,6 +1220,13 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  // Photography is served from public/img; without these, JPEGs and WebP go
+  // out as application/octet-stream and browsers download rather than render.
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.woff2': 'font/woff2',
 };
 
 function sendJson(res, status, body) {
@@ -1232,10 +1239,10 @@ function sendJson(res, status, body) {
 // when its file is present, so a missing photo degrades to the typographic
 // layout rather than a broken image.
 const PHOTOS = {
-  hero: { file: 'hero-dusk.jpg', alt: '' },
-  vip: { file: 'plan-map.jpg', alt: 'A phone showing a routed park plan, held over a paper park map.' },
-  band: { file: 'tickets.jpg', alt: 'ParkPulse passes laid out on a notebook beside a folded park map.' },
-  capture: { file: 'family-cafe.jpg', alt: '' },
+  hero: { file: 'parkpulse-hero-cinematic.jpg', alt: '' },
+  vip: { file: 'parkpulse-checklist-cover.jpg', alt: 'A trip checklist and a hand-drawn park route in a notebook.' },
+  band: { file: 'parkpulse-family-visual.jpg', alt: 'A family pausing on a park path below a coaster, checking their plan on a phone.' },
+  capture: { file: 'parkpulse-snack-break.jpg', alt: '' },
 };
 const photoPath = (slot) => {
   const p = PHOTOS[slot];
