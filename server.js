@@ -1227,6 +1227,40 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+// --- Landing-page photography -----------------------------------------------
+// Art direction lives here, files live in public/img. Every slot renders only
+// when its file is present, so a missing photo degrades to the typographic
+// layout rather than a broken image.
+const PHOTOS = {
+  hero: { file: 'hero-dusk.jpg', alt: '' },
+  vip: { file: 'plan-map.jpg', alt: 'A phone showing a routed park plan, held over a paper park map.' },
+  band: { file: 'tickets.jpg', alt: 'ParkPulse passes laid out on a notebook beside a folded park map.' },
+  capture: { file: 'family-cafe.jpg', alt: '' },
+};
+const photoPath = (slot) => {
+  const p = PHOTOS[slot];
+  if (!p) return null;
+  return fs.existsSync(path.join(PUBLIC_DIR, 'img', p.file)) ? `/img/${p.file}` : null;
+};
+// The hero photo sits under the gradient, not over it — it adds depth without
+// competing with the headline.
+const heroPhoto = () => {
+  const src = photoPath('hero');
+  return src ? `<div class="hero-photo" style="background-image:url('${src}')"></div>` : '';
+};
+const vipPhoto = () => {
+  const src = photoPath('vip');
+  return src ? `<img class="vip-photo" src="${src}" alt="${esc(PHOTOS.vip.alt)}" loading="lazy">` : '';
+};
+const photoBand = () => {
+  const src = photoPath('band');
+  return src ? `<section class="sec"><figure class="band"><img src="${src}" alt="${esc(PHOTOS.band.alt)}" loading="lazy"></figure></section>` : '';
+};
+const captureStyle = () => {
+  const src = photoPath('capture');
+  return src ? ` style="background-image:linear-gradient(180deg,rgba(36,27,70,.88),rgba(51,39,89,.94)),url('${src}');background-size:cover;background-position:center"` : '';
+};
+
 // --- Landing-page hero board ------------------------------------------------
 // The design puts live product proof above the fold. Rendered server-side for
 // three featured parks so the board is filled on first paint and works with
@@ -1554,6 +1588,10 @@ const server = http.createServer(async (req, res) => {
     try { board = heroBoardHtml(await heroBoardPanels()); } catch (err) { console.log(`hero board: ${err.message}`); }
     const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
       .replace('<!--HERO_BOARD-->', () => board)
+      .replace('<!--HERO_PHOTO-->', () => heroPhoto())
+      .replace('<!--VIP_PHOTO-->', () => vipPhoto())
+      .replace('<!--PHOTO_BAND-->', () => photoBand())
+      .replace('<!--CAPTURE_BG-->', () => captureStyle())
       .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
       .replace('<!--SHOTS-->', () => productShots());
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });

@@ -189,6 +189,19 @@
   .shots figcaption{font-size:15px;color:var(--muted);line-height:1.6}
   @media (max-width:620px){ .shots figure{flex-direction:column;gap:1.2rem} }
 
+
+  /* Photography ------------------------------------------------------------
+     Slots degrade to the typographic layout when a file is absent. */
+  .hero-photo{position:absolute;inset:0;background-size:cover;background-position:center 35%;
+    opacity:.42;mix-blend-mode:luminosity}
+  .hero::before{z-index:1}
+  .heroin{z-index:2}
+  /* A scrim keeps the headline legible over any photograph. */
+  .hero::after{content:"";position:absolute;inset:0;z-index:1;
+    background:linear-gradient(100deg,rgba(28,20,58,.86) 0%,rgba(28,20,58,.55) 45%,rgba(28,20,58,.25) 100%)}
+  .vip-photo{width:100%;height:auto;max-height:260px;object-fit:cover;border-radius:16px;margin-top:22px;display:block}
+  .band{margin:0}
+  .band img{width:100%;height:clamp(220px,32vw,380px);object-fit:cover;border-radius:26px;display:block;box-shadow:var(--shadow)}
   footer{max-width:1180px;margin:0 auto;padding:64px 32px 40px}
   .footin{border-top:1px solid var(--border);padding-top:28px;display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
   .footin .disc{flex:1;min-width:280px;color:var(--muted);font-size:13.5px;line-height:1.7}
@@ -220,6 +233,7 @@
 </div>
 
 <header class="hero" id="top">
+  <!--HERO_PHOTO-->
   <div class="heroin">
     <div class="herocopy">
       <div class="eyebrow">Launch preview &mdash; everything is free</div>
@@ -262,6 +276,7 @@
       <h2>Like a VIP tour guide &mdash; for $19.99, not $500 a day</h2>
       <p class="lead" style="text-align:left;margin:0 0 20px">Private park guides charge US$300&ndash;600 <em>per day</em>. Here&rsquo;s their playbook, run for you from live data.</p>
       <p class="note">One honest difference: we tell you what to book &mdash; the booking itself stays safely in the official park app.</p>
+      <!--VIP_PHOTO-->
     </div>
     <div>
       <ul class="spec">
@@ -277,6 +292,8 @@
   </div>
 </section>
 
+<!--PHOTO_BAND-->
+
 <section class="sec" id="pricing">
   <h2>Pay for the trip, not a subscription</h2>
   <p class="lead">Every pass includes all 56 parks, the plan builder, the AI advisor and wait-drop alerts, on every device in your family. One Lightning Lane costs $15&ndash;$45 <i>per person, per day</i>.</p>
@@ -285,7 +302,7 @@
 </section>
 
 <section class="sec">
-  <div class="capture">
+  <div class="capture"<!--CAPTURE_BG-->>
     <div>
       <h2>Planning a trip?</h2>
       <p>Get the 7-days-out checklist &mdash; exactly what to book the morning your Lightning Lane window opens.</p>
