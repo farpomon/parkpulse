@@ -213,6 +213,18 @@
   .band{margin:0}
   .band img{width:100%;height:clamp(220px,32vw,380px);object-fit:cover;border-radius:26px;display:block;box-shadow:var(--shadow)}
   footer{max-width:1180px;margin:0 auto;padding:64px 32px 40px}
+  /* Every park page linked from every page. This is the crawl path for the 56
+     park guides -- an index page alone leaves them one hop deeper than they
+     need to be, and it is what a visitor scans for their own park. */
+  .footparks{border-top:1px solid var(--border);padding-top:28px;margin-bottom:36px}
+  .footparks h2{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;text-align:left;font-family:inherit;font-weight:600}
+  .allparks{columns:4;column-gap:28px;font-size:13.5px}
+  .allparks a{display:block;color:var(--muted);text-decoration:none;padding:2px 0;break-inside:avoid}
+  .allparks a:hover{color:var(--brand)}
+  .allparks b{display:block;color:var(--ink);margin:12px 0 4px;break-after:avoid;font-size:13px}
+  .allparks b:first-child{margin-top:0}
+  @media (max-width:900px){ .allparks{columns:3} }
+  @media (max-width:620px){ .allparks{columns:2} }
   .footin{border-top:1px solid var(--border);padding-top:28px;display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
   .footin .disc{flex:1;min-width:280px;color:var(--muted);font-size:13.5px;line-height:1.7}
   .footlinks{display:flex;gap:22px;font-size:13.5px;flex-wrap:wrap}
@@ -337,6 +349,10 @@
 </section>
 
 <footer>
+  <nav class="footparks" aria-label="All parks we track">
+    <h2>Wait times by park</h2>
+    <!--FOOTER_PARKS-->
+  </nav>
   <div class="footin">
     <div class="disc">
       Unofficial fan tool. Not affiliated with or endorsed by The Walt Disney Company.<br>

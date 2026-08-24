@@ -1604,6 +1604,7 @@ const server = http.createServer(async (req, res) => {
       .replace('<!--PHOTO_BAND-->', () => photoBand())
       .replace('<!--CAPTURE_BG-->', () => captureStyle())
       .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
+      .replace('<!--FOOTER_PARKS-->', () => `<div class="allparks">${pages.allParksIndex(REGISTRY)}</div>`)
       .replace('<!--SHOTS-->', () => productShots());
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     return res.end(html);
