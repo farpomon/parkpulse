@@ -10,7 +10,7 @@
 (function () {
   const script = document.currentScript;
   const T = () => window.PP_T || ((k) => k); // resolved lazily so load order never matters
-  const state = { history: [], busy: false, opts: null };
+  const state = { history: [], busy: false, opts: null, locked: false };
   try { state.history = JSON.parse(sessionStorage.getItem('ppc-history') || '[]'); } catch {}
   const saveHistory = () => { try { sessionStorage.setItem('ppc-history', JSON.stringify(state.history.slice(-24))); } catch {} };
 
@@ -27,6 +27,10 @@
       box-shadow: 0 12px 40px rgba(0,0,0,.35); display: none; flex-direction: column; overflow: hidden;
       font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
     #ppc-panel.ppc-open { display: flex; }
+    /* With no composer and no chips, the fixed 600px panel is mostly empty
+       white, which reads as a broken chat rather than a deliberate gate. */
+    #ppc-panel.ppc-locked { height: auto; }
+    #ppc-panel.ppc-locked #ppc-scrollwrap { flex: 0 0 auto; }
     #ppc-head { display: flex; justify-content: space-between; align-items: center; padding: .8rem 1rem;
       background: linear-gradient(135deg, #2c2154, #4f3ac9); color: #fff; flex-shrink: 0; }
     #ppc-head b { font-size: .98rem; }
@@ -44,6 +48,10 @@
     .ppc-bubble.ppc-bot { align-self: flex-start; background: var(--ppc-bg); border: 1px solid var(--ppc-border); border-bottom-left-radius: 4px; }
     .ppc-bubble.ppc-typing { color: var(--ppc-muted); font-style: italic; }
     .ppc-bubble a { color: #7b5fe0; font-weight: 700; }
+    /* The bubble is pre-wrap for streamed text; paragraphs only appear in the
+       locked panel, and default <p> margins are far too tall inside one. */
+    .ppc-bubble p { margin: 0 0 .6rem; }
+    .ppc-bubble p:last-child { margin-bottom: 0; }
     .ppc-bubble button { display: block; margin-top: .5rem; border: none; border-radius: 9px; padding: .45rem .9rem;
       background: #4f3ac9; color: #fff; font-weight: 700; font-size: .85rem; cursor: pointer; }
     .ppc-fb { display: flex; gap: .35rem; align-self: flex-start; margin: -.25rem 0 0 .25rem; }
@@ -166,6 +174,25 @@
     return div;
   }
 
+  // Built as DOM rather than through renderMd: renderMd escapes HTML on purpose
+  // (it renders model output), so a markdown link there would either print as
+  // literal text or open an injection path for whatever the model returns.
+  function lockedBubble(parkName) {
+    const div = document.createElement('div');
+    div.className = 'ppc-bubble ppc-bot';
+    const p1 = document.createElement('p');
+    p1.textContent = `The park consultant reads today's live waits at ${parkName} and tells you whether the paid line-skipping pass is worth it, what to ride and in what order, and when to walk straight on instead of queueing.`;
+    const p2 = document.createElement('p');
+    p2.textContent = 'It comes with any pass. ';
+    const a = document.createElement('a');
+    a.href = '/#pricing';
+    a.textContent = "See what's included";
+    p2.appendChild(a);
+    div.append(p1, p2);
+    msgs.appendChild(div);
+    return div;
+  }
+
   function openPanel() {
     if (state.opts.requireAccess && !state.opts.requireAccess()) return;
     $id('ppc-panel').classList.add('ppc-open');
@@ -176,10 +203,21 @@
       }
       if (!state.history.length) {
         const name = state.opts.getParkName() || 'the parks';
-        bubble('bot', `Hi! I'm your park consultant — I can see today's waits at ${name}. Ask me whether Lightning Lane or Express Pass is worth it, or how to plan your day.`);
+        // Inviting a question we will refuse to answer is the worst version of
+        // a paywall: the visitor spends the effort and gets an error for it.
+        // When the advisor is locked, say so before they type anything.
+        if (state.locked) {
+          lockedBubble(name);
+        } else {
+          bubble('bot', `Hi! I'm your park consultant — I can see today's waits at ${name}. Ask me whether Lightning Lane or Express Pass is worth it, or how to plan your day.`);
+        }
       }
     }
-    if (state.history.length) $id('ppc-chips').style.display = 'none';
+    if (state.history.length || state.locked) $id('ppc-chips').style.display = 'none';
+    if (state.locked) {
+      $id('ppc-form').style.display = 'none';
+      $id('ppc-panel').classList.add('ppc-locked');
+    }
     scrollDown(true); // reopening always lands on the newest message
     $id('ppc-input').focus();
   }
@@ -339,9 +377,13 @@
     }
     if (state.opts.offsetBottom) $id('ppc-fab').style.bottom = `calc(${state.opts.offsetBottom} + env(safe-area-inset-bottom))`;
     let enabled = opts.enabled;
-    if (enabled === undefined) {
-      try { enabled = Boolean((await (await fetch('/api/config')).json()).consultant); } catch { enabled = false; }
-    }
+    // Sent with credentials: /api/config reports access for the caller, and an
+    // anonymous fetch would report a signed-in subscriber as locked out.
+    try {
+      const cfg = await (await fetch('/api/config', { headers: authHeaders() })).json();
+      if (enabled === undefined) enabled = Boolean(cfg.consultant);
+      state.locked = Boolean(cfg.consultant) && cfg.consultantAccess === false;
+    } catch { if (enabled === undefined) enabled = false; }
     if (enabled) $id('ppc-fab').classList.add('ppc-show');
     return { setEnabled: (on) => $id('ppc-fab').classList.toggle('ppc-show', Boolean(on)) };
   }
@@ -351,7 +393,7 @@
   function ask(text) {
     if (!root || !state.opts) return;
     openPanel();
-    if (text && !state.busy) send(text);
+    if (text && !state.busy && !state.locked) send(text);
   }
 
   window.ParkPulseChat = { init, ask };

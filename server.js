@@ -1509,6 +1509,11 @@ const server = http.createServer(async (req, res) => {
       checkout: CHECKOUT_ENABLED,
       plans: PLAN_CATALOG,
       consultant: consultant.enabled(),
+      // Whether THIS caller may actually use the advisor. `consultant` only
+      // says the feature is configured; with PRO_GATE on, an anonymous visitor
+      // still gets a 402. The widget needs both so it can show a paywall up
+      // front instead of inviting a question and rejecting the answer.
+      consultantAccess: consultant.enabled() && hasAccess(req),
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng, tz: p.tz }])),
