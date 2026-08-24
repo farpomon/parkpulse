@@ -778,7 +778,7 @@ async function planKpis(park, stops, profile) {
 
 function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) {
   const B = '#5b3df5';
-  const tile = (v, label, sub) => `<td style="padding:0 6px" width="25%" valign="top">
+  const tile = (v, label, sub, pct) => `<td style="padding:0 6px" width="${pct || 25}%" valign="top">
     <div style="background:#f4f1ff;border-radius:14px;padding:14px 8px;text-align:center">
       <div style="font-size:26px;font-weight:800;color:${B};line-height:1.1">${v}</div>
       <div style="font-size:11px;font-weight:700;color:#443b6b;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">${label}</div>
@@ -803,29 +803,56 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
     kpis.singleRider ? fact('🚶', `<b>${kpis.singleRider}</b> single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
     kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
       ? fact('👶', `<b>${kpis.toddlerFriendly}</b> of these work for your youngest`) : '',
-    kpis.steps ? fact('👟', `About <b>${kpis.steps.toLocaleString()}</b> steps`) : '',
+    kpis.mapped && kpis.steps ? fact('👟', `About <b>${kpis.steps.toLocaleString()}</b> steps`) : '',
     kpis.skip ? fact('💳', `Built to work without <b>${esc(kpis.skip.name)}</b> — that\'s ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
   ].filter(Boolean).join('');
+
+  // A park with no geometry in the geo cache yields meters = 0, which used to
+  // print "0 km walking / 0 calories" next to an eighteen-stop day across seven
+  // lands. A figure that is obviously wrong costs more trust than a missing one,
+  // so those tiles only appear when the route was actually measured, and the
+  // row backfills with counts that are always real.
+  const tileRow = [
+    (w) => tile(kpis.attractions, 'Attractions', 'on the plan', w),
+    kpis.mapped ? (w) => tile(kpis.km + ' km', 'Walking', kpis.miles + ' mi', w) : null,
+    kpis.mapped ? (w) => tile(kpis.kcal, 'Calories', 'per adult', w) : null,
+    savedMin > 0 ? (w) => tile(savedMin >= 60 ? Math.round(savedMin / 60) + ' hr' : savedMin + ' min', 'Line time saved', 'vs. winging it', w) : null,
+    !kpis.mapped && kpis.lands ? (w) => tile(kpis.lands, 'Lands', 'on the route', w) : null,
+    !kpis.mapped && kpis.thrills ? (w) => tile(kpis.thrills, 'Thrill rides', 'on the list', w) : null,
+  ].filter(Boolean).slice(0, 4);
+  const tiles = tileRow.map((fn) => fn(Math.round(100 / tileRow.length))).join('');
 
   const dodgedBanner = kpis.dodged
     ? `<div style="padding:4px 26px 0"><div style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
         ⏱️ <b>Biggest line dodged:</b> ${esc(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
       </div></div>`
     : '';
-  return `<div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:#251d3d">
+  // The inbox preview line. Without one, clients scrape the first visible text
+  // -- here the eyebrow -- and every plan email previews identically.
+  const preheader = `${kpis.attractions} stops mapped for ${esc(park.name)}${kpis.dodged ? `, dodging the ${kpis.dodged.standby}-minute line at ${esc(kpis.dodged.name)}` : ''}.`;
+  return `<!doctype html><html lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <!-- Tell clients the design is light-only; without it, Outlook.com and Apple
+       Mail auto-invert the card and the purple header turns muddy. -->
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>Your ${esc(park.name)} day plan</title>
+  </head><body style="margin:0;padding:0;background:#f7f5ff">
+  <div style="display:none;font-size:1px;color:#f7f5ff;max-height:0;overflow:hidden;mso-hide:all">${preheader}</div>
+  <div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:#251d3d">
    <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 6px 28px rgba(20,12,48,.09)">
-    <div style="background:linear-gradient(135deg,${B},#8b5cf6);padding:26px 26px 22px;color:#fff">
+    <!-- bgcolor as well as the gradient: Outlook renders through Word, which
+         ignores linear-gradient entirely. Without the attribute the header lost
+         its background and printed white text on white. -->
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr><td style="padding:26px 26px 22px;color:#fff">
       <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · your day plan</div>
       <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:6px">${esc(park.name)}</div>
       <div style="opacity:.85;font-size:14px">${day}</div>
-    </div>
+    </td></tr></table>
     <div style="padding:22px 20px 6px">
-      <table width="100%" cellpadding="0" cellspacing="0"><tr>
-        ${tile(kpis.attractions, 'Attractions', 'on the plan')}
-        ${tile(kpis.km + ' km', 'Walking', kpis.miles + ' mi')}
-        ${tile(kpis.kcal, 'Calories', 'per adult')}
-        ${tile(savedMin >= 60 ? Math.round(savedMin / 60) + ' hr' : savedMin + ' min', 'Line time saved', 'vs. winging it')}
-      </tr></table>
+      <table width="100%" cellpadding="0" cellspacing="0"><tr>${tiles}</tr></table>
     </div>
     ${dodgedBanner}
     ${briefing ? `<div style="padding:16px 26px 4px">
@@ -842,15 +869,15 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
       <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
     <div style="padding:20px 26px 26px">
       <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
-      <div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
-        Walking distance is measured along your planned route${kpis.mapped ? '' : ' (estimated)'} plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.
-      </div>
+      ${kpis.mapped ? `<div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
+        Walking distance is measured along your planned route plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.
+      </div>` : ''}
     </div>
    </div>
    <div style="max-width:600px;margin:12px auto 0;text-align:center;color:#a49cc0;font-size:11.5px">
      ParkPulse · unofficial fan tool, not affiliated with any park operator.
    </div>
-  </div>`;
+  </div></body></html>`;
 }
 
 // --- AI spend tracking -------------------------------------------------------
