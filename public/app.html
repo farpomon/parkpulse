@@ -165,6 +165,11 @@
   .wx-when b { font-size: .95rem; color: var(--ink); }
   .wx-when span { font-size: .78rem; color: var(--muted); }
   .wx-temps { margin-left: auto; font-weight: 800; font-size: 1.05rem; color: var(--ink); }
+  .wx-unit { display: inline-flex; align-items: center; gap: .3rem; border: 1px solid var(--border); background: var(--bg);
+    border-radius: 999px; padding: .18rem .5rem; cursor: pointer; font: inherit; }
+  .wx-unit b { font-size: .72rem; font-weight: 800; color: var(--muted); }
+  .wx-unit b.on { color: var(--brand); }
+  .wx-unit i { width: 1px; height: .7rem; background: var(--border); }
   .wx-temps span { font-weight: 600; color: var(--muted); font-size: .88rem; }
   .wx-sum { font-size: .82rem; color: var(--muted); margin-top: .3rem; }
   .wx-more { margin-top: .45rem; }
@@ -714,10 +719,17 @@
     return `<div class="delta even">≈ typical for this ride</div>`;
   }
 
-  // Park weather. Degrees follow the park's own convention (°F in the US)
-  // so the number matches every sign and app around the visitor.
+  // Park weather. Degrees follow the park's own convention (°F in the US) so
+  // the number matches every sign around the visitor -- until the visitor says
+  // otherwise. The °C/°F toggle on the card overrides the guess and sticks; a
+  // European at Disneyland should not be locked to Fahrenheit. Time format
+  // deliberately stays on the region, not the preference: changing your
+  // thermometer should not flip the clock to 24-hour.
   let lastWeather = null;
-  const usesFahrenheit = () => /United States|USA|US$/.test(parks[current]?.region || '') || /Florida|California|Orlando|Anaheim|Ohio|Texas|New Jersey/.test(parks[current]?.region || '');
+  let unitPref = localStorage.getItem('pp-units') || 'auto';   // 'auto' | 'metric' | 'imperial'
+  const regionUsesF = () => /United States|USA|US$/.test(parks[current]?.region || '') || /Florida|California|Orlando|Anaheim|Ohio|Texas|New Jersey/.test(parks[current]?.region || '');
+  const usesFahrenheit = () => (unitPref === 'imperial' ? true : unitPref === 'metric' ? false : regionUsesF());
+  const setUnitPref = (v) => { unitPref = v; try { localStorage.setItem('pp-units', v); } catch {} renderWeather(); };
   const degrees = (c) => usesFahrenheit() ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
   async function loadWeather() {
     const parkAtStart = current;
@@ -739,7 +751,7 @@
   const clockLabel = (hhmm) => {
     if (!/^\d{2}:\d{2}$/.test(hhmm || '')) return hhmm || '';
     const [h, m] = hhmm.split(':').map(Number);
-    return usesFahrenheit() ? `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : hhmm;
+    return regionUsesF() ? `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : hhmm;
   };
   const UV_WORDS = (uv) => (uv >= 11 ? 'extreme' : uv >= 8 ? 'very high' : uv >= 6 ? 'high' : uv >= 3 ? 'moderate' : 'low');
 
@@ -808,10 +820,12 @@
     const p = parks[current] || { open: 9, close: 22 };
     const hours = (day.hours || []).filter((h) => h.hour >= p.open && h.hour <= Math.min(23, p.close));
 
+    const isF = usesFahrenheit();
     const head = `<div class="wx-head">
       <span class="wx-ico">${day.icon}</span>
       <span class="wx-when"><b>${esc(when)}</b><span>${esc(tr(day.label))}</span></span>
       <span class="wx-temps">${degrees(day.high)}<span> / ${degrees(day.low)}</span></span>
+      <button class="wx-unit" id="wx-unit" aria-label="${tr('Switch temperature units')}" title="${tr('Switch temperature units')}"><b class="${isF ? '' : 'on'}">°C</b><i></i><b class="${isF ? 'on' : ''}">°F</b></button>
     </div>`;
 
     const summary = [
@@ -839,6 +853,8 @@
 
     el.innerHTML = `${head}<div class="wx-sum">${summary}</div>
       <details class="wx-more"${planDate ? ' open' : ''}><summary>${tr('Hour by hour')}</summary>${strip}${tips}</details>`;
+    const unitBtn = document.getElementById('wx-unit');
+    if (unitBtn) unitBtn.addEventListener('click', () => setUnitPref(usesFahrenheit() ? 'metric' : 'imperial'));
   }
 
 
