@@ -973,16 +973,30 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
     thrill: ['#fdeaea', '#b23a48'], water: ['#e7efff', '#1e40af'], show: ['#f4f1ff', B],
     map: ['#eafaf1', '#14532d'], money: ['#fff7e6', '#92580a'], neutral: ['#eee9ff', '#443b6b'],
   };
-  const facts = [
-    kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), `thrill ride${kpis.thrills === 1 ? '' : 's'} on the list`) : '',
-    kpis.water ? fact(badge(kpis.water, ...CAT.water), `chance${kpis.water === 1 ? '' : 's'} to get soaked — pack a poncho`) : '',
-    kpis.shows ? fact(badge(kpis.shows, ...CAT.show), `show${kpis.shows === 1 ? '' : 's'} to sit down and cool off in the AC`) : '',
-    kpis.lands ? fact(badge(kpis.lands, ...CAT.map), `land${kpis.lands === 1 ? '' : 's'} crossed${kpis.landNames.length ? ' · ' + esc(kpis.landNames.join(', ')) : ''}`) : '',
-    kpis.singleRider ? fact(badge(kpis.singleRider, ...CAT.neutral), `single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
-    kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
-      ? fact(badge(kpis.toddlerFriendly, ...CAT.neutral), `of these work for your youngest`) : '',
-    kpis.skip ? fact(badge('$', ...CAT.money), `Built to work without <b>${esc(kpis.skip.name)}</b> — that's ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
-  ].filter(Boolean).join('');
+  const namedStopsPeek = () => stops.filter((st) => st.name)
+    .reduce((a, b) => (Number.isFinite(b.wait) && (!a || b.wait > a.wait) ? b : a), null);
+
+  // Editorial signal cards -- a title that names the takeaway, then one
+  // sentence of what to do about it. Same real numbers as before.
+  const signalCard = (title, color, body) => `<td width="50%" valign="top" style="padding:5px">
+    <div style="background:${SOFT};border-radius:12px;padding:11px 13px;min-height:52px">
+      <div style="font-size:10.5px;font-weight:800;letter-spacing:.08em;color:${color}">${title}</div>
+      <div style="font-size:13px;color:#3f3762;margin-top:2px;line-height:1.45">${body}</div>
+    </div></td>`;
+  const longestQ = namedStopsPeek();
+  const signalList = [
+    longestQ && longestQ.wait >= 35 ? signalCard('ONE BIG QUEUE', CAT.thrill[1], `${E(longestQ.name)} reaches about <b>${longestQ.wait} min</b> — the one wait to plan around. Snack first, then commit.`) : '',
+    kpis.shows ? signalCard(`${kpis.shows === 1 ? 'A' : kpis.shows} COOL-DOWN STOP${kpis.shows === 1 ? '' : 'S'}`, B, `${kpis.shows} show${kpis.shows === 1 ? '' : 's'} give${kpis.shows === 1 ? 's' : ''} you built-in places to sit and reset in the AC.`) : '',
+    kpis.water ? signalCard(`PACK FOR ${kpis.water === 1 ? 'ONE SPLASH' : kpis.water + ' SPLASHES'}`, CAT.water[1], `${kpis.water === 1 ? 'One ride' : kpis.water + ' rides'} can send you out wetter than you arrived. A compact poncho keeps the afternoon comfortable.`) : '',
+    kpis.skip ? signalCard('NO PASS PRESSURE', CAT.money[1], `Built to work without ${esc(kpis.skip.name)} — <b>${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high}</b> kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}. Buy only if live waits change the math.`) : '',
+    kpis.lands ? signalCard(`${kpis.lands} LAND${kpis.lands === 1 ? '' : 'S'}, ONE DIRECTION`, CAT.map[1], `The route stays compact${kpis.landNames.length ? ` through ${esc(kpis.landNames.slice(0, 4).join(', '))}` : ''} instead of zig-zagging.`) : '',
+    kpis.singleRider ? signalCard('SPLIT-UP OPTION', '#443b6b', `${kpis.singleRider} ride${kpis.singleRider === 1 ? '' : 's'} run${kpis.singleRider === 1 ? 's' : ''} a single-rider line if the party is willing.`) : '',
+  ].filter(Boolean);
+  const signalRows = [];
+  for (let i = 0; i < signalList.length; i += 2) {
+    signalRows.push(`<tr>${signalList[i]}${signalList[i + 1] || '<td width="50%"></td>'}</tr>`);
+  }
+  const facts = signalRows.join('');
 
   // Playful, but every number is real: each of these is derived from the plan
   // itself. A fabricated "churros within reach" would be funnier and would
@@ -1017,7 +1031,8 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
   const dodgedBanner = kpis.dodged
     ? `<div style="padding:4px 26px 0"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
         <td style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
-        <b>Biggest line dodged:</b> ${E(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#0f7a45">TODAY'S ADVANTAGE</span><br>
+        ${E(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
       </td></tr></table></div>`
     : '';
   const preheader = `${kpis.attractions} stops mapped for ${esc(park.name)}${kpis.dodged ? `, dodging the ${kpis.dodged.standby}-minute line at ${E(kpis.dodged.name)}` : ''}.`;
@@ -1038,9 +1053,9 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
          ignores linear-gradient entirely. Without the attribute the header lost
          its background and printed white text on white. -->
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr><td style="padding:26px 26px 22px;color:#fff">
-      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · your day plan</div>
-      <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:6px">${esc(park.name)}</div>
-      <div style="opacity:.85;font-size:14px">${day}</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · live route · ${esc(park.name)}</div>
+      <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">A full park day, with fewer second&nbsp;guesses.</div>
+      <div style="opacity:.85;font-size:14px;margin-top:4px">${day} · sequenced around live waits, park geography, and the rides you care about.</div>
     </td></tr></table>
     <div style="padding:22px 20px 6px">
       <table width="100%" cellpadding="0" cellspacing="0"><tr>${tiles}</tr></table>
@@ -1048,22 +1063,35 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
     ${dodgedBanner}
     ${briefing ? `<div style="padding:16px 26px 4px">
       <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
-        <b>Your advisor's take</b><br>${E(briefing).replace(/\n/g, '<br>')}
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td width="40" valign="top"><img src="https://www.parkpulse.fun/img/mila/mila-thinking-160.webp" width="32" height="32" alt="" style="border-radius:99px;display:block"></td>
+          <td valign="top"><b>Mila's read on the day</b><br>${E(briefing).replace(/\n/g, '<br>')}</td>
+        </tr></table>
       </div></div>` : ''}
     <div style="padding:18px 26px 6px">
       <div style="font-weight:800;font-size:16px;margin-bottom:2px">Today's running order</div>
       <div style="color:${MUTED};font-size:13px">Follow the numbers — they match the pins on your map.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
     </div>
-    ${facts ? `<div style="padding:14px 26px 2px">
-      <div style="font-weight:800;font-size:16px;margin-bottom:6px">Your day at a glance</div>
+    ${facts ? `<div style="padding:14px 21px 2px">
+      <div style="font-weight:800;font-size:16px;margin-bottom:4px;padding:0 5px">Plan signals worth knowing</div>
       <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
     ${funFacts ? `<div style="padding:14px 26px 2px">
       <div style="font-weight:800;font-size:16px;margin-bottom:2px">The stats nobody asked for</div>
       <div style="color:${MUTED};font-size:12.5px;margin-bottom:6px">All real, all from this plan.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${funFacts}</table></div>` : ''}
-    <div style="padding:20px 26px 26px">
+    <div style="padding:18px 26px 8px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#2c2154,#443b6b);background-color:#2c2154" bgcolor="#2c2154">
+        <div style="padding:18px 20px;color:#fff">
+          <div style="font-size:10.5px;font-weight:800;letter-spacing:.1em;opacity:.8">KEEP THE DAY MOVING</div>
+          <div style="font-size:17px;font-weight:800;margin-top:4px;line-height:1.35">The plan is your starting point. Live waits make it smarter as you go.</div>
+          <div style="font-size:13px;opacity:.85;margin-top:4px">A delay, a hungry kid, or a wait swing doesn't undo the day — reopen your plan and take the next better move.</div>
+        </div>
+      </td></tr></table>
+    </div>
+    <div style="padding:4px 26px 26px">
       <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
+      <div style="color:#a49cc0;font-size:12px;margin-top:6px">Your route, ready to adapt.</div>
       ${kpis.mapped ? `<div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
         Walking distance is measured along your planned route plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.
       </div>` : ''}

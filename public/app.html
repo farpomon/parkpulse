@@ -220,6 +220,7 @@
   .ph-btn:active { transform: scale(.97); }
   .planai-done { font-size: .82rem; font-weight: 700; color: var(--green, #2e9e6b); }
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
+  .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
   .planai-h span { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 600; font-style: italic; }
   .planai-b { font-size: .98rem; line-height: 1.62; color: var(--ink); }
   .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
@@ -1328,7 +1329,7 @@
       box.style.display = '';
       $('planai-state').textContent = '';
       $('planai-body').innerHTML = mdLite(aiPlanText);
-      $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using the advisor's order")}</span>`;
+      $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using Mila's order")}</span>`;
       $('planbase-h').style.display = '';
       return;
     }
@@ -1770,7 +1771,7 @@
            instantly and has to carry the plan on its own when the advisor is
            unavailable, throttled or behind a pass. -->
       <div id="plan-ai" class="planai" style="display:none">
-        <div class="planai-h">✨ <b>${tr("Your advisor's plan")}</b><span id="planai-state"></span></div>
+        <div class="planai-h"><img class="mila-av" src="/img/mila/mila-thinking-160.webp" alt="" width="30" height="30"> <b>${tr("Mila's plan for you")}</b><span id="planai-state"></span></div>
         <div id="planai-body" class="planai-b"></div>
         <div id="planai-act"></div>
       </div>
