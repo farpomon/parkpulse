@@ -244,6 +244,59 @@
     /* Side by side, the email field gets narrow enough to clip its own
        placeholder. Stack so both the field and the button get full width. */
     .cform{flex-direction:column} .cform button{width:100%} }
+
+  /* --- AI plan demo ------------------------------------------------------- */
+  .aidemo{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center}
+  @media (max-width:860px){.aidemo{grid-template-columns:1fr}}
+  .ad-list{list-style:none;padding:0;margin:1rem 0 1.4rem;display:grid;gap:.65rem}
+  .ad-list li{display:flex;gap:.6rem;align-items:flex-start;color:var(--muted)}
+  .ad-list li span{flex:0 0 auto;font-size:1.05rem;line-height:1.5}
+  .ad-stage{position:relative;background:var(--card);border:1px solid var(--border);border-radius:18px;
+    box-shadow:var(--shadow-hover);padding:1rem 1rem 1.1rem;max-width:420px;margin:0 auto;width:100%}
+  .ad-head{display:flex;align-items:center;gap:.35rem;margin-bottom:.8rem;color:var(--muted);font-size:.8rem;font-weight:700}
+  .ad-head b{margin-left:auto;color:var(--brand)}
+  .ad-dot{width:8px;height:8px;border-radius:50%;background:var(--border)}
+  .ad-btn{position:relative;display:block;width:100%;background:linear-gradient(135deg,var(--brand),#7c5cff);color:#fff;
+    border:none;border-radius:12px;font:inherit;font-weight:800;font-size:1rem;padding:.7rem;cursor:pointer}
+  .ad-btn .ad-ring{position:absolute;inset:0;border-radius:12px;border:2px solid var(--brand);opacity:0;pointer-events:none}
+  .ad-stage.t-tap .ad-ring{animation:adring .7s ease-out}
+  @keyframes adring{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.18)}}
+  .ad-stage.t-tap .ad-btn{transform:scale(.97);transition:transform .15s}
+  .ad-spark{position:absolute;left:50%;top:74px;width:0;height:0;pointer-events:none}
+  .ad-spark i{position:absolute;font-style:normal;font-size:1rem;opacity:0}
+  .ad-stage.t-spark .ad-spark i{animation:adfly 1s ease-out forwards}
+  @keyframes adfly{0%{opacity:0;transform:translate(0,0) scale(.4)}25%{opacity:1}100%{opacity:0;transform:translate(var(--fx),var(--fy)) scale(1.15)}}
+  .ad-rows{position:relative;margin-top:.9rem;height:calc(5 * 54px)}
+  .ad-row{position:absolute;left:0;right:0;height:46px;display:flex;align-items:center;gap:.55rem;
+    background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0 .65rem;
+    transition:transform .8s cubic-bezier(.22,1,.36,1),border-color .4s;will-change:transform}
+  .ad-time{flex:0 0 4.2rem;text-align:center;font-size:.72rem;font-weight:800;color:var(--brand);
+    background:var(--brand-soft);border-radius:7px;padding:.2rem 0;opacity:0;transition:opacity .5s .3s}
+  .ad-name{font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ad-tag{margin-left:auto;font-size:.66rem;color:var(--muted);white-space:nowrap}
+  .ad-tag u{text-decoration:none}
+  /* On a phone the tag's words fight the ride name for width and the name
+     loses ("Pirates o…"). Keep the emoji, drop the words. */
+  @media (max-width:480px){ .ad-tag u{display:none} .ad-time{flex-basis:3.7rem;font-size:.66rem} }
+  .ad-wait{margin-left:auto;font-size:.72rem;font-weight:700;color:var(--muted)}
+  .ad-stage.t-plan .ad-time{opacity:1}
+  .ad-stage.t-plan .ad-wait{display:none}
+  .ad-stage:not(.t-plan) .ad-tag{display:none}
+  .ad-stage.t-plan .ad-row{border-color:var(--brand-soft)}
+  .ad-ai{display:none;margin-top:.8rem;background:var(--brand-soft);border-radius:10px;padding:.6rem .7rem;font-size:.8rem;line-height:1.45}
+  .ad-ai-h{display:block;font-weight:800;color:var(--brand);font-size:.72rem;margin-bottom:.15rem}
+  .ad-stage.t-ai .ad-ai{display:block}
+  #ad-ai-txt::after{content:"▍";color:var(--brand);animation:adblink 1s steps(1) infinite}
+  .ad-stage.t-done #ad-ai-txt::after{content:""}
+  @keyframes adblink{50%{opacity:0}}
+  .ad-save{display:none;margin-top:.55rem;text-align:center;font-size:.8rem;font-weight:800;color:var(--green);
+    background:var(--green-soft);border-radius:10px;padding:.45rem}
+  .ad-stage.t-done .ad-save{display:block;animation:adpop .45s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes adpop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+  @media (prefers-reduced-motion:reduce){
+    .ad-row,.ad-time{transition:none}
+    .ad-stage .ad-ring,.ad-stage .ad-spark i{animation:none!important}
+  }
 </style>
 </head>
 <body>
@@ -268,7 +321,7 @@
     <div class="herocopy">
       <div class="eyebrow">Launch preview &mdash; everything is free</div>
       <h1>Stop standing in line at the parks</h1>
-      <p class="sub">Live waits, a smart day plan, and an AI advisor that tells you when a skip pass is worth it &mdash; and when to keep your money.</p>
+      <p class="sub">Live waits, an AI advisor that plans your whole day &mdash; and tells you when a skip pass is worth it, and when to keep your money.</p>
       <div class="cta">
         <a class="btn primary" href="/app">See live waits free</a>
         <a class="btn ghost" href="#pricing">Get a Trip Pass</a>
@@ -283,12 +336,36 @@
   </div>
 </header>
 
+<section class="sec" id="ai">
+  <div class="aidemo">
+    <div class="ad-copy">
+      <h2>Watch the AI plan your day</h2>
+      <p class="lead">Tap once. The advisor fills your whole day, orders it against the crowds, and explains itself.</p>
+      <ul class="ad-list">
+        <li><span>✨</span>One tap fills the day &mdash; and the AI advisor reviews the order before you walk a step.</li>
+        <li><span>🌦️</span>Weather-aware: air-conditioned rides at the heat peak, sheltered ones when the rain window opens.</li>
+        <li><span>🎟️</span>Knows hard-ticket nights &mdash; it won't plan an evening the park closes early for.</li>
+        <li><span>💬</span>Ask it anything: &ldquo;Is Lightning Lane worth it today for a family of four?&rdquo;</li>
+      </ul>
+      <a class="btn primary" href="/app">Try it free at Disneyland</a>
+    </div>
+    <div class="ad-stage" id="ad-stage" aria-label="Demo: the AI ordering a park day">
+      <div class="ad-head"><span class="ad-dot"></span><span class="ad-dot"></span><span class="ad-dot"></span><b>ParkPulse</b></div>
+      <button class="ad-btn" id="ad-btn" type="button">🗓️ Plan my day<span class="ad-ring"></span></button>
+      <div class="ad-spark" id="ad-spark" aria-hidden="true"></div>
+      <div class="ad-rows" id="ad-rows"></div>
+      <div class="ad-ai" id="ad-ai"><span class="ad-ai-h">✨ Your advisor</span><span id="ad-ai-txt"></span></div>
+      <div class="ad-save" id="ad-save">🎉 ≈ 55 min of line time back</div>
+    </div>
+  </div>
+</section>
+
 <section class="sec" id="how">
   <h2>How it works</h2>
   <p class="lead">Four things a good park day needs. ParkPulse does all four from one live data feed.</p>
   <div class="feat">
     <div class="fcard"><div class="fnum">01</div><h3>Live waits</h3><p>Real-time standby waits for every ride at 56 parks worldwide &mdash; Magic Kingdom to Cedar Point to Tokyo DisneySea &mdash; refreshed every minute.</p></div>
-    <div class="fcard"><div class="fnum">02</div><h3>Smart plan</h3><p>Pick your must-dos and your hours. ParkPulse sequences them against hourly crowd curves: headliners at rope drop and close, shows at peak.</p></div>
+    <div class="fcard"><div class="fnum">02</div><h3>AI day plan</h3><p>One tap fills your whole day. The plan is sequenced against hourly crowd curves, then your AI advisor reviews the order &mdash; weather, events and all &mdash; before you walk a step.</p></div>
     <div class="fcard"><div class="fnum">03</div><h3>Spend less on passes</h3><p>Know which rides you can walk onto before paying $15&ndash;$45 a head for Lightning Lane, or $80+ for Express Pass.</p></div>
     <div class="fcard"><div class="fnum">04</div><h3>AI park advisor</h3><p>Ask &ldquo;is Lightning Lane worth it today for a family of 4?&rdquo; and get an answer computed from live waits &mdash; including &ldquo;keep your money&rdquo;.</p></div>
   </div>
@@ -388,6 +465,7 @@
     </div>
   </div>
 </footer>
+
 
 <script>
   // ---- Hero board tabs: panels are server-rendered, this only toggles them.
@@ -508,6 +586,71 @@
       markSelected(btn.dataset.plan, label);
     }
   }
+</script>
+<script>
+// --- AI plan demo: a looped, replayable dramatisation of "Plan my day". ----
+// Pure CSS transitions driven by a small timeline; the whole thing is theatre,
+// so the numbers are illustrative, not live. Reduced-motion visitors get the
+// finished plan with no show.
+(() => {
+  const stage = document.getElementById('ad-stage');
+  if (!stage) return;
+  const RIDES = [
+    { n: "Peter Pan's Flight", w: '35 min', t: '9:15 AM', tag: '' },
+    { n: 'Space Mountain', w: '40 min', t: '10:00 AM', tag: '🧊<u> indoor</u>' },
+    { n: 'Dumbo the Flying Elephant', w: '10 min', t: '4:30 PM', tag: '' },
+    { n: 'Rise of the Resistance', w: '45 min', t: '8:30 AM', tag: '⚡<u> climbs fastest</u>' },
+    { n: 'Pirates of the Caribbean', w: '15 min', t: '2:00 PM', tag: '🧊<u> AC at the heat peak</u>' },
+  ];
+  const PLANNED = [3, 0, 1, 4, 2];
+  const ROW_H = 54;
+  const AI_TEXT = "Rise first — it climbs fastest. Indoors 1–4 PM: it's a hot one. Fireworks spot at 8:40.";
+  const rowsEl = document.getElementById('ad-rows');
+  rowsEl.innerHTML = RIDES.map((r, i) => `<div class="ad-row" data-i="${i}">
+    <span class="ad-time">${r.t}</span><span class="ad-name">${r.n}</span>
+    <span class="ad-tag">${r.tag}</span><span class="ad-wait">${r.w}</span></div>`).join('');
+  const rows = [...rowsEl.children];
+  const sparkEl = document.getElementById('ad-spark');
+  sparkEl.innerHTML = Array.from({ length: 8 }, (_, i) => {
+    const a = (i / 8) * Math.PI * 2;
+    return `<i style="--fx:${Math.round(Math.cos(a) * 70)}px;--fy:${Math.round(Math.sin(a) * 46)}px;animation-delay:${(i % 4) * 60}ms">✨</i>`;
+  }).join('');
+  const aiTxt = document.getElementById('ad-ai-txt');
+  const place = (order) => order.forEach((ri, pos) => { rows[ri].style.transform = `translateY(${pos * ROW_H}px)`; });
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const typeOut = () => {
+    stage.classList.add('t-ai');
+    let i = 0;
+    const type = () => { if (i <= AI_TEXT.length) { aiTxt.textContent = AI_TEXT.slice(0, i); i += 2; timers.push(setTimeout(type, 28)); } };
+    type();
+  };
+  function play(lead) {
+    timers.forEach(clearTimeout); timers = [];
+    stage.className = 'ad-stage';
+    aiTxt.textContent = '';
+    place([0, 1, 2, 3, 4]);
+    if (reduced) {
+      stage.classList.add('t-plan', 't-ai', 't-done');
+      place(PLANNED);
+      aiTxt.textContent = AI_TEXT;
+      return;
+    }
+    at(lead, () => stage.classList.add('t-tap'));
+    at(lead + 250, () => stage.classList.add('t-spark'));
+    at(lead + 900, () => { stage.classList.add('t-plan'); place(PLANNED); });
+    at(lead + 1900, typeOut);
+    at(lead + 1900 + AI_TEXT.length * 15 + 500, () => stage.classList.add('t-done'));
+    at(lead + 10500, () => play(1400));   // hold the finished plan, then loop
+  }
+  document.getElementById('ad-btn').addEventListener('click', () => play(150));
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); play(1400); } }, { threshold: 0.35 });
+    io.observe(stage);
+  } else play(1400);
+})();
 </script>
 <script src="/chat-widget.js" defer></script>
 </body>
