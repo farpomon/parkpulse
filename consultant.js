@@ -167,9 +167,33 @@ const longDate = (iso) => {
   });
 };
 
+// Compress a day's hourly forecast into the two or three facts that change a
+// plan: when the heat peaks, when the rain window sits, when UV is brutal.
+// A 24-row hourly dump would cost tokens to say less.
+function hourlyWeatherLine(day, park) {
+  const hours = (day.hours || []).filter((h) => h.hour >= (park.open ?? 9) && h.hour <= (park.close ?? 22));
+  if (!hours.length) return '';
+  const bits = [];
+  const hottest = hours.reduce((a, b) => (b.feels > a.feels ? b : a));
+  if (hottest.feels >= 27) bits.push(`heat peaks around ${hottest.hour}:00 (feels like ${hottest.feels}°C)`);
+  const wet = hours.filter((h) => h.rain >= 40);
+  if (wet.length) bits.push(`rain most likely ${wet[0].hour}:00-${wet[wet.length - 1].hour + 1}:00 (up to ${Math.max(...wet.map((h) => h.rain))}%)`);
+  const uv = hours.reduce((a, b) => (b.uv > a.uv ? b : a));
+  if (uv.uv >= 8) bits.push(`UV very high (~${uv.uv}) around ${uv.hour}:00`);
+  if (hottest.feels <= 12) bits.push(`cold day — feels like ${hottest.feels}°C at its warmest`);
+  if (!bits.length) return '';
+  return `Hour by hour that day: ${bits.join('; ')}. Route the plan around this: rides marked [indoor/AC] during the heat peak and rain window, [covered] as second choice, outdoor coasters and water rides outside them; say why in your answer.\n`;
+}
+
 function waitsBlock(park, waits) {
+  // Shelter tags ride along so weather routing is grounded in data, not the
+  // model's memory of which rides are air-conditioned -- memory that thins
+  // out fast beyond the Disney and Universal headliners.
+  const shelter = waits.tags
+    ? (n) => ({ indoor: ' [indoor/AC]', covered: ' [covered]' }[waits.tags[n]?.in] || '')
+    : () => '';
   const rides = waits.rides
-    .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
+    .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}${shelter(r.name)}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
     .join('\n');
 
   // The user can plan a day other than today. When they have, everything below
@@ -180,7 +204,7 @@ function waitsBlock(park, waits) {
   const target = pd ? `
 === THE USER IS PLANNING ${longDate(pd.date).toUpperCase()} — NOT TODAY ===
 Answer every question about ${longDate(pd.date)}. Expected crowds that day: ${pd.label} (${pd.score}/10 on our scale)${pd.holiday ? ` — ${pd.holiday}` : ''}.
-${pd.arrive != null || pd.leave != null ? `They plan to arrive ${pd.arrive != null ? `${pd.arrive}:00` : 'when it opens'} and leave ${pd.leave != null ? `${pd.leave}:00` : 'at close'}.\n` : ''}${pd.weather ? `Forecast for that day: ${pd.weather.label}, high ${pd.weather.high}°C, low ${pd.weather.low}°C, ${pd.weather.rainChance}% chance of rain.\n` : 'No weather forecast reaches that far out yet — do not guess at it.\n'}The standby waits listed below are TODAY'S live numbers. Use them only to judge which rides draw the longest lines relative to each other. Do NOT quote them as the wait on ${longDate(pd.date)}, and do not talk about "right now", "this afternoon" or "today" when answering.
+${pd.arrive != null || pd.leave != null ? `They plan to arrive ${pd.arrive != null ? `${pd.arrive}:00` : 'when it opens'} and leave ${pd.leave != null ? `${pd.leave}:00` : 'at close'}.\n` : ''}${pd.weather ? `Forecast for that day: ${pd.weather.label}, high ${pd.weather.high}°C, low ${pd.weather.low}°C, ${pd.weather.rainChance}% chance of rain.\n${hourlyWeatherLine(pd.weather, park)}` : 'No weather forecast reaches that far out yet — do not guess at it.\n'}The standby waits listed below are TODAY'S live numbers. Use them only to judge which rides draw the longest lines relative to each other. Do NOT quote them as the wait on ${longDate(pd.date)}, and do not talk about "right now", "this afternoon" or "today" when answering.
 ===
 ` : '';
 
@@ -189,7 +213,7 @@ Local time now: ${localTime(park.tz)}${pd ? ' (today — the user is NOT visitin
 Typical hours: ${park.open}:00-${park.close}:00 local.
 ${park.show ? `${pd ? "Evening show" : "Tonight's show"}: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
 Data: ${waits.source === 'live' ? 'live, updated within minutes' : 'TYPICAL-DAY ESTIMATES (live feed unavailable) — caveat advice accordingly'}
-${waits.weather && !pd ? `Weather at the park: ${waits.weather.now.label}, ${waits.weather.now.temp}°C (feels ${waits.weather.now.feels}°C); today's high ${waits.weather.today.high}°C, low ${waits.weather.today.low}°C, ${waits.weather.today.rainChance}% chance of rain${waits.weather.wettestHour ? `, wettest around ${waits.weather.wettestHour.hour}:00 (${waits.weather.wettestHour.chance}%)` : ''}${waits.weather.today.sunset ? `, sunset ${waits.weather.today.sunset}` : ''}. Work this into pacing: indoor rides, shows and sit-down meals during heat peaks and rain, outdoor coasters when it is dry, and warn about ponchos or heat when it matters.` : ''}
+${waits.weather && !pd ? `Weather at the park: ${waits.weather.now.label}, ${waits.weather.now.temp}°C (feels ${waits.weather.now.feels}°C); today's high ${waits.weather.today.high}°C, low ${waits.weather.today.low}°C, ${waits.weather.today.rainChance}% chance of rain${waits.weather.wettestHour ? `, wettest around ${waits.weather.wettestHour.hour}:00 (${waits.weather.wettestHour.chance}%)` : ''}${waits.weather.today.sunset ? `, sunset ${waits.weather.today.sunset}` : ''}. Work this into pacing: rides marked [indoor/AC] below during heat peaks and rain ([covered] as second choice), outdoor coasters when it is dry, and warn about ponchos or heat when it matters.` : ''}
 ${(waits.events || []).length ? `Special events on the day being planned:
 ${waits.events.map((e) => `- ${e.name}${e.kind === 'hard-ticket' ? ' [SEPARATE TICKET]' : ''} — ${e.certainty === 'confirmed'
   ? `CONFIRMED for this date. ${e.closesEarlyAt ? `The park closes to day tickets at ${e.closesEarlyAt}:00; anything you schedule after that is wrong unless they hold the event ticket. Say so plainly and plan the day to end by then.` : 'Hours differ from a normal day.'}`
@@ -248,7 +272,10 @@ async function runTool(block, ctx) {
     if (block.name === 'get_waits') {
       const park = deps.parks[input.park];
       if (!park) return { text: `Unknown park slug "${input.park}". Valid slugs are in your park directory.`, isError: true };
-      return { text: waitsBlock(park, await deps.getWaits(park.slug)) };
+      const w = await deps.getWaits(park.slug);
+      // Same shelter tags the main context carries, from cache only.
+      if (deps.tagsFor) { try { w.tags = deps.tagsFor(park.slug) || undefined; } catch {} }
+      return { text: waitsBlock(park, w) };
     }
     if (block.name === 'set_alert') {
       const park = resolvePark(input.park, ctx);
@@ -602,7 +629,7 @@ async function rideTags(parkName, rideNames) {
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. If you do not know a specific attraction, infer conservatively from its name.',
+    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string, "in": "indoor"|"outdoor"|"covered"}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. in = where the ride itself happens: indoor = fully enclosed and climate-controlled (dark rides, indoor coasters, theaters); outdoor = exposed to sun and rain; covered = under a roof or canopy but not climate-controlled, or an outdoor ride whose queue is mostly sheltered. This drives hot-hour and rain routing, so classify by the RIDE experience, not the queue alone. If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });
   noteUsage('ride-tags', msg);
@@ -619,6 +646,7 @@ async function rideTags(parkName, rideNames) {
       minAge: [0, 3, 7, 12].includes(r.minAge) ? r.minAge : 3,
       sr: Boolean(r.sr),
       land: typeof r.land === 'string' ? r.land.trim().slice(0, 60) : '',
+      in: ['indoor', 'outdoor', 'covered'].includes(r.in) ? r.in : 'outdoor',
     };
   }
   return out;

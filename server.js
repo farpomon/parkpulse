@@ -232,6 +232,7 @@ async function waAgentReply(link, text) {
   }
   waits.today = today;
   waits.events = eventsFor(slug, wd ? wd.date : today);
+  try { waits.tags = JSON.parse(db.ridetags.get(slug) || 'null') || undefined; } catch {}
   const history = db.wa.history(link.phone);
   const messages = [...history, { role: 'user', content: String(text).trim().slice(0, 2000) }];
   while (messages.length && messages[0].role !== 'user') messages.shift();
@@ -1713,6 +1714,7 @@ consultant.init({
   registry: REGISTRY,
   parks: PARKS,
   getWaits,
+  tagsFor: (slug) => { try { return JSON.parse(db.ridetags.get(slug) || 'null'); } catch { return null; } },
   createAlert: (subscription, park, ride, threshold) => db.alerts.add(subscription, park, ride, threshold),
   saveMemory: (email, notes) => db.advisor.setMemory(email, notes),
 });
@@ -2147,8 +2149,9 @@ const server = http.createServer(async (req, res) => {
     const cached = db.ridetags.get(slug);
     if (cached) {
       const parsed = JSON.parse(cached);
-      // Tags cached before the single-rider or land fields existed regenerate once.
-      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t && 'land' in t);
+      // Tags cached before the single-rider, land or shelter fields existed
+      // regenerate once.
+      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t && 'land' in t && 'in' in t);
       if (fresh) return sendJson(res, 200, { tags: parsed });
     }
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
@@ -2746,6 +2749,11 @@ const server = http.createServer(async (req, res) => {
           }
           waits.today = today;
           waits.events = eventsFor(park, planDay ? planDay.date : today);
+          // Shelter tags (indoor/covered/outdoor) from the cached classification
+          // so weather routing names real air-conditioned rides. Cache only --
+          // a consult must never wait on a classification call; without tags the
+          // advisor falls back to its own knowledge, as before.
+          try { waits.tags = JSON.parse(db.ridetags.get(park) || 'null') || undefined; } catch {}
           const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
