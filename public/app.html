@@ -1401,7 +1401,10 @@
       });
       if (res.status === 402) return fail(tr('An advisor read of your plan comes with any pass.'), true);
       if (res.status === 429) return fail(tr('The advisor is resting — your plan below still stands.'));
-      if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) return fail('');
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
+        console.warn('advisor unavailable:', res.status);
+        return fail(tr("Your advisor couldn't be reached — the plan below still stands."));
+      }
 
       state.textContent = '';
       body.innerHTML = '<p></p>';
@@ -1424,9 +1427,14 @@
           let payload; try { payload = JSON.parse(data); } catch { continue; }
           if (ev === 'delta' && payload.text) { aiPlanText += payload.text; body.innerHTML = mdLite(aiPlanText); }
           else if (ev === 'action') actions.push(payload);
+          // The server reports its own failures as an SSE error event. This
+          // used to be dropped on the floor, the panel hid itself, and an
+          // upstream outage was indistinguishable from the advisor never
+          // being asked. Show the server's words instead.
+          else if (ev === 'error' && payload.error) return fail(payload.error);
         }
       }
-      if (!aiPlanText.trim()) return fail('');
+      if (!aiPlanText.trim()) return fail(tr("Your advisor couldn't be reached — the plan below still stands."));
       $('planbase-h').style.display = '';
       const proposal = actions.find((a) => a.type === 'plan' && Array.isArray(a.rides) && a.rides.length);
       if (proposal) {
@@ -1438,7 +1446,8 @@
       }
     } catch (err) {
       if (err && err.name === 'AbortError') return;
-      fail('');
+      console.warn('advisor stream failed:', err && err.message);
+      fail(tr("Your advisor couldn't be reached — the plan below still stands."));
     }
   }
 
@@ -2934,6 +2943,7 @@
     adoptAdvice = true;
     buildPlan();
     advisorOrder = null;
+    adoptAdvice = false;   // consumed by the refine inside buildPlan, or void
     return true;
   }
 
