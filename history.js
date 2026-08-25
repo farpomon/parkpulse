@@ -163,13 +163,16 @@ function histPercentile(counts, total, p) {
   if (!total) return null;
   const target = (total - 1) * p;
   let seen = 0;
-  for (let v = 0; v <= BAND_CAP; v++) {
+  // Scan the histogram it was given, not BAND_CAP: the accuracy scoreboard's
+  // signed-error histogram is wider than the wait-band ones, and a fixed
+  // bound silently ignored its upper tail.
+  for (let v = 0; v < counts.length; v++) {
     const c = counts[v];
     if (!c) continue;
     if (seen + c > target) return v;
     seen += c;
   }
-  return BAND_CAP;
+  return counts.length - 1;
 }
 
 function eachLine(fn) {
