@@ -1380,8 +1380,8 @@
       if (proposal) {
         $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-apply">${tr('Use the advisor\'s order')}</button>`;
         document.getElementById('planai-apply').addEventListener('click', async () => {
-          await applyPlan(proposal);
-          toast(tr('Plan updated'));
+          const ok = await applyPlan(proposal);
+          toast(ok ? tr('Plan updated') : tr("Couldn't match those rides to this park"));
         });
       }
     } catch (err) {
@@ -2815,6 +2815,29 @@
     } catch { return null; }
   }
 
+  // Mirror of the server-side resolver in consultant.js: exact, then
+  // punctuation-insensitive, then an unambiguous substring either way. A name
+  // that could mean two rides is dropped rather than guessed at.
+  function resolveRideNames(names) {
+    const key = (v) => String(v).toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
+    const feed = rides.map((r) => ({ name: r.name, key: key(r.name) }));
+    const byName = new Map(feed.map((f) => [f.name, f.name]));
+    const byKey = new Map(feed.map((f) => [f.key, f.name]));
+    const out = [];
+    const taken = new Set();
+    for (const raw of (Array.isArray(names) ? names : [])) {
+      if (typeof raw !== 'string') continue;
+      const k = key(raw);
+      let hit = byName.get(raw) || byKey.get(k) || null;
+      if (!hit && k) {
+        const cands = feed.filter((f) => f.key.includes(k) || k.includes(f.key));
+        if (cands.length === 1) hit = cands[0].name;
+      }
+      if (hit && !taken.has(hit)) { taken.add(hit); out.push(hit); }
+    }
+    return out;
+  }
+
   async function applyPlan(action) {
     // The park on the action reaches here from a model tool call. The server
     // overwrites it with the real slug, but this is the only place a plan
@@ -2826,9 +2849,15 @@
       dest = parks[current]?.group || dest;
       await load();
     }
+    // The advisor writes ride names the way people say them; the wait feed
+    // spells them out. Exact matching dropped most of a proposed plan, and
+    // buildPlan then re-filled the day from its own scoring -- so Apply looked
+    // like it did nothing. The server resolves names now; this mirrors it so a
+    // stale client, or any other source of a plan, behaves the same.
+    const resolved = resolveRideNames(action.rides);
+    if (!resolved.length) return false;
     pickedNames.clear();
-    const known = new Set(rides.map((r) => r.name));
-    for (const name of action.rides) if (known.has(name)) pickedNames.add(name);
+    for (const name of resolved) pickedNames.add(name);
     scheduleSync();
     renderRides();
     updatePlanbar();
@@ -2836,9 +2865,10 @@
     // than re-optimising it away. Without the re-plan, planStops still holds
     // the order from before the advisor changed it and "Email me this plan"
     // sends a plan the user can no longer see.
-    advisorOrder = action.rides.filter((n) => known.has(n));
+    advisorOrder = resolved.slice();
     buildPlan();
     advisorOrder = null;
+    return true;
   }
 
 
@@ -3051,7 +3081,13 @@
           subscription: await pushSubscriptionOrNull(),
           profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
         }),
-        onPlan: async (action) => { await applyPlan(action); document.getElementById('ppc-panel')?.classList.remove('ppc-open'); },
+        // Closing the chat is how the user sees the new plan -- so only close
+        // it when there is a new plan. A failed match leaves the chat open with
+        // the reason on screen instead of quietly swallowing the tap.
+        onPlan: async (action) => {
+          if (await applyPlan(action)) document.getElementById('ppc-panel')?.classList.remove('ppc-open');
+          else toast(tr("Couldn't match those rides to this park"));
+        },
         onAlert: (action) => { myAlerts[action.ride] = action.threshold; saveAlerts(); renderRides(); },
         requireAccess: () => { if (isPro) return true; showUpsell(); return false; },
         offsetBottom: '5.2rem',

@@ -211,6 +211,37 @@ function resolvePark(ref, ctx) {
   return ctx.park || null;
 }
 
+// Models write ride names the way people say them -- "Rise of the Resistance",
+// "Tiki Room", "Casey Jr." -- while the wait feed spells them out in full. Both
+// tools that take a ride name matched the feed's spelling exactly, so most of a
+// proposed plan was silently discarded and the app rebuilt the day itself. The
+// user sees an Apply button that appears to do nothing. Resolve generously here,
+// where the authoritative list lives, and hand the model back the real names.
+const rideKey = (s) => String(s).toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
+
+function resolveRideNames(names, rideList) {
+  const feed = rideList.map((r) => ({ name: r.name, key: rideKey(r.name) }));
+  const byExact = new Map(feed.map((f) => [f.name, f.name]));
+  const byKey = new Map(feed.map((f) => [f.key, f.name]));
+  const matched = [];
+  const unmatched = [];
+  const taken = new Set();
+  for (const raw of names) {
+    const k = rideKey(raw);
+    let hit = byExact.get(raw) || byKey.get(k) || null;
+    if (!hit && k) {
+      // Substring either way, but only when exactly one ride can be meant --
+      // "Mountain" matches three at Disneyland, and guessing is worse than
+      // dropping it.
+      const cands = feed.filter((f) => f.key.includes(k) || k.includes(f.key));
+      if (cands.length === 1) hit = cands[0].name;
+    }
+    if (!hit) unmatched.push(raw);
+    else if (!taken.has(hit)) { taken.add(hit); matched.push(hit); }
+  }
+  return { matched, unmatched };
+}
+
 async function runTool(block, ctx) {
   const input = block.input || {};
   try {
@@ -229,19 +260,37 @@ async function runTool(block, ctx) {
       if (!ctx.subscription) {
         return { text: 'The user has not enabled push notifications on this device, so no alert can be created. Tell them to tap the bell icon next to the ride to enable notifications first.', isError: true };
       }
-      deps.createAlert(ctx.subscription, park.slug, ride, threshold);
-      ctx.send('action', { type: 'alert', park: park.slug, ride, threshold });
-      return { text: `Alert created: the user will get a push notification when ${ride} drops to ${threshold} minutes or less.` };
+      // An alert stored against a name the feed never emits never fires.
+      const { matched: hit } = resolveRideNames([ride], (await deps.getWaits(park.slug)).rides || []);
+      if (!hit.length) {
+        return { text: `No ride called "${ride}" in ${park.name}'s wait data, so no alert was created. Use the exact name from the live data.`, isError: true };
+      }
+      const target = hit[0];
+      deps.createAlert(ctx.subscription, park.slug, target, threshold);
+      ctx.send('action', { type: 'alert', park: park.slug, ride: target, threshold });
+      return { text: `Alert created: the user will get a push notification when ${target} drops to ${threshold} minutes or less.` };
     }
     if (block.name === 'propose_plan') {
       const park = resolvePark(input.park, ctx);
-      const rides = Array.isArray(input.rides) ? input.rides.filter((r) => typeof r === 'string').slice(0, 20) : [];
-      if (!park || !rides.length) return { text: 'Invalid plan (need a valid park slug and at least one ride name).', isError: true };
+      const asked = Array.isArray(input.rides) ? input.rides.filter((r) => typeof r === 'string').slice(0, 20) : [];
+      if (!park || !asked.length) return { text: 'Invalid plan (need a valid park slug and at least one ride name).', isError: true };
+      const feed = await deps.getWaits(park.slug);
+      const { matched: rides, unmatched } = resolveRideNames(asked, feed.rides || []);
+      // Emitting a plan that resolved to nothing gives the user an Apply button
+      // that rebuilds the same day it already had -- worse than no button.
+      if (!rides.length) {
+        return {
+          text: `None of those ride names matched ${park.name}'s wait data, so no plan was sent. Use the exact names from the live data above and call propose_plan again. Names you sent: ${asked.join(', ')}.`,
+          isError: true,
+        };
+      }
       ctx.send('action', { type: 'plan', park: park.slug, rides });
       if (ctx.channel === 'whatsapp') {
         return { text: 'Noted — but this conversation is over WhatsApp, where there is NO Apply button. Do not mention any button; instead write the plan as a clear numbered ride order they can follow, and mention they can also build it in the ParkPulse app.' };
       }
-      return { text: 'Plan delivered to the chat — the user now sees an OPTIONAL Apply button. Briefly summarize the plan and invite them to tap Apply if they want it loaded into their plan builder; do not say it was applied.' };
+      return { text: `Plan delivered to the chat — the user now sees an OPTIONAL Apply button. Briefly summarize the plan and invite them to tap Apply if they want it loaded into their plan builder; do not say it was applied.${
+        unmatched.length ? ` NOTE: these names matched nothing in the wait data and were left out of the plan: ${unmatched.join(', ')}. If any of them matter, call propose_plan again with their exact names from the live data; otherwise do not mention them.` : ''
+      }` };
     }
     if (block.name === 'remember') {
       const notes = typeof input.notes === 'string' ? input.notes.trim().slice(0, 1200) : '';
