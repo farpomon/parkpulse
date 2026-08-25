@@ -799,7 +799,7 @@ function planMailBlocked(email) {
 }
 
 async function planKpis(park, stops, profile) {
-  const rideNames = stops.map((st) => st.name);
+  const rideNames = stops.filter((st) => st.name).map((st) => st.name);
   const geo = db.geo.get(park.slug);
   const coords = new Map((geo?.rides || []).map((r) => [r.name, r]));
   let meters = 0;
@@ -848,6 +848,7 @@ async function planKpis(park, stops, profile) {
   // Lands and the biggest line the timing dodges, both from the live feed:
   // standby right now vs. what the plan predicts at the chosen hour.
   let lands = new Set();
+  const landOf = {};
   let dodged = null;
   let live = new Map();
   try {
@@ -856,10 +857,11 @@ async function planKpis(park, stops, profile) {
   } catch {}
   try {
     for (const st of stops) {
+      if (!st.name) continue;
       const r = live.get(st.name);
       // Feed lands are authoritative; the classifier covers feeds that omit them.
       const land = (r && r.land) || (tags[st.name] && tags[st.name].land) || '';
-      if (land) lands.add(land);
+      if (land) { lands.add(land); landOf[st.name] = land; }
       if (r && r.open && Number.isFinite(st.wait)) {
         const gap = r.wait - st.wait;
         if (gap > 0 && (!dodged || gap > dodged.minutes)) dodged = { name: st.name, minutes: Math.round(gap), standby: r.wait };
@@ -885,6 +887,7 @@ async function planKpis(park, stops, profile) {
     singleRider,
     lands: lands.size,
     landNames: [...lands].slice(0, 8),
+    landOf,
     dodged,
     party,
     skip: skip ? {
@@ -898,58 +901,109 @@ async function planKpis(park, stops, profile) {
 
 function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) {
   const B = '#5b3df5';
+  const INK = '#251d3d', MUTED = '#8b83a8', SOFT = '#f4f1ff';
+  // The last one of these printed from Outlook came back with every astral
+  // emoji as tofu or CJK mojibake -- the icons were the design. Nothing in
+  // this email may depend on an emoji font again: icons are colored badges
+  // built from tables and text, and astral characters are stripped from any
+  // client-supplied string before it is interpolated.
+  const noAstral = (v) => String(v ?? '').replace(/[\u{10000}-\u{10FFFF}]/gu, '').replace(/️/g, '').trim();
+  const E = (v) => esc(noAstral(v));
+  const badge = (txt, bg, fg, w) => `<span style="display:inline-block;min-width:${w || 26}px;height:26px;border-radius:99px;background:${bg};color:${fg};font-weight:800;font-size:${String(txt).length > 2 ? 10 : 12}px;text-align:center;line-height:26px;padding:0 ${String(txt).length > 2 ? 8 : 0}px">${txt}</span>`;
+
   const tile = (v, label, sub, pct) => `<td style="padding:0 6px" width="${pct || 25}%" valign="top">
-    <div style="background:#f4f1ff;border-radius:14px;padding:14px 8px;text-align:center">
+    <div style="background:${SOFT};border-radius:14px;padding:14px 8px;text-align:center">
       <div style="font-size:26px;font-weight:800;color:${B};line-height:1.1">${v}</div>
       <div style="font-size:11px;font-weight:700;color:#443b6b;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">${label}</div>
-      ${sub ? `<div style="font-size:10px;color:#8b83a8;margin-top:2px">${sub}</div>` : ''}
+      ${sub ? `<div style="font-size:10px;color:${MUTED};margin-top:2px">${sub}</div>` : ''}
     </div></td>`;
-  const rows = stops.map((st, i) => `<tr>
-    <td width="34" valign="top" style="padding:7px 0">
-      <div style="width:26px;height:26px;border-radius:99px;background:${B};color:#fff;font-weight:800;font-size:12px;text-align:center;line-height:26px">${i + 1}</div></td>
-    <td valign="top" style="padding:7px 0">
-      <b style="color:#251d3d">${esc(st.name)}</b>
-      <span style="color:#8b83a8;font-size:13px">${st.time ? ' · ' + esc(st.time) : ''}${st.wait != null ? ' · ~' + st.wait + ' min' : ''}</span>
-    </td></tr>`).join('');
-  // Everything below is derived from the plan itself — ride tags, the live
-  // feed, and the park's own skip-pass pricing.
-  const fact = (icon, label) => `<tr><td width="26" valign="top" style="padding:4px 0;font-size:15px">${icon}</td>
-    <td valign="top" style="padding:4px 0;font-size:14px;color:#3f3762">${label}</td></tr>`;
+
+  // Running order, banded by the shape of a park day. The hour comes from the
+  // stop's own printed time, so it works whatever timezone built the plan.
+  const hourOf = (t) => {
+    const m = /^(\d{1,2})(?::\d{2})?\s*(AM|PM)?$/i.exec(String(t || '').trim());
+    if (!m) return null;
+    let h = Number(m[1]) % 12;
+    if (m[2] && m[2].toUpperCase() === 'PM') h += 12;
+    if (!m[2]) h = Number(m[1]);
+    return h;
+  };
+  const bandOf = (h) => (h == null ? null : h < 12 ? 'MORNING' : h < 17 ? 'AFTERNOON' : 'EVENING');
+  const BAND_SUB = { MORNING: 'rope drop pace — the short-line hours', AFTERNOON: 'peak crowds — shows, meals, indoor rides', EVENING: 'lines fade as the crowd drifts to dinner' };
+  let rideNo = 0;
+  let lastBand = null;
+  const rowPieces = [];
+  for (const st of stops) {
+    const band = bandOf(hourOf(st.time));
+    if (band && band !== lastBand) {
+      lastBand = band;
+      rowPieces.push(`<tr><td colspan="3" style="padding:14px 0 6px">
+        <div style="border-left:3px solid ${B};padding:2px 0 2px 10px">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;color:${B}">${band}</span>
+          <span style="font-size:11px;color:${MUTED}"> · ${BAND_SUB[band]}</span>
+        </div></td></tr>`);
+    }
+    if (st.break) {
+      rowPieces.push(`<tr><td colspan="3" style="padding:5px 0">
+        <div style="background:#fff7e6;border-radius:10px;padding:9px 12px">
+          <b style="color:#92580a;font-size:13.5px">${E(st.break)}</b>
+          <span style="color:#b8791a;font-size:12.5px"> · ${E(st.time)}${st.why ? ` — ${E(st.why)}` : ''}</span>
+        </div></td></tr>`);
+      continue;
+    }
+    rideNo += 1;
+    const land = kpis.landOf && kpis.landOf[st.name];
+    rowPieces.push(`<tr>
+      <td width="34" valign="top" style="padding:7px 0">${badge(rideNo, B, '#fff')}</td>
+      <td valign="top" style="padding:7px 8px 7px 0">
+        <b style="color:${INK};font-size:14.5px">${E(st.name)}</b>
+        ${land ? `<br><span style="display:inline-block;background:${SOFT};color:${B};font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:99px;margin-top:3px">${E(land)}</span>` : ''}
+      </td>
+      <td width="86" valign="top" align="right" style="padding:7px 0;white-space:nowrap">
+        <b style="color:${INK};font-size:13px">${E(st.time)}</b>
+        ${st.wait != null ? `<br><span style="color:${MUTED};font-size:12px">~${st.wait} min</span>` : ''}
+      </td></tr>`);
+  }
+  const rows = rowPieces.join('');
+
+  // Fact rows: the number IS the icon. Category colors, no glyphs.
+  const fact = (b, label) => `<tr><td width="40" valign="top" style="padding:5px 0">${b}</td>
+    <td valign="top" style="padding:7px 0;font-size:14px;color:#3f3762">${label}</td></tr>`;
+  const CAT = {
+    thrill: ['#fdeaea', '#b23a48'], water: ['#e7efff', '#1e40af'], show: ['#f4f1ff', B],
+    map: ['#eafaf1', '#14532d'], money: ['#fff7e6', '#92580a'], neutral: ['#eee9ff', '#443b6b'],
+  };
+  const facts = [
+    kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), `thrill ride${kpis.thrills === 1 ? '' : 's'} on the list`) : '',
+    kpis.water ? fact(badge(kpis.water, ...CAT.water), `chance${kpis.water === 1 ? '' : 's'} to get soaked — pack a poncho`) : '',
+    kpis.shows ? fact(badge(kpis.shows, ...CAT.show), `show${kpis.shows === 1 ? '' : 's'} to sit down and cool off in the AC`) : '',
+    kpis.lands ? fact(badge(kpis.lands, ...CAT.map), `land${kpis.lands === 1 ? '' : 's'} crossed${kpis.landNames.length ? ' · ' + esc(kpis.landNames.join(', ')) : ''}`) : '',
+    kpis.singleRider ? fact(badge(kpis.singleRider, ...CAT.neutral), `single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
+    kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
+      ? fact(badge(kpis.toddlerFriendly, ...CAT.neutral), `of these work for your youngest`) : '',
+    kpis.skip ? fact(badge('$', ...CAT.money), `Built to work without <b>${esc(kpis.skip.name)}</b> — that's ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
+  ].filter(Boolean).join('');
+
   // Playful, but every number is real: each of these is derived from the plan
-  // itself. A fabricated "churros within reach" would be funnier and would make
-  // the rest of the email less believable, which is a bad trade for an email
+  // itself. A fabricated "churros within reach" would be funnier and would
+  // make the rest of the email less believable -- a bad trade for an email
   // whose whole job is to be trusted about wait times.
-  const first = stops[0], last = stops[stops.length - 1];
-  const longest = stops.reduce((a, b) => (Number.isFinite(b.wait) && (!a || b.wait > a.wait) ? b : a), null);
-  const dayLen = first && last && first.time && last.time
-    ? `${first.time} \u2192 ${last.time}` : null;
+  const namedStops = stops.filter((st) => st.name);
+  const first = namedStops[0], last = namedStops[namedStops.length - 1];
+  const longest = namedStops.reduce((a, b) => (Number.isFinite(b.wait) && (!a || b.wait > a.wait) ? b : a), null);
+  const dayLen = first && last && first.time && last.time ? `${first.time} → ${last.time}` : null;
+  const hourOfFirst = hourOf(first && first.time), hourOfLast = hourOf(last && last.time);
+  const dayHours = hourOfFirst != null && hourOfLast != null && hourOfLast > hourOfFirst ? `${hourOfLast - hourOfFirst}h` : '~';
   const queueHours = savedMin >= 60 ? (savedMin / 60).toFixed(1) : null;
   const funFacts = [
-    dayLen ? fact('\u23F1\uFE0F', `Your day, gate to gate: <b>${esc(dayLen)}</b> \u2014 longer than most flights you have complained about`) : '',
-    longest && longest.wait >= 40 ? fact('\uD83E\uDDCD', `Longest single queue on the plan: <b>${longest.wait} min</b> at ${esc(longest.name)}. Bring a snack and a grudge`) : '',
-    queueHours ? fact('\uD83C\uDFC6', `Line time dodged: <b>${queueHours} hours</b> \u2014 roughly ${Math.max(1, Math.round(savedMin / 22))} sitcom episode${Math.round(savedMin / 22) === 1 ? '' : 's'} you get to not watch in a queue`) : '',
-    kpis.water ? fact('\uD83D\uDCA6', `Forecast dampness: <b>${kpis.water}</b> ride${kpis.water === 1 ? '' : 's'} that can return you visibly wetter than you arrived`) : '',
-    kpis.thrills ? fact('\uD83D\uDE31', `Stomach relocations booked: <b>${kpis.thrills}</b>`) : '',
-    kpis.shows ? fact('\uD83E\uDDCA', `Sit-down-in-the-air-conditioning opportunities: <b>${kpis.shows}</b>`) : '',
-    kpis.mapped && kpis.steps ? fact('\uD83D\uDC5F', `About <b>${kpis.steps.toLocaleString()}</b> steps \u2014 your shoes knew what they signed up for`) : '',
+    dayLen ? fact(badge(dayHours, ...CAT.neutral, 34), `Your day, gate to gate: <b>${esc(dayLen)}</b> — longer than most flights you have complained about`) : '',
+    longest && longest.wait >= 40 ? fact(badge(`${longest.wait}m`, ...CAT.thrill, 34), `Longest single queue on the plan: <b>${longest.wait} min</b> at ${E(longest.name)}. Bring a snack and a grudge`) : '',
+    queueHours ? fact(badge(`${queueHours}h`, ...CAT.map, 34), `Line time dodged: <b>${queueHours} hours</b> — roughly ${Math.max(1, Math.round(savedMin / 22))} sitcom episode${Math.round(savedMin / 22) === 1 ? '' : 's'} you get to not watch in a queue`) : '',
+    kpis.water ? fact(badge(kpis.water, ...CAT.water), `Forecast dampness: <b>${kpis.water}</b> ride${kpis.water === 1 ? '' : 's'} that can return you visibly wetter than you arrived`) : '',
+    kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), `Stomach relocation${kpis.thrills === 1 ? '' : 's'} booked: <b>${kpis.thrills}</b>`) : '',
+    kpis.mapped && kpis.steps ? fact(badge('~', ...CAT.neutral), `About <b>${kpis.steps.toLocaleString()}</b> steps — your shoes knew what they signed up for`) : '',
   ].filter(Boolean).join('');
 
-  const facts = [
-    kpis.thrills ? fact('🎢', `<b>${kpis.thrills}</b> thrill ride${kpis.thrills === 1 ? '' : 's'} on the list`) : '',
-    kpis.water ? fact('💦', `<b>${kpis.water}</b> chance${kpis.water === 1 ? '' : 's'} to get soaked — pack a poncho`) : '',
-    kpis.shows ? fact('🎭', `<b>${kpis.shows}</b> show${kpis.shows === 1 ? '' : 's'} to sit down and cool off`) : '',
-    kpis.lands ? fact('🗺️', `Crossing <b>${kpis.lands}</b> land${kpis.lands === 1 ? '' : 's'}${kpis.landNames.length ? ' · ' + esc(kpis.landNames.join(', ')) : ''}`) : '',
-    kpis.singleRider ? fact('🚶', `<b>${kpis.singleRider}</b> single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
-    kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
-      ? fact('👶', `<b>${kpis.toddlerFriendly}</b> of these work for your youngest`) : '',
-    kpis.skip ? fact('💳', `Built to work without <b>${esc(kpis.skip.name)}</b> — that\'s ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
-  ].filter(Boolean).join('');
-
-  // A park with no geometry in the geo cache yields meters = 0, which used to
-  // print "0 km walking / 0 calories" next to an eighteen-stop day across seven
-  // lands. A figure that is obviously wrong costs more trust than a missing one,
-  // so those tiles only appear when the route was actually measured, and the
-  // row backfills with counts that are always real.
   const tileRow = [
     (w) => tile(kpis.attractions, 'Attractions', 'on the plan', w),
     kpis.mapped ? (w) => tile(kpis.km + ' km', 'Walking', kpis.miles + ' mi', w) : null,
@@ -961,13 +1015,12 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
   const tiles = tileRow.map((fn) => fn(Math.round(100 / tileRow.length))).join('');
 
   const dodgedBanner = kpis.dodged
-    ? `<div style="padding:4px 26px 0"><div style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
-        ⏱️ <b>Biggest line dodged:</b> ${esc(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
-      </div></div>`
+    ? `<div style="padding:4px 26px 0"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+        <td style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
+        <b>Biggest line dodged:</b> ${E(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
+      </td></tr></table></div>`
     : '';
-  // The inbox preview line. Without one, clients scrape the first visible text
-  // -- here the eyebrow -- and every plan email previews identically.
-  const preheader = `${kpis.attractions} stops mapped for ${esc(park.name)}${kpis.dodged ? `, dodging the ${kpis.dodged.standby}-minute line at ${esc(kpis.dodged.name)}` : ''}.`;
+  const preheader = `${kpis.attractions} stops mapped for ${esc(park.name)}${kpis.dodged ? `, dodging the ${kpis.dodged.standby}-minute line at ${E(kpis.dodged.name)}` : ''}.`;
   return `<!doctype html><html lang="en"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -979,7 +1032,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
   <title>Your ${esc(park.name)} day plan</title>
   </head><body style="margin:0;padding:0;background:#f7f5ff">
   <div style="display:none;font-size:1px;color:#f7f5ff;max-height:0;overflow:hidden;mso-hide:all">${preheader}</div>
-  <div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:#251d3d">
+  <div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:${INK}">
    <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 6px 28px rgba(20,12,48,.09)">
     <!-- bgcolor as well as the gradient: Outlook renders through Word, which
          ignores linear-gradient entirely. Without the attribute the header lost
@@ -995,11 +1048,11 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
     ${dodgedBanner}
     ${briefing ? `<div style="padding:16px 26px 4px">
       <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
-        <b>🧭 Your advisor's take</b><br>${esc(briefing).replace(/\n/g, '<br>')}
+        <b>Your advisor's take</b><br>${E(briefing).replace(/\n/g, '<br>')}
       </div></div>` : ''}
     <div style="padding:18px 26px 6px">
       <div style="font-weight:800;font-size:16px;margin-bottom:2px">Today's running order</div>
-      <div style="color:#8b83a8;font-size:13px;margin-bottom:8px">Follow the numbers — they match the pins on your map.</div>
+      <div style="color:${MUTED};font-size:13px">Follow the numbers — they match the pins on your map.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
     </div>
     ${facts ? `<div style="padding:14px 26px 2px">
@@ -1007,7 +1060,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
       <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
     ${funFacts ? `<div style="padding:14px 26px 2px">
       <div style="font-weight:800;font-size:16px;margin-bottom:2px">The stats nobody asked for</div>
-      <div style="color:#8b83a8;font-size:12.5px;margin-bottom:6px">All real, all from this plan.</div>
+      <div style="color:${MUTED};font-size:12.5px;margin-bottom:6px">All real, all from this plan.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${funFacts}</table></div>` : ''}
     <div style="padding:20px 26px 26px">
       <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
@@ -2330,15 +2383,21 @@ const server = http.createServer(async (req, res) => {
         if (!sess) return sendJson(res, 401, { error: 'log in first' });
         const park = PARKS[parsed.park];
         if (!park) return sendJson(res, 400, { error: 'unknown park' });
-        const rawStops = Array.isArray(parsed.stops) ? parsed.stops.slice(0, 30) : [];
+        const rawStops = Array.isArray(parsed.stops) ? parsed.stops.slice(0, 34) : [];
         const stops = rawStops
-          .filter((st) => st && typeof st.name === 'string')
-          .map((st) => ({
-            name: st.name.slice(0, 120),
-            time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
-            wait: Number.isFinite(st.wait) ? Math.max(0, Math.round(st.wait)) : null,
-          }));
-        if (!stops.length) return sendJson(res, 400, { error: 'no plan to send' });
+          .filter((st) => st && (typeof st.name === 'string' || typeof st.break === 'string'))
+          .map((st) => (typeof st.name === 'string'
+            ? {
+              name: st.name.slice(0, 120),
+              time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
+              wait: Number.isFinite(st.wait) ? Math.max(0, Math.round(st.wait)) : null,
+            }
+            : {
+              break: st.break.slice(0, 80),
+              time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
+              why: typeof st.why === 'string' ? st.why.slice(0, 140) : '',
+            }));
+        if (!stops.some((st) => st.name)) return sendJson(res, 400, { error: 'no plan to send' });
         if (planMailBlocked(sess.email)) return sendJson(res, 429, { error: 'you have sent a few plans already today — try again tomorrow' });
 
         const profileForKpi = sanitizeProfile(parsed.profile) || (db.daystate.get(sess.email) || {}).profile || null;
@@ -2361,8 +2420,13 @@ const server = http.createServer(async (req, res) => {
         }
         const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile });
         try {
-          const r = await sendEmail(sess.email, `Your ${park.name} plan — ${kpis.attractions} attractions, ${kpis.km} km`, html,
-            `Plan email for ${sess.email}: ${park.name}, ${kpis.attractions} stops, ${kpis.km} km, ${kpis.kcal} kcal`);
+          // "18 attractions, 0 km" went out to a real inbox: the km figure is
+          // only real when the route was actually measured. Lead with the two
+          // numbers that always are.
+          const firstRide = stops.find((st) => st.name && st.time);
+          const subject = `Your ${park.name} plan — ${kpis.attractions} attractions${kpis.mapped ? `, ${kpis.km} km` : firstRide ? `, first ride ${firstRide.time}` : ''}`;
+          const r = await sendEmail(sess.email, subject, html,
+            `Plan email for ${sess.email}: ${park.name}, ${kpis.attractions} stops`);
           return sendJson(res, 200, r.sent ? { sent: true, to: sess.email, kpis } : { sent: false, reason: r.reason, kpis });
         } catch (err) {
           return sendJson(res, 502, { sent: false, reason: err.message });

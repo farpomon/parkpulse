@@ -1734,7 +1734,11 @@
       : saved >= 45 ? "that's an extra headliner AND an ice-cream stop"
       : "that's one more ride together instead of a queue";
     planOrder = steps.filter((s) => s.ride).map((s) => s.ride.name);
-    planStops = steps.filter((s) => s.ride).map((s) => ({ name: s.ride.name, time: hourLabel(s.time), wait: s.predicted }));
+    // Breaks travel too: an emailed day that silently jumps 11:50 to 1:00
+    // reads like a bug, when it is actually lunch.
+    planStops = steps.map((s) => s.ride
+      ? { name: s.ride.name, time: hourLabel(s.time), wait: s.predicted }
+      : { break: s.break, time: hourLabel(s.time), why: s.why || '' });
     // The plan and the attractions list are the same thing seen twice. Anything
     // the planner filled the day with is ticked below, so the list always shows
     // what the day actually contains and a ride can be dropped where the user
