@@ -169,6 +169,11 @@
   .pnote{text-align:center;color:var(--muted);font-size:14px;margin:22px 0 0}
 
   /* Email capture */
+  .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:22px;margin-top:34px}
+  .wcard{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px 24px;box-shadow:var(--shadow)}
+  .wcard .wk{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:10px;color:var(--ink)}
+  .wcard p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.65}
+  .wcard em{color:var(--ink);font-style:italic}
   .capture{background:linear-gradient(180deg,#241b46,#332759);border-radius:26px;padding:clamp(32px,4vw,52px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:40px;align-items:center;color:#fff}
   .capture h2{text-align:left;font-size:32px;letter-spacing:-.8px;margin:0 0 10px}
   .capture p{margin:0;color:#cfc6f2;font-size:16.5px;line-height:1.6;max-width:44ch}
@@ -315,6 +320,26 @@
       </ul>
     </div>
   </div>
+</section>
+
+<section class="sec" id="why">
+  <h2>&ldquo;Can&rsquo;t I just use the official app?&rdquo;</h2>
+  <p class="lead">For live waits, yes &mdash; and you should have it open. It is the only place that can sell you the pass, book your slot and order your food. Here is what it will never do.</p>
+  <div class="why">
+    <div class="wcard">
+      <div class="wk">It sells the pass</div>
+      <p>Every skip-the-line pass is sold by the park that runs the queue. An app on that side of the counter has no reason to tell you today is a day to save your money &mdash; and it never will. We have nothing to sell you at the gate, so &ldquo;skip it today&rdquo; is an answer we can actually give.</p>
+    </div>
+    <div class="wcard">
+      <div class="wk">It knows one resort</div>
+      <p>Each operator&rsquo;s app covers that operator&rsquo;s parks. A trip that mixes a Disney day, a Universal day and a coaster park means three apps and no shared plan. ParkPulse holds all 56 in one place, with one plan across the whole trip.</p>
+    </div>
+    <div class="wcard">
+      <div class="wk">A number is not advice</div>
+      <p>&ldquo;45 min&rdquo; tells you the length of the line. It does not tell you whether 45 is good, whether it drops after 4pm, or what to ride while you wait. We snapshot every ride every 15 minutes and compare today against that ride&rsquo;s own two-week median, so we can say <em>20 minutes below typical &mdash; go now</em>.</p>
+    </div>
+  </div>
+  <p class="note" style="max-width:62ch;margin:26px auto 0;text-align:center">We are not a replacement for the official app and we don&rsquo;t pretend to be. Book inside it. Decide with us.</p>
 </section>
 
 <!--PHOTO_BAND-->
