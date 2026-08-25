@@ -87,6 +87,7 @@ const CSS = `
   .cv-ax{fill:var(--muted);font-size:11px}
   .cv-ev{fill:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.02em}
   .cv-peak{fill:var(--ink);font-size:11.5px;font-weight:700}
+  .cv-lg{fill:var(--muted);font-size:10.5px;font-weight:600}
   .cv-cap{font-size:.78rem;color:var(--muted);line-height:1.55;margin-top:.5rem}
   .cv-dl{display:block;margin-top:.35rem;font-weight:600}
   .cv-dl a{color:var(--brand);text-decoration:none}
@@ -284,7 +285,7 @@ function allParksIndex(allParks, currentSlug) {
 //
 // Colour comes from the page's own tokens, so the deliberate dark palette
 // applies rather than an automatic inversion.
-function curveChart(park, curves) {
+function curveChart(park, curves, actual) {
   if (!curves) return '';
   // Prefer a middling day: it is what most visitors get, and it is the honest
   // default for "what does a normal day look like here".
@@ -339,18 +340,46 @@ function curveChart(park, curves) {
   // scripting off, which a canvas chart would not.
   const hoverDots = pts.map((p) => `<circle cx="${x(p.hour).toFixed(1)}" cy="${y(p.median).toFixed(1)}" r="9" fill="transparent"><title>${hourLabel(p.hour)} — typically ${p.median} min (middle half ${p.low}–${p.high}, ${p.n} readings)</title></circle>`).join('');
 
+  // The second series, drawn only when visitors have actually reported enough
+  // waits to support it. The distance between the two lines is the reason this
+  // chart exists: the sign says one thing, the queue does another.
+  const act = (actual || []).filter((a) => a.hour >= h0 && a.hour <= h1);
+  const hasActual = act.length >= 3;
+  const actLine = hasActual
+    ? `<path d="${act.map((a, i) => `${i ? 'L' : 'M'}${x(a.hour).toFixed(1)} ${y(a.actual).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
+      + act.map((a) => `<circle cx="${x(a.hour).toFixed(1)}" cy="${y(a.actual).toFixed(1)}" r="9" fill="transparent"><title>${hourLabel(a.hour)} — actually waited about ${a.actual} min${a.posted != null ? `, sign said ${a.posted}` : ''} (${a.n} report${a.n === 1 ? '' : 's'})</title></circle>`).join('')
+    : '';
+  // Two series means a legend, always. Identity must never be colour alone.
+  const legend = hasActual
+    ? `<g class="cv-leg"><rect x="${ML + 6}" y="${MT + 6}" width="10" height="2.5" rx="1.2" fill="var(--brand)"/><text x="${ML + 21}" y="${MT + 12}" class="cv-lg">Posted on the sign</text>`
+      + `<rect x="${ML + 6}" y="${MT + 22}" width="10" height="2.5" rx="1.2" fill="var(--gold)"/><text x="${ML + 21}" y="${MT + 28}" class="cv-lg">Actually waited</text></g>`
+    : '';
+
+  const gapNote = (() => {
+    if (!hasActual) return '';
+    const paired = act.filter((a) => a.delta != null);
+    if (paired.length < 3) return '';
+    const deltas = paired.map((a) => a.delta).sort((p1, p2) => p1 - p2);
+    const mid = deltas[deltas.length >> 1];
+    if (mid === 0) return ' Reported waits are matching the posted figure almost exactly.';
+    const dir = mid < 0 ? 'shorter than' : 'longer than';
+    return ` Across ${paired.length} hours, visitors report waiting about <b>${Math.abs(mid)} minutes ${dir}</b> the posted figure.`;
+  })();
+
   const days = LEVEL_NAMES[level];
   return `<h2 id="curve">How the wait moves through the day at ${esc(park.name)}</h2>
-<p>Median posted wait across the rides we track, on <b>${days.toLowerCase()}</b> days &mdash; the crowd level most visitors get. The shaded band is the middle half of readings at that hour.</p>
+<p>Median posted wait across the rides we track, on <b>${days.toLowerCase()}</b> days &mdash; the crowd level most visitors get. The shaded band is the middle half of readings at that hour.${gapNote}</p>
 <figure class="cv-fig">
 <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Hourly posted wait curve for ${esc(park.name)} on ${days.toLowerCase()} days, peaking at ${peak.median} minutes around ${hourLabel(peak.hour)}." class="cv-svg">
   ${grid}${evMarks}
   <path d="${bandPath}" fill="var(--brand)" class="cv-band"/>
   <path d="${line}" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  ${peakLabel}${hoverDots}${xt}
+  ${actLine}${peakLabel}${hoverDots}${legend}${xt}
   <text x="${ML - 8}" y="${MT - 8}" text-anchor="end" class="cv-ax">min</text>
 </svg>
-<figcaption class="cv-cap">Posted standby minutes, from our own recorded snapshots. Posted waits are what the park displays &mdash; not necessarily how long you stand there.
+<figcaption class="cv-cap">${hasActual
+  ? 'Purple: posted standby minutes from our own recorded snapshots. Gold: what visitors report actually waiting, median per hour. Reported figures are self-submitted and shown only where enough people have reported.'
+  : 'Posted standby minutes, from our own recorded snapshots. Posted waits are what the park displays &mdash; not necessarily how long you stand there.'}
 <span class="cv-dl"><a href="/api/curve/${park.slug}.csv" download>Download CSV</a> &middot; <a href="#" data-cv-png>Save PNG</a> &middot; <a href="#" data-cv-share>Share</a></span></figcaption>
 </figure>`;
 }
@@ -383,7 +412,7 @@ function bandsTable(park, bands) {
 <p class="bt-note">Minutes of posted standby wait, from our own recorded snapshots &mdash; up to ${days} day${days === 1 ? '' : 's'} per figure. Cells stay blank until a ride has enough observations at that crowd level to be worth printing. Posted waits are what the park displays, which is not always what you queue.</p>`;
 }
 
-function renderParkPage(park, sample, allParks, bands, curves) {
+function renderParkPage(park, sample, allParks, bands, curves, actual) {
   const seo = SEO[park.slug];
   // A park without authored content still gets a working page rather than a 500.
   if (!seo) return renderBasicParkPage(park, sample, allParks);
@@ -458,7 +487,7 @@ ${waitsSection}
 </ul>
 <div class="tip"><strong>Local knowledge:</strong> ${esc(seo.tip)}</div>
 </div>
-${curveChart(park, curves)}
+${curveChart(park, curves, actual)}
 ${bandsTable(park, bands)}
 ${faq.html}
 ${sibSection}

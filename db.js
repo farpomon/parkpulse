@@ -120,6 +120,28 @@ db.exec(`
     history TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL
   );
+  -- Observed waits, reported by visitors after they ride. The posted wait at
+  -- the moment of the report is stored alongside, because the difference
+  -- between the two is the whole point -- storing only the observed figure
+  -- would leave nothing to compare it against later.
+  CREATE TABLE IF NOT EXISTS wait_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    park TEXT NOT NULL,
+    ride TEXT NOT NULL,
+    ride_key TEXT NOT NULL,
+    actual_min INTEGER NOT NULL,
+    posted_min INTEGER,
+    hour_local INTEGER NOT NULL,
+    day TEXT NOT NULL,
+    reporter TEXT NOT NULL,
+    at TEXT NOT NULL
+  );
+  -- One report per person per ride per day: a second is a correction, not a
+  -- second observation, and letting both count would let one visitor outvote
+  -- a whole afternoon.
+  CREATE UNIQUE INDEX IF NOT EXISTS wait_reports_once ON wait_reports (reporter, park, ride_key, day);
+  CREATE INDEX IF NOT EXISTS wait_reports_lookup ON wait_reports (park, ride_key, hour_local);
+
   CREATE TABLE IF NOT EXISTS geo (
     park TEXT PRIMARY KEY,
     status TEXT NOT NULL,
@@ -357,6 +379,22 @@ const dining = {
 };
 
 // AI-classified ride tags (vibe + age band) per park, cached.
+const waitreports = {
+  // Upsert: a repeat report for the same ride on the same day replaces the
+  // earlier one rather than being rejected, so a visitor can correct a typo.
+  add: (r) => db.prepare(`INSERT INTO wait_reports (park, ride, ride_key, actual_min, posted_min, hour_local, day, reporter, at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(reporter, park, ride_key, day) DO UPDATE SET
+        actual_min = excluded.actual_min, posted_min = excluded.posted_min,
+        hour_local = excluded.hour_local, at = excluded.at`)
+    .run(r.park, r.ride, r.rideKey, r.actual, r.posted, r.hour, r.day, r.reporter, new Date().toISOString()),
+  // Every report for a park, oldest first — the aggregator does the bucketing.
+  forPark: (park) => db.prepare('SELECT ride, ride_key, actual_min, posted_min, hour_local, day FROM wait_reports WHERE park = ? ORDER BY day').all(park),
+  parks: () => db.prepare('SELECT park, COUNT(*) AS n FROM wait_reports GROUP BY park').all(),
+  countBy: (reporter, since) => db.prepare('SELECT COUNT(*) AS n FROM wait_reports WHERE reporter = ? AND at >= ?').get(reporter, since)?.n ?? 0,
+  total: () => db.prepare('SELECT COUNT(*) AS n FROM wait_reports').get()?.n ?? 0,
+};
+
 const ridetags = {
   get: (park) => db.prepare('SELECT json FROM ride_tags WHERE park = ?').get(park)?.json ?? null,
   set: (park, json) => db.prepare('INSERT OR REPLACE INTO ride_tags (park, json, at) VALUES (?, ?, ?)').run(park, json, new Date().toISOString()),
@@ -399,6 +437,10 @@ const accounts = {
       run('whatsappLinks', 'DELETE FROM wa_links WHERE email = ?');
       run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
       run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
+      // Reported waits are deleted outright rather than de-identified. One
+      // person's reports barely move a median, and matching the promise in
+      // the privacy policy is worth more than the rows.
+      counts.waitReports = db.prepare("DELETE FROM wait_reports WHERE reporter = 'u:' || ?").run(email).changes;
       run('leads', 'DELETE FROM leads WHERE email = ?');
       run('feedbackAnonymized', 'UPDATE advisor_feedback SET email = NULL WHERE email = ?');
       run('passesAnonymized', 'UPDATE passes SET email = NULL WHERE email = ?');
@@ -515,4 +557,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

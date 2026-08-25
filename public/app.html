@@ -158,6 +158,19 @@
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
+  .wrep { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: -.35rem 0 .55rem; padding: .6rem .75rem;
+    background: var(--card); border: 1px solid var(--brand); border-radius: 12px; font-size: .88rem; }
+  /* The question takes its own line so the controls never wrap unpredictably
+     between them -- this prompt is the whole collection funnel and a
+     ragged layout costs reports. */
+  .wrep-q { flex: 1 1 100%; color: var(--ink); font-weight: 600; }
+  .wrep-in { display: inline-flex; align-items: center; gap: .3rem; color: var(--muted); flex: 0 0 auto; }
+  .wrep-go { margin-left: auto; }
+  .wrep-in input { width: 4.2rem; padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font: inherit; font-weight: 700; text-align: center; }
+  .wrep-go { padding: .35rem .8rem; border: none; border-radius: 8px; background: var(--brand); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  .wrep-go:disabled { opacity: .55; cursor: default; }
+  .wrep-x { border: none; background: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: .2rem .3rem; }
   .toast { position: fixed; left: 50%; bottom: calc(4.5rem + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(1rem); background: var(--ink); color: var(--card); padding: .7rem 1.1rem; border-radius: 999px; font-size: .92rem; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.25); opacity: 0; transition: opacity .25s, transform .25s; z-index: 90; pointer-events: none; max-width: 88vw; text-align: center; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .sheet .switch { text-align: center; margin-top: .6rem; font-size: .88rem; color: var(--muted); }
@@ -1007,11 +1020,15 @@
     $('rides').querySelectorAll('.rode').forEach((btn) => btn.addEventListener('click', () => {
       const name = decodeURIComponent(btn.dataset.name);
       const i = doneOrder.indexOf(name);
+      const nowDone = i < 0;
       if (i >= 0) doneOrder.splice(i, 1); else doneOrder.push(name);
       saveDone();
       renderRides();
       const rp = document.getElementById('replan');
       if (rp && $('plan-out').innerHTML.trim()) rp.style.display = 'inline-block';
+      // Ticking a ride off is the one moment we know exactly what someone just
+      // queued for, and the only moment the number is still in their head.
+      if (nowDone) askActualWait(name, btn);
     }));
     $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
     $('rides').querySelectorAll('.sr-ask button').forEach((btn) => btn.addEventListener('click', (e) => {
@@ -1037,6 +1054,58 @@
 
   // --- Wait-drop alerts ---
   let sheetRide = null;
+
+  // Asking "how long did you actually wait?" is the only way to learn the gap
+  // between the posted figure and the queue. Deliberately skippable, one tap,
+  // never blocking: a prompt that interrupts a park day gets dismissed forever,
+  // and a dataset built from irritated people is a bad dataset.
+  const askedWait = new Set();
+  function askActualWait(name, btn) {
+    if (askedWait.has(name)) return;                                  // once per ride per session
+    if (!sessionToken() && !localStorage.getItem('pp-pass')) return;  // verified reporters only
+    if (localStorage.getItem('pp-no-wait-reports') === '1') return;   // opted out
+    askedWait.add(name);
+    const row = btn && btn.closest ? btn.closest('.ride') : null;
+    const box = document.createElement('div');
+    box.className = 'wrep';
+    box.innerHTML = '<span class="wrep-q">' + tr('How long did you actually wait?') + '</span>'
+      + '<span class="wrep-in"><input type="number" min="0" max="240" inputmode="numeric" aria-label="' + tr('Minutes waited') + '"><b>min</b></span>'
+      + '<button class="wrep-go">' + tr('Send') + '</button>'
+      + '<button class="wrep-x" aria-label="' + tr('Dismiss') + '">\u2715</button>';
+    if (row && row.parentNode) row.parentNode.insertBefore(box, row.nextSibling);
+    else $('rides').appendChild(box);
+    const input = box.querySelector('input');
+    input.focus();
+    const close = () => box.remove();
+    box.querySelector('.wrep-x').addEventListener('click', () => {
+      close();
+      // Two dismissals in a session is an answer. Stop asking.
+      const n = Number(sessionStorage.getItem('pp-wrep-skips') || 0) + 1;
+      try { sessionStorage.setItem('pp-wrep-skips', String(n)); } catch {}
+      if (n >= 2) { try { localStorage.setItem('pp-no-wait-reports', '1'); } catch {} }
+    });
+    const send = async () => {
+      const v = Number(input.value);
+      if (!Number.isFinite(v) || v < 0 || v > 240) { input.focus(); return; }
+      const go = box.querySelector('.wrep-go');
+      go.disabled = true;
+      try {
+        const res = await api('/api/wait-report', { method: 'POST', body: JSON.stringify({ park: current, ride: name, actual: v }) });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) {
+          box.innerHTML = '<span class="wrep-q">' + (d.posted != null && d.delta !== 0
+            ? tr('Thanks \u2014 the sign said') + ' ' + d.posted + ', ' + tr('you waited') + ' ' + v + '.'
+            : tr('Thanks \u2014 that helps everyone here.')) + '</span>';
+          setTimeout(close, 2600);
+        } else {
+          box.querySelector('.wrep-q').textContent = d.error || tr('Could not save that.');
+          go.disabled = false;
+        }
+      } catch { go.disabled = false; }
+    };
+    box.querySelector('.wrep-go').addEventListener('click', send);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+  }
 
   async function bellTap(name) {
     if (!isPro) { showUpsell(); return; }

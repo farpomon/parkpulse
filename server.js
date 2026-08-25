@@ -464,12 +464,55 @@ let DOW_INDEX = {};
 // consumer treats absence as "not enough data yet" rather than as zero.
 let CROWD_BANDS = {};
 let HOURLY_CURVES = {};
+// Observed-wait aggregates, keyed park -> hour. Empty until reports accrue;
+// the chart draws its second line only when this fills.
+let ACTUAL_WAITS = {};
+
+// Minimums before an observed figure is published. Self-reported data earns its
+// place on a chart by weight of numbers, not by existing.
+const ACTUAL_MIN_REPORTS = 5;   // per hour
+const ACTUAL_MIN_HOURS = 4;     // hours covered before a park's line is drawn
+
+const median = (xs) => {
+  if (!xs.length) return null;
+  const a = [...xs].sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+};
+
+// Median, not mean: one person reporting 240 for a walk-on should not move the
+// published figure, and with self-reported data that person always turns up.
+function refreshActualWaits() {
+  const out = {};
+  try {
+    for (const { park } of db.waitreports.parks()) {
+      const byHour = {};
+      for (const r of db.waitreports.forPark(park)) {
+        (byHour[r.hour_local] ??= { actual: [], posted: [] }).actual.push(r.actual_min);
+        if (Number.isFinite(r.posted_min)) byHour[r.hour_local].posted.push(r.posted_min);
+      }
+      const hours = [];
+      for (const [h, v] of Object.entries(byHour)) {
+        if (v.actual.length < ACTUAL_MIN_REPORTS) continue;
+        const a = median(v.actual);
+        const pst = v.posted.length ? median(v.posted) : null;
+        hours.push({ hour: Number(h), actual: a, posted: pst, delta: pst != null ? a - pst : null, n: v.actual.length });
+      }
+      hours.sort((x, y) => x.hour - y.hour);
+      if (hours.length >= ACTUAL_MIN_HOURS) out[park] = hours;
+    }
+  } catch (err) {
+    console.log(`actual-wait refresh failed: ${err.message}`);
+  }
+  ACTUAL_WAITS = out;
+}
 function refreshBaselines() {
   try {
     MEASURED = history.computeBaselines(normName);
     DOW_INDEX = history.computeDowIndex();
     CROWD_BANDS = history.computeCrowdBands(normName);
     HOURLY_CURVES = history.computeHourlyCurves(normName, (slug) => PARKS[slug]?.tz);
+    refreshActualWaits();
     const parks = Object.keys(MEASURED).length;
     if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index, ${Object.keys(CROWD_BANDS).length} with crowd bands)`);
   } catch (err) {
@@ -1687,9 +1730,17 @@ const server = http.createServer(async (req, res) => {
     const slug = curveMatch[1];
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     const levels = HOURLY_CURVES[slug] || {};
-    const rows = [['park', 'crowd_level', 'crowd_label', 'hour_local', 'median_posted_min', 'p25_min', 'p75_min', 'readings']];
+    // Observed columns ride alongside the posted ones so the gap is computable
+    // from the file itself, not just visible on the chart. Blank where nobody
+    // has reported at that hour yet.
+    const obs = Object.fromEntries((ACTUAL_WAITS[slug] || []).map((a) => [a.hour, a]));
+    const rows = [['park', 'crowd_level', 'crowd_label', 'hour_local', 'median_posted_min', 'p25_min', 'p75_min', 'readings', 'reported_actual_min', 'reports']];
     for (const [lvl, pts] of Object.entries(levels)) {
-      for (const pt of pts) rows.push([PARKS[slug].name, lvl, FORECAST_LEVELS[lvl], pt.hour, pt.median, pt.low, pt.high, pt.n]);
+      for (const pt of pts) {
+        const a = obs[pt.hour];
+        rows.push([PARKS[slug].name, lvl, FORECAST_LEVELS[lvl], pt.hour, pt.median, pt.low, pt.high, pt.n,
+          a ? a.actual : '', a ? a.n : '']);
+      }
     }
     // Quote every field: park names contain commas and apostrophes.
     const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -1725,7 +1776,7 @@ const server = http.createServer(async (req, res) => {
     const park = PARKS[parkPage[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
-    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null));
+    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null, ACTUAL_WAITS[park.slug] || null));
   }
   if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') {
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
@@ -2355,6 +2406,64 @@ const server = http.createServer(async (req, res) => {
         }
         saveLead(email.slice(0, 254), typeof plan === 'string' ? plan.slice(0, 40) : 'free');
         return sendJson(res, 200, { ok: true });
+      }
+
+      // Observed waits, reported by visitors. This is the one dataset here that
+      // nobody else has, and the only one a stranger can write to -- so the bar for
+      // accepting a report is deliberately higher than for reading anything.
+        if (url.pathname === '/api/wait-report') {
+        // Verified identity only. An open endpoint would collect more numbers and
+        // fewer facts: this becomes a published dataset, and one script could bend
+        // a ride's whole curve. A session or a valid pass is the bar.
+        const sess = sessionUser(req);
+        const pass = passFromReq(req);
+        if (!sess && !pass) return sendJson(res, 401, { error: 'sign in to report a wait' });
+        const reporter = sess ? `u:${sess.email}` : `p:${crypto.createHash('sha256').update(String(req.headers['x-pass'])).digest('base64url').slice(0, 32)}`;
+
+        const park = PARKS[parsed.park] ? parsed.park : null;
+        if (!park) return sendJson(res, 400, { error: 'unknown park' });
+        const ride = typeof parsed.ride === 'string' ? parsed.ride.slice(0, 120).trim() : '';
+        if (!ride) return sendJson(res, 400, { error: 'which ride?' });
+        const actual = Number(parsed.actual);
+        // A queue longer than four hours is a data-entry slip far more often than
+        // it is a queue; rejecting it here keeps the aggregate clean without
+        // needing to guess at intent later.
+        if (!Number.isFinite(actual) || actual < 0 || actual > 240) {
+          return sendJson(res, 400, { error: 'give a wait between 0 and 240 minutes' });
+        }
+        // Twenty a day is far above honest use and far below what spam needs.
+        if (db.waitreports.countBy(reporter, new Date(Date.now() - 86400000).toISOString()) >= 20) {
+          return sendJson(res, 429, { error: "that's a lot of reports for one day — try again tomorrow" });
+        }
+
+        // Pair the report with what the sign said at that moment. Without the
+        // posted figure there is nothing to measure the gap against, and asking
+        // the client for it would let the client decide the answer.
+        let posted = null;
+        try {
+          const waits = await getWaits(park);
+          const match = waits.rides.find((r) => normName(r.name) === normName(ride));
+          if (match && match.open && Number.isFinite(match.wait)) posted = match.wait;
+        } catch {}
+
+        const nowPark = new Date().toLocaleString('en-US', { timeZone: PARKS[park].tz, hour12: false });
+        const hour = new Date(nowPark).getHours();
+        const day = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[park].tz });
+        try {
+          db.waitreports.add({ park, ride, rideKey: normName(ride), actual: Math.round(actual), posted, hour, day, reporter });
+          // Cheap enough to redo per report, and it means a park crossing the
+          // publication threshold lights up within the hour rather than at the
+          // next six-hourly baseline pass.
+          refreshActualWaits();
+        } catch (err) {
+          console.log(`wait report failed: ${err.message}`);
+          return sendJson(res, 500, { error: 'could not save that' });
+        }
+        return sendJson(res, 200, {
+          ok: true,
+          posted,
+          ...(posted != null ? { delta: Math.round(actual) - posted } : {}),
+        });
       }
 
       if (url.pathname === '/api/consultant') {
