@@ -18,6 +18,32 @@
     "closesEarlyAt (hour day tickets must leave, null if the park keeps normal",
     "hours), note, dates (confirmed ISO dates, [] until filled)."
   ],
+  "disneyland": [
+    {
+      "name": "Disneyland After Dark: Halloween",
+      "kind": "hard-ticket",
+      "months": [
+        8,
+        9,
+        10
+      ],
+      "closesEarlyAt": 18,
+      "note": "Selected nights, separate ticket, and day guests are asked to leave in the early evening. Its sibling park runs Oogie Boogie Bash on its own nights.",
+      "dates": []
+    },
+    {
+      "name": "Holidays at the Disneyland Resort",
+      "kind": "seasonal",
+      "months": [
+        11,
+        12,
+        1
+      ],
+      "closesEarlyAt": null,
+      "note": "Normal hours, but overlays, the parade and the tree draw heavy crowds — expect longer waits than the day of the week suggests.",
+      "dates": []
+    }
+  ],
   "magic-kingdom": [
     {
       "name": "Mickey's Not-So-Scary Halloween Party",

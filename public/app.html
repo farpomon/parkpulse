@@ -767,16 +767,29 @@
     const el = $('weatherline');
     if (!el) return;
     const day = weatherDay();
-    if (!lastWeather || !day) { el.style.display = 'none'; return; }
+    if (!lastWeather) { el.style.display = 'none'; return; }
     el.style.display = '';
     el.classList.add('wxpin');
 
-    const p = parks[current] || { open: 9, close: 22 };
-    const hours = (day.hours || []).filter((h) => h.hour >= p.open && h.hour <= Math.min(23, p.close));
-    const isToday = !planDate || (lastWeather.days || [])[0]?.date === day.date;
+    const isToday = !planDate || (lastWeather.days || [])[0]?.date === (day || {}).date;
     const when = planDate && !isToday
       ? new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })
       : tr('Today');
+
+    // The pass reaches sixty days out; the forecast reaches seven. Past that
+    // the card stays put and says it has nothing, because a pinned panel that
+    // vanishes on certain days reads as a bug, not as an honest gap.
+    if (!day) {
+      el.innerHTML = `<div class="wx-head">
+        <span class="wx-ico">🗓️</span>
+        <span class="wx-when"><b>${esc(when)}</b><span>${tr('No forecast yet')}</span></span>
+      </div>
+      <div class="wx-key">${tr('Weather only reaches about a week ahead. Check back closer to the day — the crowd forecast below already covers it.')}</div>`;
+      return;
+    }
+
+    const p = parks[current] || { open: 9, close: 22 };
+    const hours = (day.hours || []).filter((h) => h.hour >= p.open && h.hour <= Math.min(23, p.close));
 
     const head = `<div class="wx-head">
       <span class="wx-ico">${day.icon}</span>
@@ -1050,14 +1063,17 @@
   async function renderForecast() {
     const el = $('forecast');
     try {
-      const res = await api(`/api/forecast/${current}`);
+      // The pass buys a planning horizon, so ask for the whole of it. Left at
+      // the default the endpoint returns a week, the Day picker silently
+      // capped at a week with it, and a 60-day pass planned six days out.
+      const res = await api(`/api/forecast/${current}?days=${planHorizonDays()}`);
       if (!res.ok) { el.innerHTML = ''; return; }
       const f = await res.json();
       lastForecast = f;
       renderDayOptions();
       el.innerHTML = `<div class="fcast">
         <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 ${tr('Trip')}</a> · ${tr('Lightest:')} ${tr(f.best)} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
-        <div class="fc-days">${f.days.map((d) => `
+        <div class="fc-days">${f.days.slice(0, 7).map((d) => `
           <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
             ${tr(d.dow)}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
           </div>`).join('')}
@@ -2415,7 +2431,25 @@
 
   // --- Group setup wizard: four quick questions that tune the whole app ---
   let profile = null;
-  try { profile = JSON.parse(localStorage.getItem('pp-profile') || 'null'); } catch {}
+  // localStorage outlives the code that wrote it. A profile saved by an older
+  // build -- or by a build after the next schema change -- reached
+  // applyProfileDefaults() and renderGroupChip() at top level, where a missing
+  // array threw and took every line of script below it with it: no rides, no
+  // weather, no planner, and no way back but clearing site data. Normalise on
+  // the way in so a stale shape costs the wizard's answers, not the app.
+  function normalizeProfile(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const arr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+    return {
+      ...raw,
+      party: Number(raw.party) || 1,
+      ages: arr(raw.ages),
+      vibes: arr(raw.vibes),
+      strict: raw.strict === true,
+      day: typeof raw.day === 'string' ? raw.day : '',
+    };
+  }
+  try { profile = normalizeProfile(JSON.parse(localStorage.getItem('pp-profile') || 'null')); } catch {}
   const saveProfile = () => { try { localStorage.setItem('pp-profile', JSON.stringify(profile)); } catch {} };
   const AGE_BANDS = [['toddler', '👶', 'Toddlers'], ['kid', '🧒', 'Kids'], ['teen', '🧑', 'Teens'], ['adult', '🧔', 'Adults']];
   const youngestCap = () => {
@@ -2451,7 +2485,7 @@
   }
   function closeWizard(save) {
     if (save) {
-      profile = wizDraft;
+      profile = normalizeProfile(wizDraft) || wizDraft;
       profile.day = parkDay();
       saveProfile();
       scheduleSync();
@@ -2782,7 +2816,12 @@
   }
 
   async function applyPlan(action) {
-    if (action.park !== current) {
+    // The park on the action reaches here from a model tool call. The server
+    // overwrites it with the real slug, but this is the only place a plan
+    // payload rewrites `current`, and an unknown slug leaves the app pointing
+    // at a park that does not exist -- blank list, blank weather, a throw on
+    // the next render. Switch only to a park we actually have.
+    if (action.park && action.park !== current && parks[action.park]) {
       current = action.park;
       dest = parks[current]?.group || dest;
       await load();

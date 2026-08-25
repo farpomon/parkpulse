@@ -65,7 +65,7 @@ const CSS = `
   .chart .bar.qt{opacity:.55;background:var(--green)}
   .xaxis{display:flex;gap:3px;color:var(--muted);font-size:.7rem}
   .xaxis span{flex:1;text-align:center;overflow:hidden}
-  .months{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:.5rem 0 .25rem}
+  .months{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;margin:.5rem 0 .25rem}
   .months div{text-align:center;font-size:.7rem;font-weight:700;padding:.45rem .1rem;border-radius:6px;background:var(--border);color:var(--muted)}
   .months div.pk{background:var(--red-soft);color:var(--red)}
   .months div.qt{background:var(--green-soft);color:var(--green)}
@@ -107,6 +107,10 @@ const CSS = `
   .allparks a:hover{color:var(--brand)}
   .allparks b{display:block;color:var(--ink);margin:.5rem 0 .15rem;break-after:avoid}
   @media (max-width:640px){ .allparks{columns:2} h1{font-size:1.45rem} }
+  /* Twelve month names on a phone: a grid track can't shrink past its
+     item's min-content width, so "Dec" pushed the whole page sideways.
+     Shrink the type instead of letting the year run off the screen. */
+  @media (max-width:430px){ .months{gap:2px} .months div{font-size:.56rem;padding:.45rem 0;letter-spacing:-.03em} }
 `;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

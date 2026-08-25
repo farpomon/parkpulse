@@ -702,6 +702,9 @@ async function getWeather(park) {
     const p = hourly.precipitation_probability?.[i] ?? 0;
     if (!wettest || p > wettest.chance) wettest = { hour: hr, chance: p };
   }
+  // Every figure below is coerced to a number before it leaves here. These
+  // values are interpolated straight into markup client-side, and a
+  // third-party feed is the one input this process does not control.
   const data = {
     now: {
       temp: Math.round(cur.temperature_2m),
@@ -711,7 +714,7 @@ async function getWeather(park) {
     today: {
       high: Math.round((daily.temperature_2m_max || [])[0]),
       low: Math.round((daily.temperature_2m_min || [])[0]),
-      rainChance: (daily.precipitation_probability_max || [])[0] ?? 0,
+      rainChance: Math.round(Number((daily.precipitation_probability_max || [])[0]) || 0),
       sunset: ((daily.sunset || [])[0] || '').slice(11, 16),
       ...wmo((daily.weather_code || [])[0]),
     },
@@ -723,7 +726,7 @@ async function getWeather(park) {
       date: d,
       high: Math.round(daily.temperature_2m_max[i]),
       low: Math.round(daily.temperature_2m_min[i]),
-      rainChance: daily.precipitation_probability_max?.[i] ?? 0,
+      rainChance: Math.round(Number(daily.precipitation_probability_max?.[i]) || 0),
       uvMax: Math.round((daily.uv_index_max?.[i] ?? 0) * 10) / 10,
       windMax: Math.round(daily.wind_speed_10m_max?.[i] ?? 0),
       sunrise: ((daily.sunrise || [])[i] || '').slice(11, 16),
@@ -735,10 +738,10 @@ async function getWeather(park) {
           hour: Number(String(t).slice(11, 13)),
           temp: Math.round(hourly.temperature_2m?.[j] ?? 0),
           feels: Math.round(hourly.apparent_temperature?.[j] ?? hourly.temperature_2m?.[j] ?? 0),
-          rain: hourly.precipitation_probability?.[j] ?? 0,
+          rain: Math.round(Number(hourly.precipitation_probability?.[j]) || 0),
           uv: Math.round((hourly.uv_index?.[j] ?? 0) * 10) / 10,
           wind: Math.round(hourly.wind_speed_10m?.[j] ?? 0),
-          humidity: Math.round(hourly.relative_humidity_2m?.[j] ?? 0),
+          humidity: Math.round(Number(hourly.relative_humidity_2m?.[j]) || 0),
           ...wmo(hourly.weather_code?.[j]),
         });
         return acc;
@@ -2557,7 +2560,7 @@ const server = http.createServer(async (req, res) => {
       // Observed waits, reported by visitors. This is the one dataset here that
       // nobody else has, and the only one a stranger can write to -- so the bar for
       // accepting a report is deliberately higher than for reading anything.
-        if (url.pathname === '/api/wait-report') {
+      if (url.pathname === '/api/wait-report') {
         // Verified identity only. An open endpoint would collect more numbers and
         // fewer facts: this becomes a published dataset, and one script could bend
         // a ride's whole curve. A session or a valid pass is the bar.
@@ -2570,7 +2573,15 @@ const server = http.createServer(async (req, res) => {
         if (!park) return sendJson(res, 400, { error: 'unknown park' });
         const ride = typeof parsed.ride === 'string' ? parsed.ride.slice(0, 120).trim() : '';
         if (!ride) return sendJson(res, 400, { error: 'which ride?' });
-        const actual = Number(parsed.actual);
+        // Number(null) is 0, and so are Number(''), Number(false) and Number([]).
+        // Taking the coercion at face value recorded every one of those as a
+        // genuine nought-minute wait -- silent false zeros in the one dataset
+        // here that gets published as authoritative. Require an actual number
+        // or a numeric string, and nothing else.
+        const rawActual = parsed.actual;
+        const numeric = typeof rawActual === 'number'
+          || (typeof rawActual === 'string' && rawActual.trim() !== '' && Number.isFinite(Number(rawActual)));
+        const actual = numeric ? Number(rawActual) : NaN;
         // A queue longer than four hours is a data-entry slip far more often than
         // it is a queue; rejecting it here keeps the aggregate clean without
         // needing to guess at intent later.
