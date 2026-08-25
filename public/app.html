@@ -1852,11 +1852,17 @@
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
     $('plan-out').querySelectorAll('.stepdone').forEach((b) => b.addEventListener('click', () => {
+      // A toggle, not a one-way gate: the button used to disable itself after
+      // one tap, so a mis-click could never be undone from the plan.
       const name = decodeURIComponent(b.dataset.name);
-      if (!doneOrder.includes(name)) { doneOrder.push(name); saveDone(); }
-      b.closest('.step').classList.add('done');
-      b.disabled = true;
-      document.getElementById('replan').style.display = 'inline-block';
+      const i = doneOrder.indexOf(name);
+      if (i === -1) doneOrder.push(name); else doneOrder.splice(i, 1);
+      saveDone();
+      const nowDone = i === -1;
+      b.closest('.step').classList.toggle('done', nowDone);
+      b.title = nowDone ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off');
+      renderRides();   // keep the attractions list's ✓ marks in sync
+      document.getElementById('replan').style.display = doneOrder.length ? 'inline-block' : 'none';
     }));
     document.getElementById('replan').addEventListener('click', () => { $('start-hour').value = 'now'; buildPlan(); });
     document.getElementById('plan-mail').addEventListener('click', async (e) => {
