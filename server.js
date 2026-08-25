@@ -680,8 +680,10 @@ async function getWeather(park) {
   if (hit && Date.now() - hit.at < WEATHER_TTL_MS) return hit.data;
   const url = `${WEATHER_API}?latitude=${park.lat}&longitude=${park.lng}` +
     '&current=temperature_2m,apparent_temperature,weather_code,precipitation' +
-    '&hourly=temperature_2m,precipitation_probability,weather_code' +
-    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset' +
+    // Feels-like, UV, wind and humidity are what actually decide a park day:
+    // the queue is outdoors, the sun is overhead, and high rides pause in wind.
+    '&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,uv_index,wind_speed_10m,relative_humidity_2m' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset' +
     `&timezone=${encodeURIComponent(park.tz || 'auto')}&forecast_days=7`;
   const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`open-meteo ${res.status}`);
@@ -714,12 +716,33 @@ async function getWeather(park) {
       ...wmo((daily.weather_code || [])[0]),
     },
     wettestHour: wettest && wettest.chance >= 30 ? wettest : null,
+    // Each day carries its own hours. The app was reading index 0 whatever day
+    // the user picked, so a Thursday plan showed Tuesday's weather; giving every
+    // day its own block is what makes selecting a day mean anything.
     days: (daily.time || []).map((d, i) => ({
       date: d,
       high: Math.round(daily.temperature_2m_max[i]),
       low: Math.round(daily.temperature_2m_min[i]),
       rainChance: daily.precipitation_probability_max?.[i] ?? 0,
+      uvMax: Math.round((daily.uv_index_max?.[i] ?? 0) * 10) / 10,
+      windMax: Math.round(daily.wind_speed_10m_max?.[i] ?? 0),
+      sunrise: ((daily.sunrise || [])[i] || '').slice(11, 16),
+      sunset: ((daily.sunset || [])[i] || '').slice(11, 16),
       ...wmo(daily.weather_code[i]),
+      hours: times.reduce((acc, t, j) => {
+        if (!String(t).startsWith(d)) return acc;
+        acc.push({
+          hour: Number(String(t).slice(11, 13)),
+          temp: Math.round(hourly.temperature_2m?.[j] ?? 0),
+          feels: Math.round(hourly.apparent_temperature?.[j] ?? hourly.temperature_2m?.[j] ?? 0),
+          rain: hourly.precipitation_probability?.[j] ?? 0,
+          uv: Math.round((hourly.uv_index?.[j] ?? 0) * 10) / 10,
+          wind: Math.round(hourly.wind_speed_10m?.[j] ?? 0),
+          humidity: Math.round(hourly.relative_humidity_2m?.[j] ?? 0),
+          ...wmo(hourly.weather_code?.[j]),
+        });
+        return acc;
+      }, []),
     })),
     units: 'celsius',
   };

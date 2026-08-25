@@ -158,6 +158,39 @@
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
+  .wxline { display: block; }
+  .wx-head { display: flex; align-items: center; gap: .55rem; }
+  .wx-ico { font-size: 1.5rem; line-height: 1; }
+  .wx-when { display: flex; flex-direction: column; line-height: 1.2; }
+  .wx-when b { font-size: .95rem; color: var(--ink); }
+  .wx-when span { font-size: .78rem; color: var(--muted); }
+  .wx-temps { margin-left: auto; font-weight: 800; font-size: 1.05rem; color: var(--ink); }
+  .wx-temps span { font-weight: 600; color: var(--muted); font-size: .88rem; }
+  .wx-sum { font-size: .82rem; color: var(--muted); margin-top: .3rem; }
+  .wx-more { margin-top: .45rem; }
+  .wx-more > summary { cursor: pointer; font-size: .82rem; font-weight: 700; color: var(--brand); list-style: none; }
+  .wx-more > summary::-webkit-details-marker { display: none; }
+  .wx-more > summary::after { content: ' ▾'; }
+  .wx-more[open] > summary::after { content: ' ▴'; }
+  /* Horizontal scroll rather than squeezing sixteen hours into a phone width —
+     a legible strip you swipe beats an illegible one that fits. */
+  .wx-strip { display: flex; gap: .18rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: .5rem 0 .2rem; margin-top: .3rem; }
+  .wx-h { flex: 0 0 2.5rem; display: flex; flex-direction: column; align-items: center; gap: .12rem;
+    border-radius: 8px; padding: .2rem .1rem; }
+  .wx-h.wet { background: var(--brand-soft, rgba(91,61,245,.1)); }
+  .wx-t { font-size: .72rem; font-weight: 700; color: var(--ink); }
+  .wx-bar { display: block; width: 6px; height: 26px; border-radius: 3px; background: var(--border);
+    position: relative; overflow: hidden; }
+  .wx-bar i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--brand); display: block; }
+  .wx-r { font-size: .6rem; color: var(--muted); }
+  .wx-uv { font-size: .6rem; font-weight: 700; color: var(--muted); }
+  .wx-uv.mid { color: var(--gold); } .wx-uv.hi { color: var(--red); }
+  .wx-hr { font-size: .58rem; color: var(--muted); white-space: nowrap; }
+  .wx-key { font-size: .68rem; color: var(--muted); line-height: 1.4; }
+  .wx-tips { margin-top: .5rem; display: flex; flex-direction: column; gap: .35rem; }
+  .wx-tip { display: flex; gap: .4rem; font-size: .8rem; line-height: 1.45; color: var(--ink); align-items: flex-start; }
+  .wx-tip > span:first-child { flex: 0 0 1rem; }
   .fillnote { font-size: .88rem; color: var(--muted); line-height: 1.55; margin: 0 0 .7rem; }
   .fillnote b { color: var(--ink); }
   .fillnote a { color: var(--brand); font-weight: 700; }
@@ -265,7 +298,6 @@
   .parkclock { background: var(--brand-soft); color: var(--brand); border-radius: 999px; padding: .1rem .5rem; margin-inline-start: .35rem; white-space: nowrap; }
   .wxline { font-size: .88rem; color: var(--muted); margin: .1rem 0 .5rem; line-height: 1.5; }
   .wxline b { color: var(--ink); }
-  .wx-tip { margin-top: .3rem; background: var(--brand-soft); color: var(--brand); border-radius: 10px; padding: .4rem .6rem; font-weight: 600; }
   .wpin.step { background: #5b3df5; box-shadow: 0 0 0 3px rgba(91,61,245,.28), 0 2px 8px rgba(0,0,0,.35); }
   .wpin.low { background: #1d7a4f; } .wpin.mid { background: #b07800; } .wpin.high { background: #c43c3c; } .wpin.closed { background: #8a8798; }
   .wpin.isdone { opacity: .45; }
@@ -680,28 +712,105 @@
     } catch { lastWeather = null; }
     renderWeather();
   }
+  // Weather for the day being planned, not for today. The card read index 0
+  // whatever the Day picker said, so a Thursday plan showed Tuesday's sky.
+  // Everything below keys off planDate and degrades honestly: Open-Meteo gives
+  // seven days of hourly detail, and beyond that we show the daily summary
+  // rather than inventing hours.
+  // Open-Meteo returns "19:27"; the rest of the app speaks 12-hour time, and
+  // mixing the two in one card reads as two different products.
+  const clockLabel = (hhmm) => {
+    if (!/^\d{2}:\d{2}$/.test(hhmm || '')) return hhmm || '';
+    const [h, m] = hhmm.split(':').map(Number);
+    return usesFahrenheit() ? `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : hhmm;
+  };
+  const UV_WORDS = (uv) => (uv >= 11 ? 'extreme' : uv >= 8 ? 'very high' : uv >= 6 ? 'high' : uv >= 3 ? 'moderate' : 'low');
+
+  function weatherDay() {
+    if (!lastWeather) return null;
+    const days = lastWeather.days || [];
+    if (planDate) return days.find((d) => d.date === planDate) || null;
+    return days[0] || null;
+  }
+
+  // Park-specific reads of the forecast. Every one is computed from the hours;
+  // none is a generic weather platitude. The point is what it means for a day
+  // spent standing outdoors in a queue.
+  function weatherCallouts(day, hours) {
+    const out = [];
+    if (!hours.length) return out;
+    const hottest = hours.reduce((a, b) => (b.feels > a.feels ? b : a));
+    const uvPeak = hours.reduce((a, b) => (b.uv > a.uv ? b : a));
+    const wet = hours.filter((h) => h.rain >= 40);
+    const maxTemp = Math.max(...hours.map((h) => h.temp));
+
+    if (wet.length) {
+      const span = wet.length > 1 ? `${hourLabel(wet[0].hour)}–${hourLabel(wet[wet.length - 1].hour + 1)}` : hourLabel(wet[0].hour);
+      out.push({ icon: '☔', text: `${tr('Rain most likely')} ${span} (${Math.max(...wet.map((h) => h.rain))}%) — ${tr('poncho in the bag, and a good window for indoor rides.')}` });
+    }
+    if (uvPeak.uv >= 6) {
+      out.push({ icon: '🧴', text: `${tr('UV peaks at')} ${uvPeak.uv} (${tr(UV_WORDS(uvPeak.uv))}) ${tr('around')} ${hourLabel(uvPeak.hour)} — ${tr('reapply before the queue, not after.')}` });
+    }
+    if (hottest.feels - hottest.temp >= 3 || hottest.feels >= 30) {
+      out.push({ icon: '🥵', text: `${tr('Feels like')} ${degrees(hottest.feels)} ${tr('at')} ${hourLabel(hottest.hour)} — ${tr('the hour to be on an indoor ride or eating something cold.')}` });
+    }
+    if (maxTemp >= 27) out.push({ icon: '💦', text: tr('Warm enough that a water ride is a reward, not a punishment.') });
+    else if (maxTemp <= 16) out.push({ icon: '🧥', text: tr("Cool day — you'll regret the water rides unless you pack a change.") });
+    if ((day.windMax || 0) >= 40) {
+      out.push({ icon: '🎡', text: `${tr('Windy —')} ${day.windMax} km/h. ${tr('Tall rides and anything that dangles can pause in gusts like that.')}` });
+    }
+    if (day.sunset) out.push({ icon: '🌇', text: `${tr('Sunset')} ${clockLabel(day.sunset)}${day.sunrise ? ` · ${tr('first light')} ${clockLabel(day.sunrise)}` : ''} — ${tr('the half-hour before it is the best light you will get for photos.')}` });
+    return out;
+  }
+
   function renderWeather() {
     const el = $('weatherline');
     if (!el) return;
-    if (!lastWeather) { el.style.display = 'none'; return; }
-    const w = lastWeather;
+    const day = weatherDay();
+    if (!lastWeather || !day) { el.style.display = 'none'; return; }
     el.style.display = '';
-    // Pinned on wide screens only — the media query decides whether the class
-    // does anything, so a phone keeps it in the flow.
     el.classList.add('wxpin');
-    const bits = [
-      `${w.now.icon} <b>${degrees(w.now.temp)}</b>`,
-      w.now.feels - w.now.temp >= 3 ? `${tr('feels')} ${degrees(w.now.feels)}` : '',
-      `${tr('High')} ${degrees(w.today.high)} · ${tr('Low')} ${degrees(w.today.low)}`,
-      w.today.rainChance >= 20 ? `🌂 ${w.today.rainChance}% ${tr('rain')}` : '',
-      w.today.sunset ? `🌇 ${w.today.sunset}` : '',
+
+    const p = parks[current] || { open: 9, close: 22 };
+    const hours = (day.hours || []).filter((h) => h.hour >= p.open && h.hour <= Math.min(23, p.close));
+    const isToday = !planDate || (lastWeather.days || [])[0]?.date === day.date;
+    const when = planDate && !isToday
+      ? new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })
+      : tr('Today');
+
+    const head = `<div class="wx-head">
+      <span class="wx-ico">${day.icon}</span>
+      <span class="wx-when"><b>${esc(when)}</b><span>${esc(tr(day.label))}</span></span>
+      <span class="wx-temps">${degrees(day.high)}<span> / ${degrees(day.low)}</span></span>
+    </div>`;
+
+    const summary = [
+      isToday && lastWeather.now ? `${tr('Now')} ${degrees(lastWeather.now.temp)}` : '',
+      day.rainChance >= 10 ? `🌂 ${day.rainChance}%` : '',
+      day.uvMax ? `☀️ UV ${day.uvMax}` : '',
+      day.sunset ? `🌇 ${clockLabel(day.sunset)}` : '',
     ].filter(Boolean).join(' · ');
-    // The single most useful line: when to be indoors.
-    const tip = w.wettestHour
-      ? `<div class="wx-tip">☔ ${tr('Wettest around')} ${hourLabel(w.wettestHour.hour)} (${w.wettestHour.chance}%) — ${tr('good window for indoor rides or a sit-down meal.')}</div>`
-      : '';
-    el.innerHTML = bits + tip;
+
+    // Hourly strip: a bar per hour for rain, the temperature above it, UV under.
+    // Scrolls sideways rather than shrinking to unreadable on a phone.
+    const strip = hours.length ? `<div class="wx-strip" role="img" aria-label="${tr('Hour by hour')}: ${hours.map((h) => `${hourLabel(h.hour)} ${degrees(h.temp)}, ${h.rain}% ${tr('rain')}, UV ${h.uv}`).join('; ')}">
+      ${hours.map((h) => `<div class="wx-h${h.rain >= 40 ? ' wet' : ''}">
+        <span class="wx-t">${degrees(h.temp).replace(/°[CF]$/, '°')}</span>
+        <span class="wx-bar"><i style="height:${Math.max(3, Math.round(h.rain))}%"></i></span>
+        <span class="wx-r">${h.rain}%</span>
+        <span class="wx-uv${h.uv >= 8 ? ' hi' : h.uv >= 6 ? ' mid' : ''}">${h.uv >= 1 ? h.uv : '–'}</span>
+        <span class="wx-hr">${hourLabel(h.hour).replace(':00', '')}</span>
+      </div>`).join('')}
+    </div>
+    <div class="wx-key">${tr('temp · rain chance · UV, hour by hour')}</div>` : `<div class="wx-key">${tr('Hour-by-hour detail reaches about a week ahead — this far out we only have the daily outlook.')}</div>`;
+
+    const notes = weatherCallouts(day, hours);
+    const tips = notes.length ? `<div class="wx-tips">${notes.map((n) => `<div class="wx-tip"><span>${n.icon}</span><span>${n.text}</span></div>`).join('')}</div>` : '';
+
+    el.innerHTML = `${head}<div class="wx-sum">${summary}</div>
+      <details class="wx-more"${planDate ? ' open' : ''}><summary>${tr('Hour by hour')}</summary>${strip}${tips}</details>`;
   }
+
 
   function crowdNow() {
     const p = parks[current] || {};
@@ -1716,6 +1825,7 @@
   });
   $('plan-day-sel').addEventListener('change', (e) => {
     planDate = e.target.value || null;
+    renderWeather(); // the card follows the day being planned
     // A future day has no "now" — start at opening unless they choose otherwise.
     if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
     if (!planDate) $('start-hour').value = 'now';
