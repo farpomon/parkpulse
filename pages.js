@@ -78,6 +78,7 @@ const CSS = `
   details p{margin:.6rem 0 0}
   footer{margin-top:3rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:1rem}
   footer a{color:var(--muted)}
+  .calcta{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:12px;padding:.7rem .9rem;font-size:.94rem;margin:1.2rem 0}
   .cv-fig{margin:.6rem 0 1.4rem}
   .cv-svg{display:block;max-width:100%;height:auto;overflow:visible}
   /* A light fill on a dark ground carries more weight than the same value on
@@ -487,6 +488,7 @@ ${waitsSection}
 </ul>
 <div class="tip"><strong>Local knowledge:</strong> ${esc(seo.tip)}</div>
 </div>
+<p class="calcta">Planning ahead? The free <a href="/parks/${park.slug}/calendar"><b>${esc(park.name)} crowd calendar</b></a> scores every day for the next four months, 1 to 10 &mdash; no sign-up.</p>
 ${curveChart(park, curves, actual)}
 ${bandsTable(park, bands)}
 ${faq.html}
@@ -651,6 +653,9 @@ const renderSitemap = (origin, slugs) => {
     { p: '/parks', pri: '0.9' },
     { p: '/guide', pri: '0.8' },
     ...slugs.map((s) => ({ p: `/parks/${s}`, pri: '0.8' })),
+    // The calendars are the free wedge — they should be crawled as eagerly
+    // as the wait-time pages they feed.
+    ...slugs.map((s) => ({ p: `/parks/${s}/calendar`, pri: '0.8' })),
     { p: '/terms', pri: '0.3' },
     { p: '/privacy', pri: '0.3' },
   ];
@@ -662,4 +667,130 @@ ${entries.map((e) => `  <url><loc>${origin}${e.p}</loc><lastmod>${today}</lastmo
 
 const renderRobots = (origin) => `User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`;
 
-module.exports = { renderParkPage, renderParksIndex, renderSitemap, renderRobots, allParksIndex };
+// --- Crowd calendar ----------------------------------------------------------
+// A month grid per park, free and indexable. The scale is 1-10 rather than the
+// five named levels because the underlying factor is continuous; the levels are
+// how we colour it, the score is how we number it.
+function renderCalendarPage(park, days, bestByDate, allParks, origin) {
+  const seo = SEO[park.slug] || null;
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const byMonth = {};
+  for (const d of days) {
+    const [y, m] = d.date.split('-').map(Number);
+    (byMonth[`${y}-${String(m).padStart(2, '0')}`] ??= []).push(d);
+  }
+
+  const cell = (d) => {
+    if (!d) return '<div class="cal-cell cal-pad"></div>';
+    const day = Number(d.date.slice(8, 10));
+    const bp = bestByDate && bestByDate.byDate[d.date];
+    const isHere = bp && bp.slug === park.slug;
+    const title = `${d.label} — crowd ${d.score} of 10${d.holiday ? ` · ${d.holiday}` : ''}${bp ? ` · lightest nearby: ${bp.name}` : ''}`;
+    return `<div class="cal-cell l${d.level}${isHere ? ' cal-pick' : ''}" title="${esc(title)}">
+      <span class="cal-d">${day}</span><span class="cal-s">${d.score}</span>
+      ${d.holiday ? '<span class="cal-h" aria-hidden="true">\u2726</span>' : ''}
+      ${bp && !isHere ? `<a class="cal-alt" href="/parks/${bp.slug}/calendar" title="${esc(bp.name)} is lighter this day">${esc(bp.name.split(' ')[0])}</a>` : ''}
+    </div>`;
+  };
+
+  const months = Object.entries(byMonth).map(([key, list]) => {
+    const [y, m] = key.split('-').map(Number);
+    // Monday-first grid. getUTCDay() is 0=Sunday, so shift it.
+    const firstDow = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+    const lead = Array.from({ length: firstDow }, () => null);
+    const known = new Map(list.map((d) => [Number(d.date.slice(8, 10)), d]));
+    const inMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    let cells = [...lead, ...Array.from({ length: inMonth }, (_, i) => known.get(i + 1) || null)];
+    // The current month opens on today, so its early weeks are all padding.
+    // Drop whole leading rows that carry no day at all — three and a half empty
+    // rows above the first real square reads as a broken grid.
+    while (cells.length > 7 && cells.slice(0, 7).every((c) => !c)) cells = cells.slice(7);
+    return `<section class="cal-month"><h3>${MONTHS[m - 1]} ${y}</h3>
+      <div class="cal-grid" role="table" aria-label="${MONTHS[m - 1]} ${y} crowd forecast">
+        ${DOW.map((w) => `<div class="cal-w">${w}</div>`).join('')}
+        ${cells.map(cell).join('')}
+      </div></section>`;
+  }).join('');
+
+  const lightest = [...days].sort((a, b) => a.factor - b.factor).slice(0, 3);
+  const busiest = [...days].sort((a, b) => b.factor - a.factor)[0];
+  const pretty = (iso) => {
+    const [y, m, dd] = iso.split('-').map(Number);
+    return `${DOW[(new Date(Date.UTC(y, m - 1, dd)).getUTCDay() + 6) % 7]} ${dd} ${MONTHS[m - 1].slice(0, 3)}`;
+  };
+
+  const title = `${park.name} Crowd Calendar — Every Day Scored 1-10`;
+  const desc = `Free crowd calendar for ${park.name}: every day for the next ${days.length} days scored 1 to 10, with the quietest dates and the lightest park to visit each day. No sign-up.`;
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+<link rel="canonical" href="${origin}/parks/${park.slug}/calendar">
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
+<style>${CSS}
+  .cal-lead{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem 1.1rem;margin:.8rem 0 1.4rem}
+  .cal-lead b{color:var(--ink)}
+  .cal-month{margin:0 0 1.6rem}
+  .cal-month h3{font-size:1rem;margin:0 0 .5rem}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cal-w{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;text-align:center;padding:.2rem 0}
+  .cal-cell{position:relative;min-height:52px;border-radius:9px;padding:.25rem .3rem;border:1px solid transparent}
+  .cal-pad{background:none}
+  .cal-d{font-size:.72rem;color:var(--muted);font-weight:600}
+  .cal-s{position:absolute;left:0;right:0;top:50%;transform:translateY(-42%);text-align:center;font-size:1.05rem;font-weight:800;color:var(--ink)}
+  .cal-h{position:absolute;top:.2rem;right:.3rem;font-size:.6rem;color:var(--gold)}
+  .cal-alt{position:absolute;left:0;right:0;bottom:.15rem;text-align:center;font-size:.56rem;font-weight:700;color:var(--brand);text-decoration:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 .15rem}
+  .cal-pick{outline:2px solid var(--brand);outline-offset:-2px}
+  .cal-cell.l1{background:var(--green-soft)} .cal-cell.l2{background:var(--green-soft);opacity:.75}
+  .cal-cell.l3{background:var(--gold-soft)} .cal-cell.l4{background:var(--red-soft);opacity:.85}
+  .cal-cell.l5{background:var(--red-soft)}
+  .cal-season{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:14px;margin:.6rem 0 1rem}
+  .cs-card{border:1px solid var(--border);border-radius:14px;padding:.9rem 1rem;background:var(--card)}
+  .cs-card h3{margin:0 0 .3rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .cs-card p{margin:0;font-size:.92rem;line-height:1.6}
+  .cs-busy{border-left:3px solid var(--red)} .cs-quiet{border-left:3px solid var(--green)}
+  .cal-tip{background:var(--gold-soft);border-radius:10px;padding:.7rem .9rem;font-size:.9rem;margin:0 0 1.4rem}
+  .cal-key{display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;font-size:.76rem;color:var(--muted);margin:.2rem 0 1.2rem}
+  .cal-key i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:.25rem;vertical-align:-1px}
+  @media (max-width:520px){ .cal-cell{min-height:44px} .cal-s{font-size:.92rem} .cal-alt{display:none} }
+</style></head><body>
+<div class="wrap">
+<nav><a class="logo" href="/">ParkPulse</a><a href="/app" class="navbtn">Open live waits</a></nav>
+<h1>${esc(park.name)} crowd calendar</h1>
+<p class="sub">Every day scored 1 to 10 for the next ${days.length} days. Free, no sign-up, no email.</p>
+
+<div class="cal-lead">
+  <p style="margin:0 0 .5rem"><b>Quietest days coming up:</b> ${lightest.map((d) => `${pretty(d.date)} <span class="cal-inline">(${d.score}/10)</span>`).join(' &middot; ')}</p>
+  <p style="margin:0"><b>Busiest:</b> ${pretty(busiest.date)} (${busiest.score}/10)${busiest.holiday ? ` &mdash; ${esc(busiest.holiday)}` : ''}${bestByDate && Object.keys(bestByDate.byDate).length
+    ? `. On days when one ${esc(bestByDate.group)} park is clearly lighter than the rest, it is named in the square.`
+    : ''}</p>
+</div>
+
+<div class="cal-key">
+  <span><i style="background:var(--green-soft)"></i>1&ndash;3 quiet</span>
+  <span><i style="background:var(--gold-soft)"></i>4&ndash;6 moderate</span>
+  <span><i style="background:var(--red-soft)"></i>7&ndash;10 busy</span>
+  <span><span style="color:var(--gold)">\u2726</span> holiday</span>
+</div>
+
+${months}
+
+${seo ? `<h2>The months that actually matter at ${esc(park.name)}</h2>
+<div class="cal-season">
+  <div class="cs-card cs-busy"><h3>Busiest months</h3><p><b>${monthList(seo.peak.months)}</b> &mdash; ${esc(seo.peak.why)}.</p></div>
+  <div class="cs-card cs-quiet"><h3>Quietest months</h3><p><b>${monthList(seo.quiet.months)}</b> &mdash; ${esc(seo.quiet.why)}.</p></div>
+</div>
+<p class="cal-tip"><b>Local knowledge:</b> ${esc(seo.tip)}</p>` : ''}
+
+<h2>How this is worked out</h2>
+<p>Each day starts from how that weekday normally runs at ${esc(park.name)}, learned from our own recorded wait snapshots as they accumulate, and is raised for public holidays and school-holiday periods.${bestByDate && !Object.keys(bestByDate.byDate).length ? ` We are still accumulating enough per-park history to separate the ${esc(bestByDate.group)} parks from one another, so for now they share a weekday pattern; the months below are specific to ${esc(park.name)}.` : ''} It is a forecast of <em>relative</em> busyness, not a promise: a 3 means a day that usually runs quiet for this park, not a guarantee of short lines. The further out a date sits, the more it leans on the weekday pattern alone.</p>
+<p>Want the live picture instead? <a href="/parks/${park.slug}">${esc(park.name)} wait times</a> has today's queues, the hour-by-hour curve and what counts as a normal wait here. Planning a specific day? <a href="/app">Open the planner</a> and it will build a route around these crowd levels.</p>
+
+<h2 id="all">All parks we track</h2>
+<div class="allparks">${allParksIndex(allParks, park.slug)}</div>
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Crowd levels are forecasts and can be wrong; verify hours and ticket availability with the operator. <a href="/">ParkPulse home</a> &middot; <a href="/parks">All parks</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
+</div><script src="/i18n.js"></script></body></html>`;
+}
+
+module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderSitemap, renderRobots, allParksIndex };

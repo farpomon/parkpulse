@@ -1288,12 +1288,48 @@ const isChristmasWeek = (iso) => {
 };
 const FORECAST_LEVELS = ['', 'Light', 'Mild', 'Moderate', 'Busy', 'Packed'];
 
+// For each date, which park in the same resort is the lightest. This is the
+// call a visitor actually wants — not "how busy is EPCOT" but "which of the
+// four should I do on the 30th" — and it only means anything where a resort
+// has siblings, so a standalone park gets nothing rather than a comparison
+// with itself.
+function bestParkByDate(slug, horizon) {
+  const group = PARKS[slug]?.group;
+  const siblings = REGISTRY.filter((p) => p.group && p.group === group);
+  if (siblings.length < 2) return null;
+  const byPark = siblings.map((p) => ({ slug: p.slug, name: p.name, days: forecastFor(p.slug, horizon).days }));
+  const out = {};
+  for (let i = 0; i < byPark[0].days.length; i += 1) {
+    const date = byPark[0].days[i].date;
+    let best = null;
+    for (const p of byPark) {
+      const d = p.days[i];
+      if (!d) continue;
+      if (!best || d.factor < best.factor) best = { slug: p.slug, name: p.name, factor: d.factor, score: d.score };
+    }
+    // A tie across every park in the resort is not a recommendation.
+    const spread = Math.max(...byPark.map((p) => p.days[i]?.factor ?? 0)) - (best?.factor ?? 0);
+    if (best && spread >= 0.03) out[date] = best;
+  }
+  return { group, count: siblings.length, byDate: out };
+}
+
+// A 1-10 score for the calendar. The underlying factor is continuous — the five
+// named levels are a display choice, not the resolution of the model — so this
+// exposes what is already there rather than inventing precision. Buckets of
+// 0.075 across the range the factor actually occupies.
+const crowdScore = (factor) => Math.max(1, Math.min(10, Math.floor((factor - 0.70) / 0.075) + 1));
+
 function forecastFor(slug, horizon = 7) {
   const park = PARKS[slug];
   const measured = DOW_INDEX[slug];
   const weight = measured ? Math.min(1, measured.days / 21) : 0;
   const days = [];
-  const span = Math.min(Math.max(Number(horizon) || 7, 7), 60);
+  // People book trips months ahead, so the calendar needs a horizon a trip
+  // planner can actually use. The model is day-of-week plus a holiday table,
+  // which projects arbitrarily far -- what degrades with distance is the
+  // holiday coverage, not the arithmetic, and the page says so.
+  const span = Math.min(Math.max(Number(horizon) || 7, 7), 120);
   for (let i = 0; i < span; i++) {
     const d = new Date(Date.now() + i * 86400000);
     // Date and weekday in the PARK's timezone, not the server's.
@@ -1305,7 +1341,7 @@ function forecastFor(slug, horizon = 7) {
     const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
     if (holiday) factor *= 1.28;
     const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
-    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }) });
+    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], score: crowdScore(factor), factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }) });
   }
   const best = [...days].sort((a, b) => a.level - b.level)[0];
   return {
@@ -1771,6 +1807,20 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
     return res.end(pages.renderParksIndex(REGISTRY));
   }
+  // Free crowd calendar, one indexable page per park. Matched before the park
+  // page so the longer path wins.
+  const calPage = url.pathname.match(/^\/parks\/([a-z0-9-]+)\/calendar\/?$/);
+  if (calPage) {
+    const park = PARKS[calPage[1]];
+    if (!park) return sendJson(res, 404, { error: 'unknown park' });
+    const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+    const days = forecastFor(park.slug, 120).days;
+    let best = null;
+    try { best = bestParkByDate(park.slug, 120); } catch (err) { console.log(`best-park (${park.slug}): ${err.message}`); }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderCalendarPage(park, days, best, REGISTRY, origin));
+  }
+
   const parkPage = url.pathname.match(/^\/parks\/([a-z-]+)$/);
   if (parkPage) {
     const park = PARKS[parkPage[1]];
