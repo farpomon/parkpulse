@@ -1369,7 +1369,25 @@ function bestParkByDate(slug, horizon) {
     }
     // A tie across every park in the resort is not a recommendation.
     const spread = Math.max(...byPark.map((p) => p.days[i]?.factor ?? 0)) - (best?.factor ?? 0);
-    if (best && spread >= 0.03) out[date] = best;
+    if (best && spread >= 0.03) {
+      // Lighter is only half the story if the recommended park closes early to
+      // day tickets that night -- say so in the same breath.
+      const bestEv = eventsFor(best.slug, date).find((e) => e.kind === 'hard-ticket' && e.certainty === 'confirmed');
+      out[date] = { ...best, reason: 'crowds', ...(bestEv && { closesEarly: bestEv.name }) };
+    }
+    // Independent of crowds: a CONFIRMED hard-ticket night closes the viewed
+    // park to day tickets in the early evening. A sibling with no such event
+    // that night keeps full hours -- a better day even at equal crowd level.
+    // Confirmed dates only; with dates unfilled this stays silent rather than
+    // guessing which nights are party nights.
+    if (!out[date]) {
+      const hardHere = eventsFor(slug, date).find((e) => e.kind === 'hard-ticket' && e.certainty === 'confirmed');
+      if (hardHere) {
+        const clear = byPark.find((p) => p.slug !== slug
+          && !eventsFor(p.slug, date).some((e) => e.kind === 'hard-ticket' && e.certainty === 'confirmed'));
+        if (clear) out[date] = { slug: clear.slug, name: clear.name, factor: clear.days[i]?.factor, score: clear.days[i]?.score, reason: 'hours', event: hardHere.name };
+      }
+    }
   }
   return { group, count: siblings.length, byDate: out };
 }
@@ -1389,6 +1407,21 @@ let PARK_EVENTS = {};
 try {
   PARK_EVENTS = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-events.json'), 'utf8'));
 } catch (err) { console.log(`park events unavailable: ${err.message}`); }
+
+// Authored peak/quiet months per park, shared with the SEO pages. Until the
+// history archive is deep enough to measure per-park differences, this is the
+// only signal that separates resort siblings: Epcot's festival autumn versus
+// Magic Kingdom's quiet September is real, editorial knowledge -- and without
+// it every sibling shared one weekday prior, so the calendar's "best park to
+// visit" call could never fire and each park's own grid could show Light in a
+// month its page copy calls the busiest of the year.
+let PARK_SEASONS = {};
+try {
+  const seo = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-seo.json'), 'utf8'));
+  for (const [slug, v] of Object.entries(seo)) {
+    PARK_SEASONS[slug] = { peak: new Set(v.peak?.months || []), quiet: new Set(v.quiet?.months || []) };
+  }
+} catch (err) { console.log(`park seasons unavailable: ${err.message}`); }
 
 function eventsFor(slug, iso) {
   const list = (PARK_EVENTS[slug] || []).filter((e) => e && e.name);
@@ -1429,6 +1462,12 @@ function forecastFor(slug, horizon = 7) {
     const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
     const m = measured?.factors[dow];
     let factor = weight * (m ?? PRIOR_DOW[dow]) + (1 - weight) * PRIOR_DOW[dow];
+    // Small on purpose: one score bucket either way. The seasonal months are
+    // authored judgement, not measurement, and they must never drown out the
+    // measured weekday pattern once it exists.
+    const season = PARK_SEASONS[slug];
+    if (season?.peak.has(Number(iso.slice(5, 7)))) factor *= 1.06;
+    else if (season?.quiet.has(Number(iso.slice(5, 7)))) factor *= 0.94;
     const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
     if (holiday) factor *= 1.28;
     const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;

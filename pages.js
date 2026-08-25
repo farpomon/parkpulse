@@ -690,11 +690,20 @@ function renderCalendarPage(park, days, bestByDate, allParks, origin) {
     const day = Number(d.date.slice(8, 10));
     const bp = bestByDate && bestByDate.byDate[d.date];
     const isHere = bp && bp.slug === park.slug;
-    const title = `${d.label} — crowd ${d.score} of 10${d.holiday ? ` · ${d.holiday}` : ''}${bp ? ` · lightest nearby: ${bp.name}` : ''}`;
+    // Two distinct reasons to send someone next door: lower crowds, or this
+    // park closing early to day tickets for a confirmed hard-ticket night.
+    const altWhy = bp && (bp.reason === 'hours'
+      ? `${bp.name} keeps full evening hours — ${park.name} closes early for ${bp.event}`
+      : `${bp.name} is lighter this day${bp.closesEarly ? ` — but closes early to day tickets for ${bp.closesEarly}` : ''}`);
+    // A confirmed hard-ticket night is on the day itself, best-park or not:
+    // the park closes to day tickets in the early evening. Confirmed only --
+    // month-level "possible" seasons stay in the prose, not on dates.
+    const hardEv = (d.events || []).find((e) => e.kind === 'hard-ticket' && e.certainty === 'confirmed');
+    const title = `${d.label} — crowd ${d.score} of 10${d.holiday ? ` · ${d.holiday}` : ''}${hardEv ? ` · ${hardEv.name} — closes early to day tickets` : ''}${bp && !isHere ? ` · try ${bp.name}${bp.closesEarly ? ' (closes early that night)' : ''}` : ''}`;
     return `<div class="cal-cell l${d.level}${isHere ? ' cal-pick' : ''}" title="${esc(title)}">
       <span class="cal-d">${day}</span><span class="cal-s">${d.score}</span>
-      ${d.holiday ? '<span class="cal-h" aria-hidden="true">\u2726</span>' : ''}
-      ${bp && !isHere ? `<a class="cal-alt" href="/parks/${bp.slug}/calendar" title="${esc(bp.name)} is lighter this day">${esc(bp.name.split(' ')[0])}</a>` : ''}
+      ${hardEv ? '<span class="cal-e" aria-hidden="true">\ud83c\udf9f</span>' : d.holiday ? '<span class="cal-h" aria-hidden="true">\u2726</span>' : ''}
+      ${bp && !isHere ? `<a class="cal-alt${bp.reason === 'hours' ? ' cal-alt-ev' : ''}" href="/parks/${bp.slug}/calendar" title="${esc(altWhy)}">${bp.reason === 'hours' ? '🎟 ' : ''}${esc(bp.name.split(' ')[0])}</a>` : ''}
     </div>`;
   };
 
@@ -745,6 +754,8 @@ function renderCalendarPage(park, days, bestByDate, allParks, origin) {
   .cal-s{position:absolute;left:0;right:0;top:50%;transform:translateY(-42%);text-align:center;font-size:1.05rem;font-weight:800;color:var(--ink)}
   .cal-h{position:absolute;top:.2rem;right:.3rem;font-size:.6rem;color:var(--gold)}
   .cal-alt{position:absolute;left:0;right:0;bottom:.15rem;text-align:center;font-size:.56rem;font-weight:700;color:var(--brand);text-decoration:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 .15rem}
+  .cal-alt-ev{color:var(--gold)}
+  .cal-e{position:absolute;top:.1rem;right:.2rem;font-size:.6rem}
   .cal-pick{outline:2px solid var(--brand);outline-offset:-2px}
   .cal-cell.l1{background:var(--green-soft)} .cal-cell.l2{background:var(--green-soft);opacity:.75}
   .cal-cell.l3{background:var(--gold-soft)} .cal-cell.l4{background:var(--red-soft);opacity:.85}
