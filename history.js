@@ -325,4 +325,155 @@ function computeHourlyCurves(normName = (s) => s, tzOf = () => 'UTC') {
   return out;
 }
 
-module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, stats, HISTORY_DIR };
+// --- Published accuracy -------------------------------------------------------
+// The scoreboard the site shows in public: how close the model's future-day
+// predictions land against what the parks actually posted. Strictly
+// walk-forward -- each archived day is scored with baselines and day-of-week
+// factors built ONLY from the days before it, i.e. the numbers the model
+// would genuinely have served -- then folded into the training set for the
+// days after. No prediction ever sees its own day.
+//
+// The unit is one prediction per ride per hour per day (the hour's actual is
+// the median of its snapshots), because "our 9am prediction" means one call,
+// not one point per polling tick -- scoring every snapshot would let the
+// sampling rate inflate the sample size.
+const SCORE_WINDOW_DAYS = 30;
+
+function computeAccuracy({ normName = (s) => s, tzOf = () => 'UTC', dayFactor, hourly }) {
+  const files = fs.readdirSync(HISTORY_DIR)
+    .map((f) => f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/)?.[1])
+    .filter(Boolean)
+    .sort();
+  if (!files.length) return null;
+
+  const fmt = {};
+  // One malformed timestamp in a 60-day archive must cost one sample, not the
+  // whole scoreboard -- Intl throws on an Invalid Date.
+  const hourIn = (tz, iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const f = (fmt[tz] ??= new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }));
+    return Number(f.format(d)) % 24;
+  };
+  const median = (arr) => { arr.sort((a, b) => a - b); return arr[Math.floor(arr.length / 2)]; };
+
+  const cutoff = new Date(Date.now() - SCORE_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+  const cell = () => ({ n: 0, w5: 0, w10: 0, w15: 0, abs: new Uint32Array(241), signed: new Uint32Array(481) });
+  const tally = (c, err) => {
+    const a = Math.min(240, Math.abs(err));
+    c.n += 1;
+    if (a <= 5) c.w5 += 1;
+    if (a <= 10) c.w10 += 1;
+    if (a <= 15) c.w15 += 1;
+    c.abs[a] += 1;
+    c.signed[Math.max(-240, Math.min(240, err)) + 240] += 1;
+  };
+  const finish = (c) => ({
+    n: c.n,
+    medAbs: histPercentile(c.abs, c.n, 0.5) ?? 0,
+    medSigned: (histPercentile(c.signed, c.n, 0.5) ?? 240) - 240,
+    within5: c.n ? c.w5 / c.n : 0,
+    within10: c.n ? c.w10 / c.n : 0,
+    within15: c.n ? c.w15 / c.n : 0,
+  });
+
+  const overall = cell();
+  const byHour = {};
+  const byPark = {};
+  const dayPacks = [];            // rolling BASELINE_DAYS of {date, packs: slug -> key -> waits[]}
+  const dayAvgs = {};             // slug -> Map(date -> park-day average), all prior days
+  let scoredDays = 0;
+  let from = null;
+
+  for (const date of files) {
+    let content;
+    try { content = fs.readFileSync(path.join(HISTORY_DIR, `${date}.jsonl`), 'utf8'); } catch { continue; }
+
+    // One pass over the day: hourly observations to score, plus the same
+    // day's samples to fold into training afterwards.
+    const obs = {};   // slug -> key -> hour -> waits[]
+    const packs = {}; // slug -> key -> waits[] (whole day, for future baselines)
+    const daySum = {}; // slug -> {sum, n}
+    for (const line of content.split('\n')) {
+      if (!line) continue;
+      let e;
+      try { e = JSON.parse(line); } catch { continue; }
+      const tz = tzOf(e.park) || 'UTC';
+      for (const [name, wait] of Object.entries(e.rides || {})) {
+        const key = normName(name);
+        ((packs[e.park] ??= {})[key] ??= []).push(wait);
+        const h = hourIn(tz, e.t);
+        if (h != null) (((obs[e.park] ??= {})[key] ??= {})[h] ??= []).push(wait);
+        const d = (daySum[e.park] ??= { sum: 0, n: 0 });
+        d.sum += wait; d.n += 1;
+      }
+    }
+
+    // Score this day -- only inside the published window, and only with the
+    // model as it stood the day before.
+    if (date >= cutoff && dayPacks.length) {
+      const windowStart = new Date(new Date(`${date}T00:00:00Z`).getTime() - (BASELINE_DAYS - 1) * 86400000).toISOString().slice(0, 10);
+      const inWindow = dayPacks.filter((d) => d.date >= windowStart);
+      let scoredAny = false;
+      for (const [slug, rides] of Object.entries(obs)) {
+        // Baseline medians from the trailing window, same bar as production.
+        const base = {};
+        for (const d of inWindow) {
+          for (const [key, waits] of Object.entries(d.packs[slug] || {})) (base[key] ??= []).push(...waits);
+        }
+        // Measured day-of-week factors from every prior day, same rules as
+        // computeDowIndex (>=20 snapshots to count a day, >=3 days to trust).
+        let measured = null;
+        const avgs = dayAvgs[slug];
+        if (avgs && avgs.size >= 3) {
+          const byDow = [[], [], [], [], [], [], []];
+          let sum = 0;
+          for (const [d, avg] of avgs) { byDow[new Date(`${d}T12:00:00Z`).getUTCDay()].push(avg); sum += avg; }
+          const mean = sum / avgs.size;
+          measured = { factors: byDow.map((v) => (v.length ? v.reduce((s, x) => s + x, 0) / v.length / mean : null)), days: avgs.size };
+        }
+        const factor = dayFactor(slug, date, measured);
+        if (!Number.isFinite(factor)) continue;
+        for (const [key, hours] of Object.entries(rides)) {
+          const samples = base[key];
+          if (!samples || samples.length < MIN_SAMPLES) continue;
+          const typical = median(samples.slice());
+          for (const [h, waits] of Object.entries(hours)) {
+            const mult = hourly[h];
+            if (mult == null) continue;
+            // Exactly the number the plan shows for a future day.
+            const predicted = Math.max(5, Math.round(typical * factor * mult / 5) * 5);
+            const actual = median(waits);
+            const err = predicted - actual;
+            tally(overall, err);
+            tally(byHour[h] ??= cell(), err);
+            tally(byPark[slug] ??= cell(), err);
+            scoredAny = true;
+          }
+        }
+      }
+      if (scoredAny) { scoredDays += 1; from ??= date; }
+    }
+
+    // Fold the day into training for the days after it.
+    dayPacks.push({ date, packs });
+    const oldest = new Date(new Date(`${date}T00:00:00Z`).getTime() - BASELINE_DAYS * 86400000).toISOString().slice(0, 10);
+    while (dayPacks.length && dayPacks[0].date < oldest) dayPacks.shift();
+    for (const [slug, { sum, n }] of Object.entries(daySum)) {
+      if (n >= 20) (dayAvgs[slug] ??= new Map()).set(date, sum / n);
+    }
+  }
+
+  if (!overall.n) return null;
+  return {
+    generatedAt: new Date().toISOString(),
+    from,
+    to: files[files.length - 1],
+    scoredDays,
+    overall: finish(overall),
+    byHour: Object.entries(byHour).map(([h, c]) => ({ hour: Number(h), ...finish(c) })).sort((a, b) => a.hour - b.hour),
+    byPark: Object.entries(byPark).map(([slug, c]) => ({ slug, ...finish(c) })).sort((a, b) => b.n - a.n),
+  };
+}
+
+module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, computeAccuracy, stats, HISTORY_DIR };

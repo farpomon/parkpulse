@@ -649,6 +649,97 @@ function jsonLd(park, qa) {
   return JSON.stringify(data).replace(/</g, '\\u003c');
 }
 
+// The accuracy scoreboard: the site saying in public how close its own
+// predictions land. Server-rendered from the walk-forward backtest; the table
+// IS the chart -- every percentage is printed as text with a single-hue meter
+// beside it, so nothing is color-alone and there is nothing to hover for.
+function renderAccuracyPage(acc, parks) {
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  const hourLabel = (h) => `${((h + 11) % 12) + 1}${h < 12 ? 'am' : 'pm'}`;
+  const meter = (v) => `<span class="acc-meter" aria-hidden="true"><i style="width:${Math.max(2, Math.round(v * 100))}%"></i></span>`;
+  const MIN_CELL = 30;
+
+  let body;
+  let headline = 'How accurate are our wait-time predictions?';
+  let desc = 'ParkPulse publishes its own report card: how close our crowd-model predictions land against the wait times parks actually posted.';
+  if (!acc) {
+    body = `<div class="card"><h2>The scoreboard is accruing</h2>
+<p>This page scores our predictions against what really happened, and it refuses to invent a number before there is enough recorded history to compute an honest one. Every prediction is scored strictly walk-forward &mdash; made only from data available before the day it predicts &mdash; so the first scores appear once the archive holds a couple of weeks of snapshots.</p>
+<p>No cherry-picking is possible by construction: the scoreboard recomputes from the full archive every few hours, embarrassing days included.</p></div>`;
+  } else {
+    const morning = acc.byHour.filter((h) => h.hour >= 8 && h.hour <= 11 && h.n >= MIN_CELL)
+      .sort((a, b) => b.within10 - a.within10)[0];
+    if (morning) headline = `Our ${hourLabel(morning.hour)} predictions landed within 10 minutes ${pct(morning.within10)} of the time`;
+    desc = `Scored over the last ${acc.scoredDays} days: median error ${acc.overall.medAbs} min across ${acc.overall.n.toLocaleString('en-US')} predictions, all scored walk-forward against posted waits.`;
+
+    const tiles = `<div class="acc-tiles">
+  <div class="acc-tile"><b>${acc.overall.n.toLocaleString('en-US')}</b><span>predictions scored</span></div>
+  <div class="acc-tile"><b>${acc.overall.medAbs} min</b><span>median error</span></div>
+  <div class="acc-tile"><b>${pct(acc.overall.within10)}</b><span>within 10 minutes</span></div>
+  <div class="acc-tile"><b>${acc.overall.medSigned > 0 ? '+' : ''}${acc.overall.medSigned} min</b><span>median bias (${acc.overall.medSigned > 0 ? 'we run high' : acc.overall.medSigned < 0 ? 'we run low' : 'centered'})</span></div>
+</div>`;
+
+    const hourRows = acc.byHour.filter((h) => h.n >= MIN_CELL).map((h) => `<tr>
+  <td>${hourLabel(h.hour)}</td><td>${pct(h.within5)}</td>
+  <td>${pct(h.within10)} ${meter(h.within10)}</td>
+  <td>${pct(h.within15)}</td><td>${h.medAbs} min</td><td class="acc-n">${h.n.toLocaleString('en-US')}</td>
+</tr>`).join('');
+
+    const parkRows = acc.byPark.filter((r) => r.n >= MIN_CELL && parks[r.slug]).slice(0, 15).map((r) => `<tr>
+  <td><a href="/parks/${r.slug}">${esc(parks[r.slug].name)}</a></td>
+  <td>${pct(r.within10)} ${meter(r.within10)}</td>
+  <td>${r.medAbs} min</td><td class="acc-n">${r.n.toLocaleString('en-US')}</td>
+</tr>`).join('');
+
+    body = `${tiles}
+<div class="card"><h2>By hour of day</h2>
+<p class="legend">How often the prediction for a ride landed within 5, 10 and 15 minutes of the posted wait, by park-local hour. Hours with under ${MIN_CELL} scored predictions are withheld rather than shown from noise.</p>
+<div class="acc-scroll"><table class="acc-table"><thead><tr><th>Hour</th><th>&le;5 min</th><th>&le;10 min</th><th>&le;15 min</th><th>Median error</th><th>n</th></tr></thead>
+<tbody>${hourRows}</tbody></table></div></div>
+${parkRows ? `<div class="card"><h2>By park</h2>
+<div class="acc-scroll"><table class="acc-table"><thead><tr><th>Park</th><th>&le;10 min</th><th>Median error</th><th>n</th></tr></thead>
+<tbody>${parkRows}</tbody></table></div></div>` : ''}
+<p class="legend">Window: ${esc(acc.from || '')} to ${esc(acc.to)} &middot; recomputed every few hours &middot; generated ${esc(acc.generatedAt.slice(0, 10))}</p>`;
+  }
+
+  const method = `<div class="card"><h2>How this is measured &mdash; and how it can't be gamed</h2>
+<p><b>Walk-forward, no exceptions.</b> Each day is scored using only baselines and day-of-week factors built from the days before it &mdash; the numbers the model would genuinely have shown you. A prediction never sees its own day.</p>
+<p><b>One prediction per ride per hour per day.</b> The hour's "actual" is the median of that hour's recorded snapshots. We do not score every polling tick, because that would let the sampling rate inflate the sample size.</p>
+<p><b>Scored against posted waits.</b> The model predicts the wait the park will post, so that is what it is scored against. Visitor-reported actual waits are a separate dataset with its own page per ride.</p>
+<p><b>Only predictions the model was ready to make.</b> A ride is scored once it has enough prior snapshots to carry a baseline &mdash; the same bar the product itself uses before showing a typical wait.</p>
+<p><b>Everything counts.</b> The page recomputes from the complete archive on a timer. There is no mechanism for leaving a bad day out.</p></div>`;
+
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prediction Accuracy | ParkPulse</title>
+<meta name="description" content="${esc(desc)}">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<link rel="canonical" href="https://www.parkpulse.fun/accuracy">
+<meta property="og:title" content="ParkPulse Prediction Accuracy">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="https://www.parkpulse.fun/og.png">
+<style>${CSS}
+  .acc-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:1rem 0}
+  .acc-tile{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.9rem .8rem;text-align:center}
+  .acc-tile b{display:block;font-size:1.5rem;color:var(--ink)}
+  .acc-tile span{font-size:.78rem;color:var(--muted)}
+  .acc-scroll{overflow-x:auto}
+  .acc-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .acc-table th{text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:.35rem .5rem;border-bottom:1px solid var(--border)}
+  .acc-table td{padding:.4rem .5rem;border-bottom:1px solid var(--border);white-space:nowrap}
+  .acc-n{color:var(--muted)}
+  .acc-meter{display:inline-block;vertical-align:middle;width:72px;height:6px;margin-left:.4rem;background:var(--border);border-radius:3px;overflow:hidden}
+  .acc-meter i{display:block;height:100%;background:var(--brand);border-radius:3px}
+</style></head><body><div class="wrap">
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/parks">Parks</a><a class="plain" href="/guide">Guide</a></span></nav>
+<h1>${esc(headline)}</h1>
+<p class="sub">Most wait-time apps ask you to trust them. We publish the scoreboard instead &mdash; recomputed from our own archive on a timer, bad days included.</p>
+${body}
+${method}
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Live wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/parks">All parks</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
+</div></body></html>`;
+}
+
 const renderSitemap = (origin, slugs) => {
   const today = new Date().toISOString().slice(0, 10);
   const entries = [
@@ -660,6 +751,8 @@ const renderSitemap = (origin, slugs) => {
     // The calendars are the free wedge — they should be crawled as eagerly
     // as the wait-time pages they feed.
     ...slugs.map((s) => ({ p: `/parks/${s}/calendar`, pri: '0.8' })),
+    // The trust page: the public scoreboard of our own accuracy.
+    { p: '/accuracy', pri: '0.7' },
     { p: '/terms', pri: '0.3' },
     { p: '/privacy', pri: '0.3' },
   ];
@@ -808,4 +901,4 @@ ${seo ? `<h2>The months that actually matter at ${esc(park.name)}</h2>
 </div><script src="/i18n.js"></script></body></html>`;
 }
 
-module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderSitemap, renderRobots, allParksIndex };
+module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderAccuracyPage, renderSitemap, renderRobots, allParksIndex };

@@ -476,6 +476,12 @@ let DOW_INDEX = {};
 // consumer treats absence as "not enough data yet" rather than as zero.
 let CROWD_BANDS = {};
 let HOURLY_CURVES = {};
+let ACCURACY = null;
+// Twin of the HOURLY curve in public/app.html -- the hour-of-day crowd shape
+// the planner multiplies into every future-day wait. The backtest must use
+// the same curve or it would be scoring a model nobody is shown. Change one,
+// change both.
+const HOURLY_SHAPE = { 7: .45, 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35, 23: .3 };
 // Observed-wait aggregates, keyed park -> hour. Empty until reports accrue;
 // the chart draws its second line only when this fills.
 let ACTUAL_WAITS = {};
@@ -536,6 +542,27 @@ function refreshBaselines() {
 // instead. The interval is armed here so the schedule is visible beside the
 // function it drives.
 setInterval(refreshBaselines, 6 * 60 * 60 * 1000);
+
+// The published accuracy scoreboard. Separate from refreshBaselines on
+// purpose: dayFactorFor reads PARK_SEASONS and HOLIDAYS, which are defined
+// much further down -- calling this from the first refreshBaselines() would
+// hit the temporal dead zone and the try/catch would silently eat it, the
+// exact failure mode that zeroed the baselines once already. First call is
+// beside server.listen, where everything exists.
+function refreshAccuracy() {
+  try {
+    ACCURACY = history.computeAccuracy({
+      normName,
+      tzOf: (slug) => PARKS[slug]?.tz,
+      dayFactor: dayFactorFor,
+      hourly: HOURLY_SHAPE,
+    });
+    if (ACCURACY) console.log(`Accuracy scoreboard: ${ACCURACY.overall.n} predictions scored over ${ACCURACY.scoredDays} days (median |err| ${ACCURACY.overall.medAbs} min)`);
+  } catch (err) {
+    console.log(`Accuracy refresh failed: ${err.message}`);
+  }
+}
+setInterval(refreshAccuracy, 6 * 60 * 60 * 1000);
 
 const typicalFor = (slug, rideName) => {
   const key = normName(rideName);
@@ -1444,10 +1471,28 @@ function eventsFor(slug, iso) {
 // 0.075 across the range the factor actually occupies.
 const crowdScore = (factor) => Math.max(1, Math.min(10, Math.floor((factor - 0.70) / 0.075) + 1));
 
+// One factor function for every consumer: the forecast, the calendar, and the
+// published accuracy backtest. The backtest passes its own walk-forward
+// measured index; live callers pass DOW_INDEX. If the model here changes, the
+// scoreboard scores the changed model automatically -- they cannot drift apart.
+function dayFactorFor(slug, iso, measured) {
+  const dow = new Date(`${iso}T12:00:00Z`).getUTCDay();
+  const weight = measured ? Math.min(1, measured.days / 21) : 0;
+  const m = measured?.factors[dow];
+  let factor = weight * (m ?? PRIOR_DOW[dow]) + (1 - weight) * PRIOR_DOW[dow];
+  // Small on purpose: one score bucket either way. The seasonal months are
+  // authored judgement, not measurement, and they must never drown out the
+  // measured weekday pattern once it exists.
+  const season = PARK_SEASONS[slug];
+  if (season?.peak.has(Number(iso.slice(5, 7)))) factor *= 1.06;
+  else if (season?.quiet.has(Number(iso.slice(5, 7)))) factor *= 0.94;
+  if (HOLIDAYS[iso] || isChristmasWeek(iso)) factor *= 1.28;
+  return factor;
+}
+
 function forecastFor(slug, horizon = 7) {
   const park = PARKS[slug];
   const measured = DOW_INDEX[slug];
-  const weight = measured ? Math.min(1, measured.days / 21) : 0;
   const days = [];
   // People book trips months ahead, so the calendar needs a horizon a trip
   // planner can actually use. The model is day-of-week plus a holiday table,
@@ -1459,17 +1504,8 @@ function forecastFor(slug, horizon = 7) {
     // Date and weekday in the PARK's timezone, not the server's.
     const iso = d.toLocaleDateString('en-CA', { timeZone: park.tz });
     const dowName = d.toLocaleDateString('en-US', { timeZone: park.tz, weekday: 'short' });
-    const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowName);
-    const m = measured?.factors[dow];
-    let factor = weight * (m ?? PRIOR_DOW[dow]) + (1 - weight) * PRIOR_DOW[dow];
-    // Small on purpose: one score bucket either way. The seasonal months are
-    // authored judgement, not measurement, and they must never drown out the
-    // measured weekday pattern once it exists.
-    const season = PARK_SEASONS[slug];
-    if (season?.peak.has(Number(iso.slice(5, 7)))) factor *= 1.06;
-    else if (season?.quiet.has(Number(iso.slice(5, 7)))) factor *= 0.94;
+    const factor = dayFactorFor(slug, iso, measured);
     const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
-    if (holiday) factor *= 1.28;
     const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
     const events = eventsFor(slug, iso);
     days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], score: crowdScore(factor), factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }), ...(events.length && { events }) });
@@ -1938,6 +1974,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // SEO surface: server-rendered park pages + sitemap + robots.
+  if (url.pathname === '/accuracy') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderAccuracyPage(ACCURACY, PARKS));
+  }
+
   if (url.pathname === '/parks' || url.pathname === '/parks/') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
     return res.end(pages.renderParksIndex(REGISTRY));
@@ -2837,5 +2878,7 @@ function bootBanner() {
     : '  !! PASS_SECRET unset — a fresh random key is generated each boot, so\n     every issued pass stops validating on restart. Set a permanent one.');
   console.log(lines.join('\n'));
 }
+
+refreshAccuracy();
 
 server.listen(PORT, bootBanner);
