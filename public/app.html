@@ -158,6 +158,10 @@
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
+  .freset { display: block; width: 100%; margin-top: 1rem; padding: .75rem 1rem; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--ink); font: inherit; font-weight: 700;
+    font-size: .95rem; cursor: pointer; }
+  .freset:hover { border-color: var(--brand); color: var(--brand); }
   .wrep { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: -.35rem 0 .55rem; padding: .6rem .75rem;
     background: var(--card); border: 1px solid var(--brand); border-radius: 12px; font-size: .88rem; }
   /* The question takes its own line so the controls never wrap unpredictably
@@ -749,6 +753,16 @@
     syncFilterButton();
     if (tagsCache[current]) renderRides();
   }
+  // What "all filters" means, in one place. The search box counts: it narrows
+  // the same list, it is the one people most often leave set by accident, and a
+  // reset that leaves it running is the reset failing at its only job.
+  //
+  // A function declaration, not a const arrow: syncFilterButton() is called
+  // while tags load, which happens long before this line would be evaluated.
+  function filtersActive() {
+    return (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0) + (query.trim() ? 1 : 0);
+  }
+
   function passesFilter(r) {
     const tags = tagsCache[current];
     if (!tags) return true;
@@ -1443,12 +1457,14 @@
   $('search').addEventListener('input', (e) => {
     query = e.target.value;
     $('clear-search').style.display = query ? 'block' : 'none';
+    syncFilterButton();
     renderRides();
   });
   $('clear-search').addEventListener('click', () => {
     query = '';
     $('search').value = '';
     $('clear-search').style.display = 'none';
+    syncFilterButton();
     renderRides();
   });
   $('plan-day-sel').addEventListener('change', (e) => {
@@ -1973,9 +1989,20 @@
   function syncFilterButton() {
     const btn = $('filter-open');
     btn.style.display = tagsCache[current] ? '' : 'none';
-    const active = (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0);
+    const active = filtersActive();
     btn.textContent = '🎛 ' + tr('Filters') + (active ? ` · ${active}` : '');
     btn.classList.toggle('active', active > 0);
+  }
+
+  function resetFilters() {
+    fVibe = 'all';
+    fAge = 99;
+    query = '';
+    $('search').value = '';
+    $('clear-search').style.display = 'none';
+    syncFilterButton();
+    renderRides();
+    updatePlanbar();
   }
 
   function renderFilterSheet() {
@@ -1997,6 +2024,22 @@
     body.innerHTML = '';
     body.appendChild(group(tr('Attraction type'), VIBE_OPTS, fVibe, (v) => { fVibe = v; }));
     body.appendChild(group(tr('Age rating'), AGE_OPTS, fAge, (v) => { fAge = +v; }));
+    if (filtersActive()) {
+      const reset = document.createElement('button');
+      reset.className = 'freset';
+      reset.id = 'filter-reset';
+      reset.textContent = '\u21ba ' + tr('Reset all filters');
+      reset.addEventListener('click', () => {
+        resetFilters();
+        renderFilterSheet();
+        // Closing is the point: the reason to reset is to see the whole list
+        // again, and leaving the sheet over it hides what just changed.
+        $('filter-sheet').classList.remove('open');
+        $('sheet-bg').classList.remove('open');
+        toast(tr('Filters cleared'));
+      });
+      body.appendChild(reset);
+    }
   }
 
   $('filter-open').addEventListener('click', (e) => {
