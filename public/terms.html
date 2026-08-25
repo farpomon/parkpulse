@@ -16,39 +16,82 @@
   .date { color: var(--muted); font-size: .9rem; margin: 0 0 1.5rem; }
   h2 { font-size: 1.15rem; margin: 1.75rem 0 .5rem; }
   a { color: var(--brand); }
+  table { border-collapse: collapse; width: 100%; margin: .75rem 0 1rem; font-size: .95rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border); }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .todo { background: #fff6e5; border-left: 3px solid #f0b429; border-radius: 8px; padding: .75rem .9rem; font-size: .93rem; color: #6a4a00; }
+  @media (prefers-color-scheme: dark) { .todo { background: #3a2c10; color: #f5dfae; } }
   footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); padding-top: 1rem; }
 </style>
 <div class="wrap">
   <nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a></nav>
   <h1>Terms of Service</h1>
-  <p class="date">Effective August 17, 2026</p>
+  <p class="date">Effective [DATE — set when these go live]</p>
 
-  <p>These terms govern your use of ParkPulse (the website and app at this domain, "the Service"), operated by the owner of ParkPulse ("we", "us"). By using the Service you agree to them.</p>
+  <p class="todo"><b>Before publishing:</b> replace the three bracketed placeholders below (registered company name, province, registered address) and have a lawyer qualified in your province read this. It is drafted to fit how ParkPulse actually works, but it is not legal advice.</p>
 
-  <h2>What ParkPulse is (and isn't)</h2>
-  <p>ParkPulse is an <strong>independent, unofficial fan tool</strong>. We are not affiliated with, endorsed by, or sponsored by The Walt Disney Company, NBCUniversal, or any park operator. Park, ride, and show names are used only to identify the places and attractions the Service describes. Wait times come from third-party data (Queue-Times.com) and our own statistical baselines; they are estimates, can be wrong or delayed, and parks can change hours, shows, and pricing at any time. <strong>Don't make non-refundable decisions on our data alone</strong> — always confirm prices and availability in the park's official app.</p>
-  <p>Advice from the AI consultant is automatically generated and can be inaccurate. It is trip-planning assistance, not professional advice, and comes with the same "verify before you buy" caveat.</p>
+  <h2>1. Who we are</h2>
+  <p>ParkPulse (the website and app at parkpulse.fun, and the WhatsApp assistant where you have linked it — together, &ldquo;the Service&rdquo;) is operated by <b>[REGISTERED COMPANY NAME]</b>, a company incorporated in <b>[PROVINCE]</b>, Canada, with its registered address at <b>[REGISTERED ADDRESS]</b> (&ldquo;we&rdquo;, &ldquo;us&rdquo;). You can reach us at <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a>. By using the Service you agree to these terms.</p>
 
-  <h2>Your account</h2>
-  <p>Keep your password private; you're responsible for activity on your account. We may suspend accounts that abuse the Service (automated scraping, attempting to bypass access controls, resale of access, or unlawful use).</p>
+  <h2>2. What ParkPulse is, and what it is not</h2>
+  <p>ParkPulse is an independent, unofficial fan tool. We are not affiliated with, endorsed by, or sponsored by The Walt Disney Company, NBCUniversal, Six Flags, Cedar Fair, Merlin Entertainments, or any other park operator. Park, ride, show and pass names are used only to identify the places and attractions the Service describes.</p>
+  <p>Wait times come from third-party feeds and from our own statistical baselines. They are <b>estimates</b>. They can be wrong, stale, or missing, and parks change hours, showtimes, ride availability and pricing without notice. Crowd forecasts are predictions, not commitments. Do not make a non-refundable decision on our data alone &mdash; confirm prices, hours and availability in the park&rsquo;s own app before you buy anything.</p>
+  <p><b>We never transact on your behalf.</b> ParkPulse tells you what we think is worth booking; every purchase, reservation and pass is made by you, in the operator&rsquo;s official channel. We do not take payment for park products, hold your park account credentials, or act as your agent with any operator.</p>
 
-  <h2>Passes &amp; billing</h2>
-  <p>Paid access is sold as one-time purchases: the <strong>Trip Pass</strong> (30 days of Pro access from purchase) and <strong>Pro Annual</strong> (365 days). Prices are shown at checkout and processed by Stripe. Passes are for you and your immediate travel party, on your own devices. When a pass expires, access simply reverts to the free tier — there is no auto-renewal.</p>
+  <h2>3. Who may use it</h2>
+  <p>You must be at least 16 to hold an account. If you are under the age of majority where you live, you may use the Service only with a parent or guardian&rsquo;s involvement, and they accept these terms on your behalf. The Service is designed for families, but accounts belong to adults.</p>
 
-  <h2 id="refunds">Refunds</h2>
-  <p>If you're not happy, email us within <strong>7 days of purchase</strong> and, provided the pass hasn't been materially used (a quick look around the app is fine; a full park day on it is "used"), we'll refund you in full to your original payment method. After 7 days, or for used passes, refunds are at our discretion — but we're reasonable people; if something went wrong on our end (extended outage, broken feature you bought it for), tell us and we'll make it right. Refund requests: <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a>.</p>
+  <h2>4. Your account</h2>
+  <p>Keep your password private; you are responsible for what happens under your account. Tell us promptly at <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a> if you think someone else has access.</p>
+  <p>A pass covers <b>you and the people travelling with you</b>, on your own devices. To keep that workable rather than theoretical, an account may be signed in on up to <b>five devices</b> at once, and we look for patterns that indicate an account is being shared beyond a travel party &mdash; for example, simultaneous active use at parks on different continents. Where we see that, we may sign devices out, cap the account, or suspend it under section 10.</p>
 
-  <h2>Free features</h2>
-  <p>Free-tier features, the launch preview, and pricing may change as the Service evolves. We'll never retroactively charge you for something you used free.</p>
+  <h2>5. Passes and payment</h2>
+  <p>Paid access is sold as <b>one-time purchases</b>, not subscriptions. Nothing auto-renews and nothing is charged again unless you buy again. When a pass expires, the account simply reverts to the free tier.</p>
+  <table>
+    <tr><th>Pass</th><th>Access period</th><th>Price (USD)</th></tr>
+    <tr><td>Day Pass</td><td>1 day</td><td>$24.99</td></tr>
+    <tr><td>Week Pass</td><td>7 days</td><td>$49.99</td></tr>
+    <tr><td>Month Pass</td><td>30 days</td><td>$69.99</td></tr>
+    <tr><td>6-Month Pass</td><td>182 days</td><td>$129.99</td></tr>
+    <tr><td>Annual Pass</td><td>365 days</td><td>$199.99</td></tr>
+  </table>
+  <p>The access period runs from the moment of purchase, in calendar days, not park-visit days. Prices are in US dollars and exclude any tax that applies where you are; your bank may add a conversion fee we do not see or receive. Payment is processed by Stripe &mdash; we never receive or store your card number. Prices shown at checkout are the ones that apply; if this table and the checkout page ever disagree, the checkout page governs and we will fix the table.</p>
 
-  <h2>Disclaimers &amp; liability</h2>
-  <p>The Service is provided "as is", without warranties of any kind. To the maximum extent permitted by law, we are not liable for indirect or consequential damages — missed rides, changed park plans, or decisions made on estimated data included — and our total liability for any claim is limited to the amount you paid us in the 12 months before the claim. Nothing in these terms limits liability that cannot lawfully be limited.</p>
+  <h2>6. Refunds and your right to cancel</h2>
+  <p><b>Fourteen days, everyone, no geography test.</b> Email <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a> within 14 days of purchase and we refund you in full to your original payment method, provided the pass has not been materially used. Looking around the app is not material use; running a full park day on it is.</p>
+  <p>If you are a consumer in the EU or UK, you have a statutory right to withdraw from a digital purchase within 14 days. Nothing here reduces that right, and we do not ask you to waive it in exchange for immediate access &mdash; you get access immediately <em>and</em> keep the full period.</p>
+  <p>After 14 days, or for a materially used pass, refunds are at our discretion. But if something went wrong on our side &mdash; an extended outage, or a feature you bought the pass for was broken &mdash; tell us and we will make it right. That is a commitment, not a courtesy.</p>
 
-  <h2>Changes to these terms</h2>
-  <p>We may update these terms; material changes will be reflected in the effective date above. Continuing to use the Service after a change means you accept the updated terms.</p>
+  <h2>7. The AI advisor</h2>
+  <p>The advisor generates its answers automatically using a third-party large language model. It can be confidently wrong, and it does not know anything about your trip beyond what the Service holds and what you tell it. It is trip-planning assistance, not professional, financial, medical, accessibility or legal advice, and it carries the same verify-before-you-buy caveat as the rest of the Service.</p>
+  <p>What you type is sent to our AI provider to produce a reply, and conversations are stored against your account so the advisor can remember your trip. Do not put payment details, passwords, health information or anyone else&rsquo;s personal data into it. See the <a href="/privacy">Privacy Policy</a> for how this is handled and how to delete it.</p>
 
-  <h2>Contact</h2>
-  <p>Questions, support, refunds: <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a></p>
+  <h2>8. Acceptable use</h2>
+  <p>Please do not: scrape, bulk-download or systematically extract the Service&rsquo;s data; resell, sublicense or redistribute access or our output as a product of your own; attempt to bypass access controls, the pass gate, or rate limits; probe the Service for vulnerabilities without asking us first; use it to break the law or a park operator&rsquo;s own rules; or submit content that is unlawful or infringes someone else&rsquo;s rights.</p>
+  <p>Security researchers are welcome &mdash; write to <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a> before testing and we will work with you.</p>
+
+  <h2>9. Third-party data and our content</h2>
+  <p>Live wait times are provided by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. Park geography is derived from <a href="https://www.openstreetmap.org/copyright" rel="nofollow">OpenStreetMap</a> contributors, licensed under the ODbL. Some park metadata comes from <a href="https://themeparks.wiki" rel="nofollow">ThemeParks.wiki</a>. Weather is from Open-Meteo. These sources have their own terms, and we depend on their continued availability &mdash; if a source stops, the feature that relies on it may change or stop with it.</p>
+  <p>Our own text, park guides, forecasts, plans and software are ours. Your pass buys you personal use of the Service, not a licence to republish what it produces.</p>
+
+  <h2>10. Changes, suspension and ending</h2>
+  <p>Free-tier features and the launch preview may change as the Service evolves. We will never retroactively charge you for something you used for free.</p>
+  <p>You can stop using the Service and delete your account at any time from <a href="/delete-account">the account deletion page</a>.</p>
+  <p>We may suspend or close an account that breaches section 8 or section 4. If we do that to an account holding a <b>paid pass</b>, and the breach was not deliberate or serious, we will refund the unused portion of the pass on a pro-rata basis. If we ever discontinue the Service entirely, we will refund the unused portion of every live pass.</p>
+
+  <h2>11. Disclaimers and liability</h2>
+  <p>The Service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;, without warranties of any kind, to the extent the law allows. We do not warrant that wait times, forecasts or plans will be accurate, or that the Service will be uninterrupted.</p>
+  <p>To the maximum extent permitted by law, we are not liable for indirect or consequential loss &mdash; missed rides, changed plans, wasted admission, travel costs, or decisions made on estimated data. <b>Our total liability for any claim is limited to the greater of (a) what you paid us in the 12 months before the claim, and (b) CAD $100.</b></p>
+  <p>Nothing in these terms excludes or limits liability that cannot lawfully be excluded, including for fraud, or for death or personal injury caused by negligence. If you are a consumer, your statutory rights are unaffected by anything above.</p>
+
+  <h2>12. Governing law</h2>
+  <p>These terms are governed by the laws of the Province of <b>[PROVINCE]</b> and the federal laws of Canada that apply there, and the courts of <b>[PROVINCE]</b> have non-exclusive jurisdiction. If you are a consumer resident elsewhere, this does not deprive you of the protection of mandatory consumer laws of your own country, or of the right to bring proceedings there.</p>
+
+  <h2>13. Changes to these terms</h2>
+  <p>We may update these terms. Material changes are reflected in the effective date at the top, and where a change materially reduces your rights we will tell account holders by email before it takes effect. Continuing to use the Service after that means you accept the update. If you do not accept it and hold a paid pass, tell us and we will refund the unused portion.</p>
+
+  <h2>14. Contact</h2>
+  <p>Questions, support, refunds, security reports, and anything else: <a href="mailto:support@parkpulse.fun">support@parkpulse.fun</a>.</p>
 
   <footer><a href="/">Home</a> · <a href="/privacy">Privacy Policy</a> · Wait-time data powered by <a href="https://queue-times.com">Queue-Times.com</a>.</footer>
 </div>
