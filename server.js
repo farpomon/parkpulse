@@ -2443,6 +2443,17 @@ function bootBanner() {
     lines.push('     redeploy destroys all accounts, passes, alerts and trips.');
     lines.push('     Mount a volume and set DB_FILE=/data/parkpulse.db');
   }
+  // The archive is what the crowd forecast learns from, and its absence is
+  // invisible: the forecast still renders, just from a hardcoded prior.
+  const h = history.stats();
+  const histPersistent = !history.HISTORY_DIR.startsWith(path.join(__dirname, 'data'));
+  lines.push(`  history     ${history.HISTORY_DIR}${histPersistent ? ' (persistent)' : ''} — ${h.files} day${h.files === 1 ? '' : 's'}, ${(h.bytes / 1024).toFixed(0)}KB`);
+  if (!histPersistent) {
+    lines.push('  !! wait history is EPHEMERAL — day-of-week crowd factors reset');
+    lines.push('     to a hardcoded prior on every redeploy.');
+  } else if (h.files < 21) {
+    lines.push(`     day-of-week factors reach full weight at 21 days (${21 - h.files} to go).`);
+  }
   lines.push(process.env.PASS_SECRET
     ? '  PASS_SECRET set'
     : '  !! PASS_SECRET unset — a fresh random key is generated each boot, so\n     every issued pass stops validating on restart. Set a permanent one.');

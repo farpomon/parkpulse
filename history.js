@@ -7,13 +7,20 @@
 //
 // Baselines are per-ride medians over the last BASELINE_DAYS of snapshots,
 // recomputed periodically; they power the app's "vs typical" deltas and
-// are the raw material for future wait predictions. Point HISTORY_DIR at a
-// mounted volume in production or the archive dies with each deploy.
+// are the raw material for future wait predictions.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
-const HISTORY_DIR = process.env.HISTORY_DIR || path.join(__dirname, 'data', 'history');
+// The archive lives beside the database, because it is the same kind of thing:
+// state that must outlive the container. It used to default to a path inside
+// the repo and need its own variable, which meant a deployment could mount a
+// volume, point DB_FILE at it, look completely correct -- and still discard
+// every wait snapshot on each redeploy, silently zeroing the day-of-week model
+// that the crowd forecast is built on. One volume, one variable, both persist.
+// HISTORY_DIR remains an explicit override for anyone who wants them apart.
+const DB_DIR = process.env.DB_FILE ? path.dirname(process.env.DB_FILE) : path.join(__dirname, 'data');
+const HISTORY_DIR = process.env.HISTORY_DIR || path.join(DB_DIR, 'history');
 const BASELINE_DAYS = 14;
 const RETENTION_DAYS = 60;
 const MIN_SAMPLES = 12; // ~3 hours of snapshots before we trust a median

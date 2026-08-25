@@ -64,7 +64,7 @@ where we have baseline data).
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys for wait-drop alerts. Auto-generated to `data/vapid.json` on first boot if unset — but set them (or mount a volume) in production so existing push subscriptions survive redeploys. Generate once with `npx web-push generate-vapid-keys`. |
 | `ALERTS_FILE` | Where active wait-drop alerts are stored (default `data/alerts.json`). Point at a volume in production. |
 | `ANTHROPIC_API_KEY` | Enables the AI Park Consultant (💬 in the app). Unset = feature hidden entirely. |
-| `HISTORY_DIR` | Where wait-time history accumulates (default `data/history/`). **Point at the mounted volume in production** (e.g. `/data/history`) — this archive is the long-term moat. `HISTORY=off` disables collection. |
+| `HISTORY_DIR` | Where wait-time history accumulates. Defaults to a `history/` directory beside `DB_FILE`, so setting `DB_FILE=/data/parkpulse.db` puts the archive on the volume too — you should not normally need to set this. Only set it to keep the archive somewhere other than the database. `HISTORY=off` disables collection. |
 | `APP_ENV` | `dev` marks a deployment as the dev environment: a red DEV badge in the app header, and robots.txt/sitemap block search indexing so the dev URL never competes with production in Google. Unset/anything else = production. |
 
 ## Environments & branches
