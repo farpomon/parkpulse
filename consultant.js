@@ -89,14 +89,15 @@ ${directory}
 YOUR TOOLS:
 - get_waits: live waits, hours, show, and local time for any covered park. Use it whenever the user asks about a park other than the one in their live data, or wants a comparison. Never guess another park's waits.
 - set_alert: creates a real wait-drop push alert on the user's device. Use it when they ask to be told when a ride's wait drops. If it fails because notifications are off, tell them to tap the bell icon on the ride instead.
-- propose_plan: puts a ride plan with a one-tap Apply button right in this chat. Call it whenever you give the user a plan, itinerary, or ride order for the park they're viewing, so the button is available — it changes nothing until they choose to tap it. Build the ride list from their saved notes, starred favorites, and today's live waits; ride names must exactly match the wait data. In your summary, offer it as an option: "tap Apply if you'd like this loaded into your plan builder."
+- propose_plan: puts a ride plan with a one-tap Apply button right in this chat. Call it whenever you give the user a plan, itinerary, or ride order for the park they're viewing, so the button is available — it changes nothing until they choose to tap it. Build the ride list from their saved notes, starred favorites, and the live wait data supplied (which ranks relative popularity even when the visit is a future day); ride names must exactly match the wait data. In your summary, offer it as an option: "tap Apply if you'd like this loaded into your plan builder."
 - remember: saves durable notes about this traveler (trip dates, party size and ages, hotel, budget, must-dos, constraints) so future conversations start already informed. Works only for logged-in users. Use it quietly whenever a lasting trip fact comes up — no need to announce it beyond a brief aside.
 
 ADVICE STYLE:
 - You are a continuing advisor, not a one-off chatbot. If saved traveler notes are provided, use them — greet returning context naturally ("since you're going with two kids under 8…") instead of re-asking. When the user shares new durable facts, update your notes with remember.
 - Any request for a plan or itinerary for the current park = a propose_plan call alongside your reply, every time, so the Apply button is right there in the chat. Applying is the user's option, never automatic — invite it, don't announce it as done. Personalize the ride list: skip rides their kids can't ride, lead with their favorites and saved must-dos.
 - NEVER mention the Apply button unless your propose_plan call succeeded in this same turn. If the tool errored, fix the input and call it again before answering; if you didn't call it, don't reference a button that isn't there.
-- Use the live data provided or fetched. If today's waits are short, say so and tell them to keep their money. Recommending "don't buy" builds trust.
+- Use the live data provided or fetched. If waits are short, say so and tell them to keep their money. Recommending "don't buy" builds trust.
+- WHICH DAY: if the context opens with a "THE USER IS PLANNING ..." block, that date is the visit — answer every question about it, including whether a skip-the-line pass is worth buying, and never say "today", "right now" or "this afternoon". Today's live waits are there to rank rides against each other, not to quote as that day's queue. Judge pass value from the crowd level forecast for the visit day. With no such block, the user is at the park today and live numbers are the answer.
 - Be concrete: name rides, name times, name dollar amounts and the per-person math for their party size. Ask party size if it matters and they haven't said.
 - The user's local park time is in the live data — anchor "rest of the day" advice to it.
 - Wait lists tag each ride with its land in [brackets]. Use them: cluster plans by land so the user walks the park in one loop instead of criss-crossing, and prefer "what's short near you" suggestions within the land they're likely in.
@@ -159,17 +160,37 @@ const TOOL_DEFS = [
 const localTime = (tz) =>
   new Date().toLocaleString('en-US', { timeZone: tz, weekday: 'long', hour: 'numeric', minute: '2-digit' });
 
+const longDate = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric',
+  });
+};
+
 function waitsBlock(park, waits) {
   const rides = waits.rides
     .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
     .join('\n');
-  return `Park: ${park.name} (${park.group})${park.slug ? ` — slug for tool calls: ${park.slug}` : ''}
-Local time now: ${localTime(park.tz)}
+
+  // The user can plan a day other than today. When they have, everything below
+  // must be read against THAT day: live waits describe this afternoon, not next
+  // Wednesday, and answering about today while the screen shows Wednesday's
+  // plan is the single most confusing thing this assistant can do.
+  const pd = waits.planDay && !waits.planDay.isToday ? waits.planDay : null;
+  const target = pd ? `
+=== THE USER IS PLANNING ${longDate(pd.date).toUpperCase()} — NOT TODAY ===
+Answer every question about ${longDate(pd.date)}. Expected crowds that day: ${pd.label} (${pd.score}/10 on our scale)${pd.holiday ? ` — ${pd.holiday}` : ''}.
+${pd.arrive != null || pd.leave != null ? `They plan to arrive ${pd.arrive != null ? `${pd.arrive}:00` : 'when it opens'} and leave ${pd.leave != null ? `${pd.leave}:00` : 'at close'}.\n` : ''}${pd.weather ? `Forecast for that day: ${pd.weather.label}, high ${pd.weather.high}°C, low ${pd.weather.low}°C, ${pd.weather.rainChance}% chance of rain.\n` : 'No weather forecast reaches that far out yet — do not guess at it.\n'}The standby waits listed below are TODAY'S live numbers. Use them only to judge which rides draw the longest lines relative to each other. Do NOT quote them as the wait on ${longDate(pd.date)}, and do not talk about "right now", "this afternoon" or "today" when answering.
+===
+` : '';
+
+  return `${target}Park: ${park.name} (${park.group})${park.slug ? ` — slug for tool calls: ${park.slug}` : ''}
+Local time now: ${localTime(park.tz)}${pd ? ' (today — the user is NOT visiting today, see above)' : ''}
 Typical hours: ${park.open}:00-${park.close}:00 local.
-${park.show ? `Tonight's show: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
+${park.show ? `${pd ? "Evening show" : "Tonight's show"}: ${park.show.name} around ${park.show.hour}:00.` : 'No headline evening show.'}
 Data: ${waits.source === 'live' ? 'live, updated within minutes' : 'TYPICAL-DAY ESTIMATES (live feed unavailable) — caveat advice accordingly'}
-${waits.weather ? `Weather at the park: ${waits.weather.now.label}, ${waits.weather.now.temp}°C (feels ${waits.weather.now.feels}°C); today's high ${waits.weather.today.high}°C, low ${waits.weather.today.low}°C, ${waits.weather.today.rainChance}% chance of rain${waits.weather.wettestHour ? `, wettest around ${waits.weather.wettestHour.hour}:00 (${waits.weather.wettestHour.chance}%)` : ''}${waits.weather.today.sunset ? `, sunset ${waits.weather.today.sunset}` : ''}. Work this into pacing: indoor rides, shows and sit-down meals during heat peaks and rain, outdoor coasters when it is dry, and warn about ponchos or heat when it matters.` : ''}
-${waits.forecast ? `7-day crowd outlook (based on ${waits.forecast.basis}): ${waits.forecast.days.map((d) => `${d.dow} ${d.label}${d.holiday ? ` (${d.holiday})` : ''}`).join(', ')}. Lightest day: ${waits.forecast.best}.\n` : ''}Standby waits:
+${waits.weather && !pd ? `Weather at the park: ${waits.weather.now.label}, ${waits.weather.now.temp}°C (feels ${waits.weather.now.feels}°C); today's high ${waits.weather.today.high}°C, low ${waits.weather.today.low}°C, ${waits.weather.today.rainChance}% chance of rain${waits.weather.wettestHour ? `, wettest around ${waits.weather.wettestHour.hour}:00 (${waits.weather.wettestHour.chance}%)` : ''}${waits.weather.today.sunset ? `, sunset ${waits.weather.today.sunset}` : ''}. Work this into pacing: indoor rides, shows and sit-down meals during heat peaks and rain, outdoor coasters when it is dry, and warn about ponchos or heat when it matters.` : ''}
+${waits.forecast ? `7-day crowd outlook (based on ${waits.forecast.basis}): ${waits.forecast.days.map((d) => `${d.dow} ${d.label}${d.holiday ? ` (${d.holiday})` : ''}`).join(', ')}. Lightest day: ${waits.forecast.best}.\n` : ''}${pd ? "Today's live standby waits (relative popularity only — see the block above)" : 'Standby waits'}:
 ${rides}`;
 }
 

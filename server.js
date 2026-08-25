@@ -218,8 +218,19 @@ async function waAgentReply(link, text) {
   const ds = db.daystate.get(link.email) || {};
   const slug = PARKS[ds.park] ? ds.park : 'magic-kingdom';
   const waits = await getWaits(slug);
-  try { waits.forecast = forecastFor(slug); } catch {}
+  const fc = (() => { try { return forecastFor(slug, 120); } catch { return null; } })();
+  if (fc) waits.forecast = { ...fc, days: fc.days.slice(0, 7) };
   try { waits.weather = await getWeather(PARKS[slug]); } catch {}
+  // The assistant on WhatsApp answers about whatever day the app is set to,
+  // for the same reason the in-app one does: a plan for Wednesday and advice
+  // about today is the most confusing pairing this product can produce.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[slug].tz });
+  const wd = typeof ds.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ds.planDate) && fc
+    ? fc.days.find((d) => d.date === ds.planDate) : null;
+  if (wd) {
+    waits.planDay = { ...wd, isToday: wd.date === today, weather: (waits.weather?.days || []).find((w) => w.date === wd.date) || null };
+  }
+  waits.today = today;
   const history = db.wa.history(link.phone);
   const messages = [...history, { role: 'user', content: String(text).trim().slice(0, 2000) }];
   while (messages.length && messages[0].role !== 'user') messages.shift();
@@ -2167,7 +2178,12 @@ const server = http.createServer(async (req, res) => {
         const savedMin = Number.isFinite(parsed.savedMin) ? Math.max(0, Math.round(parsed.savedMin)) : 0;
         const profile = profileForKpi;
         const lang = LANG_NAMES[typeof parsed.lang === 'string' ? parsed.lang : 'en'] || 'English';
-        const day = new Intl.DateTimeFormat('en-US', { timeZone: park.tz, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
+        // Date the email for the day being planned, not the day it is sent.
+        // A plan built for Wednesday and headed "Monday" is wrong twice over:
+        // in the header the reader sees, and in the note the model writes.
+        const planDateRaw = typeof parsed.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.planDate) ? parsed.planDate : null;
+        const dayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: planDateRaw ? 'UTC' : park.tz });
+        const day = dayFmt.format(planDateRaw ? new Date(`${planDateRaw}T12:00:00Z`) : new Date());
 
         let briefing = '';
         if (consultant.enabled()) {
@@ -2211,6 +2227,8 @@ const server = http.createServer(async (req, res) => {
           picked: strList(d.picked, 30),
           done: strList(d.done, 40),
           favorites: strList(d.favorites, 30),
+          // Whitelisted like everything else: a plain date or nothing.
+          planDate: typeof d.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.planDate) ? d.planDate : null,
         });
         return sendJson(res, 200, { ok: true });
       }
@@ -2523,6 +2541,12 @@ const server = http.createServer(async (req, res) => {
         // Group profile from the setup wizard — whitelisted, never trusted raw.
         const profile = sanitizeProfile(parsed.profile);
         const done = strList(parsed.done, 40);
+        // Which day the user is actually planning. Accepted only as a plain
+        // date and only if it is a day the forecast covers, so a client cannot
+        // steer the advisor to an arbitrary string.
+        const planDateRaw = typeof parsed.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.planDate) ? parsed.planDate : null;
+        const arrive = Number.isFinite(Number(parsed.arrive)) ? Number(parsed.arrive) : null;
+        const leave = Number.isFinite(Number(parsed.leave)) ? Number(parsed.leave) : null;
         const lang = Object.values(LANG_NAMES).includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per verified pass, then verified account, then client IP.
@@ -2531,8 +2555,23 @@ const server = http.createServer(async (req, res) => {
         }
         try {
           const waits = await getWaits(park);
-          try { waits.forecast = forecastFor(park); } catch {}
+          const fc = (() => { try { return forecastFor(park, 120); } catch { return null; } })();
+          if (fc) waits.forecast = { ...fc, days: fc.days.slice(0, 7) };
           try { waits.weather = await getWeather(PARKS[park]); } catch {}
+          // Attach the planned day itself — its crowd level, and its weather
+          // where the forecast reaches that far. Everything downstream keys off
+          // this rather than re-deriving "today".
+          const today = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[park].tz });
+          const planDay = planDateRaw && fc ? fc.days.find((d) => d.date === planDateRaw) : null;
+          if (planDay) {
+            waits.planDay = {
+              ...planDay,
+              isToday: planDay.date === today,
+              weather: (waits.weather?.days || []).find((w) => w.date === planDay.date) || null,
+              arrive, leave,
+            };
+          }
+          waits.today = today;
           const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });

@@ -835,6 +835,9 @@
           picked: [...pickedNames],
           done: [...doneOrder],
           favorites: [...favs],
+          // Carried so the WhatsApp assistant answers about the same day the
+          // app is showing, rather than about today.
+          planDate,
         } }),
       }).catch(() => {});
     }, 2500);
@@ -1362,6 +1365,10 @@
           body: JSON.stringify({
             park: current, stops: planStops, savedMin: planSaved,
             lang: window.PP_LANG || 'en',
+            // The plan on screen may be for a future day; without this the
+            // email is dated today and the advisor's note is written for the
+            // wrong date.
+            planDate,
             profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
           }),
         });
@@ -2579,7 +2586,20 @@
         enabled: Boolean(c.consultant),
         getPark: () => current,
         getParkName: () => parks[current]?.name,
-        getContext: async () => ({ favorites: [...favs], planPicks: [...pickedNames], done: [...doneOrder], subscription: await pushSubscriptionOrNull(), profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null }),
+        // planDate is what the Day picker is set to (null = today). Without it
+        // the advisor answers about today while the plan on screen is for
+        // Wednesday. `done` only means anything for today, so it is dropped
+        // for a future day — the planner already ignores it there too.
+        getContext: async () => ({
+          favorites: [...favs],
+          planPicks: [...pickedNames],
+          done: planDate ? [] : [...doneOrder],
+          planDate,
+          arrive: $('start-hour') ? $('start-hour').value : null,
+          leave: $('end-hour') ? $('end-hour').value : null,
+          subscription: await pushSubscriptionOrNull(),
+          profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+        }),
         onPlan: async (action) => { await applyPlan(action); document.getElementById('ppc-panel')?.classList.remove('ppc-open'); },
         onAlert: (action) => { myAlerts[action.ride] = action.threshold; saveAlerts(); renderRides(); },
         requireAccess: () => { if (isPro) return true; showUpsell(); return false; },
