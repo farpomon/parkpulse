@@ -222,6 +222,21 @@
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
   .mila-mini { width: 22px; height: 22px; border-radius: 50%; vertical-align: -6px; margin-right: .15rem; }
+  .hchips { display: block; margin-top: .1rem; }
+  .ride-meta { font-size: .74rem; color: var(--muted); margin-top: .25rem; font-weight: 600; }
+  .hchip { display: inline-block; font-size: .64rem; font-weight: 700; color: var(--muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 999px; padding: 0 .45rem; margin-right: .25rem; }
+  .hchip.ok { color: var(--green); border-color: var(--green); }
+  .hchip.unk { color: var(--gold, #b8791a); border-color: currentColor; }
+  .hchip.rs { color: var(--brand); }
+  .hrow { display: flex; align-items: center; gap: .5rem; }
+  .hrow input { width: 6rem; font: inherit; padding: .45rem .6rem; border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--ink); }
+  .hrow b { color: var(--muted); font-size: .85rem; }
+  .hclear { border: none; background: var(--border); border-radius: 999px; width: 1.6rem; height: 1.6rem; cursor: pointer; color: var(--ink); }
+  .hnote-sub { font-size: .74rem; color: var(--muted); margin: .35rem 0 0; }
+  .hhidden { margin-top: .6rem; font-size: .8rem; color: var(--muted); background: var(--bg); border: 1px dashed var(--border);
+    border-radius: 10px; padding: .5rem .7rem; }
   .mila-up { width: 64px; height: 64px; border-radius: 50%; float: right; margin: 0 0 .4rem .6rem; border: 2px solid var(--brand); }
   .planai-h span { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 600; font-style: italic; }
   .planai-b { font-size: .98rem; line-height: 1.62; color: var(--ink); }
@@ -960,7 +975,7 @@
   // A function declaration, not a const arrow: syncFilterButton() is called
   // while tags load, which happens long before this line would be evaluated.
   function filtersActive() {
-    return (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0) + (query.trim() ? 1 : 0);
+    return (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0) + (query.trim() ? 1 : 0) + (fHeight > 0 ? 1 : 0);
   }
 
   function passesFilter(r) {
@@ -970,6 +985,10 @@
     if (!tg) return true;
     if (fVibe !== 'all' && tg.vibe !== fVibe) return false;
     if (fAge !== 99 && tg.minAge > fAge) return false;
+    // Height: hide only rides the data POSITIVELY says are too tall a bar.
+    // hmin of -1 means we honestly don't know -- those stay visible with a
+    // "check the sign" chip rather than silently vanishing or silently passing.
+    if (fHeight > 0 && Number.isFinite(tg.hmin) && tg.hmin > 0 && tg.hmin > fHeight) return false;
     return true;
   }
 
@@ -1175,6 +1194,30 @@
     $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  // The rest of the authored sheet -- duration, loading speed, seating --
+  // lives in the tap-to-expand description, where detail belongs.
+  function rideMetaLine(r) {
+    const tg = tagsCache[current] && tagsCache[current][r.name];
+    if (!tg) return '';
+    const bits = [];
+    if (tg.dur > 0) bits.push(`⏱ ~${tg.dur} ${tr('min ride')}`);
+    if (tg.load) bits.push(tg.load === 'fast' ? tr('line moves fast') : tg.load === 'slow' ? tr('slow loader — the line crawls') : tr('steady loader'));
+    if (tg.seat) bits.push(esc(tg.seat));
+    if (tg.rs) bits.push(`⇄ ${tr('rider switch offered')}`);
+    return bits.length ? `<div class="ride-meta">${bits.join(' · ')}</div>` : '';
+  }
+
+  // Height/rider-switch chips on the row itself: the sign, before the walk.
+  function heightChips(r) {
+    const tg = tagsCache[current] && tagsCache[current][r.name];
+    if (!tg) return '';
+    const bits = [];
+    if (tg.hmin > 0) bits.push(`<span class="hchip${fHeight > 0 && tg.hmin <= fHeight ? ' ok' : ''}">📏 ${fmtHeight(tg.hmin)}</span>`);
+    if (fHeight > 0 && tg.hmin === -1) bits.push(`<span class="hchip unk">📏 ${tr('check sign')}</span>`);
+    if (tg.rs && (fHeight > 0 || tg.hmin > 0)) bits.push(`<span class="hchip rs" title="${tr('Rider switch offered — adults take turns without queuing twice')}">⇄ ${tr('switch')}</span>`);
+    return bits.length ? `<span class="hchips">${bits.join('')}</span>` : '';
+  }
+
   function visibleRides() {
     const q = query.trim().toLowerCase();
     let list = q ? rides.filter((r) => r.name.toLowerCase().includes(q)) : rides;
@@ -1191,13 +1234,21 @@
       <div class="ride${rode ? ' isdone' : ''}">
         <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${esc(r.name)} to plan">
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${esc(r.name)}">★</button>
-        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}</span>
+        <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}${heightChips(r)}</span>
         <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${esc(r.name)}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
-        ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}</div>` : ''}
+        ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}${rideMetaLine(r)}</div>` : ''}
         ${srPromptHtml(r)}
       </div>`;
+  }
+
+  function heightHiddenNote() {
+    if (fHeight <= 0) return '';
+    const tags = tagsCache[current] || {};
+    const hidden = rides.filter((r) => { const t = tags[r.name]; return t && t.hmin > 0 && t.hmin > fHeight; });
+    if (!hidden.length) return '';
+    return `<div class="hhidden">📏 ${hidden.length} ${tr(hidden.length === 1 ? 'ride hidden — its height minimum is above' : 'rides hidden — their height minimums are above')} ${fmtHeight(fHeight)}${hidden.some((r) => (tags[r.name] || {}).rs) ? ` · ${tr('some offer rider switch for the grown-ups')}` : ''}</div>`;
   }
 
   function renderRides() {
@@ -1210,7 +1261,7 @@
         $('rides').innerHTML = `<div class="state">${tr('No rides match')} “${query}”.</div>`;
         return;
       }
-      $('rides').innerHTML = list.map(rideRow).join('');
+      $('rides').innerHTML = list.map(rideRow).join('') + heightHiddenNote();
     } else {
       // Group by land, in feed order (queue-times lists lands geographically),
       // so "what's short near me" reads at a glance.
@@ -1224,7 +1275,7 @@
       $('rides').innerHTML = [...lands.entries()].map(([land, list]) =>
         `<div class="landhead">${esc(land)}</div>` +
         [...list].sort((a, b) => (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
-      ).join('');
+      ).join('') + heightHiddenNote();
     }
     $('rides').querySelectorAll('input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
       const name = decodeURIComponent(cb.dataset.name);
@@ -2437,6 +2488,10 @@
   }
   // Filter sheet: big tappable chips, opened from the section header — a
   // fixed bottom bar sat in the iPhone home-indicator zone and fought taps.
+  // Child height in cm; 0 = filter off. Entered in the visitor's own unit.
+  let fHeight = Number(localStorage.getItem('pp-child-height')) || 0;
+  const cmToIn = (cm) => Math.round(cm / 2.54);
+  const fmtHeight = (cm) => (usesFahrenheit() ? `${cmToIn(cm)}"` : `${cm} cm`);
   const VIBE_OPTS = [['all', '🎡', 'All types'], ['gentle', '😌', 'Easy-going'], ['family', '👨‍👩‍👧', 'Family'], ['thrill', '🎢', 'Thrilling'], ['water', '💦', 'Water'], ['show', '🎭', 'Shows']];
   const AGE_OPTS = [[99, '🎡', 'Any age rating'], [0, '👶', 'Toddler-friendly'], [3, '🧒', 'Ages 3+'], [7, '🧑', 'Ages 7+'], [12, '🎓', 'Ages 12+']];
 
@@ -2451,6 +2506,8 @@
   function resetFilters() {
     fVibe = 'all';
     fAge = 99;
+    fHeight = 0;
+    try { localStorage.removeItem('pp-child-height'); } catch {}
     query = '';
     $('search').value = '';
     $('clear-search').style.display = 'none';
@@ -2478,6 +2535,33 @@
     body.innerHTML = '';
     body.appendChild(group(tr('Attraction type'), VIBE_OPTS, fVibe, (v) => { fVibe = v; }));
     body.appendChild(group(tr('Age rating'), AGE_OPTS, fAge, (v) => { fAge = +v; }));
+    // Child height: the filter TouringPlans keeps on a reference page and we
+    // put on the live board. Entered in the visitor's unit, stored in cm.
+    const imp = usesFahrenheit();
+    const hw = document.createElement('div');
+    hw.className = 'chipgroup';
+    hw.innerHTML = `<h4>${tr("Child's height")}</h4>
+      <div class="hrow">
+        <input id="height-in" type="number" inputmode="numeric" min="0" max="${imp ? 75 : 190}" placeholder="${imp ? tr('e.g.') + ' 44' : tr('e.g.') + ' 112'}"
+          value="${fHeight > 0 ? (imp ? cmToIn(fHeight) : fHeight) : ''}" aria-label="${tr("Child's height")}"><b>${imp ? tr('inches') : 'cm'}</b>
+        ${fHeight > 0 ? `<button class="hclear" id="height-clear">✕</button>` : ''}
+      </div>
+      <p class="hnote-sub">${tr('Shows only rides they can board. Height rules change — the sign at the ride is always final.')}</p>`;
+    body.appendChild(hw);
+    hw.querySelector('#height-in').addEventListener('change', (e) => {
+      const v = Number(e.target.value);
+      // Floor, never round: 42 inches is 106.7cm, and rounding to 107 would
+      // "admit" a child to a 107cm ride the operator will turn away.
+      fHeight = Number.isFinite(v) && v > 0 ? Math.floor(imp ? v * 2.54 : v) : 0;
+      try { fHeight > 0 ? localStorage.setItem('pp-child-height', String(fHeight)) : localStorage.removeItem('pp-child-height'); } catch {}
+      renderFilterSheet(); syncFilterButton(); renderRides(); updatePlanbar();
+    });
+    const hc = hw.querySelector('#height-clear');
+    if (hc) hc.addEventListener('click', () => {
+      fHeight = 0;
+      try { localStorage.removeItem('pp-child-height'); } catch {}
+      renderFilterSheet(); syncFilterButton(); renderRides(); updatePlanbar();
+    });
     if (filtersActive()) {
       const reset = document.createElement('button');
       reset.className = 'freset';

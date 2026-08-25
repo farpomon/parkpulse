@@ -190,7 +190,14 @@ function waitsBlock(park, waits) {
   // model's memory of which rides are air-conditioned -- memory that thins
   // out fast beyond the Disney and Universal headliners.
   const shelter = waits.tags
-    ? (n) => ({ indoor: ' [indoor/AC]', covered: ' [covered]' }[waits.tags[n]?.in] || '')
+    ? (n) => {
+      const t = waits.tags[n];
+      if (!t) return '';
+      let out = { indoor: ' [indoor/AC]', covered: ' [covered]' }[t.in] || '';
+      if (t.hmin > 0) out += ` [min ${t.hmin}cm]`;
+      if (t.rs) out += ' [rider switch]';
+      return out;
+    }
     : () => '';
   const rides = waits.rides
     .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}${shelter(r.name)}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
@@ -629,7 +636,7 @@ async function rideTags(parkName, rideNames) {
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string, "in": "indoor"|"outdoor"|"covered"}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. in = where the ride itself happens: indoor = fully enclosed and climate-controlled (dark rides, indoor coasters, theaters); outdoor = exposed to sun and rain; covered = under a roof or canopy but not climate-controlled, or an outdoor ride whose queue is mostly sheltered. This drives hot-hour and rain routing, so classify by the RIDE experience, not the queue alone. If you do not know a specific attraction, infer conservatively from its name.',
+    system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string, "in": "indoor"|"outdoor"|"covered", "hmin": number|null, "rs": boolean, "dur": number, "load": "fast"|"medium"|"slow", "seat": string}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. in = where the ride itself happens: indoor = fully enclosed and climate-controlled (dark rides, indoor coasters, theaters); outdoor = exposed to sun and rain; covered = under a roof or canopy but not climate-controlled, or an outdoor ride whose queue is mostly sheltered. This drives hot-hour and rain routing, so classify by the RIDE experience, not the queue alone. hmin = the official posted MINIMUM HEIGHT in centimeters to board at all (riding accompanied by an adult counts; ignore any taller ride-alone threshold). Use 0 when the attraction has no height requirement. Use null when you are not confident of the exact posted figure -- a parent will filter rides by this number, so a guess that is too low is worse than an honest null. NEVER round down. rs = true if the park operates rider switch / child swap at this attraction. dur = the duration of the ride itself in whole minutes (the experience, not the queue). load = how fast the queue moves for its length: fast (continuous loaders, omnimovers, big trains), medium, or slow (low capacity, long cycles). seat = the seating in a few words (e.g. \'2-across coaster car\', \'log flume bench\', \'theater seats\'). If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });
   noteUsage('ride-tags', msg);
@@ -647,6 +654,13 @@ async function rideTags(parkName, rideNames) {
       sr: Boolean(r.sr),
       land: typeof r.land === 'string' ? r.land.trim().slice(0, 60) : '',
       in: ['indoor', 'outdoor', 'covered'].includes(r.in) ? r.in : 'outdoor',
+      // -1 = honestly unknown; the filter shows those with a "check the sign"
+      // chip instead of pretending. 0 = genuinely no height requirement.
+      hmin: Number.isFinite(r.hmin) && r.hmin >= 0 ? Math.min(160, Math.round(r.hmin)) : -1,
+      rs: Boolean(r.rs),
+      dur: Number.isFinite(r.dur) ? Math.max(1, Math.min(45, Math.round(r.dur))) : 0,
+      load: ['fast', 'medium', 'slow'].includes(r.load) ? r.load : '',
+      seat: typeof r.seat === 'string' ? r.seat.trim().slice(0, 40) : '',
     };
   }
   return out;

@@ -2238,7 +2238,7 @@ const server = http.createServer(async (req, res) => {
       const parsed = JSON.parse(cached);
       // Tags cached before the single-rider, land or shelter fields existed
       // regenerate once.
-      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t && 'land' in t && 'in' in t);
+      const fresh = Object.values(parsed).some((t) => t && typeof t === 'object' && 'sr' in t && 'land' in t && 'in' in t && 'hmin' in t);
       if (fresh) return sendJson(res, 200, { tags: parsed });
     }
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
