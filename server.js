@@ -1611,6 +1611,10 @@ function productShots() {
 }
 
 function serveStatic(res, urlPath) {
+  // Browsers and crawlers probe /favicon.ico regardless of what the pages
+  // declare; without this alias every page view logs a 404. A PNG under the
+  // .ico name is fine -- everything that asks for it renders PNG.
+  if (urlPath === '/favicon.ico') urlPath = '/icon-192.png';
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
   const filePath = path.join(PUBLIC_DIR, rel);
   if (!filePath.startsWith(PUBLIC_DIR)) return sendJson(res, 403, { error: 'forbidden' });
