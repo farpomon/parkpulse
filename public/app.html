@@ -29,6 +29,54 @@
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Nunito", "Segoe UI", system-ui, sans-serif; }
   .wrap { max-width: 640px; margin: 0 auto; padding: 0 1rem 10rem; }
+  /* Below the desktop breakpoint the two wrappers are inert: `display: contents`
+     removes them from layout entirely, so the phone renders the same flat
+     column it always did. */
+  .rail, .main { display: contents; }
+
+  /* Device layout is decided by viewport width and input type, never by
+     sniffing the user agent. An iPad has reported itself as a Mac since
+     iPadOS 13, desktop-mode toggles lie, and foldables change class mid-
+     session; width and `hover`/`pointer` describe what is actually true right
+     now. Three tiers: phone (the base rules above), tablet, and desktop. */
+
+  /* Tablet and small laptops: one column still, but a wider measure so the
+     ride rows stop wrapping every label. */
+  @media (min-width: 720px) {
+    .wrap { max-width: 760px; }
+    .planbar .inner { max-width: 760px; }
+    .sheet { max-width: 760px; }
+  }
+
+  /* Laptop and up: the single column wasted two thirds of the screen. Split
+     into a sticky context rail (crowds, weather, pass verdict, forecast) and a
+     main column that carries the plan and the ride list. */
+  @media (min-width: 1080px) {
+    .wrap {
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      column-gap: 2rem;
+      align-items: start;
+    }
+    header, footer { grid-column: 1 / -1; }
+    .rail, .main { display: flex; flex-direction: column; min-width: 0; }
+    .rail { gap: .9rem; position: sticky; top: 1rem; }
+    .main { gap: 0; }
+    .planbar .inner { max-width: 1200px; }
+    .sheet { max-width: 560px; border-radius: 20px; }
+  }
+
+  @media (min-width: 1400px) {
+    .wrap { max-width: 1320px; grid-template-columns: 380px minmax(0, 1fr); }
+    .planbar .inner { max-width: 1320px; }
+  }
+
+  /* Pointer devices get hover affordances; touch devices should not, because a
+     tap leaves the hover state stuck until you tap elsewhere. */
+  @media (hover: hover) and (pointer: fine) {
+    .ride:hover { border-color: var(--brand); }
+  }
   header { z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: .75rem 0 .5rem; }
   @supports not (background: color-mix(in srgb, red 50%, blue)) { header { background: var(--bg); } }
   .topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; }
@@ -289,6 +337,14 @@
   .upsell a { color: #ffd75e; font-weight: 700; }
   footer { margin-top: 2.5rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--border); padding-top: 1rem; }
   footer a { color: var(--muted); }
+  /* `flex: 1 1 11rem` lets the plan button eat every spare pixel. On a phone
+     that is right -- it is the primary action and wants the full width. On a
+     wide header it stretches to 750px and reads as a banner, not a button. */
+  @media (min-width: 1080px) {
+    .planrow .planday { flex: 0 0 auto; min-width: 13rem; }
+    .planrow { gap: .8rem; }
+  }
+
 </style>
 
 <div class="wrap">
@@ -323,10 +379,16 @@
     </div>
   </header>
 
+  <!-- .rail and .main are `display: contents` below the desktop breakpoint, so
+       on a phone they contribute nothing to layout and the DOM renders exactly
+       as it did before. Above it they become the two grid columns. -->
+  <div class="rail">
   <p class="crowdline" id="crowdline"></p>
   <div id="weatherline" class="wxline" style="display:none"></div>
   <div id="skipcard"></div>
   <div id="forecast"></div>
+  </div>
+  <div class="main">
   <div id="plan-out"></div>
   <div class="sectionhead">
     <h2 id="listhead-title">🎢 Park attractions</h2>
@@ -338,6 +400,7 @@
     <p id="map-note" class="dine-note" style="text-align:center"></p>
   </div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+  </div>
 
   <footer>
     <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>. <span id="ft-map">Map data</span> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://themeparks.wiki">ThemeParks.wiki</a>.
