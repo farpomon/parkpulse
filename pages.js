@@ -740,6 +740,34 @@ ${method}
 </div></body></html>`;
 }
 
+// A wrong URL is a marketing moment too: sad Mila, a one-liner, and the two
+// links that recover the visit. noindex -- error pages must never rank.
+function renderNotFoundPage() {
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found | ParkPulse</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<style>${CSS}
+  .nf{max-width:430px;margin:8vh auto 0;text-align:center;padding:0 1rem}
+  .nf img{width:150px;height:150px;border-radius:50%;border:4px solid var(--border)}
+  .nf h1{margin:.9rem 0 .3rem}
+  .nf p{color:var(--muted);margin:0 0 1.2rem}
+  .nf .btns{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
+  .nf a.b{display:inline-block;background:var(--brand);color:#fff;font-weight:800;padding:.65rem 1.3rem;border-radius:10px;text-decoration:none}
+  .nf a.b.ghost{background:var(--card);color:var(--brand);border:1.5px solid var(--brand)}
+</style></head><body><div class="wrap">
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a></nav>
+<div class="nf">
+  <img src="/img/mila/mila-sad-320.webp" alt="Mila the ParkPulse fairy, looking disappointed">
+  <h1>This page doesn't exist</h1>
+  <p>Mila checked twice. The queue for it is infinite, and not in the fun way.</p>
+  <div class="btns"><a class="b" href="/app">Open live waits</a><a class="b ghost" href="/parks">Browse all 56 parks</a></div>
+</div>
+<footer style="margin-top:5rem">Unofficial fan guide &mdash; not affiliated with the park operators. <a href="/">ParkPulse home</a></footer>
+</div></body></html>`;
+}
+
 const renderSitemap = (origin, slugs) => {
   const today = new Date().toISOString().slice(0, 10);
   const entries = [
@@ -901,4 +929,4 @@ ${seo ? `<h2>The months that actually matter at ${esc(park.name)}</h2>
 </div><script src="/i18n.js"></script></body></html>`;
 }
 
-module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderAccuracyPage, renderSitemap, renderRobots, allParksIndex };
+module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderAccuracyPage, renderNotFoundPage, renderSitemap, renderRobots, allParksIndex };

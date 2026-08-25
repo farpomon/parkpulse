@@ -1785,6 +1785,12 @@ function serveStatic(res, urlPath) {
       return fs.createReadStream(candidate).pipe(res);
     }
   }
+  // A person's typo gets a page that recovers the visit; a program's wrong
+  // path keeps the JSON it can parse.
+  if (!urlPath.startsWith('/api/') && !path.extname(urlPath)) {
+    res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
+    return res.end(pages.renderNotFoundPage());
+  }
   sendJson(res, 404, { error: 'not found' });
 }
 

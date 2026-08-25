@@ -16,7 +16,7 @@
 
   const CSS = `
     #ppc-fab { position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 90;
-      width: 3.4rem; height: 3.4rem; border-radius: 50%; border: none; cursor: pointer; font-size: 1.5rem;
+      width: 3.4rem; height: 3.4rem; border-radius: 50%; border: none; cursor: pointer; font-size: 1.5rem; padding: 3px;
       background: linear-gradient(135deg, #4f3ac9, #7b5fe0); color: #fff; box-shadow: 0 6px 20px rgba(44,33,84,.4);
       display: none; align-items: center; justify-content: center; transition: transform .15s; }
     #ppc-fab:active { transform: scale(.92); }
@@ -125,7 +125,7 @@
     root = document.createElement('div');
     root.id = 'ppc-root';
     root.innerHTML = `
-      <button id="ppc-fab" title="Ask the park consultant" aria-label="Ask the park consultant">💬</button>
+      <button id="ppc-fab" title="Ask Mila, your park advisor" aria-label="Ask Mila, your park advisor"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
       <div id="ppc-panel" role="dialog" aria-label="Park consultant chat">
         <div id="ppc-head"><div><b>${T()('Park Consultant')}</b><span id="ppc-sub"></span></div>
           <button id="ppc-close" aria-label="Close chat">✕</button></div>
