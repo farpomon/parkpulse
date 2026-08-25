@@ -204,6 +204,16 @@
      ground and a brand edge against the plain list beneath it. */
   .planai { background: linear-gradient(180deg, var(--brand-soft, rgba(91,61,245,.09)), transparent 70%);
     border: 1px solid var(--brand); border-radius: 14px; padding: .85rem 1rem; margin: .3rem 0 1rem; }
+  .planhero { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; width: 100%;
+    background: linear-gradient(135deg, var(--brand), #7c5cff); color: #fff;
+    border-radius: 14px; padding: 1rem 1.1rem; margin: 0 0 .9rem; box-shadow: 0 6px 18px rgba(91,61,245,.25); }
+  .planhero .ph-txt { flex: 1 1 240px; }
+  .planhero b { display: block; font-size: 1.15rem; margin-bottom: .15rem; }
+  .planhero span { font-size: .85rem; opacity: .92; line-height: 1.35; }
+  .ph-btn { flex: 0 0 auto; background: #fff; color: var(--brand); border: none; border-radius: 10px;
+    font-weight: 800; font-size: .95rem; padding: .7rem 1.1rem; cursor: pointer; }
+  .ph-btn:active { transform: scale(.97); }
+  .planai-done { font-size: .82rem; font-weight: 700; color: var(--green, #2e9e6b); }
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .planai-h span { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 600; font-style: italic; }
   .planai-b { font-size: .98rem; line-height: 1.62; color: var(--ink); }
@@ -477,6 +487,13 @@
   <div id="forecast"></div>
   </div>
   <div class="main">
+  <!-- The one-tap pitch, full width. Same flow as the toolbar button: fill
+       the whole day with attractions and have the advisor read the result.
+       Hidden while a plan is on screen -- the plan is the star then. -->
+  <div class="planhero" id="plan-hero">
+    <div class="ph-txt"><b id="ph-title">🗓️ Plan my day</b><span id="ph-sub">One tap: we fill your whole day with attractions, hour by hour, crowds dodged — and your AI advisor reviews the order before you walk a step.</span></div>
+    <button class="ph-btn" id="plan-hero-btn">✨ Plan it for me</button>
+  </div>
   <div id="plan-out"></div>
   <div class="sectionhead">
     <h2 id="listhead-title">🎢 Park attractions</h2>
@@ -1132,6 +1149,7 @@
         localStorage.setItem('pp-pass', data.token);
         isPro = true;
         $('plan-out').innerHTML = '';
+        syncPlanHero();
         load();
       } catch { alert("That code didn't work."); }
     });
@@ -1272,14 +1290,32 @@
   let aiPlanKey = null;
   let aiPlanText = '';
   let aiPlanAbort = null;
+  // Set for exactly one rebuild when the user applies the advisor's own order:
+  // that rebuild changes the plan lines, which would otherwise read as a new
+  // plan and trigger a fresh paid consult about the order the advisor itself
+  // just proposed -- and each answer grew a new Apply button, so every tap
+  // burned tokens in a loop. Applying adopts the advice; it never re-asks.
+  let adoptAdvice = false;
 
   function refinePlanWithAI(steps) {
+    const adopting = adoptAdvice;
+    adoptAdvice = false;
     const box = $('plan-ai');
     if (!box) return;
     const ride = steps.filter((x) => x.ride);
     if (!ride.length) return;
     const lines = ride.map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
     const key = `${current}|${planDate || 'today'}|${lines}`;
+
+    if (adopting && aiPlanText) {
+      aiPlanKey = key;   // pin the standing advice to the applied plan
+      box.style.display = '';
+      $('planai-state').textContent = '';
+      $('planai-body').innerHTML = mdLite(aiPlanText);
+      $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using the advisor's order")}</span>`;
+      $('planbase-h').style.display = '';
+      return;
+    }
 
     // Same plan as last time — show what the advisor already said.
     if (key === aiPlanKey && aiPlanText) {
@@ -1728,6 +1764,7 @@
     if (picksChanged) renderRides();
     // The advisor now runs on every plan rather than waiting to be asked.
     refinePlanWithAI(steps);
+    syncPlanHero();
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
@@ -1764,7 +1801,7 @@
       } catch { toast(tr('Connection trouble — try again.')); }
       finally { btn.disabled = false; btn.textContent = label; }
     });
-    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; if (viewMode === 'map') renderMap(); });
+    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; syncPlanHero(); if (viewMode === 'map') renderMap(); });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -1882,6 +1919,9 @@
 
   function applyStaticText() {
     $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
+    $('ph-title').textContent = '🗓️ ' + tr('Plan my day');
+    $('ph-sub').textContent = tr('One tap: we fill your whole day with attractions, hour by hour, crowds dodged — and your AI advisor reviews the order before you walk a step.');
+    $('plan-hero-btn').textContent = '✨ ' + tr('Plan it for me');
     $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
     $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
     $('search').placeholder = tr('Search rides…');
@@ -1930,6 +1970,11 @@
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
   // biggest open headliners.
+  $('plan-hero-btn').addEventListener('click', () => {
+    $('plan-day').click();
+    $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  const syncPlanHero = () => { $('plan-hero').style.display = $('plan-out').innerHTML.trim() ? 'none' : ''; };
   $('plan-day').addEventListener('click', () => {
     if (!isPro) { showUpsell(); return; }
     if (!rides.length) return;
@@ -2866,6 +2911,7 @@
     // the order from before the advisor changed it and "Email me this plan"
     // sends a plan the user can no longer see.
     advisorOrder = resolved.slice();
+    adoptAdvice = true;
     buildPlan();
     advisorOrder = null;
     return true;
