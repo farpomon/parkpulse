@@ -1518,8 +1518,25 @@
       // use Rider Switch — just not first picks).
       const prefAdj = (r) => (vibeHit(r.name) ? -8 : 0) + (ageOk(r.name) ? 0 : 25);
       const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r)) + prefAdj(r);
-      const bestIdx = pool.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
+      // When the advisor's order is in force, follow it. buildPlan otherwise
+      // scores every ride and re-derives its own sequence — which meant
+      // "Use the advisor's order" transferred the ride SET and silently threw
+      // the order away, leaving the list below unchanged. Timing, lunch, the
+      // show and the wait maths still come from here; only the sequence is
+      // taken from the advisor, and only while its rides last.
+      let bestIdx;
+      if (advisorOrder && !fillMode) {
+        const nextIdx = advisorOrder.reduce((found, name) => {
+          if (found !== -1) return found;
+          const i = pool.findIndex((r) => r.name === name);
+          return i;
+        }, -1);
+        bestIdx = nextIdx !== -1 ? nextIdx : pool.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
+      } else {
+        bestIdx = pool.reduce((m, r, i, arr) => (score(r) < score(arr[m]) ? i : m), 0);
+      }
       const ride = pool.splice(bestIdx, 1)[0];
+      if (advisorOrder) advisorOrder = advisorOrder.filter((n) => n !== ride.name);
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
       const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult * srF(ride) / 5) * 5);
@@ -2110,6 +2127,10 @@
   // numbered pins and the route line on the map.
   let planOrder = [];
   let planStops = [];
+  // A sequence handed over by the advisor, consumed as the plan is built and
+  // cleared afterwards. Held outside buildPlan because applyPlan sets it and
+  // buildPlan spends it.
+  let advisorOrder = null;
   let planSaved = 0;
   let leafletLoading = null;
   function loadLeaflet() {
@@ -2662,10 +2683,13 @@
     scheduleSync();
     renderRides();
     updatePlanbar();
-    // Re-plan against the new picks. Without this planStops still holds the
-    // order from before the advisor changed it, and "Email me this plan" sends
-    // a plan the user can no longer see.
-    if ($('plan-out').innerHTML.trim()) buildPlan();
+    // Re-plan against the new picks, following the advisor's sequence rather
+    // than re-optimising it away. Without the re-plan, planStops still holds
+    // the order from before the advisor changed it and "Email me this plan"
+    // sends a plan the user can no longer see.
+    advisorOrder = action.rides.filter((n) => known.has(n));
+    buildPlan();
+    advisorOrder = null;
   }
 
 
