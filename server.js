@@ -861,6 +861,25 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
   // feed, and the park's own skip-pass pricing.
   const fact = (icon, label) => `<tr><td width="26" valign="top" style="padding:4px 0;font-size:15px">${icon}</td>
     <td valign="top" style="padding:4px 0;font-size:14px;color:#3f3762">${label}</td></tr>`;
+  // Playful, but every number is real: each of these is derived from the plan
+  // itself. A fabricated "churros within reach" would be funnier and would make
+  // the rest of the email less believable, which is a bad trade for an email
+  // whose whole job is to be trusted about wait times.
+  const first = stops[0], last = stops[stops.length - 1];
+  const longest = stops.reduce((a, b) => (Number.isFinite(b.wait) && (!a || b.wait > a.wait) ? b : a), null);
+  const dayLen = first && last && first.time && last.time
+    ? `${first.time} \u2192 ${last.time}` : null;
+  const queueHours = savedMin >= 60 ? (savedMin / 60).toFixed(1) : null;
+  const funFacts = [
+    dayLen ? fact('\u23F1\uFE0F', `Your day, gate to gate: <b>${esc(dayLen)}</b> \u2014 longer than most flights you have complained about`) : '',
+    longest && longest.wait >= 40 ? fact('\uD83E\uDDCD', `Longest single queue on the plan: <b>${longest.wait} min</b> at ${esc(longest.name)}. Bring a snack and a grudge`) : '',
+    queueHours ? fact('\uD83C\uDFC6', `Line time dodged: <b>${queueHours} hours</b> \u2014 roughly ${Math.max(1, Math.round(savedMin / 22))} sitcom episode${Math.round(savedMin / 22) === 1 ? '' : 's'} you get to not watch in a queue`) : '',
+    kpis.water ? fact('\uD83D\uDCA6', `Forecast dampness: <b>${kpis.water}</b> ride${kpis.water === 1 ? '' : 's'} that can return you visibly wetter than you arrived`) : '',
+    kpis.thrills ? fact('\uD83D\uDE31', `Stomach relocations booked: <b>${kpis.thrills}</b>`) : '',
+    kpis.shows ? fact('\uD83E\uDDCA', `Sit-down-in-the-air-conditioning opportunities: <b>${kpis.shows}</b>`) : '',
+    kpis.mapped && kpis.steps ? fact('\uD83D\uDC5F', `About <b>${kpis.steps.toLocaleString()}</b> steps \u2014 your shoes knew what they signed up for`) : '',
+  ].filter(Boolean).join('');
+
   const facts = [
     kpis.thrills ? fact('🎢', `<b>${kpis.thrills}</b> thrill ride${kpis.thrills === 1 ? '' : 's'} on the list`) : '',
     kpis.water ? fact('💦', `<b>${kpis.water}</b> chance${kpis.water === 1 ? '' : 's'} to get soaked — pack a poncho`) : '',
@@ -869,7 +888,6 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
     kpis.singleRider ? fact('🚶', `<b>${kpis.singleRider}</b> single-rider line${kpis.singleRider === 1 ? '' : 's'} available if you split up`) : '',
     kpis.toddlerFriendly && profile && profile.ages && profile.ages.includes('toddler')
       ? fact('👶', `<b>${kpis.toddlerFriendly}</b> of these work for your youngest`) : '',
-    kpis.mapped && kpis.steps ? fact('👟', `About <b>${kpis.steps.toLocaleString()}</b> steps`) : '',
     kpis.skip ? fact('💳', `Built to work without <b>${esc(kpis.skip.name)}</b> — that\'s ${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high} kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}`) : '',
   ].filter(Boolean).join('');
 
@@ -933,6 +951,10 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
     ${facts ? `<div style="padding:14px 26px 2px">
       <div style="font-weight:800;font-size:16px;margin-bottom:6px">Your day at a glance</div>
       <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
+    ${funFacts ? `<div style="padding:14px 26px 2px">
+      <div style="font-weight:800;font-size:16px;margin-bottom:2px">The stats nobody asked for</div>
+      <div style="color:#8b83a8;font-size:12.5px;margin-bottom:6px">All real, all from this plan.</div>
+      <table width="100%" cellpadding="0" cellspacing="0">${funFacts}</table></div>` : ''}
     <div style="padding:20px 26px 26px">
       <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
       ${kpis.mapped ? `<div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">

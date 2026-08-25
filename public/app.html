@@ -158,6 +158,9 @@
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
+  .fillnote { font-size: .88rem; color: var(--muted); line-height: 1.55; margin: 0 0 .7rem; }
+  .fillnote b { color: var(--ink); }
+  .fillnote a { color: var(--brand); font-weight: 700; }
   .evbox { display: flex; gap: .5rem; background: var(--gold-soft); border: 1px solid var(--gold);
     border-radius: 12px; padding: .7rem .85rem; margin: .3rem 0 .8rem; font-size: .9rem; line-height: 1.55; }
   .evrow + .evrow { margin-top: .45rem; }
@@ -1538,12 +1541,23 @@
       : "that's one more ride together instead of a queue";
     planOrder = steps.filter((s) => s.ride).map((s) => s.ride.name);
     planStops = steps.filter((s) => s.ride).map((s) => ({ name: s.ride.name, time: hourLabel(s.time), wait: s.predicted }));
+    // The plan and the attractions list are the same thing seen twice. Anything
+    // the planner filled the day with is ticked below, so the list always shows
+    // what the day actually contains and a ride can be dropped where the user
+    // is already looking.
+    const filled = steps.filter((s) => s.ride && s.suggested).length;
+    let picksChanged = false;
+    for (const st of steps) {
+      if (st.ride && !pickedNames.has(st.ride.name)) { pickedNames.add(st.ride.name); picksChanged = true; }
+    }
+    if (picksChanged) scheduleSync();
     planSaved = saved;
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
       ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")}</p>` : ''}
       ${eventNotice(dayEvents, closer)}
+      ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask the advisor below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
       <!-- The advisor's read is the headline. The computed running order below
            is the skeleton it works from and stays visible, because it renders
            instantly and has to carry the plan on its own when the advisor is
@@ -1566,6 +1580,10 @@
       <button class="btn replan" id="plan-mail" style="background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">📧 ${tr('Email me this plan')}</button>
     </div>`;
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
+    // Repaint the attractions list so the ticks match the plan we just wrote.
+    // Adding to pickedNames alone leaves the checkboxes showing the previous
+    // selection, which is the one place the two views must never disagree.
+    if (picksChanged) renderRides();
     // The advisor now runs on every plan rather than waiting to be asked.
     refinePlanWithAI(steps);
     const llFit = document.getElementById('ll-fit');
@@ -2641,8 +2659,13 @@
     pickedNames.clear();
     const known = new Set(rides.map((r) => r.name));
     for (const name of action.rides) if (known.has(name)) pickedNames.add(name);
+    scheduleSync();
     renderRides();
     updatePlanbar();
+    // Re-plan against the new picks. Without this planStops still holds the
+    // order from before the advisor changed it, and "Email me this plan" sends
+    // a plan the user can no longer see.
+    if ($('plan-out').innerHTML.trim()) buildPlan();
   }
 
 
