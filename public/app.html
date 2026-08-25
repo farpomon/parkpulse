@@ -158,6 +158,36 @@
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
+  /* The advisor's read is the emphasised element of the plan card: a warm
+     ground and a brand edge against the plain list beneath it. */
+  .planai { background: linear-gradient(180deg, var(--brand-soft, rgba(91,61,245,.09)), transparent 70%);
+    border: 1px solid var(--brand); border-radius: 14px; padding: .85rem 1rem; margin: .3rem 0 1rem; }
+  .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
+  .planai-h span { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 600; font-style: italic; }
+  .planai-b { font-size: .98rem; line-height: 1.62; color: var(--ink); }
+  .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
+  .planai-off { color: var(--muted); font-size: .92rem; margin: 0; }
+  .planai-cta { margin-top: .7rem; padding: .5rem 1rem; font-size: .9rem; }
+  .planai-sk { height: .8rem; border-radius: 6px; margin: .38rem 0;
+    background: linear-gradient(90deg, var(--border), var(--card), var(--border)); background-size: 200% 100%;
+    animation: shimmer 1.3s linear infinite; }
+  .planai-sk.short { width: 55%; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .planai-sk { animation: none; } }
+  .planbase-h { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    font-weight: 700; margin: .9rem 0 .3rem; }
+
+  /* Weather stays visible on a park day without covering anything. The desktop
+     left rail is already position:sticky, so the weather only needs to be the
+     first card in it — it then holds its corner as the ride list scrolls past.
+     A fixed-position card was the first attempt and it sat on top of the first
+     two rides, which is worse than not pinning it at all. Below the breakpoint
+     the rail is display:contents and this is inert, so a phone keeps it inline. */
+  @media (min-width: 1080px) {
+    .rail .wxline.wxpin { order: -1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: .6rem .8rem; box-shadow: var(--shadow, 0 4px 16px rgba(20,12,48,.07));
+      font-size: .86rem; margin: 0; }
+  }
   .freset { display: block; width: 100%; margin-top: 1rem; padding: .75rem 1rem; border-radius: 12px;
     border: 1px solid var(--border); background: var(--bg); color: var(--ink); font: inherit; font-weight: 700;
     font-size: .95rem; cursor: pointer; }
@@ -647,6 +677,9 @@
     if (!lastWeather) { el.style.display = 'none'; return; }
     const w = lastWeather;
     el.style.display = '';
+    // Pinned on wide screens only — the media query decides whether the class
+    // does anything, so a phone keeps it in the flow.
+    el.classList.add('wxpin');
     const bits = [
       `${w.now.icon} <b>${degrees(w.now.temp)}</b>`,
       w.now.feels - w.now.temp >= 3 ? `${tr('feels')} ${degrees(w.now.feels)}` : '',
@@ -1072,6 +1105,148 @@
   // --- Wait-drop alerts ---
   let sheetRide = null;
 
+  // --- The advisor's plan, on the main screen -----------------------------
+  // Every plan is refined by the advisor without being asked. Three rules keep
+  // that from being expensive or fragile:
+  //
+  //  - The computed plan renders first and never waits on this. A park day on
+  //    patchy wifi cannot hang on a model call, and the running order is
+  //    genuinely useful on its own.
+  //  - An identical plan is never refined twice. Nudging the leave time back
+  //    and forth used to be free; now each re-plan is a paid model call, so
+  //    the same ride list at the same times reuses the answer it already got.
+  //  - Every failure is silent and non-blocking. No pass, advisor off, rate
+  //    limited, offline: the plan below is still the plan.
+  let aiPlanKey = null;
+  let aiPlanText = '';
+  let aiPlanAbort = null;
+
+  function refinePlanWithAI(steps) {
+    const box = $('plan-ai');
+    if (!box) return;
+    const ride = steps.filter((x) => x.ride);
+    if (!ride.length) return;
+    const lines = ride.map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
+    const key = `${current}|${planDate || 'today'}|${lines}`;
+
+    // Same plan as last time — show what the advisor already said.
+    if (key === aiPlanKey && aiPlanText) {
+      box.style.display = '';
+      $('planai-state').textContent = '';
+      $('planai-body').innerHTML = mdLite(aiPlanText);
+      $('planbase-h').style.display = '';
+      return;
+    }
+    if (aiPlanAbort) aiPlanAbort.abort();
+
+    box.style.display = '';
+    $('planai-state').textContent = tr('reading today…');
+    $('planai-body').innerHTML = '<div class="planai-sk"></div><div class="planai-sk"></div><div class="planai-sk short"></div>';
+    $('planai-act').innerHTML = '';
+
+    const dayLabel = planDate
+      ? new Date(planDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
+      : 'today';
+    const ask = `This is the running order my planner built for ${parks[current].name} on ${dayLabel}: ${lines}. `
+      + 'Give me your read on it in 3-5 short sentences: what to move, what to keep, and the one thing that will cost me the most time if I get it wrong. '
+      + 'Be specific about named rides and times. If you would reorder it, call propose_plan with the revised order.';
+
+    aiPlanKey = key;
+    aiPlanText = '';
+    const ctrl = new AbortController();
+    aiPlanAbort = ctrl;
+    streamAdvice(ask, ctrl.signal, box);
+  }
+
+  // Minimal markdown: the advisor writes bold and paragraphs, nothing more.
+  // Escaping first, so a model that emits a tag cannot inject one.
+  function mdLite(t) {
+    return esc(String(t))
+      .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/^/, '<p>').replace(/$/, '</p>');
+  }
+
+  async function streamAdvice(question, signal, box) {
+    const state = $('planai-state');
+    const body = $('planai-body');
+    const fail = (msg, upsell) => {
+      // A failed refinement must never look like a failed plan.
+      box.style.display = msg ? '' : 'none';
+      $('planbase-h').style.display = 'none';
+      if (!msg) return;
+      state.textContent = '';
+      body.innerHTML = `<p class="planai-off">${esc(msg)}</p>`;
+      $('planai-act').innerHTML = upsell ? `<button class="btn planai-cta" id="planai-up">${tr('See what a pass includes')}</button>` : '';
+      const up = document.getElementById('planai-up');
+      if (up) up.addEventListener('click', () => showUpsell());
+    };
+    try {
+      const res = await fetch('/api/consultant', {
+        method: 'POST', signal,
+        headers: { 'content-type': 'application/json', ...authHeadersApp() },
+        body: JSON.stringify({
+          park: current, planDate, lang: window.PP_LANG_NAME || 'English',
+          messages: [{ role: 'user', content: question }],
+          favorites: [...favs], planPicks: [...pickedNames], done: planDate ? [] : [...doneOrder],
+          arrive: $('start-hour') ? $('start-hour').value : null,
+          leave: $('end-hour') ? $('end-hour').value : null,
+          profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+        }),
+      });
+      if (res.status === 402) return fail(tr('An advisor read of your plan comes with any pass.'), true);
+      if (res.status === 429) return fail(tr('The advisor is resting — your plan below still stands.'));
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) return fail('');
+
+      state.textContent = '';
+      body.innerHTML = '<p></p>';
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '', actions = [];
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) !== -1) {
+          const frame = buf.slice(0, i); buf = buf.slice(i + 2);
+          let ev = 'message', data = '';
+          for (const ln of frame.split('\n')) {
+            if (ln.startsWith('event: ')) ev = ln.slice(7);
+            else if (ln.startsWith('data: ')) data += ln.slice(6);
+          }
+          if (!data) continue;
+          let payload; try { payload = JSON.parse(data); } catch { continue; }
+          if (ev === 'delta' && payload.text) { aiPlanText += payload.text; body.innerHTML = mdLite(aiPlanText); }
+          else if (ev === 'action') actions.push(payload);
+        }
+      }
+      if (!aiPlanText.trim()) return fail('');
+      $('planbase-h').style.display = '';
+      const proposal = actions.find((a) => a.type === 'plan' && Array.isArray(a.rides) && a.rides.length);
+      if (proposal) {
+        $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-apply">${tr('Use the advisor\'s order')}</button>`;
+        document.getElementById('planai-apply').addEventListener('click', async () => {
+          await applyPlan(proposal);
+          toast(tr('Plan updated'));
+        });
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      fail('');
+    }
+  }
+
+  const authHeadersApp = () => {
+    const h = {};
+    const pass = localStorage.getItem('pp-pass');
+    const sess = sessionToken();
+    if (pass) h['x-pass'] = pass;
+    if (sess) h['x-session'] = sess;
+    return h;
+  };
+
   // Asking "how long did you actually wait?" is the only way to learn the gap
   // between the posted figure and the queue. Deliberately skippable, one tap,
   // never blocking: a prompt that interrupts a park day gets dismissed forever,
@@ -1337,8 +1512,18 @@
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
-      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")} — <a href="#" id="plan-refine" style="color:var(--brand);font-weight:800">${tr('refine with AI')}</a></p>` : ''}
+      ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")}</p>` : ''}
+      <!-- The advisor's read is the headline. The computed running order below
+           is the skeleton it works from and stays visible, because it renders
+           instantly and has to carry the plan on its own when the advisor is
+           unavailable, throttled or behind a pass. -->
+      <div id="plan-ai" class="planai" style="display:none">
+        <div class="planai-h">✨ <b>${tr("Your advisor's plan")}</b><span id="planai-state"></span></div>
+        <div id="planai-body" class="planai-b"></div>
+        <div id="planai-act"></div>
+      </div>
       ${saved > 0 ? `<div class="savings">🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
+      <div class="planbase-h" id="planbase-h" style="display:none">${tr('The running order it started from')}</div>
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
@@ -1350,12 +1535,8 @@
       <button class="btn replan" id="plan-mail" style="background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">📧 ${tr('Email me this plan')}</button>
     </div>`;
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
-    const refine = document.getElementById('plan-refine');
-    if (refine) refine.addEventListener('click', (e) => {
-      e.preventDefault();
-      const lines = steps.filter((x) => x.ride).map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
-      if (window.ParkPulseChat) ParkPulseChat.ask(`Here's my plan for today at ${parks[current].name}: ${lines}. Today looks ${lastForecast ? lastForecast.days[0].label.toLowerCase() : 'moderate'}. Improve the order using ride popularity and today's crowd patterns, and propose the revised plan.`);
-    });
+    // The advisor now runs on every plan rather than waiting to be asked.
+    refinePlanWithAI(steps);
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
