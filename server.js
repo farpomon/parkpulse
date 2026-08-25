@@ -460,12 +460,16 @@ const TYPICAL = Object.fromEntries(
 // hand-built samples; static values remain the fallback until data accrues.
 let MEASURED = {};
 let DOW_INDEX = {};
+// Per-ride wait bands by crowd level. Empty until enough days accrue; every
+// consumer treats absence as "not enough data yet" rather than as zero.
+let CROWD_BANDS = {};
 function refreshBaselines() {
   try {
     MEASURED = history.computeBaselines(normName);
     DOW_INDEX = history.computeDowIndex();
+    CROWD_BANDS = history.computeCrowdBands(normName);
     const parks = Object.keys(MEASURED).length;
-    if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index)`);
+    if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index, ${Object.keys(CROWD_BANDS).length} with crowd bands)`);
   } catch (err) {
     console.log(`Baseline refresh failed: ${err.message}`);
   }
@@ -1668,6 +1672,20 @@ const server = http.createServer(async (req, res) => {
     return res.end(html);
   }
 
+  // Wait-by-crowd-level bands. Public: this is the asset people link to.
+  const bandsMatch = url.pathname.match(/^\/api\/bands\/([a-z0-9-]+)$/);
+  if (bandsMatch) {
+    const slug = bandsMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    const rides = CROWD_BANDS[slug] || [];
+    return sendJson(res, 200, {
+      park: PARKS[slug].name,
+      levels: FORECAST_LEVELS.slice(1),
+      rides,
+      ...(rides.length ? {} : { note: 'Not enough recorded days yet for this park.' }),
+    });
+  }
+
   // SEO surface: server-rendered park pages + sitemap + robots.
   if (url.pathname === '/parks' || url.pathname === '/parks/') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
@@ -1678,7 +1696,7 @@ const server = http.createServer(async (req, res) => {
     const park = PARKS[parkPage[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
-    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY));
+    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null));
   }
   if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') {
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;

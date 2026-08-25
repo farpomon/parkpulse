@@ -132,4 +132,127 @@ function stats() {
   return { files, bytes };
 }
 
-module.exports = { record, prune, computeBaselines, computeDowIndex, stats, HISTORY_DIR };
+// --- Wait bands by crowd level ----------------------------------------------
+// The table that turns "45 min" into "45 is bad for a Tuesday": for each ride,
+// the range of waits observed on days that turned out to be each crowd level.
+//
+// Two decisions worth stating.
+//
+// Days are bucketed by the level they ACTUALLY were, measured from that day's
+// own snapshots, not by the level the forecast predicted. Predicting a 4 and
+// bucketing by that prediction would make the table agree with the forecast by
+// construction and teach us nothing. The thresholds are the forecast's, so the
+// two scales line up: "tomorrow is a 4" and "this ride runs 45-70 at a 4" are
+// the same 4.
+//
+// The published figure is the 25th-75th percentile -- the middle half of what
+// was seen. A mean is dragged around by one breakdown or one early close; the
+// interquartile band is what a visitor can actually plan against, and stating
+// a range rather than a point is honest about what a queue is.
+
+// Same cut points as forecastFor(), deliberately.
+const levelOf = (factor) => (factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5);
+
+const BAND_MIN_OBS = 20;  // observations before a cell is publishable
+const BAND_MIN_DAYS = 2;  // distinct days, so one odd day cannot define a level
+const BAND_CAP = 400;     // minutes; anything above is almost certainly a data error
+
+// Percentiles come out of a count histogram rather than a sorted array: exact,
+// and it keeps memory flat no matter how many months accumulate.
+function histPercentile(counts, total, p) {
+  if (!total) return null;
+  const target = (total - 1) * p;
+  let seen = 0;
+  for (let v = 0; v <= BAND_CAP; v++) {
+    const c = counts[v];
+    if (!c) continue;
+    if (seen + c > target) return v;
+    seen += c;
+  }
+  return BAND_CAP;
+}
+
+function eachLine(fn) {
+  let files;
+  try { files = fs.readdirSync(HISTORY_DIR); } catch { return; }
+  for (const f of files) {
+    const m = f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
+    if (!m) continue;
+    let content;
+    try { content = fs.readFileSync(path.join(HISTORY_DIR, f), 'utf8'); } catch { continue; }
+    for (const line of content.split('\n')) {
+      if (!line) continue;
+      try { fn(JSON.parse(line), m[1]); } catch {}
+    }
+  }
+}
+
+function computeCrowdBands(normName = (s) => s) {
+  // Pass 1 -- how busy each day actually was, per park.
+  const dayTotals = {}; // slug -> date -> {sum, n}
+  eachLine((e, date) => {
+    const waits = Object.values(e.rides || {});
+    if (!waits.length) return;
+    const d = ((dayTotals[e.park] ??= {})[date] ??= { sum: 0, n: 0 });
+    d.sum += waits.reduce((a, b) => a + b, 0);
+    d.n += waits.length;
+  });
+
+  // A park's own median day is its 1.0. Median, not mean, so a single holiday
+  // week does not redefine what normal looks like for that park.
+  const dayLevel = {}; // slug -> date -> level
+  for (const [slug, days] of Object.entries(dayTotals)) {
+    const means = Object.values(days).map((d) => d.sum / d.n).sort((a, b) => a - b);
+    if (means.length < BAND_MIN_DAYS) continue;
+    const mid = means.length % 2 ? means[(means.length - 1) / 2]
+      : (means[means.length / 2 - 1] + means[means.length / 2]) / 2;
+    if (!mid) continue;
+    dayLevel[slug] = {};
+    for (const [date, d] of Object.entries(days)) dayLevel[slug][date] = levelOf((d.sum / d.n) / mid);
+  }
+
+  // Pass 2 -- histogram every observation into (park, ride, level).
+  const cells = {}; // slug -> key -> level -> {counts, total, days:Set, name}
+  eachLine((e, date) => {
+    const level = dayLevel[e.park]?.[date];
+    if (!level) return;
+    const park = (cells[e.park] ??= {});
+    for (const [name, wait] of Object.entries(e.rides || {})) {
+      if (!Number.isFinite(wait) || wait < 0 || wait > BAND_CAP) continue;
+      const ride = (park[normName(name)] ??= { name, levels: {} });
+      const cell = (ride.levels[level] ??= { counts: new Uint32Array(BAND_CAP + 1), total: 0, days: new Set() });
+      cell.counts[wait] += 1;
+      cell.total += 1;
+      cell.days.add(date);
+    }
+  });
+
+  const out = {};
+  for (const [slug, rides] of Object.entries(cells)) {
+    const rows = [];
+    for (const ride of Object.values(rides)) {
+      const levels = {};
+      let publishable = 0;
+      for (const [lvl, c] of Object.entries(ride.levels)) {
+        if (c.total < BAND_MIN_OBS || c.days.size < BAND_MIN_DAYS) continue;
+        levels[lvl] = {
+          low: histPercentile(c.counts, c.total, 0.25),
+          high: histPercentile(c.counts, c.total, 0.75),
+          typical: histPercentile(c.counts, c.total, 0.5),
+          days: c.days.size,
+        };
+        publishable += 1;
+      }
+      if (publishable) rows.push({ name: ride.name, levels });
+    }
+    // Busiest first: the rides people actually screenshot.
+    rows.sort((a, b) => {
+      const peak = (r) => Math.max(...Object.values(r.levels).map((l) => l.high), 0);
+      return peak(b) - peak(a);
+    });
+    if (rows.length) out[slug] = rows;
+  }
+  return out;
+}
+
+module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, stats, HISTORY_DIR };

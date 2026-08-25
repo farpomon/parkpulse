@@ -78,6 +78,15 @@ const CSS = `
   details p{margin:.6rem 0 0}
   footer{margin-top:3rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:1rem}
   footer a{color:var(--muted)}
+  .bt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:.6rem 0 .5rem}
+  .bandtable{border-collapse:collapse;width:100%;min-width:520px;font-size:.86rem}
+  .bandtable th,.bandtable td{padding:.45rem .55rem;border-bottom:1px solid var(--border);text-align:center}
+  .bandtable thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+  .bandtable tbody th{text-align:left;font-weight:600;color:var(--ink);white-space:nowrap}
+  .bt-lvl{display:block;font-size:.66rem;font-weight:500;opacity:.7;text-transform:none;letter-spacing:0}
+  .bt-typ{display:block;font-size:.7rem;color:var(--muted);font-weight:400}
+  .bt-none{color:var(--muted);opacity:.5}
+  .bt-note{font-size:.78rem;color:var(--muted);line-height:1.55;margin:.2rem 0 1.2rem}
   .allparks{columns:3;column-gap:1.2rem;font-size:.82rem;margin:.6rem 0 1rem}
   .allparks a{display:block;color:var(--muted);text-decoration:none;padding:.1rem 0;break-inside:avoid}
   .allparks a:hover{color:var(--brand)}
@@ -250,7 +259,35 @@ function allParksIndex(allParks, currentSlug) {
     .join('')).join('');
 }
 
-function renderParkPage(park, sample, allParks) {
+// The wait-by-crowd-level table. This is the page's most linkable asset: it
+// converts a bare "45 min" into "45 is bad for a Tuesday here". Rendered only
+// when there are enough recorded days -- an empty or half-filled table would
+// misrepresent how much we actually know.
+function bandsTable(park, bands) {
+  if (!bands || !bands.length) return '';
+  const LEVELS = [1, 2, 3, 4, 5];
+  const NAMES = { 1: 'Light', 2: 'Mild', 3: 'Moderate', 4: 'Busy', 5: 'Packed' };
+  const shown = bands.slice(0, 18);
+  // Only print columns that some ride actually has data for; a column of
+  // dashes reads as a broken table rather than as an honest gap.
+  const cols = LEVELS.filter((l) => shown.some((r) => r.levels[l]));
+  if (!cols.length) return '';
+  const rows = shown.map((r) => `<tr><th scope="row">${esc(r.name)}</th>` + cols.map((l) => {
+    const c = r.levels[l];
+    return c ? `<td><b>${c.low}&ndash;${c.high}</b><span class="bt-typ">${c.typical} typical</span></td>`
+             : '<td class="bt-none">&mdash;</td>';
+  }).join('') + '</tr>').join('');
+  const days = Math.max(...shown.flatMap((r) => Object.values(r.levels).map((c) => c.days)));
+  return `<h2 id="bands">What counts as a normal wait at ${esc(park.name)}</h2>
+<p>Every wait we have recorded here, grouped by how busy the day turned out to be. The bold figure is the middle half of what we saw &mdash; a quarter of the time it was shorter, a quarter of the time longer. Read it against today&rsquo;s crowd level to know whether the number on the sign is good or bad.</p>
+<div class="bt-wrap"><table class="bandtable">
+<thead><tr><th scope="col">Ride</th>${cols.map((l) => `<th scope="col">${NAMES[l]}<span class="bt-lvl">level ${l}</span></th>`).join('')}</tr></thead>
+<tbody>${rows}</tbody>
+</table></div>
+<p class="bt-note">Minutes of posted standby wait, from our own recorded snapshots &mdash; up to ${days} day${days === 1 ? '' : 's'} per figure. Cells stay blank until a ride has enough observations at that crowd level to be worth printing. Posted waits are what the park displays, which is not always what you queue.</p>`;
+}
+
+function renderParkPage(park, sample, allParks, bands) {
   const seo = SEO[park.slug];
   // A park without authored content still gets a working page rather than a 500.
   if (!seo) return renderBasicParkPage(park, sample, allParks);
@@ -325,6 +362,7 @@ ${waitsSection}
 </ul>
 <div class="tip"><strong>Local knowledge:</strong> ${esc(seo.tip)}</div>
 </div>
+${bandsTable(park, bands)}
 ${faq.html}
 ${sibSection}
 ${nearbySection}
