@@ -158,6 +158,12 @@
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
+  .evbox { display: flex; gap: .5rem; background: var(--gold-soft); border: 1px solid var(--gold);
+    border-radius: 12px; padding: .7rem .85rem; margin: .3rem 0 .8rem; font-size: .9rem; line-height: 1.55; }
+  .evrow + .evrow { margin-top: .45rem; }
+  .ev-hard b { color: var(--ink); }
+  .ev-maybe { color: var(--muted); }
+  .ev-maybe b { color: var(--ink); }
   /* The advisor's read is the emphasised element of the plan card: a warm
      ground and a brand edge against the plain list beneath it. */
   .planai { background: linear-gradient(180deg, var(--brand-soft, rgba(91,61,245,.09)), transparent 70%);
@@ -1105,6 +1111,24 @@
   // --- Wait-drop alerts ---
   let sheetRide = null;
 
+  // Special-event notice. Two very different messages, because we know two very
+  // different things: a confirmed date is a fact about the visitor's day, a
+  // seasonal match is only a reason to go and check. Saying the second in the
+  // voice of the first is how a planner loses trust.
+  function eventNotice(events, closer) {
+    if (!events || !events.length) return '';
+    const bits = events.map((e) => {
+      if (e.certainty === 'confirmed') {
+        return `<div class="evrow ev-hard"><b>${esc(e.name)}</b> ${tr('is on this date.')} ${e.kind === 'hard-ticket'
+          ? `${tr('It needs its own ticket, and the park closes to day tickets at')} ${hourLabel(e.closesEarlyAt)}. ${closer && closer.name === e.name ? tr('Your plan has been shortened to finish by then.') : ''}`
+          : esc(e.note || '')}</div>`;
+      }
+      return `<div class="evrow ev-maybe"><b>${esc(e.name)}</b> ${tr('runs on selected nights this month.')} ${e.closesEarlyAt
+        ? `${tr('On those nights the park closes to day tickets around')} ${hourLabel(e.closesEarlyAt)}.` : ''} ${tr('We do not hold the dates — check the official calendar for yours before planning an evening.')}</div>`;
+    });
+    return `<div class="evbox">🎟 ${bits.join('')}</div>`;
+  }
+
   // --- The advisor's plan, on the main screen -----------------------------
   // Every plan is refined by the advisor without being asked. Three rules keep
   // that from being expensive or fragile:
@@ -1407,7 +1431,13 @@
       ? (() => { const n = parkNow(); return n.hour + Math.ceil(n.minute / 30) * 0.5; })()
       : +$('start-hour').value;
     if (t < p.open) t = p.open;
-    const end = +$('end-hour').value;
+    let end = +$('end-hour').value;
+    // A hard-ticket night ends the day early whether or not the planner knows
+    // it. Where the date is confirmed we cap the plan rather than scheduling
+    // rides the visitor will be asked to leave before reaching.
+    const dayEvents = (planDay && planDay.events) || [];
+    const closer = dayEvents.find((e) => e.certainty === 'confirmed' && e.kind === 'hard-ticket' && e.closesEarlyAt);
+    if (closer && end > closer.closesEarlyAt) end = closer.closesEarlyAt;
     // "Now" after closing means the day is over — plan a fresh day from open.
     if ($('start-hour').value === 'now' && !futureDay && t >= end) t = p.open;
     if (end <= t) { alert('End time must be after start time.'); return; }
@@ -1513,6 +1543,7 @@
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
       ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")}</p>` : ''}
+      ${eventNotice(dayEvents, closer)}
       <!-- The advisor's read is the headline. The computed running order below
            is the skeleton it works from and stays visible, because it renders
            instantly and has to carry the plan on its own when the advisor is

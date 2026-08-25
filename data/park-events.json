@@ -1,0 +1,160 @@
+{
+  "_readme": [
+    "Special events that change what a park day is worth planning.",
+    "",
+    "The ones that matter are hard-ticket nights: the park closes to day tickets",
+    "in the early evening and reopens for people holding a separate event ticket.",
+    "Plan a day to 10pm on one of those and the plan is wrong from about 6pm.",
+    "",
+    "DATES ARE DELIBERATELY EMPTY. Operators publish them a few months ahead and",
+    "they change every year; inventing them would produce confident, wrong advice",
+    "of exactly the kind this product exists to avoid. With `dates` empty a park",
+    "shows a soft seasonal warning telling the visitor to check the official",
+    "calendar. Fill `dates` with confirmed ISO dates from the operator and the",
+    "same event becomes precise: the planner caps the day at closesEarlyAt and",
+    "the advisor is told outright.",
+    "",
+    "Fields: name, kind (hard-ticket | seasonal), months (1-12 the event runs in),",
+    "closesEarlyAt (hour day tickets must leave, null if the park keeps normal",
+    "hours), note, dates (confirmed ISO dates, [] until filled)."
+  ],
+  "magic-kingdom": [
+    {
+      "name": "Mickey's Not-So-Scary Halloween Party",
+      "kind": "hard-ticket",
+      "months": [
+        8,
+        9,
+        10
+      ],
+      "closesEarlyAt": 18,
+      "note": "Runs on selected nights. The party needs its own ticket and day tickets are asked to leave in the early evening.",
+      "dates": []
+    },
+    {
+      "name": "Mickey's Very Merry Christmas Party",
+      "kind": "hard-ticket",
+      "months": [
+        11,
+        12
+      ],
+      "closesEarlyAt": 18,
+      "note": "Runs on selected nights, separate ticket, day guests out in the early evening.",
+      "dates": []
+    }
+  ],
+  "california-adventure": [
+    {
+      "name": "Oogie Boogie Bash",
+      "kind": "hard-ticket",
+      "months": [
+        8,
+        9,
+        10
+      ],
+      "closesEarlyAt": 18,
+      "note": "Selected nights, sells out well in advance, and the park closes to day tickets before it starts.",
+      "dates": []
+    }
+  ],
+  "epcot": [
+    {
+      "name": "EPCOT festival season",
+      "kind": "seasonal",
+      "months": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "closesEarlyAt": null,
+      "note": "EPCOT runs a festival for most of the year. No separate ticket and normal hours, but weekends draw noticeably heavier crowds around World Showcase.",
+      "dates": []
+    }
+  ],
+  "cedar-point": [
+    {
+      "name": "HalloWeekends",
+      "kind": "seasonal",
+      "months": [
+        9,
+        10
+      ],
+      "closesEarlyAt": null,
+      "note": "Included with admission, but the park often runs weekend-only operating days late in the season — check the calendar before travelling midweek.",
+      "dates": []
+    }
+  ],
+  "alton-towers": [
+    {
+      "name": "Scarefest",
+      "kind": "seasonal",
+      "months": [
+        10
+      ],
+      "closesEarlyAt": null,
+      "note": "Included with admission. Scare mazes are usually a separate add-on and hours differ from the rest of the season.",
+      "dates": []
+    }
+  ],
+  "thorpe-park": [
+    {
+      "name": "Fright Nights",
+      "kind": "seasonal",
+      "months": [
+        10
+      ],
+      "closesEarlyAt": null,
+      "note": "Included with admission, mazes often a paid add-on, and the park runs later than usual.",
+      "dates": []
+    }
+  ],
+  "europa-park": [
+    {
+      "name": "Halloween season",
+      "kind": "seasonal",
+      "months": [
+        10,
+        11
+      ],
+      "closesEarlyAt": null,
+      "note": "Included with admission. Expect heavier weekends and different closing times.",
+      "dates": []
+    }
+  ],
+  "universal-studios-florida": [
+    {
+      "name": "Halloween Horror Nights",
+      "kind": "hard-ticket",
+      "months": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "closesEarlyAt": 17,
+      "note": "Selected nights. Separate ticket, and the park clears day guests before the event opens.",
+      "dates": []
+    }
+  ],
+  "universal-studios-hollywood": [
+    {
+      "name": "Halloween Horror Nights",
+      "kind": "hard-ticket",
+      "months": [
+        9,
+        10,
+        11
+      ],
+      "closesEarlyAt": 17,
+      "note": "Selected nights, separate ticket, day guests out beforehand.",
+      "dates": []
+    }
+  ]
+}

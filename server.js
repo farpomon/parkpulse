@@ -231,6 +231,7 @@ async function waAgentReply(link, text) {
     waits.planDay = { ...wd, isToday: wd.date === today, weather: (waits.weather?.days || []).find((w) => w.date === wd.date) || null };
   }
   waits.today = today;
+  waits.events = eventsFor(slug, wd ? wd.date : today);
   const history = db.wa.history(link.phone);
   const messages = [...history, { role: 'user', content: String(text).trim().slice(0, 2000) }];
   while (messages.length && messages[0].role !== 'user') messages.shift();
@@ -1325,6 +1326,37 @@ function bestParkByDate(slug, horizon) {
   return { group, count: siblings.length, byDate: out };
 }
 
+// --- Special events ----------------------------------------------------------
+// Hard-ticket nights are the ones that break a plan: the park closes to day
+// tickets in the early evening and reopens for people holding a separate event
+// ticket. A day planned to 10pm on one of those is wrong from about 6pm.
+//
+// Dates come from the operator and are not shipped. With confirmed dates in
+// park-events.json an event is CERTAIN for that date -- the planner caps the
+// day and the advisor is told outright. Without them we know only the season,
+// so the visitor is told to check the official calendar and nothing is capped.
+// Guessing which nights are party nights would produce exactly the confident,
+// wrong advice this product exists to replace.
+let PARK_EVENTS = {};
+try {
+  PARK_EVENTS = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-events.json'), 'utf8'));
+} catch (err) { console.log(`park events unavailable: ${err.message}`); }
+
+function eventsFor(slug, iso) {
+  const list = (PARK_EVENTS[slug] || []).filter((e) => e && e.name);
+  if (!list.length || !/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return [];
+  const month = Number(iso.slice(5, 7));
+  return list.flatMap((e) => {
+    if (Array.isArray(e.dates) && e.dates.includes(iso)) {
+      return [{ ...e, certainty: 'confirmed' }];
+    }
+    if (Array.isArray(e.months) && e.months.includes(month)) {
+      return [{ ...e, certainty: 'possible' }];
+    }
+    return [];
+  });
+}
+
 // A 1-10 score for the calendar. The underlying factor is continuous — the five
 // named levels are a display choice, not the resolution of the model — so this
 // exposes what is already there rather than inventing precision. Buckets of
@@ -1352,7 +1384,8 @@ function forecastFor(slug, horizon = 7) {
     const holiday = HOLIDAYS[iso] || (isChristmasWeek(iso) ? 'Holiday season' : null);
     if (holiday) factor *= 1.28;
     const level = factor < 0.88 ? 1 : factor < 0.97 ? 2 : factor < 1.07 ? 3 : factor < 1.22 ? 4 : 5;
-    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], score: crowdScore(factor), factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }) });
+    const events = eventsFor(slug, iso);
+    days.push({ date: iso, dow: dowName, level, label: FORECAST_LEVELS[level], score: crowdScore(factor), factor: Math.round(factor * 100) / 100, ...(holiday && { holiday }), ...(events.length && { events }) });
   }
   const best = [...days].sort((a, b) => a.level - b.level)[0];
   return {
@@ -2572,6 +2605,7 @@ const server = http.createServer(async (req, res) => {
             };
           }
           waits.today = today;
+          waits.events = eventsFor(park, planDay ? planDay.date : today);
           const s = sessionUser(req);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
