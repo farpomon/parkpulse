@@ -78,6 +78,19 @@ const CSS = `
   details p{margin:.6rem 0 0}
   footer{margin-top:3rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);padding-top:1rem}
   footer a{color:var(--muted)}
+  .cv-fig{margin:.6rem 0 1.4rem}
+  .cv-svg{display:block;max-width:100%;height:auto;overflow:visible}
+  /* A light fill on a dark ground carries more weight than the same value on
+     a light one, so the dark step is chosen rather than inherited. */
+  .cv-band{opacity:.13}
+  @media (prefers-color-scheme:dark){ .cv-band{opacity:.1} }
+  .cv-ax{fill:var(--muted);font-size:11px}
+  .cv-ev{fill:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.02em}
+  .cv-peak{fill:var(--ink);font-size:11.5px;font-weight:700}
+  .cv-cap{font-size:.78rem;color:var(--muted);line-height:1.55;margin-top:.5rem}
+  .cv-dl{display:block;margin-top:.35rem;font-weight:600}
+  .cv-dl a{color:var(--brand);text-decoration:none}
+  .cv-dl a:hover{text-decoration:underline}
   .bt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:.6rem 0 .5rem}
   .bandtable{border-collapse:collapse;width:100%;min-width:520px;font-size:.86rem}
   .bandtable th,.bandtable td{padding:.45rem .55rem;border-bottom:1px solid var(--border);text-align:center}
@@ -259,6 +272,89 @@ function allParksIndex(allParks, currentSlug) {
     .join('')).join('');
 }
 
+// The hourly wait curve. One series -- the median posted wait through the day --
+// with its interquartile range as a soft band behind it, and the park's own
+// milestones marked on the x-axis.
+//
+// Deliberately ONE line. The obvious second line, "time actually spent in
+// line", would be the most useful thing on the page, and we do not draw it
+// because we do not have it: every figure we hold is a POSTED wait, the number
+// on the sign. Inventing the second line from the first would be drawing a
+// model and calling it a measurement.
+//
+// Colour comes from the page's own tokens, so the deliberate dark palette
+// applies rather than an automatic inversion.
+function curveChart(park, curves) {
+  if (!curves) return '';
+  // Prefer a middling day: it is what most visitors get, and it is the honest
+  // default for "what does a normal day look like here".
+  const level = [3, 4, 2, 5, 1].find((l) => curves[l]);
+  if (!level) return '';
+  const pts = curves[level];
+  if (pts.length < 3) return '';
+  const LEVEL_NAMES = { 1: 'Light', 2: 'Mild', 3: 'Moderate', 4: 'Busy', 5: 'Packed' };
+
+  const W = 720, H = 300, ML = 44, MR = 16, MT = 22, MB = 46;
+  const PW = W - ML - MR, PH = H - MT - MB;
+  const h0 = pts[0].hour, h1 = pts[pts.length - 1].hour;
+  const yMax = Math.max(10, Math.ceil(Math.max(...pts.map((p) => p.high)) / 10) * 10);
+  const x = (h) => ML + ((h - h0) / Math.max(1, h1 - h0)) * PW;
+  const y = (v) => MT + PH - (v / yMax) * PH;
+  const hourLabel = (h) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
+
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.hour).toFixed(1)} ${y(p.median).toFixed(1)}`).join(' ');
+  const bandPath = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.hour).toFixed(1)} ${y(p.high).toFixed(1)}`).join(' ')
+    + ' ' + [...pts].reverse().map((p) => `L${x(p.hour).toFixed(1)} ${y(p.low).toFixed(1)}`).join(' ') + ' Z';
+
+  // Solid hairlines. Dashing a grid reads as "threshold" when it is just a grid.
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(yMax * f));
+  const grid = ticks.map((v) => `<line x1="${ML}" y1="${y(v).toFixed(1)}" x2="${W - MR}" y2="${y(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`
+    + `<text x="${ML - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" class="cv-ax">${v}</text>`).join('');
+
+  const xt = pts.filter((p, i) => i === 0 || i === pts.length - 1 || p.hour % 3 === 0)
+    .map((p) => `<text x="${x(p.hour).toFixed(1)}" y="${H - MB + 18}" text-anchor="middle" class="cv-ax">${hourLabel(p.hour)}</text>`).join('');
+
+  // Park milestones. Distinct from the grid by tone and by carrying a label, so
+  // they read as annotation rather than as another gridline.
+  const events = [
+    { hour: park.open, label: 'Open' },
+    ...(park.show && park.show.hour ? [{ hour: park.show.hour, label: park.show.name.replace(/ (fireworks|parade|show)$/i, '') }] : []),
+    { hour: park.close, label: 'Close' },
+  ].filter((e) => Number.isFinite(e.hour) && e.hour >= h0 && e.hour <= h1);
+  const evMarks = events.map((e) => {
+    const ex = x(e.hour);
+    const anchor = ex < ML + 40 ? 'start' : ex > W - MR - 40 ? 'end' : 'middle';
+    return `<line x1="${ex.toFixed(1)}" y1="${MT}" x2="${ex.toFixed(1)}" y2="${MT + PH}" stroke="var(--muted)" stroke-width="1" opacity=".45"/>`
+      + `<text x="${ex.toFixed(1)}" y="${MT - 7}" text-anchor="${anchor}" class="cv-ev">${esc(e.label)}</text>`;
+  }).join('');
+
+  // Direct-label the peak only. A number on every point is unreadable.
+  const peak = pts.reduce((a, b) => (b.median > a.median ? b : a));
+  const px = x(peak.hour), py = y(peak.median);
+  const peakAnchor = px > W - MR - 60 ? 'end' : 'middle';
+  const peakLabel = `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="var(--brand)" stroke="var(--card)" stroke-width="2"/>`
+    + `<text x="${px.toFixed(1)}" y="${(py - 12).toFixed(1)}" text-anchor="${peakAnchor}" class="cv-peak">${peak.median} min at ${hourLabel(peak.hour)}</text>`;
+
+  // Native SVG tooltips: a hover layer with no JavaScript, and it survives with
+  // scripting off, which a canvas chart would not.
+  const hoverDots = pts.map((p) => `<circle cx="${x(p.hour).toFixed(1)}" cy="${y(p.median).toFixed(1)}" r="9" fill="transparent"><title>${hourLabel(p.hour)} — typically ${p.median} min (middle half ${p.low}–${p.high}, ${p.n} readings)</title></circle>`).join('');
+
+  const days = LEVEL_NAMES[level];
+  return `<h2 id="curve">How the wait moves through the day at ${esc(park.name)}</h2>
+<p>Median posted wait across the rides we track, on <b>${days.toLowerCase()}</b> days &mdash; the crowd level most visitors get. The shaded band is the middle half of readings at that hour.</p>
+<figure class="cv-fig">
+<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Hourly posted wait curve for ${esc(park.name)} on ${days.toLowerCase()} days, peaking at ${peak.median} minutes around ${hourLabel(peak.hour)}." class="cv-svg">
+  ${grid}${evMarks}
+  <path d="${bandPath}" fill="var(--brand)" class="cv-band"/>
+  <path d="${line}" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  ${peakLabel}${hoverDots}${xt}
+  <text x="${ML - 8}" y="${MT - 8}" text-anchor="end" class="cv-ax">min</text>
+</svg>
+<figcaption class="cv-cap">Posted standby minutes, from our own recorded snapshots. Posted waits are what the park displays &mdash; not necessarily how long you stand there.
+<span class="cv-dl"><a href="/api/curve/${park.slug}.csv" download>Download CSV</a> &middot; <a href="#" data-cv-png>Save PNG</a> &middot; <a href="#" data-cv-share>Share</a></span></figcaption>
+</figure>`;
+}
+
 // The wait-by-crowd-level table. This is the page's most linkable asset: it
 // converts a bare "45 min" into "45 is bad for a Tuesday here". Rendered only
 // when there are enough recorded days -- an empty or half-filled table would
@@ -287,7 +383,7 @@ function bandsTable(park, bands) {
 <p class="bt-note">Minutes of posted standby wait, from our own recorded snapshots &mdash; up to ${days} day${days === 1 ? '' : 's'} per figure. Cells stay blank until a ride has enough observations at that crowd level to be worth printing. Posted waits are what the park displays, which is not always what you queue.</p>`;
 }
 
-function renderParkPage(park, sample, allParks, bands) {
+function renderParkPage(park, sample, allParks, bands, curves) {
   const seo = SEO[park.slug];
   // A park without authored content still gets a working page rather than a 500.
   if (!seo) return renderBasicParkPage(park, sample, allParks);
@@ -362,6 +458,7 @@ ${waitsSection}
 </ul>
 <div class="tip"><strong>Local knowledge:</strong> ${esc(seo.tip)}</div>
 </div>
+${curveChart(park, curves)}
 ${bandsTable(park, bands)}
 ${faq.html}
 ${sibSection}
@@ -369,7 +466,64 @@ ${nearbySection}
 <h2 id="all">All parks we track</h2>
 <div class="allparks">${allParksIndex(allParks, park.slug)}</div>
 <footer>Unofficial fan guide &mdash; not affiliated with the park operators. Prices, hours and ride line-ups change; verify with the operator before you buy. Live wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/parks">All parks</a> &middot; <a href="/guide">Free strategy guide</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
-</div><script src="/i18n.js"></script><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
+</div><script>
+(function(){
+  var fig = document.querySelector('.cv-fig'); if (!fig) return;
+  var svg = fig.querySelector('svg');
+  fig.addEventListener('click', function (ev) {
+    var png = ev.target.closest('[data-cv-png]'), share = ev.target.closest('[data-cv-share]');
+    if (!png && !share) return;
+    ev.preventDefault();
+    if (share) {
+      var url = location.origin + location.pathname + '#curve';
+      var title = document.title;
+      if (navigator.share) { navigator.share({ title: title, url: url }).catch(function(){}); return; }
+      // Clipboard needs a secure context; fall back to showing the link.
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(function () { share.textContent = 'Link copied'; setTimeout(function(){ share.textContent = 'Share'; }, 2000); });
+      } else { prompt('Copy this link:', url); }
+      return;
+    }
+    // Rasterise at 2x so the saved file is usable in a slide or a post. The SVG
+    // is serialised with its computed colours inlined, because the exported file
+    // has no page stylesheet to inherit var(--brand) from.
+    var clone = svg.cloneNode(true), cs = getComputedStyle(document.body);
+    var vars = ['--brand','--ink','--muted','--border','--card','--bg'];
+    var map = {}; vars.forEach(function(v){ map[v] = cs.getPropertyValue(v).trim(); });
+    clone.querySelectorAll('*').forEach(function (n) {
+      ['fill','stroke'].forEach(function (a) {
+        var val = n.getAttribute(a);
+        if (val && val.indexOf('var(') === 0) n.setAttribute(a, map[val.slice(4, -1).trim()] || '#5b3df5');
+      });
+    });
+    // Every rule the SVG relies on has to be carried into the export. The
+    // interquartile band's opacity is one of them: without it the band renders
+    // solid in the saved file and buries the line it is meant to sit behind.
+    var bandEl = svg.querySelector('.cv-band');
+    var bandOp = bandEl ? getComputedStyle(bandEl).opacity : '0.13';
+    var css = '.cv-band{opacity:' + bandOp + '}'
+      + '.cv-ax{fill:' + map['--muted'] + ';font-size:11px}'
+      + '.cv-ev{fill:' + map['--muted'] + ';font-size:10.5px;font-weight:600}'
+      + '.cv-peak{fill:' + map['--ink'] + ';font-size:11.5px;font-weight:700}';
+    var st = document.createElementNS('http://www.w3.org/2000/svg','style'); st.textContent = css; clone.insertBefore(st, clone.firstChild);
+    clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    var vb = svg.getAttribute('viewBox').split(' ').map(Number), scale = 2;
+    var img = new Image();
+    img.onload = function () {
+      var c = document.createElement('canvas');
+      c.width = vb[2] * scale; c.height = vb[3] * scale;
+      var g = c.getContext('2d');
+      g.fillStyle = map['--card'] || '#fff'; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      var a = document.createElement('a');
+      a.download = location.pathname.split('/').pop() + '-wait-curve.png';
+      a.href = c.toDataURL('image/png'); a.click();
+    };
+    img.onerror = function () { alert('Could not build the image here — the CSV download has the same numbers.'); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  });
+})();
+</script><script src="/i18n.js"></script><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
 }
 
 // Fallback for a park in the registry that has no authored content yet.

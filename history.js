@@ -182,13 +182,21 @@ function eachLine(fn) {
     try { content = fs.readFileSync(path.join(HISTORY_DIR, f), 'utf8'); } catch { continue; }
     for (const line of content.split('\n')) {
       if (!line) continue;
-      try { fn(JSON.parse(line), m[1]); } catch {}
+      // Parse failures are expected -- a torn last line after a hard restart --
+      // and are skipped. Errors from the callback are NOT: wrapping those too
+      // turns any bug in a consumer into silently empty results with nothing
+      // logged anywhere, which is exactly how a broken curve went unnoticed.
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      fn(entry, m[1]);
     }
   }
 }
 
-function computeCrowdBands(normName = (s) => s) {
-  // Pass 1 -- how busy each day actually was, per park.
+// How busy each recorded day actually turned out to be, per park, on the
+// forecast's own 1-5 scale. Shared by the bands table and the hourly curve so
+// the two can never disagree about what a level 4 day was.
+function computeDayLevels() {
   const dayTotals = {}; // slug -> date -> {sum, n}
   eachLine((e, date) => {
     const waits = Object.values(e.rides || {});
@@ -210,6 +218,11 @@ function computeCrowdBands(normName = (s) => s) {
     dayLevel[slug] = {};
     for (const [date, d] of Object.entries(days)) dayLevel[slug][date] = levelOf((d.sum / d.n) / mid);
   }
+  return dayLevel;
+}
+
+function computeCrowdBands(normName = (s) => s) {
+  const dayLevel = computeDayLevels();
 
   // Pass 2 -- histogram every observation into (park, ride, level).
   const cells = {}; // slug -> key -> level -> {counts, total, days:Set, name}
@@ -255,4 +268,61 @@ function computeCrowdBands(normName = (s) => s) {
   return out;
 }
 
-module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, stats, HISTORY_DIR };
+// --- Hourly wait curves ------------------------------------------------------
+// How the posted wait moves through the day, per park, per crowd level. The
+// hour is the hour in the PARK's timezone -- a curve plotted in UTC would put
+// Tokyo's rope drop in the middle of the night.
+//
+// One honest limit, stated here because it shapes what can be drawn from this:
+// every figure is a POSTED wait, the number on the sign. It is not how long
+// anyone actually stood in line. We do not collect observed queue times, so
+// nothing downstream should claim to plot them.
+
+const CURVE_MIN_OBS = 8; // observations before an hour is publishable
+
+function computeHourlyCurves(normName = (s) => s, tzOf = () => 'UTC') {
+  const dayLevel = computeDayLevels();
+  const fmt = {}; // one cached formatter per timezone; Intl construction is the cost
+  const hourIn = (tz, iso) => {
+    const f = (fmt[tz] ??= new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }));
+    const h = parseInt(f.format(new Date(iso)), 10);
+    return Number.isFinite(h) ? h % 24 : null;
+  };
+
+  // slug -> level -> hour -> {counts, total}
+  const cells = {};
+  eachLine((e, date) => {
+    const level = dayLevel[e.park]?.[date];
+    if (!level) return;
+    const hour = hourIn(tzOf(e.park) || 'UTC', e.t);
+    if (hour === null) return;
+    const waits = Object.values(e.rides || {}).filter((w) => Number.isFinite(w) && w >= 0 && w <= BAND_CAP);
+    if (!waits.length) return;
+    const cell = (((cells[e.park] ??= {})[level] ??= {})[hour] ??= { counts: new Uint32Array(BAND_CAP + 1), total: 0 });
+    for (const w of waits) { cell.counts[w] += 1; cell.total += 1; }
+  });
+
+  const out = {};
+  for (const [slug, levels] of Object.entries(cells)) {
+    const byLevel = {};
+    for (const [lvl, hours] of Object.entries(levels)) {
+      const points = [];
+      for (const [h, c] of Object.entries(hours)) {
+        if (c.total < CURVE_MIN_OBS) continue;
+        points.push({
+          hour: Number(h),
+          median: histPercentile(c.counts, c.total, 0.5),
+          low: histPercentile(c.counts, c.total, 0.25),
+          high: histPercentile(c.counts, c.total, 0.75),
+          n: c.total,
+        });
+      }
+      points.sort((a, b) => a.hour - b.hour);
+      if (points.length >= 3) byLevel[lvl] = points;
+    }
+    if (Object.keys(byLevel).length) out[slug] = byLevel;
+  }
+  return out;
+}
+
+module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, stats, HISTORY_DIR };

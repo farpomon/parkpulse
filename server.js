@@ -463,18 +463,23 @@ let DOW_INDEX = {};
 // Per-ride wait bands by crowd level. Empty until enough days accrue; every
 // consumer treats absence as "not enough data yet" rather than as zero.
 let CROWD_BANDS = {};
+let HOURLY_CURVES = {};
 function refreshBaselines() {
   try {
     MEASURED = history.computeBaselines(normName);
     DOW_INDEX = history.computeDowIndex();
     CROWD_BANDS = history.computeCrowdBands(normName);
+    HOURLY_CURVES = history.computeHourlyCurves(normName, (slug) => PARKS[slug]?.tz);
     const parks = Object.keys(MEASURED).length;
     if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index, ${Object.keys(CROWD_BANDS).length} with crowd bands)`);
   } catch (err) {
     console.log(`Baseline refresh failed: ${err.message}`);
   }
 }
-refreshBaselines();
+// The first refresh is deliberately NOT called here: computeHourlyCurves needs
+// a park timezone, and PARKS is defined further down. Called after the registry
+// instead. The interval is armed here so the schedule is visible beside the
+// function it drives.
 setInterval(refreshBaselines, 6 * 60 * 60 * 1000);
 
 const typicalFor = (slug, rideName) => {
@@ -487,6 +492,8 @@ const typicalFor = (slug, rideName) => {
 // queue-times' live parks directory by name, so we never hardcode a wrong id.
 const REGISTRY = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'parks.json'), 'utf8'));
 const PARKS = Object.fromEntries(REGISTRY.map((p) => [p.slug, p]));
+// Safe now that PARKS exists -- see the note beside refreshBaselines.
+refreshBaselines();
 
 async function resolveParkIds() {
   try {
@@ -1672,6 +1679,28 @@ const server = http.createServer(async (req, res) => {
     return res.end(html);
   }
 
+  // The curve as data. CSV rather than JSON because the people who want this
+  // want it in a spreadsheet, and because a downloadable file is the thing that
+  // gets cited. Every crowd level is included, not just the one charted.
+  const curveMatch = url.pathname.match(/^\/api\/curve\/([a-z0-9-]+)\.csv$/);
+  if (curveMatch) {
+    const slug = curveMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    const levels = HOURLY_CURVES[slug] || {};
+    const rows = [['park', 'crowd_level', 'crowd_label', 'hour_local', 'median_posted_min', 'p25_min', 'p75_min', 'readings']];
+    for (const [lvl, pts] of Object.entries(levels)) {
+      for (const pt of pts) rows.push([PARKS[slug].name, lvl, FORECAST_LEVELS[lvl], pt.hour, pt.median, pt.low, pt.high, pt.n]);
+    }
+    // Quote every field: park names contain commas and apostrophes.
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    res.writeHead(200, {
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': `attachment; filename="${slug}-wait-curve.csv"`,
+      'cache-control': 'public, max-age=3600',
+    });
+    return res.end(csv);
+  }
+
   // Wait-by-crowd-level bands. Public: this is the asset people link to.
   const bandsMatch = url.pathname.match(/^\/api\/bands\/([a-z0-9-]+)$/);
   if (bandsMatch) {
@@ -1696,7 +1725,7 @@ const server = http.createServer(async (req, res) => {
     const park = PARKS[parkPage[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
-    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null));
+    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null));
   }
   if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') {
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
