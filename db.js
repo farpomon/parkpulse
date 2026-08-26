@@ -111,6 +111,16 @@ db.exec(`
     updated_at TEXT NOT NULL,
     PRIMARY KEY (email, park, date)
   );
+  CREATE TABLE IF NOT EXISTS ride_ratings (
+    email TEXT NOT NULL,
+    park TEXT NOT NULL,
+    ride TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    vote INTEGER NOT NULL,
+    ages TEXT,
+    at TEXT NOT NULL,
+    PRIMARY KEY (email, park, ride, kind)
+  );
   CREATE TABLE IF NOT EXISTS advisor_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT,
@@ -426,6 +436,21 @@ const trips = {
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
+// Raw material for two features shipping later, not now: per-age-band ride
+// ratings and the "people who liked X also liked Y" block. Both need months
+// of volume, so today's job is only to collect honestly: one row per
+// (account, park, ride, kind), latest verdict wins, with a snapshot of the
+// party's age bands at the moment of rating. kind is 'rate' (thumbs after
+// riding) or 'fav' (the star). vote is +1/-1.
+const ratings = {
+  set: (email, park, ride, kind, vote, ages) =>
+    db.prepare('INSERT INTO ride_ratings (email, park, ride, kind, vote, ages, at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email, park, ride, kind) DO UPDATE SET vote = excluded.vote, ages = excluded.ages, at = excluded.at')
+      .run(email, park, ride, kind, vote, ages, new Date().toISOString()),
+  countFor: (email) => db.prepare('SELECT COUNT(*) AS n FROM ride_ratings WHERE email = ?').get(email).n,
+  totals: () => db.prepare("SELECT kind, COUNT(*) AS n, SUM(CASE WHEN vote > 0 THEN 1 ELSE 0 END) AS up FROM ride_ratings GROUP BY kind").all(),
+  clearUser: (email) => db.prepare('DELETE FROM ride_ratings WHERE email = ?').run(email),
+};
+
 // One saved plan per account+park+date. `stops` is the sanitized JSON the
 // plan email already trusts; mailed_at makes the night-before send one-shot.
 const plans = {
@@ -465,6 +490,7 @@ const accounts = {
       run('trips', 'DELETE FROM trips WHERE email = ?');
       run('daystate', 'DELETE FROM daystate WHERE email = ?');
       run('savedPlans', 'DELETE FROM saved_plans WHERE email = ?');
+      run('rideRatings', 'DELETE FROM ride_ratings WHERE email = ?');
       run('whatsappLinks', 'DELETE FROM wa_links WHERE email = ?');
       run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
       run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
@@ -588,4 +614,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, rideinfo, dining, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

@@ -3251,6 +3251,23 @@ const server = http.createServer(async (req, res) => {
         db.plans.remove(s2.email, parsed.park, parsed.date);
         return sendJson(res, 200, { ok: true });
       }
+      // One-tap ride verdicts and durable favorites — the collection half of
+      // age-band ratings and "also liked", which surface once volume exists.
+      // Logged-in only: person-level rows are the whole point.
+      if (url.pathname === '/api/rate') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'log in first' });
+        const park = PARKS[parsed.park] ? parsed.park : null;
+        const ride = typeof parsed.ride === 'string' ? parsed.ride.trim().slice(0, 120) : '';
+        const kind = parsed.kind === 'fav' ? 'fav' : 'rate';
+        const vote = parsed.vote === -1 ? -1 : 1;
+        if (!park || !ride) return sendJson(res, 400, { error: 'invalid' });
+        const BANDS = new Set(['toddler', 'kid', 'teen', 'adult']);
+        const ages = Array.isArray(parsed.ages) ? parsed.ages.filter((a) => BANDS.has(a)).slice(0, 4) : [];
+        db.ratings.set(s2.email, park, ride, kind, vote, JSON.stringify(ages));
+        return sendJson(res, 200, { ok: true });
+      }
+
       // Set (or fix) the account's first name after signup — the wizard asks
       // when it doesn't know one. Same profanity kindness as signup.
       if (url.pathname === '/api/account/name') {

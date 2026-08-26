@@ -525,6 +525,11 @@
   .riskbox .riskrow { margin: .2rem 0 0; color: var(--muted); }
   .riskbox .riskrow b { display: inline; color: var(--ink); }
   @media (prefers-color-scheme: dark) { .riskbox { background: rgba(240,180,41,.08); border-color: rgba(240,180,41,.35); } }
+  .ratewrap { display: inline-flex; align-items: center; gap: .25rem; margin-inline-start: .45rem; }
+  .ratewrap .ratehint { color: var(--muted); font-size: .75rem; }
+  .ratewrap .ratebtn { border: 1px solid var(--border); background: var(--card); border-radius: 999px;
+    font-size: .85rem; padding: .15rem .45rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ratewrap .ratebtn:active { transform: scale(.9); }
   .plan .mailcard { display: flex; align-items: center; gap: .7rem; margin-top: .9rem; padding: .8rem .9rem;
     background: var(--bg); border: 1.5px solid var(--brand); border-radius: 14px; flex-wrap: wrap; }
   .plan .mailcard img { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
@@ -1489,6 +1494,34 @@
   const milaSays = (moment, name) => tr(MILA_SAYS[moment][Math.floor(Math.random() * MILA_SAYS[moment].length)])
     .replace('{name}', name || tr('Dear Friend'));
 
+  // One-tap verdicts, collected quietly for the age-band ratings and the
+  // "also liked" block that ship once there is volume. Logged-in only.
+  const ratedThisSession = new Set();
+  function sendRating(ride, vote, kind = 'rate') {
+    if (!localStorage.getItem('pp-email')) return false;
+    api('/api/rate', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ park: current, ride, vote, kind, ages: profile ? profile.ages : [] }) }).catch(() => {});
+    return true;
+  }
+  // The thumbs appear right where the ✓ landed — the one moment the verdict
+  // is fresh. Rate once per ride per session; the row upserts server-side.
+  function rateChip(ride) {
+    if (!localStorage.getItem('pp-email') || ratedThisSession.has(ride)) return null;
+    const span = document.createElement('span');
+    span.className = 'ratewrap';
+    span.innerHTML = `<span class="ratehint">${tr('How was it?')}</span>
+      <button class="ratebtn" data-v="1" aria-label="${tr('Loved it')}">👍</button>
+      <button class="ratebtn" data-v="-1" aria-label="${tr('Not for us')}">👎</button>`;
+    span.querySelectorAll('.ratebtn').forEach((rb) => rb.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      ratedThisSession.add(ride);
+      sendRating(ride, Number(rb.dataset.v));
+      span.innerHTML = `<span class="ratehint">✨ ${tr('Noted!')}</span>`;
+      setTimeout(() => span.remove(), 1800);
+    }));
+    return span;
+  }
+
   const WAND_MSG = () => tr('My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.');
   function showUpsell() {
     $('plan-out').innerHTML = `<div class="upsell"><img class="mila-up" src="/img/mila/mila-cool-160.webp" alt="Mila, arms crossed, confident"><strong>56 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in every ParkPulse pass.</strong><br>
@@ -1630,8 +1663,12 @@
     }));
     $('rides').querySelectorAll('.star').forEach((btn) => btn.addEventListener('click', () => {
       const name = decodeURIComponent(btn.dataset.name);
-      favs.has(name) ? favs.delete(name) : favs.add(name);
+      const adding = !favs.has(name);
+      adding ? favs.add(name) : favs.delete(name);
       saveFavs();
+      // Favorites double as taste data for "also liked" — one durable row per
+      // account per ride, latest state wins.
+      sendRating(name, adding ? 1 : -1, 'fav');
       renderRides();
     }));
     $('rides').querySelectorAll('.rode').forEach((btn) => btn.addEventListener('click', () => {
@@ -2368,6 +2405,13 @@
       const nowDone = i === -1;
       b.closest('.step').classList.toggle('done', nowDone);
       b.title = nowDone ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off');
+      if (nowDone) {
+        const chip = rateChip(name);
+        const what = b.closest('.step').querySelector('.what');
+        if (chip && what && !what.querySelector('.ratewrap')) what.appendChild(chip);
+      } else {
+        b.closest('.step').querySelector('.ratewrap')?.remove();
+      }
       renderRides();   // keep the attractions list's ✓ marks in sync
       document.getElementById('replan').style.display = doneOrder.length ? 'inline-block' : 'none';
     }));
