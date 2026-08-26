@@ -76,8 +76,6 @@
   .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(90rem 40rem at 50% -30%,rgba(155,120,255,.5),transparent 60%),radial-gradient(50rem 30rem at 10% 115%,rgba(255,180,94,.13),transparent 65%)}
   .heroin{position:relative;max-width:1180px;margin:0 auto;padding:88px 32px 96px;display:flex;flex-wrap:wrap;gap:56px;align-items:center}
   .herocopy{flex:1 1 420px;min-width:min(100%,340px)}
-  .eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:22px;font-size:12.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#e8c98a}
-  .eyebrow::before{content:"";width:6px;height:6px;border-radius:99px;background:#e8c98a}
   .hero h1{font-weight:700;font-size:clamp(38px,5vw,60px);line-height:1.03;letter-spacing:-2px;color:#fff;margin:0 0 20px;text-wrap:balance}
   .hero .sub{margin:0 0 30px;max-width:46ch;font-size:19px;line-height:1.55;color:#cfc6f2}
   .cta{display:flex;gap:12px;flex-wrap:wrap}
@@ -336,7 +334,6 @@
   <!--HERO_PHOTO-->
   <div class="heroin">
     <div class="herocopy">
-      <div class="eyebrow">Launch preview &mdash; everything is free</div>
       <div class="mila-hero">
         <img src="/img/mila/mila-welcome-320.webp" alt="Mila, the ParkPulse park fairy, waving" width="136" height="136" fetchpriority="high">
         <div class="mila-bubble"><span class="who">Mila &middot; your park fairy</span><span id="mila-line">Let me make your day MAGICAL &mdash; minus the standing-in-line part.</span></div>
@@ -513,13 +510,33 @@
 
 <script>
   // ---- Hero board tabs: panels are server-rendered, this only toggles them.
-  document.querySelectorAll('[data-board-tab]').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const i = tab.dataset.boardTab;
-      document.querySelectorAll('[data-board-tab]').forEach((t) => t.classList.toggle('on', t === tab));
-      document.querySelectorAll('[data-board-panel]').forEach((p) => p.classList.toggle('on', p.dataset.boardPanel === i));
-    });
+  // Delegated so the board keeps working after the locale swap below.
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest && e.target.closest('[data-board-tab]');
+    if (!tab) return;
+    const i = tab.dataset.boardTab;
+    document.querySelectorAll('[data-board-tab]').forEach((t) => t.classList.toggle('on', t === tab));
+    document.querySelectorAll('[data-board-panel]').forEach((p) => p.classList.toggle('on', p.dataset.boardPanel === i));
   });
+
+  // ---- Localize the board. The server renders the Florida default so first
+  // paint and no-JS both work; if the visitor's clock says Tokyo or Paris,
+  // swap in their local parks. Same park set → keep the server's markup.
+  (async () => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const current = document.querySelector('.board');
+      if (!tz || !current) return;
+      const r = await fetch('/api/hero-board?tz=' + encodeURIComponent(tz));
+      if (!r.ok) return;
+      const html = await r.text();
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const next = tmp.querySelector('.board');
+      const names = (root) => Array.from(root.querySelectorAll('.board-tab')).map((b) => b.textContent).join('|');
+      if (next && names(tmp) && names(tmp) !== names(current)) current.replaceWith(next);
+    } catch (e) { /* board stays on the server-rendered default */ }
+  })();
 
   // ---- Pricing
   let paymentLink = '';

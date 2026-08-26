@@ -1847,8 +1847,53 @@ const captureStyle = () => {
 // --- Landing-page hero board ------------------------------------------------
 // The design puts live product proof above the fold. Rendered server-side for
 // three featured parks so the board is filled on first paint and works with
-// JavaScript off; the tabs only toggle which panel is visible.
-const HERO_PARKS = ['magic-kingdom', 'universal-studios-florida', 'cedar-point'];
+// JavaScript off; the tabs only toggle which panel is visible. The client then
+// re-fetches the board for its own timezone (/api/hero-board) so a visitor in
+// Tokyo sees Tokyo parks, not Florida.
+const HERO_PARKS = ['magic-kingdom', 'universal-studios-florida', 'busch-gardens-tampa'];
+
+// Pick the board's parks from the visitor's IANA timezone. Two or three parks
+// sharing the exact timezone ARE the local board (Tokyo shows its two parks,
+// London its two). When many share it (US Eastern) one park per resort group
+// keeps the tabs varied, and a lone match is padded from its region. A
+// timezone with no parks near it falls back to the Florida trio.
+const tzOffsetCache = new Map();
+function tzOffsetMin(tz) {
+  if (tzOffsetCache.has(tz)) return tzOffsetCache.get(tz);
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(new Date());
+  const name = (parts.find((p) => p.type === 'timeZoneName') || {}).value || '';
+  const m = name.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
+  const min = m ? Number(m[1]) * 60 + (m[1][0] === '-' ? -1 : 1) * Number(m[2] || 0) : 0;
+  tzOffsetCache.set(tz, min);
+  return min;
+}
+
+function tzHeroParks(tz) {
+  if (!tz || !/^[A-Za-z][A-Za-z0-9_/+-]{0,63}$/.test(String(tz))) return HERO_PARKS;
+  const exact = REGISTRY.filter((p) => p.tz === tz);
+  if (exact.length >= 2 && exact.length <= 3) return exact.map((p) => p.slug);
+  const picks = [];
+  const seen = new Set();
+  const take = (p) => { if (!seen.has(p.group)) { seen.add(p.group); picks.push(p.slug); } };
+  for (const p of exact) { if (picks.length >= 3) break; take(p); }
+  if (picks.length < 3) {
+    const region = (exact[0] && exact[0].region) || { Europe: 'Europe', Asia: 'Asia' }[tz.split('/')[0]];
+    if (region) for (const p of REGISTRY) { if (picks.length >= 3) break; if (p.region === region) take(p); }
+  }
+  // An Americas timezone no park sits in (Vancouver, Phoenix, Mexico City):
+  // right continent, so pick the parks with the closest clock — Vancouver
+  // lands on the California parks, not the Florida default.
+  if (!picks.length && tz.startsWith('America/')) {
+    try {
+      const want = tzOffsetMin(tz);
+      const ranked = REGISTRY.filter((p) => p.tz.startsWith('America/'))
+        .map((p) => ({ p, d: Math.abs(tzOffsetMin(p.tz) - want) }))
+        .sort((a, b) => a.d - b.d);
+      for (const { p } of ranked) { if (picks.length >= 3) break; take(p); }
+    } catch { /* unknown zone name — fall through to the default trio */ }
+  }
+  return picks.length ? picks : HERO_PARKS;
+}
 
 const waitChip = (w) => (w >= 60 ? 'hot' : w >= 30 ? 'warm' : 'cool');
 
@@ -1864,14 +1909,15 @@ function boardVerdict(park, rides) {
   return `Middling day — rope drop covers the headliners, so ${pass} is optional.`;
 }
 
-async function heroBoardPanels() {
+async function heroBoardPanels(slugs = HERO_PARKS) {
   const panels = [];
-  for (const slug of HERO_PARKS) {
+  for (const slug of slugs) {
     const park = PARKS[slug];
     if (!park) continue;
     let waits;
     try { waits = await getWaits(slug); } catch { waits = null; }
-    const rides = ((waits && waits.rides) || [])
+    const all = (waits && waits.rides) || [];
+    let rides = all
       .filter((r) => r.open !== false && typeof r.wait === 'number')
       .sort((a, b) => b.wait - a.wait)
       .slice(0, 6)
@@ -1881,11 +1927,40 @@ async function heroBoardPanels() {
         wait: r.wait,
         delta: typeof r.typical === 'number' ? r.wait - r.typical : null,
       }));
+    let live = Boolean(waits && waits.source === 'live');
+    let label = null;
+    if (live && rides.length >= 3) {
+      // Remember the last healthy live read so a closed park can still show
+      // its latest waits instead of an empty board.
+      try { db.kv.set(`herolast:${slug}`, JSON.stringify({ at: Date.now(), rides })); } catch {}
+    } else if (rides.length < 3) {
+      // Park closed (or the feed is thin): latest live snapshot first — kept
+      // for 36h so an overnight visitor sees yesterday evening's read, not a
+      // week-old one — then typical waits as the last resort.
+      let snap = null;
+      try { snap = JSON.parse(db.kv.get(`herolast:${slug}`) || 'null'); } catch {}
+      if (snap && Array.isArray(snap.rides) && snap.rides.length >= 3 && Date.now() - snap.at < 36 * 36e5) {
+        rides = snap.rides;
+        live = false;
+        label = 'LATEST WAITS';
+      } else {
+        rides = all
+          .filter((r) => typeof r.typical === 'number' && r.typical > 0)
+          .sort((a, b) => b.typical - a.typical)
+          .slice(0, 6)
+          .map((r) => ({ name: r.name, land: r.land || '', wait: r.typical, delta: null }));
+        live = false;
+        label = null;
+      }
+    }
     // Without a live feed the "typical" baseline equals the posted wait, so
     // every delta is zero. Showing "typical" on every row is noise, not data.
     const hasBaseline = rides.some((r) => r.delta);
     if (!hasBaseline) rides.forEach((r) => { r.delta = null; });
-    panels.push({ park, rides, live: Boolean(waits && waits.source === 'live'), verdict: boardVerdict(park, rides) });
+    const verdict = label === 'LATEST WAITS'
+      ? `${park.name} looks closed right now — these are the latest posted waits from before close.`
+      : boardVerdict(park, rides);
+    panels.push({ park, rides, live, label, verdict });
   }
   return panels;
 }
@@ -1908,7 +1983,7 @@ ${meta ? `<div class="rm">${meta}</div>` : ''}</div>
     const empty = '<div class="board-empty">Live waits for this park are momentarily unavailable — the app retries every minute.</div>';
     return `<div class="board-panel${i ? '' : ' on'}" data-board-panel="${i}">
 <div class="board-head"><span class="board-name">${esc(p.park.name)}</span>
-<span class="board-live ${p.live ? '' : 'off'}"><i></i>${p.live ? 'LIVE' : 'TYPICAL WAITS'}</span></div>
+<span class="board-live ${p.live ? '' : 'off'}"><i></i>${p.live ? 'LIVE' : (p.label || 'TYPICAL WAITS')}</span></div>
 ${rail(i)}
 <div class="board-rows">${rows || empty}</div>
 <div class="board-foot"><div><div class="vk">TODAY&rsquo;S VERDICT</div><div class="vv">${esc(p.verdict)}</div></div>
@@ -2263,6 +2338,17 @@ const server = http.createServer(async (req, res) => {
       .replace('<!--SHOTS-->', () => productShots());
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     return res.end(html);
+  }
+
+  // The landing hero board re-picked for the visitor's timezone. Public on
+  // purpose and deliberately tiny — top waits for up to three parks chosen
+  // server-side from the tz, the same teaser the landing page already renders.
+  if (url.pathname === '/api/hero-board') {
+    let board = '';
+    try { board = heroBoardHtml(await heroBoardPanels(tzHeroParks(url.searchParams.get('tz')))); }
+    catch (err) { console.log(`hero board api: ${err.message}`); }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, max-age=120' });
+    return res.end(board);
   }
 
   // The curve as data. CSV rather than JSON because the people who want this
