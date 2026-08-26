@@ -928,7 +928,7 @@ async function planKpis(park, stops, profile) {
   };
 }
 
-function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName }) {
+function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future }) {
   const B = '#5b3df5';
   const INK = '#251d3d', MUTED = '#8b83a8', SOFT = '#f4f1ff';
   // The last one of these printed from Outlook came back with every astral
@@ -1038,6 +1038,9 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   const hourOfFirst = hourOf(first && first.time), hourOfLast = hourOf(last && last.time);
   const dayHours = hourOfFirst != null && hourOfLast != null && hourOfLast > hourOfFirst ? `${hourOfLast - hourOfFirst}h` : '~';
   const queueHours = savedMin >= 60 ? (savedMin / 60).toFixed(1) : null;
+  const totalQueue = namedStops.reduce((sum, st) => sum + (Number.isFinite(st.wait) ? st.wait : 0), 0);
+  const paceRides = hourOfFirst != null && hourOfLast != null && hourOfLast > hourOfFirst
+    ? (namedStops.length / (hourOfLast - hourOfFirst)).toFixed(1).replace(/\.0$/, '') : null;
   const funFacts = [
     dayLen ? fact(badge(dayHours, ...CAT.neutral, 34), `Your day, gate to gate: <b>${esc(dayLen)}</b> — longer than most flights you have complained about`) : '',
     longest && longest.wait >= 40 ? fact(badge(`${longest.wait}m`, ...CAT.thrill, 34), `Longest single queue on the plan: <b>${longest.wait} min</b> at ${E(longest.name)}. Bring a snack and a grudge`) : '',
@@ -1045,6 +1048,10 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     kpis.water ? fact(badge(kpis.water, ...CAT.water), `Forecast dampness: <b>${kpis.water}</b> ride${kpis.water === 1 ? '' : 's'} that can return you visibly wetter than you arrived`) : '',
     kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), `Stomach relocation${kpis.thrills === 1 ? '' : 's'} booked: <b>${kpis.thrills}</b>`) : '',
     kpis.mapped && kpis.steps ? fact(badge('~', ...CAT.neutral), `About <b>${kpis.steps.toLocaleString()}</b> steps — your shoes knew what they signed up for`) : '',
+    totalQueue >= 30 ? fact(badge(totalQueue >= 60 ? `${Math.round(totalQueue / 60)}h` : `${totalQueue}m`, ...CAT.money, 34), `Projected time in lines all day: <b>${totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h ${totalQueue % 60}m` : `${totalQueue} min`}</b> — already the fat-trimmed version`) : '',
+    hourOfFirst != null && hourOfFirst <= 9 && first ? fact(badge('AM', ...CAT.show, 34), `Rope-drop warrior: first ride at <b>${esc(first.time)}</b>, when queues are half their afternoon selves`) : '',
+    hourOfLast != null && hourOfLast >= 20 && last ? fact(badge('PM', ...CAT.show, 34), `Closing-time finisher: last stop at <b>${esc(last.time)}</b> — the park empties out, you don't`) : '',
+    paceRides && Number(paceRides) >= 1 ? fact(badge(paceRides, ...CAT.map, 34), `Pace: about <b>${paceRides} attraction${paceRides === '1' ? '' : 's'} per hour</b>, gate to gate — Olympic, by vacation standards`) : '',
   ].filter(Boolean).join('');
 
   const tileRow = [
@@ -1082,9 +1089,9 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
          ignores linear-gradient entirely. Without the attribute the header lost
          its background and printed white text on white. -->
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr><td style="padding:26px 26px 22px;color:#fff">
-      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · live route · ${esc(park.name)}</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · ${future ? 'advance plan' : 'live route'} · ${esc(park.name)}</div>
       <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">A full park day, with fewer second&nbsp;guesses.</div>
-      <div style="opacity:.85;font-size:14px;margin-top:4px">${day} · sequenced around live waits, park geography, and the rides you care about.</div>
+      <div style="opacity:.85;font-size:14px;margin-top:4px">${day} · sequenced around ${future ? "that day's predicted crowds" : 'live waits'}, park geography, and the rides you care about.</div>
     </td></tr></table>
     <div style="padding:22px 20px 6px">
       <table width="100%" cellpadding="0" cellspacing="0"><tr>${tiles}</tr></table>
@@ -1098,7 +1105,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
         </tr></table>
       </div></div>` : ''}
     <div style="padding:18px 26px 6px">
-      <div style="font-weight:800;font-size:16px;margin-bottom:2px">Today's running order</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:2px">${future ? `${esc(String(day).split(',')[0])}'s running order` : "Today's running order"}</div>
       <div style="color:${MUTED};font-size:13px">Follow the numbers — they match the pins on your map.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
     </div>
@@ -2493,21 +2500,28 @@ const server = http.createServer(async (req, res) => {
         const planDateRaw = typeof parsed.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.planDate) ? parsed.planDate : null;
         const dayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: planDateRaw ? 'UTC' : park.tz });
         const day = dayFmt.format(planDateRaw ? new Date(`${planDateRaw}T12:00:00Z`) : new Date());
+        // A plan for a future day must not speak in the present tense: the
+        // "advantage" card compares against queues live at SEND time, which
+        // says nothing about the day being planned — drop it, and tell both
+        // the template and the model which tense they are writing in.
+        const todayAtPark = new Intl.DateTimeFormat('en-CA', { timeZone: park.tz }).format(new Date());
+        const future = Boolean(planDateRaw && planDateRaw > todayAtPark);
+        if (future) kpis.dodged = null;
 
         let briefing = '';
         if (consultant.enabled()) {
           try {
-            briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, stops, kpis, profile, savedMin, lang });
+            briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, future, stops, kpis, profile, savedMin, lang });
           } catch (err) { console.log(`day briefing failed: ${err.message}`); }
         }
         const firstName = db.users.get(sess.email)?.name || null;
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName });
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future });
         try {
           // "18 attractions, 0 km" went out to a real inbox: the km figure is
           // only real when the route was actually measured. Lead with the two
           // numbers that always are.
           const firstRide = stops.find((st) => st.name && st.time);
-          const subject = `Your ${park.name} plan — ${kpis.attractions} attractions${kpis.mapped ? `, ${kpis.km} km` : firstRide ? `, first ride ${firstRide.time}` : ''}`;
+          const subject = `Your ${park.name} plan${future ? ` for ${day.split(',')[0]}` : ''} — ${kpis.attractions} attractions${kpis.mapped ? `, ${kpis.km} km` : firstRide ? `, first ride ${firstRide.time}` : ''}`;
           const r = await sendEmail(sess.email, subject, html,
             `Plan email for ${sess.email}: ${park.name}, ${kpis.attractions} stops`);
           return sendJson(res, 200, r.sent ? { sent: true, to: sess.email, kpis } : { sent: false, reason: r.reason, kpis });

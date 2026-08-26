@@ -608,7 +608,7 @@ async function geoEstimate(parkName, group, center, rideNames) {
 
 // A short, warm advisor note for the emailed day plan — the human voice on
 // top of the deterministic KPIs.
-async function dayBriefing({ parkName, group, day, stops, kpis, profile, savedMin, lang }) {
+async function dayBriefing({ parkName, group, day, future, stops, kpis, profile, savedMin, lang }) {
   const who = profile && profile.party
     ? `Party of ${profile.party}${profile.ages && profile.ages.length ? ` (${profile.ages.join(', ')})` : ''}${profile.vibes && profile.vibes.length ? `, into ${profile.vibes.join('/')}` : ''}.`
     : 'Group size unknown.';
@@ -619,7 +619,7 @@ async function dayBriefing({ parkName, group, day, stops, kpis, profile, savedMi
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
     system: "You write the opening note of a theme-park day-plan email — the voice of a sharp, warm friend who knows this park cold. EXACTLY 2-3 sentences, under 60 words, plain text (no markdown, no bullet points, no greeting, no sign-off). Lead with the single smartest thing about THIS running order (a rope-drop steal, a smart mid-day breather, a well-timed headliner), then one concrete park-specific tip tied to a named attraction or land on the list — the kind of thing only a regular knows. Warm and confident, never breathless; no exclamation-mark pileups; never invent attractions that are not on the list.",
-    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Date: ${day}.
+    messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Date: ${day}.${future ? ' This plan is for a FUTURE day — write in future tense ("will", "expect"), and never say "right now", "today" or "currently".' : ''}
 ${who}
 Plan (in order): ${stops.map((st, i) => `${i + 1}. ${st.name}${st.time ? ' at ' + st.time : ''}`).join('; ')}
 Stats: ${kpis.attractions} attractions, ${kpis.km} km walking, about ${savedMin} minutes of line time saved.
