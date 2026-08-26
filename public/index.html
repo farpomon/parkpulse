@@ -475,6 +475,7 @@
   <p class="lead">Every pass includes all 65 parks, the plan builder, the AI advisor and wait-drop alerts, on every device in your family. One Lightning Lane costs $15&ndash;$45 <i>per person, per day</i>.</p>
   <div class="plans" id="price-grid"></div>
   <p class="pnote" id="plan-note">Passes are one-time, not subscriptions. Nothing auto-renews.</p>
+  <p class="pnote">🧚 <b>Mila&rsquo;s pixie promise:</b> full refund within 14 days if the magic hasn&rsquo;t been used &mdash; and if something breaks on our side, we make it right. <a href="/terms">Terms &amp; Refunds</a></p>
 </section>
 
 <section class="sec">
@@ -585,11 +586,22 @@
   }
   renderPlans(FALLBACK_PLANS);
 
+  // Deep link from the in-app pass picker: /?plan=week-pass#pricing lands
+  // with Mila's recommendation already selected. Re-applied after the
+  // config fetch because a re-render rebuilds the cards.
+  const qPlanId = new URLSearchParams(location.search).get('plan');
+  function applyQPlan(plans) {
+    if (!qPlanId) return;
+    const p = plans.find((x) => x.id === qPlanId);
+    if (p) markSelected(p.id, p.label);
+  }
+  applyQPlan(FALLBACK_PLANS);
+
   fetch('/api/config').then(r => r.json()).then(c => {
     paymentLink = c.paymentLink;
     checkoutEnabled = !!c.checkout;
-    if (Array.isArray(c.plans) && c.plans.length) renderPlans(c.plans);
-    else if (checkoutEnabled) renderPlans(FALLBACK_PLANS);
+    if (Array.isArray(c.plans) && c.plans.length) { renderPlans(c.plans); applyQPlan(c.plans); }
+    else if (checkoutEnabled) { renderPlans(FALLBACK_PLANS); applyQPlan(FALLBACK_PLANS); }
   }).catch(() => {});
 
   function markSelected(planId, label) {

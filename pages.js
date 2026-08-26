@@ -148,7 +148,7 @@ function milaHover() {
   @media (max-width:480px){.mh-b{max-width:210px;font-size:.84rem}.mh img{width:52px;height:52px}}
 </style>
 <div class="mh" id="mh" role="complementary" aria-label="Mila suggests a ParkPulse pass">
-  <div class="mh-b"><button class="mh-x" id="mh-x" aria-label="Dismiss Mila's suggestion">×</button><b>Mila · your park fairy</b><span id="mh-msg"></span><br><a class="mh-cta" href="/#pricing">Get a pass ✨</a></div>
+  <div class="mh-b"><button class="mh-x" id="mh-x" aria-label="Dismiss Mila's suggestion">×</button><b>Mila · your park fairy</b><span id="mh-msg"></span><br><a class="mh-cta" href="/app?join=pass">Get a pass ✨</a></div>
   <img src="/img/mila/mila-wink-160.webp" alt="" width="62" height="62" loading="lazy">
 </div>
 <script>

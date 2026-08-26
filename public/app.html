@@ -844,6 +844,14 @@
   </div>
 </div>
 
+<!-- Pass picker: Mila matches a pass to the trip length. Opened by ?join=pass
+     deep links (the hovering-Mila CTA on public pages), after login/signup
+     with that intent, and from the free plan's moment-of-delight card. -->
+<div class="onboard-bg" id="pick-bg"></div>
+<div class="onboard" id="passpick" role="dialog" aria-modal="true" aria-label="Find your pass">
+  <div class="card" id="passpick-body"></div>
+</div>
+
 <div class="onboard-bg" id="onboard-bg"></div>
 <div class="onboard" id="onboard" role="dialog" aria-modal="true" aria-label="How ParkPulse works">
   <div class="card">
@@ -2430,6 +2438,11 @@
         <div class="mc-t"><b>${tr('Take this plan with you')}</b>${tr('One tap and it lands in your inbox — ready at the gate, no signal needed.')}</div>
         <button class="btn" id="plan-mail">📧 ${tr('Email me this plan')}</button>
       </div>
+      ${!isPro ? `<div class="mailcard" style="border:2px solid var(--brand)">
+        <img src="/img/mila/mila-cool-160.webp" alt="" width="44" height="44">
+        <div class="mc-t"><b>${tr('That was your free wish')} ✨</b>${tr('With a pass, every day looks like this — every park, unlimited plans, me by your side till the fireworks.')}</div>
+        <button class="btn" id="delight-pass">${tr('Find my pass')} ✨</button>
+      </div>` : ''}
     </div>`;
     // The on-the-day choice: either button rebuilds the tail with that
     // finale, for today only — the saved preference stays 'ask'.
@@ -2437,6 +2450,10 @@
     const finChill = $('plan-out').querySelector('#fin-chill');
     if (finEnc) finEnc.addEventListener('click', () => buildPlan({ ...opts, finaleOverride: 'encore' }));
     if (finChill) finChill.addEventListener('click', () => buildPlan({ ...opts, finaleOverride: 'chill' }));
+    // Sell at the moment of delight: the plan just worked its magic, so the
+    // card below it opens the trip-length matcher rather than a price wall.
+    const dp = $('plan-out').querySelector('#delight-pass');
+    if (dp) dp.addEventListener('click', openPassPick);
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     // Repaint the attractions list so the ticks match the plan we just wrote.
     // Adding to pickedNames alone leaves the checkboxes showing the previous
@@ -3607,6 +3624,9 @@
   }
 
   function openWizard() {
+    // The pass picker has the floor — closePassPick re-opens the wizard
+    // if the daily questions are still owed.
+    if ($('passpick') && $('passpick').classList.contains('open')) return;
     wizDraft = profile ? JSON.parse(JSON.stringify(profile)) : { party: 2, ages: [], vibes: [], onsite: null, strict: false };
     // Frozen for this opening: saving the name mid-wizard must not renumber
     // the remaining steps under the user's feet.
@@ -3762,6 +3782,87 @@
   $('wiz-back').addEventListener('click', () => { if (wizStep > 0) { wizStep--; renderWiz(); } });
   $('wiz-skip').addEventListener('click', () => closeWizard(false));
   $('wiz-bg').addEventListener('click', () => closeWizard(false));
+
+  // --- Pass picker: the trip-length matcher ---------------------------------
+  // One question, one recommendation, honest math — anchored against what a
+  // family already pays per person, per day, for a skip-the-line pass.
+  const PASS_TIERS = [
+    { chip: '1 park day', id: 'day-pass', label: 'Day Pass', usd: '24.99',
+      math: "One day, the whole family covered — the price of one person's Lightning Lane." },
+    { chip: '2–7 days', id: 'week-pass', label: 'Week Pass', usd: '49.99', badge: 'MOST POPULAR',
+      math: 'Your whole trip for about $7 a day — every park, on every device.' },
+    { chip: '1–4 weeks', id: 'month-pass', label: 'Month Pass', usd: '69.99',
+      math: 'Long trips and split stays — about $2.30 a day.' },
+    { chip: 'A whole season', id: 'half-year-pass', label: '6-Month Pass', usd: '129.99',
+      math: 'A summer of park days for about 72¢ each.' },
+    { chip: "We're locals 🏰", id: 'year-pass', label: 'Annual Pass', usd: '199.99', badge: 'BEST VALUE',
+      math: 'Under 55¢ a day, every park, all year long.' },
+  ];
+  function closePassPick() {
+    $('passpick').classList.remove('open');
+    $('pick-bg').classList.remove('open');
+    // The daily questions still matter — if they were queued behind the
+    // picker, ask them now instead of never.
+    if (localStorage.getItem('pp-email') && needsWizard() && !$('wiz').classList.contains('open')) setTimeout(openWizard, 300);
+  }
+  function renderPassPick(tier) {
+    const uname = (() => { try { return localStorage.getItem('pp-name') || ''; } catch { return ''; } })();
+    const body = $('passpick-body');
+    if (!tier) {
+      body.innerHTML = `
+        <div class="wiz-mila"><img src="/img/mila/mila-wink-160.webp" alt="" width="52" height="52">
+          <div class="wm-txt">${uname ? esc(uname) + ', ' : ''}${tr("how many park days are in your next year? I'll match the pass to the trip — never bigger than you need.")} ✨</div></div>
+        <div class="chipgrid" id="pick-chips" style="margin:.8rem 0"></div>
+        <p class="wiz-note">🧚 ${tr("Mila's pixie promise: full refund within 14 days if the magic hasn't been used — and if something breaks on our side, we make it right.")}</p>
+        <button class="btn ghost2" id="pick-close" style="width:100%">${tr('Maybe later')}</button>`;
+      const grid = body.querySelector('#pick-chips');
+      for (const t of PASS_TIERS) {
+        const b = document.createElement('button');
+        b.textContent = t.chip;
+        b.addEventListener('click', () => renderPassPick(t));
+        grid.appendChild(b);
+      }
+      body.querySelector('#pick-close').addEventListener('click', closePassPick);
+    } else {
+      body.innerHTML = `
+        <div class="wiz-mila"><img src="/img/mila/mila-celebrate-160.webp" alt="" width="52" height="52">
+          <div class="wm-txt">${tr('Perfect — this one is sized exactly for your kind of magic:')} ✨</div></div>
+        <div style="border:2px solid var(--brand);border-radius:14px;padding:1rem 1.1rem;margin:.7rem 0">
+          ${tier.badge ? `<span style="font-size:.66rem;font-weight:800;letter-spacing:.08em;color:var(--brand)">${tier.badge}</span><br>` : ''}
+          <b style="font-size:1.15rem">${tier.label}</b> · <b>$${tier.usd}</b> <span style="color:var(--muted);font-size:.85rem">${tr('one-time — nothing auto-renews')}</span>
+          <p style="margin:.4rem 0 0;font-size:.92rem">${tr(tier.math)}</p>
+        </div>
+        <p class="wiz-note">⚡ ${tr('For scale: one Lightning Lane runs $15–45 per person, per day — and I tell you when NOT to buy one.')}</p>
+        <a class="btn" style="display:block;text-align:center;text-decoration:none;background:linear-gradient(135deg,var(--brand),#7b5fe0);color:#fff" href="/?plan=${tier.id}#pricing">${tr('Choose')} ${tier.label} ✨</a>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.55rem">
+          <button class="btn ghost2" id="pick-back">${tr('Back')}</button>
+          <a href="/#pricing" style="font-size:.88rem">${tr('See all passes')}</a>
+        </div>
+        <p class="wiz-note">🧚 ${tr("Pixie promise: full refund within 14 days if the magic hasn't been used.")}</p>`;
+      body.querySelector('#pick-back').addEventListener('click', () => renderPassPick(null));
+    }
+  }
+  function openPassPick() {
+    if (isPro) return;
+    // They're already on their way to a pass — the "see what you're
+    // missing" gate popup would only cover the picker with a worse pitch.
+    try { sessionStorage.setItem('pp-gate-shown', '1'); } catch {}
+    ['gate', 'wiz', 'wiz-bg'].forEach((id) => { const el = $(id); if (el) el.classList.remove('open'); });
+    renderPassPick(null);
+    $('passpick').classList.add('open');
+    $('pick-bg').classList.add('open');
+  }
+  $('pick-bg').addEventListener('click', closePassPick);
+  // A "get a pass" arrival (hovering Mila on the public pages) queues the
+  // picker until there is a signed-in, passless person to show it to.
+  function maybeJoinPass() {
+    let want = false;
+    try { want = sessionStorage.getItem('pp-join-pass') === '1'; } catch {}
+    if (!want || isPro) return false;
+    try { sessionStorage.removeItem('pp-join-pass'); } catch {}
+    setTimeout(openPassPick, 450);
+    return true;
+  }
 
   function applyProfileDefaults() {
     if (!profile) return;
@@ -4195,8 +4296,9 @@
       closeAcct();
       toast(milaSays('welcome', localStorage.getItem('pp-name')));
       // Every login re-opens the day questions — the big Mila card inside
-      // offers the one-tap skip when she already remembers the crew.
-      setTimeout(openWizard, 400);
+      // offers the one-tap skip when she already remembers the crew. A
+      // pass-intent arrival sees the picker first; the wizard follows it.
+      if (!maybeJoinPass()) setTimeout(openWizard, 400);
       // Signing back in during the grace period calls off a pending deletion.
       if (data.deletionCancelled) alert(tr('Welcome back! Your account was scheduled for deletion — that is now cancelled and nothing was lost.'));
       load();
@@ -4228,7 +4330,7 @@
       hideVerify();
       closeAcct();
       if (wasSignup) toast(milaSays('welcome', localStorage.getItem('pp-name')));
-      if (wasSignup) setTimeout(openWizard, 400);
+      if (!maybeJoinPass() && wasSignup) setTimeout(openWizard, 400);
       load();
     } catch { $('verify-err').textContent = tr('Connection trouble — try again.'); }
     finally {
@@ -4394,12 +4496,16 @@
       // Params are consumed once, then cleaned off the address bar.
       const qs = new URLSearchParams(location.search);
       const qPark = qs.get('park'), qPremade = qs.get('premade');
+      // ?join=pass: hovering Mila on the public pages sent them here to get
+      // a pass. Remember the intent — the picker opens once they're signed
+      // in (or right away if they already are).
+      if (qs.get('join') === 'pass') { try { sessionStorage.setItem('pp-join-pass', '1'); } catch {} }
       if (qPark && parks[qPark]) {
         current = qPark;
         dest = parks[qPark].group;
         localStorage.setItem('pp-park', qPark);
       }
-      if (qPark || qPremade) history.replaceState(null, '', '/app');
+      if (qPark || qPremade || qs.get('join')) history.replaceState(null, '', '/app');
       if (qPremade && (isPro || current === FREE_PARK)) pendingPremade = qPremade;
       applyGate();
     } catch {
@@ -4412,6 +4518,8 @@
     if (!localStorage.getItem('pp-email') && location.hash !== '#account') {
       acctMode = 'signup';
       setTimeout(openAcct, 350);
+    } else {
+      maybeJoinPass(); // already signed in — straight to the pass picker
     }
   })();
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
