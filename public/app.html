@@ -219,6 +219,16 @@
     background: linear-gradient(135deg, var(--brand), #7c5cff); color: #fff;
     border-radius: 14px; padding: 1rem 1.1rem; margin: 0 0 .9rem; box-shadow: 0 6px 18px rgba(91,61,245,.25); }
   .planhero .ph-txt { flex: 1 1 240px; }
+  .pickcard { display: none; align-items: center; gap: .8rem; flex-wrap: wrap; width: 100%;
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: .85rem 1rem; margin: .7rem 0 0; box-shadow: var(--shadow, 0 4px 16px rgba(20,12,48,.07)); }
+  .pickcard .pc-txt { flex: 1 1 220px; min-width: 0; }
+  .pickcard b { display: block; font-size: 1rem; margin-bottom: .1rem; }
+  .pickcard span { color: var(--muted); font-size: .82rem; line-height: 1.35; }
+  .pickcard .pc-count { display: block; color: var(--brand); font-weight: 800; margin-top: .15rem; }
+  .pickcard .pc-btn { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
+    border-radius: 12px; font: inherit; font-weight: 800; font-size: .92rem; padding: .6rem 1rem;
+    cursor: pointer; white-space: nowrap; flex: 0 1 auto; }
   .planhero b { display: block; font-size: 1.15rem; margin-bottom: .15rem; }
   .planhero span { font-size: .85rem; opacity: .92; line-height: 1.35; }
   .ph-btn { flex: 0 0 auto; background: #fff; color: var(--brand); border: none; border-radius: 10px;
@@ -569,7 +579,12 @@
     body:not(.pane-plan) #skipcard,
     body:not(.pane-plan) #forecast,
     body:not(.pane-plan) .planrow,
+    body:not(.pane-plan) #pick-card,
     body:not(.pane-plan) #plan-out { display: none !important; }
+    /* Flex only inside the Plan pane: the base rule is display:none, so
+       desktop — where the attraction list is on the same screen — never
+       shows the card at all. */
+    body.pane-plan #pick-card { display: flex; }
     /* The one-tap pitch shows on BOTH panes: Today is where people actually
        are, and the plan it builds still lands them on Plan. syncPlanHero()
        keeps hiding it (inline style) once a plan exists, on either pane. */
@@ -650,6 +665,13 @@
   <div class="planhero" id="plan-hero">
     <div class="ph-txt"><b id="ph-title">🗓️ Plan my day</b><span id="ph-sub">One tap: we fill your whole day with attractions, hour by hour, crowds dodged — and your AI advisor reviews the order before you walk a step.</span></div>
     <button class="ph-btn" id="plan-hero-btn">✨ Plan it for me</button>
+  </div>
+  <!-- The hero's quieter sibling: hand-picking lives on the Today board, and
+       nothing on this pane said so. Phone-only (see the pane CSS) — on
+       desktop the attraction list is already on the same screen. -->
+  <div class="pickcard" id="pick-card">
+    <div class="pc-txt"><b id="pc-title">🎢 Or build it your way</b><span id="pc-sub">Tick the rides your crew wants on the attractions board — your picks anchor the plan.</span><span class="pc-count" id="pc-count" style="display:none"></span></div>
+    <button class="pc-btn" id="pick-card-btn">Choose attractions →</button>
   </div>
   <div id="plan-out"></div>
   <div class="sectionhead">
@@ -1874,6 +1896,7 @@
     const n = plannedCount ?? pickedNames.size;
     $('planbar').classList.toggle('visible', n > 0);
     $('picked-count').textContent = `${n} ${n === 1 ? tr('ride') : tr('rides')}`;
+    syncPlanHero();   // the Plan pane's pick-count mirrors the selection
     scheduleSync();
   }
 
@@ -2317,6 +2340,9 @@
     $('ph-title').textContent = '🗓️ ' + tr('Plan my day');
     $('ph-sub').textContent = tr('One tap: we fill your whole day with attractions, hour by hour, crowds dodged — and your AI advisor reviews the order before you walk a step.');
     $('plan-hero-btn').textContent = '✨ ' + tr('Plan it for me');
+    $('pc-title').textContent = '🎢 ' + tr('Or build it your way');
+    $('pc-sub').textContent = tr('Tick the rides your crew wants on the attractions board — your picks anchor the plan.');
+    $('pick-card-btn').textContent = tr('Choose attractions') + ' →';
     $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
     $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
     $('search').placeholder = tr('Search rides…');
@@ -2376,8 +2402,21 @@
     // Hidden while a plan is on screen, and while the park has no rides to
     // plan with -- an inviting card over an empty board is a broken promise.
     const dead = !rides.length && Boolean(lastData);
-    $('plan-hero').style.display = ($('plan-out').innerHTML.trim() || dead) ? 'none' : '';
+    const busy = Boolean($('plan-out').innerHTML.trim()) || dead;
+    $('plan-hero').style.display = busy ? 'none' : '';
+    // The hand-pick card follows the hero: once a plan is on screen the
+    // plan's own note already links back to the attractions list.
+    $('pick-card').style.display = busy ? 'none' : '';
+    const n = pickedNames.size;
+    const c = $('pc-count');
+    c.style.display = n ? '' : 'none';
+    if (n) c.textContent = '✓ ' + n + ' ' + (n === 1 ? tr('ride picked so far') : tr('rides picked so far'));
   };
+  $('pick-card-btn').addEventListener('click', () => {
+    setPane('today', { scroll: false });
+    setViewMode('rides');
+    requestAnimationFrame(() => $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  });
   $('plan-day').addEventListener('click', () => {
     if (!isPro) { showUpsell(); return; }
     // Nothing to plan with: the feed gave us no rides for this park. Saying so
