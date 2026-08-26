@@ -497,6 +497,11 @@
   .step.sugg .what b { font-weight: 700; opacity: .85; }
   .step.sugg .time { background: var(--bg); color: var(--muted); }
   .plan .replan { margin-top: .7rem; }
+  .wiz-mila { display: flex; align-items: center; gap: .7rem; background: var(--bg);
+    border: 1.5px solid var(--brand); border-radius: 14px; padding: .8rem .9rem; margin: 0 0 1rem; }
+  .wiz-mila img { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
+  .wiz-mila .wm-txt { flex: 1 1 10rem; min-width: 0; font-size: .88rem; color: var(--ink); line-height: 1.35; }
+  .wiz-mila .btn { flex: 1 1 auto; white-space: normal; padding: .55rem .8rem; font-size: .88rem; }
   .riskbox { background: var(--amber-soft, #fff7e6); border: 1px solid #e8c98a; border-radius: 12px;
     padding: .7rem .9rem; margin: 0 0 .7rem; font-size: .86rem; color: var(--ink); }
   .riskbox b { display: block; margin-bottom: .25rem; }
@@ -3286,14 +3291,37 @@
 
   let wizStep = 0;
   let wizDraft = null;
+  let wizNameStep = false;
   // Wizard answers reset at midnight park time too — each new park day
   // starts by re-confirming the group (prefilled from yesterday).
   const needsWizard = () => (profile ? profile.day !== parkDay() : localStorage.getItem('pp-wiz-seen') !== parkDay());
   const wizIsResort = () => /Disney|Universal/.test(parks[current]?.group || '');
-  const wizStepCount = () => (wizIsResort() ? 4 : 3);
+  // Mila can't call you by name if she never asked: an extra first step when
+  // no name is known yet (signup asks; login and older accounts never did).
+  const wizAsksName = () => { try { return !localStorage.getItem('pp-name'); } catch { return false; } };
+  const wizStepCount = () => (wizNameStep ? 1 : 0) + (wizIsResort() ? 4 : 3);
+  // Save wherever it can live: locally always, on the account when there is
+  // one. The server answers with the "Dear Friend" note when it renamed them.
+  function saveWizName(raw) {
+    const name = (raw || '').trim().slice(0, 30);
+    if (!name) return;
+    try { localStorage.setItem('pp-name', name); } catch {}
+    if (localStorage.getItem('pp-email')) {
+      api('/api/account/name', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => {
+          if (!d) return;
+          if (d.name) { try { localStorage.setItem('pp-name', d.name); } catch {} }
+          if (d.nameNote) toast(d.nameNote);
+        }).catch(() => {});
+    }
+  }
 
   function openWizard() {
     wizDraft = profile ? JSON.parse(JSON.stringify(profile)) : { party: 2, ages: [], vibes: [], onsite: null, strict: false };
+    // Frozen for this opening: saving the name mid-wizard must not renumber
+    // the remaining steps under the user's feet.
+    wizNameStep = wizAsksName();
     wizStep = 0;
     renderWiz();
     $('wiz').classList.add('open');
@@ -3336,12 +3364,42 @@
       return b;
     };
     body.innerHTML = '';
+    // The big skip card, on the first screen only: Mila offering the shortcut.
+    // With a saved profile she really does remember; without one it's an
+    // honest "later works too".
     if (wizStep === 0) {
-      body.innerHTML = `<h2>📍 ${tr('Where are you headed today?')}</h2>
+      const uname = (() => { try { return localStorage.getItem('pp-name') || ''; } catch { return ''; } })();
+      const remembers = profile && (profile.party > 1 || profile.ages.length || profile.vibes.length);
+      const msg = remembers
+        ? `${uname ? esc(uname) + ', ' : ''}${tr("I remember your crew — skip the questions and let's go straight to the magic.")} ✨`
+        : `${tr('In a hurry')}${uname ? ', ' + esc(uname) : ''}? ${tr("Skip for now — tell me about your crew anytime and I'll tailor the day.")}`;
+      const card = document.createElement('div');
+      card.className = 'wiz-mila';
+      card.innerHTML = `<img src="/img/mila/mila-wink-160.webp" alt="" width="52" height="52">
+        <div class="wm-txt">${msg}</div>
+        <button class="btn" id="wiz-mila-skip">${remembers ? '✨ ' + tr('Skip — Mila remembers') : tr('Skip for now')}</button>`;
+      body.appendChild(card);
+      card.querySelector('#wiz-mila-skip').addEventListener('click', () => {
+        const nm = document.getElementById('wiz-name');
+        if (nm && nm.value.trim()) saveWizName(nm.value);   // a typed name is kept even on skip
+        closeWizard(false);
+      });
+    }
+    const step = wizStep - (wizNameStep ? 1 : 0);
+    if (wizNameStep && wizStep === 0) {
+      body.insertAdjacentHTML('beforeend', `<h2>👋 ${tr('What should Mila call you?')}</h2>
+        <input type="text" id="wiz-name" maxlength="30" autocomplete="given-name" autocapitalize="words" spellcheck="false"
+          placeholder="${tr('First name')}" aria-label="${tr('What should Mila call you?')}"
+          style="width:100%;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.65rem .9rem;font-size:1rem;margin-bottom:.5rem">
+        <p class="wiz-note">${tr('Just a first name — it makes her plans and notes feel like yours.')}</p>`);
+      const inp = body.querySelector('#wiz-name');
+      setTimeout(() => inp.focus(), 150);
+    } else if (step === 0) {
+      body.insertAdjacentHTML('beforeend', `<h2>📍 ${tr('Where are you headed today?')}</h2>
         <select id="wiz-park" aria-label="${tr('Where are you headed today?')}"
           style="width:100%;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.65rem .9rem;font-size:1rem;margin-bottom:.8rem"></select>
         <div class="chipgrid" id="wiz-where"></div>
-        <p class="wiz-note">${tr('You can switch parks anytime from the picker at the top.')}</p>`;
+        <p class="wiz-note">${tr('You can switch parks anytime from the picker at the top.')}</p>`);
       // Full park list, grouped by destination, so the day can start here
       // instead of bouncing back out to the header picker.
       const sel = body.querySelector('#wiz-park');
@@ -3364,7 +3422,7 @@
       if (tripToday && tripToday.park && tripToday.park !== current && parks[tripToday.park]) {
         grid.appendChild(chip(`📅 ${parks[tripToday.park].name}`, false, () => switchPark(tripToday.park)));
       }
-    } else if (wizStep === 1) {
+    } else if (step === 1) {
       body.innerHTML = `<h2>👥 ${tr("Who's going?")}</h2>
         <div class="stepper"><button id="wiz-minus">−</button><b id="wiz-count">${wizDraft.party}</b><button id="wiz-plus">+</button></div>
         <div class="chipgrid" id="wiz-ages"></div>`;
@@ -3377,7 +3435,7 @@
           renderWiz();
         }));
       }
-    } else if (wizStep === 2) {
+    } else if (step === 2) {
       body.innerHTML = `<h2>🎢 ${tr('What does your group love?')}</h2><div class="chipgrid" id="wiz-vibes"></div><div id="wiz-strict" style="margin-top:1rem"></div>`;
       const grid = body.querySelector('#wiz-vibes');
       for (const [val, emoji, label] of VIBE_OPTS) {
@@ -3401,6 +3459,8 @@
     }
   }
   $('wiz-next').addEventListener('click', () => {
+    const nm = document.getElementById('wiz-name');
+    if (nm && nm.value.trim()) saveWizName(nm.value);
     if (wizStep >= wizStepCount() - 1) closeWizard(true);
     else { wizStep++; renderWiz(); }
   });
@@ -3836,6 +3896,9 @@
       $('acct-pw').value = '';
       closeAcct();
       toast(`${tr('Welcome back')}, ${localStorage.getItem('pp-name') || tr('Dear Friend')}! 👋`);
+      // Every login re-opens the day questions — the big Mila card inside
+      // offers the one-tap skip when she already remembers the crew.
+      setTimeout(openWizard, 400);
       // Signing back in during the grace period calls off a pending deletion.
       if (data.deletionCancelled) alert(tr('Welcome back! Your account was scheduled for deletion — that is now cancelled and nothing was lost.'));
       load();
@@ -3867,6 +3930,7 @@
       hideVerify();
       closeAcct();
       if (wasSignup) toast(`${tr('Welcome aboard')}, ${localStorage.getItem('pp-name') || tr('Dear Friend')}! 🎢`);
+      if (wasSignup) setTimeout(openWizard, 400);
       load();
     } catch { $('verify-err').textContent = tr('Connection trouble — try again.'); }
     finally {

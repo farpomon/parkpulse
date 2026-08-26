@@ -229,7 +229,8 @@
         if (state.locked) {
           lockedBubble(name);
         } else {
-          bubble('bot', `Hi, I'm Mila, your park fairy! ✨ I can see today's waits at ${name} — ask me if Lightning Lane or Express Pass is worth it, what to ride first, or how to dodge the crowds, and let's make today magical.`);
+          let uname = ''; try { uname = localStorage.getItem('pp-name') || ''; } catch {}
+          bubble('bot', `${uname ? `Hi ${uname}! ` : `Hi, `}I'm Mila, your park fairy! ✨ I can see today's waits at ${name} — ask me if Lightning Lane or Express Pass is worth it, what to ride first, or how to dodge the crowds, and let's make today magical.`);
         }
       }
     }

@@ -3138,6 +3138,16 @@ const server = http.createServer(async (req, res) => {
         db.plans.remove(s2.email, parsed.park, parsed.date);
         return sendJson(res, 200, { ok: true });
       }
+      // Set (or fix) the account's first name after signup — the wizard asks
+      // when it doesn't know one. Same profanity kindness as signup.
+      if (url.pathname === '/api/account/name') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+        const asked = cleanFirstName(parsed.name);
+        db.users.setName(s2.email, asked.name);
+        return sendJson(res, 200, { name: asked.name, ...(asked.profane && { nameNote: NAME_NOTE }) });
+      }
+
       // Night-before plan emails on or off, per account.
       if (url.pathname === '/api/plans/evening-mail') {
         const s2 = sessionUser(req);
