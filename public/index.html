@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ParkPulse | Live Theme Park Wait Times &amp; Smart Day Plans</title>
-<meta name="description" content="Check live theme park wait times, build a smarter park-day plan, and know when skip-the-line passes are worth it with ParkPulse.">
+<meta name="description" content="Meet Mila, your park fairy: live wait times for 56 theme parks, your whole day planned in one tap, and a straight answer on whether skip-the-line passes are worth it.">
 <meta property="og:title" content="ParkPulse | Spend less time in line">
 <meta property="og:description" content="Live waits, smarter routes, and practical park-pass guidance for better days at the parks.">
 <meta property="og:image" content="https://www.parkpulse.fun/og.png">
@@ -87,6 +87,17 @@
   .btn.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.3);color:#fff}
   .btn.ghost:hover{background:rgba(255,255,255,.15)}
   .facts{display:flex;gap:8px 30px;flex-wrap:wrap;margin-top:30px;color:#a99fd0;font-size:14px;font-weight:500}
+  /* Mila leads the page: portrait + speech bubble above the headline. */
+  .mila-hero{display:flex;align-items:center;gap:18px;margin-bottom:26px}
+  .mila-hero img{width:clamp(96px,11vw,136px);height:auto;border-radius:50%;border:3px solid rgba(255,255,255,.9);
+    box-shadow:0 16px 44px rgba(0,0,0,.45);animation:milafloat 5s ease-in-out infinite}
+  .mila-bubble{position:relative;background:#fff;color:#2f2359;border-radius:16px;padding:12px 16px;
+    font-size:15.5px;font-weight:600;line-height:1.4;max-width:34ch;box-shadow:0 12px 30px -8px rgba(0,0,0,.45)}
+  .mila-bubble::before{content:"";position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+    border:9px solid transparent;border-right-color:#fff;border-left:0}
+  .mila-bubble .who{display:block;font-size:11.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#7c5cd6;margin-bottom:3px}
+  @keyframes milafloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  @media (prefers-reduced-motion: reduce){.mila-hero img{animation:none}}
   .facts span{display:inline-flex;align-items:center;gap:8px}
   .facts span::before{content:"";width:4px;height:4px;border-radius:99px;background:currentColor;opacity:.6}
 
@@ -326,40 +337,40 @@
   <div class="heroin">
     <div class="herocopy">
       <div class="eyebrow">Launch preview &mdash; everything is free</div>
-      <h1>Stop standing in line at the parks</h1>
-      <p class="sub">Live waits, an AI advisor that plans your whole day &mdash; and tells you when a skip pass is worth it, and when to keep your money.</p>
+      <div class="mila-hero">
+        <img src="/img/mila/mila-welcome-320.webp" alt="Mila, the ParkPulse park fairy, waving" width="136" height="136" fetchpriority="high">
+        <div class="mila-bubble"><span class="who">Mila &middot; your park fairy</span><span id="mila-line">Let me make your day MAGICAL &mdash; minus the standing-in-line part.</span></div>
+      </div>
+      <h1>Meet Mila. She reads the lines so you don't stand in them.</h1>
+      <p class="sub">Your park fairy sees live waits at 56 parks, plans your whole day in one tap &mdash; and tells you when the skip pass is worth it, and when to keep your money.</p>
       <div class="cta">
-        <a class="btn primary" href="/app">See live waits free</a>
-        <a class="btn ghost" href="#pricing">Get a Trip Pass</a>
+        <a class="btn primary" href="/app">&#10024; Let Mila plan your day</a>
+        <a class="btn ghost" href="/app">See live waits free</a>
       </div>
       <div class="facts">
         <span>56 parks worldwide</span>
         <span>Disney &middot; Universal &middot; Six Flags &amp; more</span>
         <span>No app install</span>
       </div>
-      <div class="mila-intro">
-        <img src="/img/mila/mila-welcome-320.webp" alt="Mila, the ParkPulse fairy mascot, waving" width="52" height="52" loading="lazy">
-        <span><b>Meet Mila</b> &mdash; <span id="mila-line">your AI park advisor. She reads the lines so you don't stand in them.</span></span>
-      </div>
       <script>
       // Mila greets differently every visit — fifteen voices, one fairy.
       (() => {
         const LINES = [
-          "let me make your day MAGICAL — minus the standing-in-line part.",
+          "Let me make your day MAGICAL — minus the standing-in-line part.",
           "I read the lines so you can ride them.",
-          "your day, planned to the minute. Your feet will thank me.",
-          "more rides, fewer sighs — that's my whole job.",
+          "Your day, planned to the minute. Your feet will thank me.",
+          "More rides, fewer sighs — that's my whole job.",
           "I know which queue is lying to you.",
-          "a sprinkle of data, a dash of fairy dust, zero hour-long lines.",
-          "you bring the snacks. I'll bring the strategy.",
-          "every park has a secret rhythm. I'll hum it to you.",
-          "shorter lines are my love language.",
-          "one tap, and your whole day falls into place.",
+          "A sprinkle of data, a dash of fairy dust, zero hour-long lines.",
+          "You bring the snacks. I'll bring the strategy.",
+          "Every park has a secret rhythm. I'll hum it to you.",
+          "Shorter lines are my love language.",
+          "One tap, and your whole day falls into place.",
           "I've never met a crowd I couldn't dodge.",
-          "the fireworks are at nine. I'll get you everything before them.",
-          "plans so smooth you'll think it's magic. (It's mostly math. And magic.)",
-          "let's turn 'we waited two hours' into 'we rode it twice.'",
-          "follow me — I know a shortcut.",
+          "The fireworks are at nine. I'll get you everything before them.",
+          "Plans so smooth you'll think it's magic. (It's mostly math. And magic.)",
+          "Let's turn 'we waited two hours' into 'we rode it twice.'",
+          "Follow me — I know a shortcut.",
         ];
         document.getElementById('mila-line').textContent = LINES[Math.floor(Math.random() * LINES.length)];
       })();
