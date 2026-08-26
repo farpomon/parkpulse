@@ -114,6 +114,65 @@ const CSS = `
 `;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Mila hovering in the corner of the public wait-times and touring-plan
+// pages, offering the pass. Twelve rotating lines; pass holders (pp-pass in
+// localStorage) never see her, and a dismiss lasts the browsing session.
+const MILA_HOVER_MSGS = [
+  'This is just a sprinkle ✨ With a pass you get the whole spell — live waits, unlimited plans, and me by your side all day.',
+  'Want this day to be even more magical? ✨ My wand never runs out with a pass — every park, every plan, me all day.',
+  "I know a shortcut past every line here ✨ Grab a pass and let's make some magic — from $24.99.",
+  "I can dodge every queue and stay with you till the fireworks ✨ Get a pass and let's go!",
+  'Second star to the right, straight past the queues ✨ A pass unlocks every park — shall we fly?',
+  "The lines don't know I exist ✨ With a pass, neither will you — unlimited plans, all 65 parks.",
+  "I read the queues like a storybook ✨ Get a pass and I'll read yours all day long.",
+  "One pass, every kingdom ✨ I'll plan each day to the minute — you just bring the snacks.",
+  'Believe in magic? I run on data ✨ A pass gives you both, all day, in every park.',
+  'Your feet will thank me, your kids will high-five you ✨ Passes start at $24.99.',
+  'I saved families whole hours of queueing today ✨ Want yours back too? A pass makes it official.',
+  'Why wait in line when you can walk with a fairy? ✨ Unlock every park with a pass.',
+];
+
+function milaHover() {
+  return `<style>
+  .mh{position:fixed;right:14px;bottom:14px;z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:8px;opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;pointer-events:none}
+  .mh.on{opacity:1;transform:none;pointer-events:auto}
+  .mh-b{position:relative;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:.7rem 1.9rem .7rem .9rem;max-width:250px;font-size:.88rem;line-height:1.45;box-shadow:0 12px 32px -12px rgba(0,0,0,.35)}
+  .mh-b b{display:block;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:.15rem}
+  #mh-msg{transition:opacity .35s}
+  .mh-x{position:absolute;top:.3rem;right:.4rem;border:none;background:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:.15rem;line-height:1}
+  .mh-cta{display:inline-block;margin-top:.45rem;background:var(--brand);color:#fff;border-radius:999px;padding:.35rem .9rem;font-weight:700;font-size:.82rem;text-decoration:none}
+  .mh img{width:62px;height:62px;border-radius:50%;border:2px solid var(--brand);box-shadow:0 10px 26px -10px rgba(0,0,0,.5);animation:mhfloat 5s ease-in-out infinite}
+  @keyframes mhfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @media (prefers-reduced-motion:reduce){.mh img{animation:none}.mh{transition:none}}
+  @media (max-width:480px){.mh-b{max-width:210px;font-size:.84rem}.mh img{width:52px;height:52px}}
+</style>
+<div class="mh" id="mh" role="complementary" aria-label="Mila suggests a ParkPulse pass">
+  <div class="mh-b"><button class="mh-x" id="mh-x" aria-label="Dismiss Mila's suggestion">×</button><b>Mila · your park fairy</b><span id="mh-msg"></span><br><a class="mh-cta" href="/#pricing">Get a pass ✨</a></div>
+  <img src="/img/mila/mila-wink-160.webp" alt="" width="62" height="62" loading="lazy">
+</div>
+<script>
+(function(){
+  try { if (localStorage.getItem('pp-pass')) return; } catch (e) {}
+  try { if (sessionStorage.getItem('pp-mh-x')) return; } catch (e) {}
+  var M = ${JSON.stringify(MILA_HOVER_MSGS)};
+  var el = document.getElementById('mh'), msg = document.getElementById('mh-msg');
+  if (!el || !msg) return;
+  var i = Math.floor(Math.random() * M.length);
+  msg.textContent = M[i];
+  setTimeout(function(){ el.classList.add('on'); }, 2200);
+  setInterval(function(){
+    i = (i + 1) % M.length;
+    msg.style.opacity = 0;
+    setTimeout(function(){ msg.textContent = M[i]; msg.style.opacity = 1; }, 350);
+  }, 14000);
+  document.getElementById('mh-x').addEventListener('click', function(){
+    el.classList.remove('on');
+    try { sessionStorage.setItem('pp-mh-x', '1'); } catch (e) {}
+  });
+})();
+</script>`;
+}
 const hour12 = (h) => {
   const whole = Math.floor(h), mins = Math.round((h - whole) * 60);
   return `${whole % 12 === 0 ? 12 : whole % 12}${mins ? ':' + String(mins).padStart(2, '0') : ''} ${whole >= 12 ? 'PM' : 'AM'}`;
@@ -582,7 +641,7 @@ ${nearbySection}
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
   });
 })();
-</script><script src="/i18n.js"></script><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
+</script>${milaHover()}<script src="/i18n.js"></script><script src="/chat-widget.js" data-park="${park.slug}" data-park-name="${esc(park.name)}" defer></script></body></html>`;
 }
 
 // Fallback for a park in the registry that has no authored content yet.
@@ -600,7 +659,7 @@ function renderBasicParkPage(park, sample, allParks) {
 <div class="card"><p>ParkPulse tracks live standby waits for every attraction at ${esc(park.name)}.</p><a class="cta" href="/app">See live waits</a></div>
 <h2>All parks we track</h2><div class="allparks">${allParksIndex(allParks, park.slug)}</div>
 <footer>Unofficial fan guide. Wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">Home</a></footer>
-</div></body></html>`;
+</div>${milaHover()}</body></html>`;
 }
 
 // /parks — the hub every park page links back to, so crawlers reach every park
@@ -990,7 +1049,7 @@ function renderPlansHub(allParks, personas) {
 <p class="sub">A ready-made day for every kind of crew — parents with little ones, thrill seekers, rainy days, heat waves, late sleepers. Built from each park's real crowd patterns, and every one opens live in the app where the waits update in real time.</p>
 ${sections}
 <footer>Unofficial fan guide &mdash; not affiliated with the park operators. Wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/parks">All parks</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
-</div></body></html>`;
+</div>${milaHover()}</body></html>`;
 }
 
 function renderParkPlansPage(park, planList, allParks) {
@@ -1015,7 +1074,7 @@ ${cards}
 <div class="card" style="margin-top:1rem"><p><b>None of these exactly your crew?</b> The app builds a custom plan in one tap — your picks, your hours, your kids' heights — and Mila, your park fairy, reviews the order before you walk a step.</p><a class="cta" href="/app?park=${park.slug}">Build my own plan</a></div>
 <h2>More parks</h2><div class="allparks">${allParksIndex(allParks, park.slug)}</div>
 <footer>Unofficial fan guide &mdash; not affiliated with the park operators. <a href="/plans">All touring plans</a> &middot; <a href="/parks/${park.slug}">${esc(park.name)} wait times</a> &middot; <a href="/">Home</a></footer>
-</div></body></html>`;
+</div>${milaHover()}</body></html>`;
 }
 
 function renderPremadePlanPage(park, plan, planList, allParks) {
@@ -1055,7 +1114,7 @@ function renderPremadePlanPage(park, plan, planList, allParks) {
 <p style="color:var(--muted);font-size:.82rem">Built from ${esc(park.name)}'s typical crowd patterns; times are a guide, not a promise. Refreshes weekly.</p>
 ${others ? `<h2>Other ${esc(park.name)} plans</h2><p>${others}</p>` : ''}
 <footer>Unofficial fan guide &mdash; not affiliated with the park operators. <a href="/plans/${park.slug}">All ${esc(park.name)} plans</a> &middot; <a href="/parks/${park.slug}">${esc(park.name)} wait times</a> &middot; <a href="/plans">Every park's plans</a> &middot; <a href="/">Home</a></footer>
-</div></body></html>`;
+</div>${milaHover()}</body></html>`;
 }
 
 module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderAccuracyPage, renderNotFoundPage, renderSitemap, renderRobots, allParksIndex, renderPlansHub, renderParkPlansPage, renderPremadePlanPage };
