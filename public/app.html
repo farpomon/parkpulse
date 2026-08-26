@@ -487,6 +487,12 @@
   .step.sugg .what b { font-weight: 700; opacity: .85; }
   .step.sugg .time { background: var(--bg); color: var(--muted); }
   .plan .replan { margin-top: .7rem; }
+  .plan .mailcard { display: flex; align-items: center; gap: .7rem; margin-top: .9rem; padding: .8rem .9rem;
+    background: var(--bg); border: 1.5px solid var(--brand); border-radius: 14px; flex-wrap: wrap; }
+  .plan .mailcard img { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
+  .plan .mailcard .mc-t { flex: 1 1 12rem; min-width: 0; font-size: .82rem; color: var(--muted); line-height: 1.35; }
+  .plan .mailcard .mc-t b { display: block; color: var(--ink); font-size: .95rem; margin-bottom: .1rem; }
+  .plan .mailcard .btn { flex: 1 1 auto; white-space: nowrap; }
   .step:last-child { border-bottom: none; }
   .step .time { font-weight: 800; color: var(--brand); background: var(--brand-soft); border-radius: 8px; padding: .12rem .45rem; min-width: 4.9rem; text-align: center; font-size: .85rem; height: fit-content; font-variant-numeric: tabular-nums; }
   .step .what { font-size: .92rem; }
@@ -2094,7 +2100,11 @@
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
-      <button class="btn replan" id="plan-mail" style="background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">📧 ${tr('Email me this plan')}</button>
+      <div class="mailcard">
+        <img src="/img/mila/mila-celebrate-160.webp" alt="" width="44" height="44">
+        <div class="mc-t"><b>${tr('Take this plan with you')}</b>${tr('One tap and it lands in your inbox — ready at the gate, no signal needed.')}</div>
+        <button class="btn" id="plan-mail">📧 ${tr('Email me this plan')}</button>
+      </div>
     </div>`;
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     // Repaint the attractions list so the ticks match the plan we just wrote.
@@ -2107,9 +2117,13 @@
     planStash[current] = { planDate: planDate || null };
     savePlanStash();
     // The plan renders into the Plan pane; on a phone that is off-screen from
-    // the board, so take the user to the thing they just asked for. A quiet
-    // rebuild (restoring a stashed plan on park return) must not yank them.
-    if (!opts.quiet && !matchMedia('(min-width: 1080px)').matches) { setPane('plan'); syncTabs('plan'); }
+    // the board, so take the user to the thing they just asked for — the plan
+    // itself, not the top of the pane, which is skip card and forecast. A
+    // quiet rebuild (restoring a stashed plan on park return) must not yank.
+    if (!opts.quiet) {
+      if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
+      requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
@@ -2706,9 +2720,9 @@
   // The pane is a phone-only split (see the max-width rules): the board on
   // Today, the planning surface on Plan. Above the breakpoint the class is
   // inert and the page stays one scroll.
-  function setPane(name) {
+  function setPane(name, opts = {}) {
     document.body.classList.toggle('pane-plan', name === 'plan');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (opts.scroll !== false) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   function goTab(name) {
     if (name === 'today') {
@@ -2717,11 +2731,13 @@
     } else if (name === 'plan') {
       // Never fire the planner from a nav tap -- that spends an AI call the
       // user did not ask for. Show them the plan, or the button that makes one.
-      setPane('plan');
+      const hasPlan = Boolean($('plan-out').innerHTML.trim());
+      setPane('plan', { scroll: !hasPlan });
       syncTabs('plan');
-      // Focus the CTA when there is nothing to read yet, so the pane offers an
-      // obvious next step rather than looking empty.
-      if (!$('plan-out').innerHTML.trim()) $('plan-hero-btn').focus({ preventScroll: true });
+      // With a plan on screen, land on the plan itself — the pane's top is
+      // skip card and forecast. Without one, focus the CTA instead.
+      if (hasPlan) requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      else $('plan-hero-btn').focus({ preventScroll: true });
     } else if (name === 'map') {
       setPane('today');
       setViewMode('map');
