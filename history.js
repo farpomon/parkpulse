@@ -32,11 +32,17 @@ const dayFile = (d) => path.join(HISTORY_DIR, `${d.toISOString().slice(0, 10)}.j
 function record(slug, waits) {
   if (waits.source !== 'live') return false;
   const rides = {};
+  // `shut` is the roster of rides the feed listed as CLOSED at this moment.
+  // Without it a closed ride is indistinguishable from one the feed dropped
+  // entirely, and closure detection would invent refurbishments out of feed
+  // hiccups. Names only -- a closed ride has no wait worth keeping.
+  const shut = [];
   for (const r of waits.rides) {
     if (r.open && Number.isFinite(r.wait)) rides[r.name] = r.wait;
+    else if (!r.open && typeof r.name === 'string') shut.push(r.name);
   }
   if (!Object.keys(rides).length) return false;
-  const line = JSON.stringify({ t: new Date().toISOString(), park: slug, rides });
+  const line = JSON.stringify({ t: new Date().toISOString(), park: slug, rides, ...(shut.length && { shut }) });
   fs.appendFileSync(dayFile(new Date()), line + '\n');
   return true;
 }
@@ -479,4 +485,87 @@ function computeAccuracy({ normName = (s) => s, tzOf = () => 'UTC', dayFactor, h
   };
 }
 
-module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, computeAccuracy, stats, HISTORY_DIR };
+// --- Closures and refurbishments --------------------------------------------
+// Detected, not curated. A ride the feed reports CLOSED across every snapshot
+// of consecutive operating days is down for something structural -- a refurb,
+// a rehab, a long technical closure -- and that is publishable for all 56
+// parks the moment the archive holds a few days, without anyone maintaining a
+// spreadsheet.
+//
+// The bar is deliberately conservative, because "closed for refurbishment" is
+// a claim that changes trips:
+//   - the park must have been OPEN that day (other rides reporting waits), so
+//     a park holiday never reads as 56 simultaneous refurbishments;
+//   - the ride must appear in the feed's closed roster, never merely absent;
+//   - it must be closed in EVERY snapshot of the day -- one afternoon reopening
+//     means a breakdown, not a refurb;
+//   - and it must run that way for CLOSURE_MIN_DAYS consecutive operating days.
+const CLOSURE_MIN_DAYS = 3;
+
+function computeClosures() {
+  const files = fs.readdirSync(HISTORY_DIR)
+    .map((f) => f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/)?.[1])
+    .filter(Boolean)
+    .sort();
+  if (!files.length) return {};
+
+  // date -> slug -> { open:Set, shut:Set, snaps:number }
+  const byDay = [];
+  for (const date of files) {
+    let content;
+    try { content = fs.readFileSync(path.join(HISTORY_DIR, `${date}.jsonl`), 'utf8'); } catch { continue; }
+    const parks = {};
+    for (const line of content.split('\n')) {
+      if (!line) continue;
+      let e;
+      try { e = JSON.parse(line); } catch { continue; }
+      const p = (parks[e.park] ??= { open: new Set(), shutCount: new Map(), snaps: 0 });
+      p.snaps += 1;
+      for (const n of Object.keys(e.rides || {})) p.open.add(n);
+      for (const n of e.shut || []) p.shutCount.set(n, (p.shutCount.get(n) || 0) + 1);
+    }
+    byDay.push({ date, parks });
+  }
+
+  // A ride counts as down-all-day when it was listed closed in every snapshot
+  // and never once reported a wait.
+  const downOn = {};   // slug -> date -> Set(names)
+  for (const { date, parks } of byDay) {
+    for (const [slug, p] of Object.entries(parks)) {
+      if (p.snaps < 3) continue;            // too few samples to trust the day
+      const set = new Set();
+      for (const [name, n] of p.shutCount) {
+        if (n >= p.snaps && !p.open.has(name)) set.add(name);
+      }
+      ((downOn[slug] ??= {}))[date] = set;
+    }
+  }
+
+  const out = {};
+  for (const [slug, days] of Object.entries(downOn)) {
+    const dates = Object.keys(days).sort();
+    const runs = new Map();               // name -> { start, end, days }
+    for (const date of dates) {
+      for (const name of days[date]) {
+        const r = runs.get(name);
+        // Consecutive means consecutive OPERATING days, not calendar days: a
+        // park closed on Tuesday must not break a Monday-Wednesday closure.
+        if (r && dates[dates.indexOf(date) - 1] === r.end) { r.end = date; r.days += 1; }
+        else runs.set(name, { start: date, end: date, days: 1 });
+      }
+    }
+    const list = [];
+    for (const [name, r] of runs) {
+      if (r.days < CLOSURE_MIN_DAYS) continue;
+      // Still closed only if it was down on the most recent day we observed
+      // this park at all -- otherwise it reopened and this is history.
+      const last = dates[dates.length - 1];
+      list.push({ name, since: r.start, days: r.days, current: r.end === last });
+    }
+    list.sort((a, b) => (b.current - a.current) || (b.days - a.days) || a.name.localeCompare(b.name));
+    if (list.length) out[slug] = { observedTo: dates[dates.length - 1], rides: list };
+  }
+  return out;
+}
+
+module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, computeAccuracy, computeClosures, stats, HISTORY_DIR };

@@ -417,7 +417,30 @@ function bandsTable(park, bands) {
 <p class="bt-note">Minutes of posted standby wait, from our own recorded snapshots &mdash; up to ${days} day${days === 1 ? '' : 's'} per figure. Cells stay blank until a ride has enough observations at that crowd level to be worth printing. Posted waits are what the park displays, which is not always what you queue.</p>`;
 }
 
-function renderParkPage(park, sample, allParks, bands, curves, actual) {
+// What's closed right now, straight from the feed. The competitors keep a
+// hand-maintained refurbishment page for a handful of parks and it goes stale;
+// this is generated for all 56 and dated so the reader can judge its freshness.
+function closureSection(park, closures) {
+  const current = (closures?.rides || []).filter((r) => r.current);
+  const reopened = (closures?.rides || []).filter((r) => !r.current).slice(0, 6);
+  if (!closures) {
+    return `<h2 id="closed">What's closed at ${esc(park.name)}</h2>
+<div class="card"><p>We detect long closures automatically from the live feed — a ride reporting closed all day, for three operating days running, is down for something structural. This park's archive is still filling; the list appears here as soon as there is enough history to be sure.</p></div>`;
+  }
+  const pretty = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  const row = (r) => `<tr><td><b>${esc(r.name)}</b></td><td>${pretty(r.since)}</td><td class="cl-days">${r.days} operating day${r.days === 1 ? '' : 's'}</td></tr>`;
+  return `<h2 id="closed">What's closed at ${esc(park.name)}</h2>
+<div class="card">
+${current.length
+    ? `<p class="legend">Detected automatically from the live feed — each of these reported closed all day, every day, for at least three operating days. Observed through ${pretty(closures.observedTo)}.</p>
+<div class="acc-scroll"><table class="acc-table"><thead><tr><th>Attraction</th><th>Closed since</th><th>Duration</th></tr></thead><tbody>${current.map(row).join('')}</tbody></table></div>`
+    : `<p><b>Nothing is down long-term right now.</b> Every attraction we track at ${esc(park.name)} has reported open at some point in the last few days. Observed through ${pretty(closures.observedTo)}.</p>`}
+${reopened.length ? `<h3>Recently back</h3><div class="acc-scroll"><table class="acc-table"><thead><tr><th>Attraction</th><th>Was closed from</th><th>Duration</th></tr></thead><tbody>${reopened.map(row).join('')}</tbody></table></div>` : ''}
+<p class="legend">Generated from wait-feed observations, not an operator announcement: a long closure usually means refurbishment, but we report what the feed shows rather than guessing why. Always check the operator's own page before travelling for one specific ride.</p>
+</div>`;
+}
+
+function renderParkPage(park, sample, allParks, bands, curves, actual, closures) {
   const seo = SEO[park.slug];
   // A park without authored content still gets a working page rather than a 500.
   if (!seo) return renderBasicParkPage(park, sample, allParks);
@@ -494,6 +517,7 @@ ${waitsSection}
 </div>
 <p class="calcta">Planning ahead? The free <a href="/parks/${park.slug}/calendar"><b>${esc(park.name)} crowd calendar</b></a> scores every day for the next four months, 1 to 10 &mdash; no sign-up.</p>
 ${curveChart(park, curves, actual)}
+${closureSection(park, closures)}
 ${bandsTable(park, bands)}
 ${faq.html}
 ${sibSection}
@@ -728,6 +752,7 @@ ${parkRows ? `<div class="card"><h2>By park</h2>
   .acc-table th{text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:.35rem .5rem;border-bottom:1px solid var(--border)}
   .acc-table td{padding:.4rem .5rem;border-bottom:1px solid var(--border);white-space:nowrap}
   .acc-n{color:var(--muted)}
+  .cl-days{color:var(--muted);white-space:nowrap}
   .acc-meter{display:inline-block;vertical-align:middle;width:72px;height:6px;margin-left:.4rem;background:var(--border);border-radius:3px;overflow:hidden}
   .acc-meter i{display:block;height:100%;background:var(--brand);border-radius:3px}
 </style></head><body><div class="wrap">

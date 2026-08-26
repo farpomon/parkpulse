@@ -263,6 +263,9 @@
   .hrow b { color: var(--muted); font-size: .85rem; }
   .hclear { border: none; background: var(--border); border-radius: 999px; width: 1.6rem; height: 1.6rem; cursor: pointer; color: var(--ink); }
   .hnote-sub { font-size: .74rem; color: var(--muted); margin: .35rem 0 0; }
+  .clnote { margin: 0 0 .6rem; font-size: .82rem; color: var(--ink); background: var(--gold-soft, #fdf3e0);
+    border: 1px solid var(--gold, #b8791a); border-radius: 10px; padding: .55rem .75rem; }
+  .clnote .cl-sub { color: var(--muted); }
   .hhidden { margin-top: .6rem; font-size: .8rem; color: var(--muted); background: var(--bg); border: 1px dashed var(--border);
     border-radius: 10px; padding: .5rem .7rem; }
   .mila-up { width: 64px; height: 64px; border-radius: 50%; float: right; margin: 0 0 .4rem .6rem; border: 2px solid var(--brand); }
@@ -1303,6 +1306,24 @@
       </div>`;
   }
 
+  // Long closures, detected from the feed. Shown once above the list so a
+  // family does not walk to a ride that has been shut for a fortnight.
+  let closureList = [];
+  async function loadClosures() {
+    try {
+      const r = await api(`/api/closures/${current}`);
+      if (!r.ok) { closureList = []; return; }
+      const d = await r.json();
+      closureList = Array.isArray(d.closed) ? d.closed : [];
+    } catch { closureList = []; }
+  }
+  function closureNote() {
+    if (!closureList.length) return '';
+    const names = closureList.slice(0, 4).map((c) => esc(c.name)).join(', ');
+    const more = closureList.length > 4 ? ` +${closureList.length - 4} ${tr('more')}` : '';
+    return `<div class="clnote">🚧 <b>${tr('Closed long-term:')}</b> ${names}${more}. <span class="cl-sub">${tr('Detected from the feed — these have been shut all day for several days running.')}</span></div>`;
+  }
+
   function heightHiddenNote() {
     if (fHeight <= 0) return '';
     const tags = tagsCache[current] || {};
@@ -1321,7 +1342,7 @@
         $('rides').innerHTML = `<div class="state">${tr('No rides match')} “${query}”.</div>`;
         return;
       }
-      $('rides').innerHTML = list.map(rideRow).join('') + heightHiddenNote();
+      $('rides').innerHTML = closureNote() + list.map(rideRow).join('') + heightHiddenNote();
     } else {
       // Group by land, in feed order (queue-times lists lands geographically),
       // so "what's short near me" reads at a glance.
@@ -1332,7 +1353,7 @@
         lands.get(key).push(r);
       }
       const done = new Set(doneOrder);
-      $('rides').innerHTML = [...lands.entries()].map(([land, list]) =>
+      $('rides').innerHTML = closureNote() + [...lands.entries()].map(([land, list]) =>
         `<div class="landhead">${esc(land)}</div>` +
         [...list].sort((a, b) => (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
       ).join('') + heightHiddenNote();
@@ -2002,6 +2023,7 @@
       if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); pickedNames.clear(); load(); });
       renderSkip();
       loadTags();
+      loadClosures().then(() => { if (closureList.length) renderRides(); });
       if (!opts.silent || !$('forecast').innerHTML) renderForecast();
       $('updated').textContent = updatedLabel();
       renderParkClock();

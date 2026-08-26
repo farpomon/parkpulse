@@ -505,6 +505,7 @@ let DOW_INDEX = {};
 let CROWD_BANDS = {};
 let HOURLY_CURVES = {};
 let ACCURACY = null;
+let CLOSURES = {};
 // Twin of the HOURLY curve in public/app.html -- the hour-of-day crowd shape
 // the planner multiplies into every future-day wait. The backtest must use
 // the same curve or it would be scoring a model nobody is shown. Change one,
@@ -558,6 +559,7 @@ function refreshBaselines() {
     DOW_INDEX = history.computeDowIndex();
     CROWD_BANDS = history.computeCrowdBands(normName);
     HOURLY_CURVES = history.computeHourlyCurves(normName, (slug) => PARKS[slug]?.tz);
+    CLOSURES = history.computeClosures();
     refreshActualWaits();
     const parks = Object.keys(MEASURED).length;
     if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index, ${Object.keys(CROWD_BANDS).length} with crowd bands)`);
@@ -2076,6 +2078,22 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Wait-by-crowd-level bands. Public: this is the asset people link to.
+  // What's closed at a park right now — detected from the feed, free, no gate.
+  const closedMatch = url.pathname.match(/^\/api\/closures\/([a-z0-9-]+)$/);
+  if (closedMatch) {
+    const slug = closedMatch[1];
+    if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
+    const c = CLOSURES[slug] || null;
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=1800' });
+    return res.end(JSON.stringify({
+      park: PARKS[slug].name,
+      observedTo: c?.observedTo || null,
+      minDays: 3,
+      closed: (c?.rides || []).filter((r) => r.current),
+      recentlyReopened: (c?.rides || []).filter((r) => !r.current).slice(0, 8),
+    }));
+  }
+
   const bandsMatch = url.pathname.match(/^\/api\/bands\/([a-z0-9-]+)$/);
   if (bandsMatch) {
     const slug = bandsMatch[1];
@@ -2121,7 +2139,7 @@ const server = http.createServer(async (req, res) => {
     const park = PARKS[parkPage[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
-    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null, ACTUAL_WAITS[park.slug] || null));
+    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null, ACTUAL_WAITS[park.slug] || null, CLOSURES[park.slug] || null));
   }
   if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') {
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
@@ -2887,6 +2905,7 @@ const server = http.createServer(async (req, res) => {
           // a consult must never wait on a classification call; without tags the
           // advisor falls back to its own knowledge, as before.
           try { waits.tags = JSON.parse(db.ridetags.get(park) || 'null') || undefined; } catch {}
+          waits.closures = (CLOSURES[park]?.rides || []).filter((r) => r.current).slice(0, 12);
           const s = sessionUser(req);
           const firstName = s ? (db.users.get(s.email)?.name || null) : null;
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
