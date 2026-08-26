@@ -2264,7 +2264,10 @@
       // running order recomputes locally and Mila's read replays from cache —
       // no AI call, no jump to the Plan pane.
       if (planStash[current] && rides.length && !$('plan-out').innerHTML.trim()) {
-        planDate = planStash[current].planDate || null;
+        // A tab left open overnight stashes "Thursday" and then Thursday
+        // arrives: a stashed date at or before today collapses to Today.
+        const stashed = planStash[current].planDate || null;
+        planDate = stashed && stashed > parkDay() ? stashed : null;
         renderDayOptions();
         buildPlan({ quiet: true });
       }
@@ -2301,6 +2304,11 @@
     if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
     if (!planDate) $('start-hour').value = 'now';
     renderSkip();
+    // A plan on screen is for the day it was built. Changing the day used to
+    // leave it standing under the new selection — "I clicked Today and it
+    // still shows Thursday". Rebuild it for the chosen day: local math only,
+    // Mila's read from cache if she has said something about this day.
+    if ($('plan-out').querySelector('.plan')) buildPlan({ quiet: true });
   });
 
   $('pick-all').addEventListener('click', () => {
