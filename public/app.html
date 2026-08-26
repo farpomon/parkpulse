@@ -89,7 +89,13 @@
      header never overflows, and let the whole row wrap on tiny screens. */
   #lang { max-width: 8.5rem; }
   .topline { flex-wrap: wrap; row-gap: .35rem; }
-  .topline .right { flex-wrap: wrap; justify-content: flex-end; }
+  /* The right side stays one row and drops below the logo as a block. It used
+     to wrap item by item, which stacked the two icon buttons vertically once
+     the language picker and account button moved out. The status text shrinks
+     instead of pushing the buttons onto a line of their own. */
+  .topline .right { flex-wrap: nowrap; justify-content: flex-end; min-width: 0; }
+  .topline .right .updated, .topline .right .parkclock { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topline .right .iconbtn { flex: 0 0 auto; }
   .iconbtn:active { transform: scale(.94); }
   .iconbtn.spinning { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -515,6 +521,11 @@
     font: inherit; font-size: .66rem; font-weight: 800; line-height: 1.1; cursor: pointer;
     -webkit-tap-highlight-color: transparent; transition: color .15s, transform .1s; }
   .tabbar button .ti { width: 1.55rem; height: 1.55rem; display: block; }
+  .acct-set { display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+    margin: 0 0 .9rem; padding-bottom: .8rem; border-bottom: 1px solid var(--border);
+    color: var(--muted); font-size: .9rem; font-weight: 700; }
+  .acct-set select { border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+    border-radius: 10px; padding: .45rem .6rem; font: inherit; font-size: .92rem; max-width: 60%; }
   .tabbar button .tl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabbar button.on { color: var(--brand); }
   .tabbar button:active { transform: scale(.93); }
@@ -537,6 +548,39 @@
     .planbar { padding-bottom: .7rem; }
     /* Duplicated by the bar; the toolbar row keeps Filters, Dining, Select all. */
     #map-toggle { display: none; }
+
+    /* --- Panes ------------------------------------------------------------
+       Everything used to stack on one scroll, so you passed a full screen of
+       planning tools before reaching a single wait time -- and the thing the
+       app is for was below the fold. The skip card, the week forecast and the
+       arrive/leave controls are decision-support for planning, not for
+       browsing waits, so they live on the Plan tab now. Desktop keeps the
+       single scroll: the two-column grid already shows rail and board at
+       once, and none of this applies above the breakpoint.
+       !important throughout because several of these are shown and hidden by
+       inline style at runtime, and the pane has to win. */
+    body:not(.pane-plan) #skipcard,
+    body:not(.pane-plan) #forecast,
+    body:not(.pane-plan) .planrow,
+    body:not(.pane-plan) #plan-hero,
+    body:not(.pane-plan) #plan-out { display: none !important; }
+
+    body.pane-plan #crowdline,
+    body.pane-plan #weatherline,
+    body.pane-plan .searchrow,
+    body.pane-plan .sectionhead,
+    body.pane-plan #rides,
+    body.pane-plan #dining,
+    body.pane-plan #mapwrap,
+    body.pane-plan .planbar { display: none !important; }
+
+    /* The button is the hero's twin, and the Plan tab is a third way in. */
+    .planrow .planday { display: none; }
+    /* The You tab opens the account sheet, where the language picker now
+       lives -- so only the button is redundant here, not the picker itself. */
+    #acct-btn { display: none; }
+    /* Shown in the footer instead -- see setUpdated(). */
+    .topline #updated { display: none; }
   }
   @media (min-width: 1080px) {
     :root { --navh: 0px; }
@@ -553,7 +597,6 @@
       <span class="right">
         <span class="updated" id="updated"></span>
         <span class="updated parkclock" id="parkclock" style="display:none"></span>
-        <select class="iconbtn" id="lang" title="Language" aria-label="Language"></select>
         <button class="iconbtn" id="locate" title="Find my park" aria-label="Find my park">📍</button>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
@@ -613,7 +656,7 @@
   </div>
 
   <footer>
-    <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>. <span id="ft-map">Map data</span> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://themeparks.wiki">ThemeParks.wiki</a>.
+    <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>. <span id="updated-ft"></span> <span id="ft-map">Map data</span> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://themeparks.wiki">ThemeParks.wiki</a>.
     <span id="ft-unofficial">Unofficial fan tool — not affiliated with any park operator.</span>
     <a href="#" id="howworks">How it works</a> · <a href="/guide" id="ft-guide">Free strategy guide</a> · <a href="/terms" id="ft-terms">Terms</a> · <a href="/privacy" id="ft-privacy">Privacy</a>
   </footer>
@@ -729,6 +772,10 @@
 </div>
 
 <div class="sheet" id="acct-sheet">
+  <!-- Set-once preference. It was a permanent control in the header, which
+       is exactly the sort of thing that made the board hard to read. -->
+  <label class="acct-set"><span id="lang-lbl">Language</span>
+    <select id="lang" title="Language" aria-label="Language"></select></label>
   <div id="acct-logged-out">
     <h3 id="acct-title">Log in</h3>
     <p id="acct-sub">Your pass follows your account onto any device.</p>
@@ -1785,6 +1832,15 @@
     scheduleSync();
   }
 
+  // Two homes for the same stamp: the header on desktop, where there is room,
+  // and the footer on a phone, next to the data attribution it belongs with.
+  // On a 430px screen it was competing with the park clock and both ellipsed.
+  function setUpdated() {
+    const t = updatedLabel();
+    $('updated').textContent = t;
+    const ft = document.getElementById('updated-ft');
+    if (ft) ft.textContent = t ? '· ' + t + ' ·' : '';
+  }
   function updatedLabel() {
     if (!lastData) return '';
     const mins = Math.round((Date.now() - new Date(lastData.updatedAt)) / 60000);
@@ -2009,6 +2065,9 @@
     // The advisor now runs on every plan rather than waiting to be asked.
     refinePlanWithAI(steps);
     syncPlanHero();
+    // The plan renders into the Plan pane; on a phone that is off-screen from
+    // the board, so take the user to the thing they just asked for.
+    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan'); syncTabs('plan'); }
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
@@ -2095,7 +2154,7 @@
       loadTags();
       loadClosures().then(() => { if (closureList.length) renderRides(); });
       if (!opts.silent || !$('forecast').innerHTML) renderForecast();
-      $('updated').textContent = updatedLabel();
+      setUpdated();
       renderParkClock();
       loadWeather();
       if (lastData.source === 'unavailable') {
@@ -2565,6 +2624,8 @@
     if (mode === 'dining') renderDining();
     if (mode === 'map') renderMap();
     // Reached from the toolbar links as well as the bar, so sync either way.
+    // Rides, dining and map all live on Today, so a view change leaves Plan.
+    document.body.classList.remove('pane-plan');
     syncTabs(mode === 'map' ? 'map' : 'today');
   }
   $('view-toggle').addEventListener('click', (e) => { e.preventDefault(); setViewMode(viewMode === 'dining' ? 'rides' : 'dining'); });
@@ -2580,27 +2641,28 @@
       else b.removeAttribute('aria-current');
     }
   }
-  function scrollToEl(el) {
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // The pane is a phone-only split (see the max-width rules): the board on
+  // Today, the planning surface on Plan. Above the breakpoint the class is
+  // inert and the page stays one scroll.
+  function setPane(name) {
+    document.body.classList.toggle('pane-plan', name === 'plan');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   function goTab(name) {
     if (name === 'today') {
+      setPane('today');
       setViewMode('rides');
-      scrollToEl($('rides'));
     } else if (name === 'plan') {
       // Never fire the planner from a nav tap -- that spends an AI call the
       // user did not ask for. Show them the plan, or the button that makes one.
-      const out = $('plan-out');
-      const hasPlan = out && out.innerHTML.trim();
-      // Put the board back to attractions: scrolling on from the plan should
-      // land on the ride list, not on whatever the map was left showing.
-      if (viewMode !== 'rides') setViewMode('rides');
-      scrollToEl(hasPlan ? out : $('plan-hero'));
+      setPane('plan');
       syncTabs('plan');
-      if (!hasPlan) $('plan-hero-btn').focus({ preventScroll: true });
+      // Focus the CTA when there is nothing to read yet, so the pane offers an
+      // obvious next step rather than looking empty.
+      if (!$('plan-out').innerHTML.trim()) $('plan-hero-btn').focus({ preventScroll: true });
     } else if (name === 'map') {
+      setPane('today');
       setViewMode('map');
-      scrollToEl($('mapwrap'));
     } else if (name === 'mila') {
       if (window.ParkPulseChat) ParkPulseChat.ask();
       else toast(tr('The advisor is not available right now.'));
@@ -3551,7 +3613,7 @@
     load();
   })();
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
-  setInterval(() => { $('updated').textContent = updatedLabel(); renderParkClock(); }, 30 * 1000);
+  setInterval(() => { setUpdated(); renderParkClock(); }, 30 * 1000);
 
   if (location.hash === '#account') setTimeout(openAcct, 100);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
