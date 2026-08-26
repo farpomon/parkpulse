@@ -68,7 +68,10 @@ const STRIPE_PRICES = {
   'trip-pass': process.env.STRIPE_PRICE_TRIP || '',
   'pro-annual': process.env.STRIPE_PRICE_ANNUAL || '',
 };
-const CHECKOUT_ENABLED = Boolean(STRIPE_KEY && PLAN_CATALOG.every((p) => STRIPE_PRICES[p.id]));
+// The secret key alone is enough to sell: plans without a dashboard Price id
+// are sent to Checkout as inline price_data from the catalog above. Setting
+// STRIPE_PRICE_* env vars remains supported and takes precedence per plan.
+const CHECKOUT_ENABLED = Boolean(STRIPE_KEY);
 // MUST be set in production — the ephemeral default invalidates all passes on restart.
 const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
@@ -3138,19 +3141,36 @@ ${sections}
       if (url.pathname === '/api/checkout') {
         if (!CHECKOUT_ENABLED) return sendJson(res, 503, { error: 'checkout not configured' });
         const plan = parsed.plan;
-        if (!STRIPE_PRICES[plan]) return sendJson(res, 400, { error: 'unknown plan' });
+        const cat = PLAN_CATALOG.find((p) => p.id === plan);
+        if (!cat && !STRIPE_PRICES[plan]) return sendJson(res, 400, { error: 'unknown plan' });
         const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+        // A dashboard-created Price wins when configured; otherwise the
+        // catalog amount ships inline, so a bare STRIPE_SECRET_KEY sells.
+        const priceParams = STRIPE_PRICES[plan]
+          ? { 'line_items[0][price]': STRIPE_PRICES[plan] }
+          : {
+            'line_items[0][price_data][currency]': 'usd',
+            'line_items[0][price_data][unit_amount]': String(Math.round(Number(cat.usd) * 100)),
+            'line_items[0][price_data][product_data][name]': `ParkPulse ${cat.label}`,
+            'line_items[0][price_data][product_data][description]': `All 65 parks, the AI planner and Mila for ${cat.per} — one-time, no subscription.`,
+          };
+        // Logged-in buyers get their email prefilled, and the claim on
+        // /welcome attaches the pass to the same account.
+        const buyer = sessionUser(req);
         try {
           const session = await stripeApi('/v1/checkout/sessions', {
             mode: 'payment',
-            'line_items[0][price]': STRIPE_PRICES[plan],
+            ...priceParams,
             'line_items[0][quantity]': '1',
             'metadata[plan]': plan,
+            allow_promotion_codes: 'true',
+            ...(buyer && { customer_email: buyer.email }),
             success_url: `${origin}/welcome?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/#pricing`,
           });
           return sendJson(res, 200, { url: session.url });
         } catch (err) {
+          console.log(`checkout: ${err.message}`);
           return sendJson(res, 502, { error: 'checkout failed' });
         }
       }
