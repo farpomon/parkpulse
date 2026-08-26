@@ -582,6 +582,10 @@
   .ontrack-pop .otp-btns { display: flex; gap: .5rem; flex-wrap: wrap; }
   .ontrack-pop .otp-btns .btn { padding: .45rem .8rem; font-size: .85rem; }
   body.gated .ontrack-wrap { display: none !important; }
+  .acct-mila { display: flex; align-items: center; gap: .6rem; margin: 0 0 .8rem; padding: .6rem .75rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    color: var(--muted); font-size: .86rem; line-height: 1.35; }
+  .acct-mila img { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
   .acct-set { display: flex; align-items: center; justify-content: space-between; gap: .8rem;
     margin: 0 0 .9rem; padding-bottom: .8rem; border-bottom: 1px solid var(--border);
     color: var(--muted); font-size: .9rem; font-weight: 700; }
@@ -862,6 +866,7 @@
   <label class="acct-set"><span id="lang-lbl">Language</span>
     <select id="lang" title="Language" aria-label="Language"></select></label>
   <div id="acct-logged-out">
+    <div class="acct-mila" id="acct-mila"><img src="/img/mila/mila-wink-160.webp" alt="" width="40" height="40"><span id="acct-mila-txt"></span></div>
     <h3 id="acct-title">Log in</h3>
     <p id="acct-sub">Your pass follows your account onto any device.</p>
     <form id="acct-form">
@@ -1449,6 +1454,40 @@
             load();
     }));
   }
+
+  // Mila walks the account journey too. One random line per moment, so the
+  // hundredth login still gets a little sparkle instead of a form label.
+  const MILA_SAYS = {
+    login: [
+      'Tell me who you are, and I\'ll remember your whole crew ✨',
+      'One little login and your plans follow you everywhere — like pixie dust, but useful.',
+      'I never forget a friend — sign in and I\'ll prove it.',
+      'Your magic carpet is ready — it just needs an email address.',
+    ],
+    signup: [
+      'New friends are my favorite kind ✨ This takes less time than one loop of the carousel.',
+      'An account is just a name and an email — the magic I add myself.',
+      'Join the story — your first free plan is waiting on the other side.',
+      'Every great park day starts with a name on the guest list ✨',
+    ],
+    verify: [
+      'I sent a little spell to your inbox — six digits, no wand required ✨',
+      'Check your mail! The code proves it\'s really you — magic hates impostors.',
+      'Six magic numbers stand between you and your park day ✨',
+    ],
+    freeplan: [
+      'Your first plan is free — I just need to know who I\'m planning for ✨ Log in and it\'s yours.',
+      'One free wish per friend! Sign in so I know it\'s you, and I\'ll get planning ✨',
+      'Magic needs a name on the guest list — log in (it\'s free) and today\'s plan is yours.',
+    ],
+    welcome: [
+      'Welcome back, {name}! The park missed you ✨',
+      '{name}! Just in time — the queues are behaving today.',
+      'There you are, {name} — let\'s make some magic ✨',
+    ],
+  };
+  const milaSays = (moment, name) => tr(MILA_SAYS[moment][Math.floor(Math.random() * MILA_SAYS[moment].length)])
+    .replace('{name}', name || tr('Dear Friend'));
 
   const WAND_MSG = () => tr('My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.');
   function showUpsell() {
@@ -2070,6 +2109,14 @@
     // enforces the matching consultant allowance; this is the polite half.
     if (!isPro && !opts.quiet) {
       if (current !== FREE_PARK || planDate) { showUpsell(); return; }
+      // The free wish belongs to a verified account — that is how one person
+      // stays one person. No login yet: Mila asks for one, warmly.
+      if (!localStorage.getItem('pp-email')) {
+        toast(milaSays('freeplan'));
+        acctMode = 'login';
+        openAcct();
+        return;
+      }
       let used = null;
       try { used = localStorage.getItem('pp-free-plan'); } catch {}
       if (used === parkDay()) {
@@ -3698,6 +3745,8 @@
     $('acct-title').style.display = 'none';
     $('acct-sub').style.display = 'none';
     $('acct-verify').style.display = 'block';
+    const am = document.getElementById('acct-mila-txt');
+    if (am) am.textContent = milaSays('verify');
     $('verify-title').textContent = tr('Check your inbox 📬');
     $('verify-sub').childNodes[0].nodeValue = tr('We emailed a 6-digit code to') + ' ';
     $('verify-spam').textContent = tr("Didn't get it? Check your spam folder.");
@@ -3819,7 +3868,7 @@
     $('acct-err').textContent = '';
     $('acct-sheet').classList.add('open');
     $('sheet-bg').classList.add('open');
-    if (!email) setTimeout(() => $('acct-email').focus(), 200);
+    if (!email) { renderAcctMode(); setTimeout(() => $('acct-email').focus(), 200); }
   }
 
   function closeAcct() {
@@ -3972,6 +4021,8 @@
     $('acct-pw-hint').style.display = login ? 'none' : '';
     $('acct-forgot').parentElement.style.display = login ? '' : 'none';
     $('acct-err').textContent = '';
+    const am = document.getElementById('acct-mila-txt');
+    if (am) am.textContent = milaSays(login ? 'login' : 'signup');
   }
   $('acct-toggle').addEventListener('click', () => {
     acctMode = acctMode === 'login' ? 'signup' : 'login';
@@ -4008,7 +4059,7 @@
       applyAuth(data);
       $('acct-pw').value = '';
       closeAcct();
-      toast(`${tr('Welcome back')}, ${localStorage.getItem('pp-name') || tr('Dear Friend')}! 👋`);
+      toast(milaSays('welcome', localStorage.getItem('pp-name')));
       // Every login re-opens the day questions — the big Mila card inside
       // offers the one-tap skip when she already remembers the crew.
       setTimeout(openWizard, 400);
@@ -4042,7 +4093,7 @@
       $('acct-pw').value = '';
       hideVerify();
       closeAcct();
-      if (wasSignup) toast(`${tr('Welcome aboard')}, ${localStorage.getItem('pp-name') || tr('Dear Friend')}! 🎢`);
+      if (wasSignup) toast(milaSays('welcome', localStorage.getItem('pp-name')));
       if (wasSignup) setTimeout(openWizard, 400);
       load();
     } catch { $('verify-err').textContent = tr('Connection trouble — try again.'); }

@@ -435,9 +435,6 @@ function cleanFirstName(raw) {
 // stand-in so the app's later greetings make sense.
 const NAME_NOTE = "That one made Mila hide behind her wings! We'll go with 'Dear Friend' for now — you can tell us your real name any time in your account.";
 
-// One free consultant call per day per client, tracked in memory. A restart
-// resets it; the free plan is a taste, not a metered entitlement.
-const FREE_CONSULT = new Map();
 function hasAccess(req) {
   if (!PRO_GATE) return true;
   if (passFromReq(req)) return true;
@@ -3112,19 +3109,22 @@ const server = http.createServer(async (req, res) => {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
         // Free tier: exactly ONE consultant call per day — the review that
         // rides along with the single free "Plan my day" — and only for the
-        // free park, only about today. Everything else is 402. Server-side,
-        // because a hidden button is not a limit.
+        // free park, only about today. The wish belongs to a VERIFIED
+        // ACCOUNT, not an IP: sessions only exist after the email code, so a
+        // session here proves a real address, and the ledger is per email in
+        // the database — durable across restarts and devices.
         if (!hasAccess(req)) {
           const freePark = typeof parsed.park === 'string' && parsed.park === FREE_PARK;
           const today = !(typeof parsed.planDate === 'string' && parsed.planDate);
           if (!freePark || !today) return sendJson(res, 402, { error: 'pass required' });
-          const fkey = throttleIdentity(req).slice(0, 64);
+          const s2 = sessionUser(req);
+          if (!s2) return sendJson(res, 401, { error: 'Your free daily plan is waiting — log in (free) so Mila knows who she is planning for.' });
+          const fkey = `freewish:${s2.email}`;
           const fday = etNow().date;
-          if (FREE_CONSULT.get(fkey) === fday) {
+          if (db.kv.get(fkey) === fday) {
             return sendJson(res, 402, { error: 'My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.' });
           }
-          FREE_CONSULT.set(fkey, fday);
-          if (FREE_CONSULT.size > 20000) FREE_CONSULT.clear(); // bounded memory
+          db.kv.set(fkey, fday);
         }
         const { park, messages, favorites, planPicks, subscription } = parsed;
         // Group profile from the setup wizard — whitelisted, never trusted raw.
