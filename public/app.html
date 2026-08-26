@@ -1339,7 +1339,13 @@
     if (searching || !hasLands) {
       const list = visibleRides();
       if (!list.length) {
-        $('rides').innerHTML = `<div class="state">${tr('No rides match')} “${query}”.</div>`;
+        // With no query this is not a search miss -- it is a park with nothing
+        // to show, and "No rides match \u201C\u201D" is nonsense to read.
+        $('rides').innerHTML = query.trim()
+          ? `<div class="state">${tr('No rides match')} \u201C${esc(query)}\u201D.</div>`
+          : `<div class="state"><img class="mila-mini" src="/img/mila/mila-nervous-160.webp" alt=""> ${tr('No attractions are reporting right now. Try Retry, or pick another park.')}<br><br><button class="btn" id="retry-empty">${tr('Retry')}</button></div>`;
+        const re = document.getElementById('retry-empty');
+        if (re) re.addEventListener('click', () => load());
         return;
       }
       $('rides').innerHTML = closureNote() + list.map(rideRow).join('') + heightHiddenNote();
@@ -2030,13 +2036,15 @@
       loadWeather();
       if (lastData.source === 'unavailable') {
         $('rides').classList.remove('skeleton');
-        $('rides').innerHTML = `<div class="state">Live waits for ${lastData.park} aren't available right now — try again in a bit.<br><br><button class="btn" id="retry">Retry</button></div>`;
+        $('rides').innerHTML = `<div class="state"><img class="mila-mini" src="/img/mila/mila-nervous-160.webp" alt=""> ${tr('Live waits for')} ${esc(lastData.park)} ${tr("aren't available right now — the park's feed is quiet. Mila can't plan a day without them.")}<br><br><button class="btn" id="retry">${tr('Retry')}</button></div>`;
         $('retry').addEventListener('click', () => load());
+        syncPlanHero();
         updatePlanbar();
         return;
       }
       renderRides();
       updatePlanbar();
+      syncPlanHero();
       if (viewMode === 'map') renderMap();
     } catch {
       $('rides').classList.remove('skeleton');
@@ -2160,12 +2168,28 @@
   // biggest open headliners.
   $('plan-hero-btn').addEventListener('click', () => {
     $('plan-day').click();
-    $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (rides.length) $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-  const syncPlanHero = () => { $('plan-hero').style.display = $('plan-out').innerHTML.trim() ? 'none' : ''; };
+  const syncPlanHero = () => {
+    // Hidden while a plan is on screen, and while the park has no rides to
+    // plan with -- an inviting card over an empty board is a broken promise.
+    const dead = !rides.length && Boolean(lastData);
+    $('plan-hero').style.display = ($('plan-out').innerHTML.trim() || dead) ? 'none' : '';
+  };
   $('plan-day').addEventListener('click', () => {
     if (!isPro) { showUpsell(); return; }
-    if (!rides.length) return;
+    // Nothing to plan with: the feed gave us no rides for this park. Saying so
+    // beats a button that silently does nothing -- the failure is upstream and
+    // the honest move is to name it and offer the two ways out.
+    if (!rides.length) {
+      // lastData set means the feed already answered -- with nothing. Only a
+      // missing lastData is genuinely "still loading".
+      toast(lastData
+        ? tr("No live ride data for this park right now — try again shortly, or pick another park.")
+        : tr('Still loading this park — give it a second.'));
+      $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     if (!pickedNames.size) {
       const doneSet = new Set(doneOrder);
       const open = rides.filter((r) => r.open && !doneSet.has(r.name) && passesFilter(r));
