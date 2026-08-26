@@ -841,6 +841,11 @@
   <div id="acct-logged-in" style="display:none">
     <h3>Account</h3>
     <p class="acct-status"><b id="acct-who"></b><span id="acct-plan"></span><span id="acct-devices" style="display:block;color:var(--muted);font-size:.85rem"></span></p>
+    <div id="my-plans" style="margin:0 0 .9rem"></div>
+    <label style="display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;font-size:.9rem;color:var(--muted)">
+      <input type="checkbox" id="eve-mail" checked style="width:1.1rem;height:1.1rem;accent-color:var(--brand)">
+      <span id="eve-mail-lbl">🌙 Email me each plan the evening before</span>
+    </label>
     <button class="btn wide" id="acct-logout">Log out</button>
     <button class="btn wide" id="acct-logout-all" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
     <div id="acct-wa" style="display:none;margin-top:.9rem;border:1px solid var(--border);border-radius:12px;padding:.85rem">
@@ -2139,6 +2144,13 @@
     syncPlanHero();
     planStash[current] = { planDate: planDate || null };
     savePlanStash();
+    // Logged in: the plan follows the account. This is what the My-plans
+    // library lists, the trip itinerary checks off, and the night-before
+    // email replays — one write, three features.
+    if (localStorage.getItem('pp-email')) {
+      api('/api/plans', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ park: current, date: planDate || parkDay(), stops: planStops, savedMin: planSaved }) }).catch(() => {});
+    }
     // The plan renders into the Plan pane; on a phone that is off-screen from
     // the board, so take the user to the thing they just asked for — the plan
     // itself, not the top of the pane, which is skip card and forecast. A
@@ -2189,7 +2201,15 @@
       } catch { toast(tr('Connection trouble — try again.')); }
       finally { btn.disabled = false; btn.textContent = label; }
     });
-    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; syncPlanHero(); delete planStash[current]; savePlanStash(); if (viewMode === 'map') renderMap(); });
+    $('plan-clear').addEventListener('click', () => {
+      $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; syncPlanHero();
+      delete planStash[current]; savePlanStash();
+      if (localStorage.getItem('pp-email')) {
+        api('/api/plans/delete', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ park: current, date: planDate || parkDay() }) }).catch(() => {});
+      }
+      if (viewMode === 'map') renderMap();
+    });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -2562,12 +2582,54 @@
     $('sheet-bg').classList.add('open');
   }
 
+  // date|park -> summary of the saved plan, for the itinerary's day rows.
+  let myPlansIdx = {};
+  async function loadPlansIdx() {
+    myPlansIdx = {};
+    if (!localStorage.getItem('pp-email')) return;
+    try {
+      const r = await api('/api/plans');
+      if (r.ok) for (const pl of (await r.json()).plans || []) myPlansIdx[`${pl.date}|${pl.park}`] = pl;
+    } catch {}
+  }
+
   function tripRows(plan) {
+    const today = parkDay();
     return plan.map((d) => {
       const day = new Date(d.date + 'T12:00:00');
       const dowName = day.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}</span></div>`;
+      const saved = myPlansIdx[`${d.date}|${d.park}`];
+      const past = d.date < today;
+      const action = past ? ''
+        : saved ? `<button class="btn" data-trip-day="${d.park}|${d.date}|1" style="padding:.35rem .7rem;font-size:.82rem">✓ ${tr('Open plan')}</button>`
+        : `<button class="btn" data-trip-day="${d.park}|${d.date}|0" style="padding:.35rem .7rem;font-size:.82rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">${tr('Plan this day')}</button>`;
+      return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}${saved ? `<br><span class="why">✓ ${saved.attractions} ${tr('rides planned')}${saved.first ? `, ${tr('first at')} ${esc(saved.first)}` : ''}</span>` : ''}</span>${action}</div>`;
     }).join('');
+  }
+
+  // From the itinerary straight into the planner for that park and day.
+  async function jumpToTripDay(park, date, hasPlan) {
+    $('trip-sheet').classList.remove('open');
+    $('sheet-bg').classList.remove('open');
+    if (hasPlan) return openSavedPlan(park, date);
+    if (park !== current && parks[park]) {
+      current = park; dest = parks[park].group;
+      localStorage.setItem('pp-park', park);
+      await load();
+    }
+    planDate = date > parkDay() ? date : null;
+    renderDayOptions();
+    if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
+    if (!planDate) $('start-hour').value = 'now';
+    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan'); syncTabs('plan'); }
+    $('plan-hero-btn').focus({ preventScroll: true });
+  }
+
+  function bindTripDayButtons() {
+    $('trip-out').querySelectorAll('[data-trip-day]').forEach((b) => b.addEventListener('click', () => {
+      const [park, date, has] = b.dataset.tripDay.split('|');
+      jumpToTripDay(park, date, has === '1');
+    }));
   }
 
   async function renderSavedTrip() {
@@ -2579,7 +2641,13 @@
     if (saved && saved.plan) {
       savedTrip = saved;
       $('trip-onsite').checked = !!saved.onsite;
-      $('trip-out').innerHTML = `<p class="why" style="color:var(--muted);margin:.8rem 0 .2rem">Your saved trip — ${saved.dest}:</p>` + tripRows(saved.plan) + bookAdvice(saved);
+      await loadPlansIdx();
+      const anyPlanned = saved.plan.some((d) => myPlansIdx[`${d.date}|${d.park}`]);
+      $('trip-out').innerHTML = `<p class="why" style="color:var(--muted);margin:.8rem 0 .2rem">${tr('Your saved trip')} — ${saved.dest}:</p>` + tripRows(saved.plan) + bookAdvice(saved)
+        + (anyPlanned ? `<button class="btn wide" id="trip-ics" style="margin-top:.6rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">📅 ${tr('Add my trip to my calendar')}</button>` : '');
+      bindTripDayButtons();
+      const ti = document.getElementById('trip-ics');
+      if (ti) ti.addEventListener('click', downloadTripIcs);
     }
   }
 
@@ -3330,6 +3398,78 @@
     return `${names[plan] || plan} · active until ${until}`;
   }
 
+  // --- My plans: the saved-plan library under the You tab -------------------
+  async function renderMyPlans() {
+    const box = document.getElementById('my-plans');
+    if (!box) return;
+    box.innerHTML = '';
+    let rows = [];
+    try { const r = await api('/api/plans'); if (r.ok) rows = (await r.json()).plans || []; } catch {}
+    if (!rows.length) return;
+    const today = parkDay();
+    const items = rows.map((pl) => {
+      const past = pl.date < today;
+      const label = pl.date === today ? tr('Today')
+        : new Date(pl.date + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+      return `<div class="step" style="${past ? 'opacity:.55' : ''}"><span class="time">${label}</span>
+        <span class="what"><b>${esc(parks[pl.park]?.name || pl.park)}</b> · ${pl.attractions} ${tr('rides')}${pl.first ? ` · ${tr('first at')} ${esc(pl.first)}` : ''}</span>
+        <button class="btn" data-open-plan="${pl.park}|${pl.date}" style="padding:.35rem .7rem;font-size:.82rem">${tr('Open')}</button>
+        <button class="stepdone" data-del-plan="${pl.park}|${pl.date}" title="${tr('Delete this plan')}" aria-label="${tr('Delete this plan')}">✕</button></div>`;
+    }).join('');
+    box.innerHTML = `<p style="margin:0 0 .3rem;font-weight:800">🗓 ${tr('My plans')}</p>${items}
+      <button class="btn wide" id="plans-ics" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">📅 ${tr('Add my trip to my calendar')}</button>`;
+    box.querySelectorAll('[data-open-plan]').forEach((b) => b.addEventListener('click', () => {
+      const [park, date] = b.dataset.openPlan.split('|');
+      openSavedPlan(park, date);
+    }));
+    box.querySelectorAll('[data-del-plan]').forEach((b) => b.addEventListener('click', async () => {
+      const [park, date] = b.dataset.delPlan.split('|');
+      try { await api('/api/plans/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ park, date }) }); } catch {}
+      renderMyPlans();
+    }));
+    const ics = document.getElementById('plans-ics');
+    if (ics) ics.addEventListener('click', downloadTripIcs);
+  }
+
+  async function downloadTripIcs() {
+    try {
+      const r = await api('/api/plans.ics');
+      if (!r.ok) { toast(tr('Nothing to add yet — save a trip or a plan first.')); return; }
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'parkpulse-trip.ics';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch { toast(tr('Something went wrong.')); }
+  }
+
+  // Reopen a saved plan: land on its park and day, then rebuild locally —
+  // Mila's read comes from cache if she has one; never a fresh AI call.
+  async function openSavedPlan(park, date) {
+    let saved = null;
+    try { const r = await api(`/api/plans/one?park=${encodeURIComponent(park)}&date=${encodeURIComponent(date)}`); if (r.ok) saved = await r.json(); } catch {}
+    if (!saved) { toast(tr('That plan is gone — build a fresh one.')); return; }
+    $('acct-sheet').classList.remove('open');
+    $('sheet-bg').classList.remove('open');
+    if (park !== current && parks[park]) {
+      current = park; dest = parks[park].group;
+      localStorage.setItem('pp-park', park);
+      await load();
+    }
+    planDate = date > parkDay() ? date : null;
+    renderDayOptions();
+    // Mirror the Day dropdown's handler: a future day has no "now", and an
+    // arrival of "now" outside park hours collapses the plan to nothing.
+    if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
+    if (!planDate) $('start-hour').value = 'now';
+    pickedNames.clear();
+    for (const st of saved.stops) if (st.name) pickedNames.add(st.name);
+    buildPlan({ quiet: true });
+    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
+    requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
   function openAcct() {
     const email = localStorage.getItem('pp-email');
     $('acct-logged-out').style.display = email ? 'none' : 'block';
@@ -3340,7 +3480,9 @@
       $('acct-devices').textContent = '';
       api('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => {
         if (d && d.devices) $('acct-devices').textContent = `Active on ${d.devices} device${d.devices === 1 ? '' : 's'} (max 5)`;
+        if (d) $('eve-mail').checked = d.eveningMail !== false;
       }).catch(() => {});
+      renderMyPlans();
     }
     hideVerify();
     $('acct-del').style.display = 'none';
@@ -3471,6 +3613,10 @@
 
 
   $('acct-btn').addEventListener('click', openAcct);
+  $('eve-mail').addEventListener('change', (e) => {
+    api('/api/plans/evening-mail', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ on: e.target.checked }) }).catch(() => {});
+  });
   $('acct-cancel').addEventListener('click', closeAcct);
   $('acct-forgot').addEventListener('click', async () => {
     const email = $('acct-email').value.trim();

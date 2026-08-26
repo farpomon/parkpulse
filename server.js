@@ -827,6 +827,25 @@ function planMailBlocked(email) {
   return hits.length > 6;
 }
 
+// One sanitizer for every place a client hands us a plan: the email endpoint,
+// the saved-plans store, and (indirectly) the night-before mailer that replays
+// stored rows. Anything that renders into an email goes through here first.
+function sanitizeStops(raw) {
+  return (Array.isArray(raw) ? raw.slice(0, 34) : [])
+    .filter((st) => st && (typeof st.name === 'string' || typeof st.break === 'string'))
+    .map((st) => (typeof st.name === 'string'
+      ? {
+        name: st.name.slice(0, 120),
+        time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
+        wait: Number.isFinite(st.wait) ? Math.max(0, Math.round(st.wait)) : null,
+      }
+      : {
+        break: st.break.slice(0, 80),
+        time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
+        why: typeof st.why === 'string' ? st.why.slice(0, 140) : '',
+      }));
+}
+
 async function planKpis(park, stops, profile) {
   const rideNames = stops.filter((st) => st.name).map((st) => st.name);
   const geo = db.geo.get(park.slug);
@@ -1256,7 +1275,69 @@ function sweepDeletedAccounts() {
     }
   }
 }
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
+
+// --- Night-before plan emails ------------------------------------------------
+// Zero taps during the trip: the evening before a saved plan's date (18:00 to
+// 20:59 at THAT PARK), the advance-plan email goes out on its own. mailed_at
+// makes each send one-shot; the account-level toggle turns the whole thing
+// off. Sends only ever go to the account's own address.
+async function sweepEveningPlanMail() {
+  if (!RESEND_KEY) return; // no mailer configured — nothing to sweep
+  let sent = 0;
+  // "Tomorrow" differs by park timezone, so collect the candidate dates from
+  // both edges of the map and let the per-park local-time check decide.
+  const dates = new Set();
+  for (const tz of ['Pacific/Honolulu', 'UTC', 'Asia/Tokyo']) {
+    try { dates.add(addDays(new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date()), 1)); } catch {}
+  }
+  for (const date of dates) {
+    for (const row of db.plans.unmailedFor(date)) {
+      if (sent >= 10) return; // spread bursts across sweeps
+      const park = PARKS[row.park];
+      if (!park) continue;
+      let local;
+      try {
+        local = new Intl.DateTimeFormat('en-CA', { timeZone: park.tz, hour: 'numeric', hourCycle: 'h23' })
+          .formatToParts(new Date());
+      } catch { continue; }
+      const hour = Number(local.find((x) => x.type === 'hour')?.value);
+      const todayAtPark = new Intl.DateTimeFormat('en-CA', { timeZone: park.tz }).format(new Date());
+      // Only in the evening window, and only when the plan is for tomorrow
+      // at that park — a plan for further out waits for its own eve.
+      if (!(hour >= 18 && hour <= 20) || addDays(todayAtPark, 1) !== row.date) continue;
+      const user = db.users.get(row.email);
+      if (!user || user.evening_mail === 0 || user.delete_at) { db.plans.markMailed(row.email, row.park, row.date); continue; }
+      let stops = [];
+      try { stops = sanitizeStops(JSON.parse(row.stops)); } catch {}
+      if (!stops.some((st) => st.name)) { db.plans.markMailed(row.email, row.park, row.date); continue; }
+      // Mark BEFORE sending: a crash after send must not re-mail tomorrow.
+      db.plans.markMailed(row.email, row.park, row.date);
+      try {
+        const profile = (db.daystate.get(row.email) || {}).profile || null;
+        const kpis = await planKpis(park, stops, profile);
+        kpis.dodged = null; // future day: no live-now comparison
+        const day = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
+          .format(new Date(`${row.date}T12:00:00Z`));
+        let briefing = '';
+        if (consultant.enabled()) {
+          try {
+            briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, future: true, stops, kpis, profile, savedMin: row.saved_min || 0, lang: 'English' });
+          } catch (err) { console.log(`evening briefing failed: ${err.message}`); }
+        }
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true });
+        const firstRide = stops.find((st) => st.name && st.time);
+        await sendEmail(row.email, `Tomorrow at ${park.name} — your plan is ready${firstRide ? ` (first ride ${firstRide.time})` : ''}`, html);
+        sent += 1;
+        console.log(`evening plan email: ${park.slug} ${row.date} -> ${row.email}`);
+      } catch (err) {
+        console.log(`evening plan email failed (${park.slug} ${row.date}): ${err.message}`);
+      }
+    }
+  }
+  // Old plans expire quietly; the library shows upcoming days, not history.
+  try { db.plans.purgeOld(addDays(new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date()), -30)); } catch {}
+}
 setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
@@ -1947,6 +2028,7 @@ const server = http.createServer(async (req, res) => {
       verified: Boolean(s.user.verified),
       admin: ADMIN_EMAILS.has(s.email),
       devices: db.sessions.devices(s.email).length,
+      eveningMail: s.user.evening_mail !== 0,
       plan: active ? s.user.plan : null,
       exp: active ? s.user.plan_exp : null,
       passToken: active ? signPass(s.user.plan, s.user.plan_exp) : null,
@@ -1954,6 +2036,72 @@ const server = http.createServer(async (req, res) => {
   }
 
   // The account's saved multi-day trip plan.
+  // Saved plans: the library under the You tab, and the itinerary's per-day
+  // status. Summaries only — the full stops come back when one is opened.
+  if (url.pathname === '/api/plans' && req.method === 'GET') {
+    const s2 = sessionUser(req);
+    if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+    const rows = db.plans.list(s2.email).map((r) => {
+      let stops = []; try { stops = JSON.parse(r.stops); } catch {}
+      const named = stops.filter((st) => st.name);
+      return { park: r.park, date: r.date, attractions: named.length, first: named[0]?.time || null, savedMin: r.saved_min || 0 };
+    });
+    return sendJson(res, 200, { plans: rows });
+  }
+  if (url.pathname === '/api/plans/one' && req.method === 'GET') {
+    const s2 = sessionUser(req);
+    if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+    const park = url.searchParams.get('park'), date = url.searchParams.get('date');
+    if (!PARKS[park] || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return sendJson(res, 400, { error: 'invalid' });
+    const row = db.plans.get(s2.email, park, date);
+    if (!row) return sendJson(res, 404, { error: 'no plan saved' });
+    let stops = []; try { stops = JSON.parse(row.stops); } catch {}
+    return sendJson(res, 200, { park, date, stops, savedMin: row.saved_min || 0 });
+  }
+  // The whole trip as an .ics file — each planned day is an event with the
+  // running order in the notes. Own account only; nothing here is public.
+  if (url.pathname === '/api/plans.ics' && req.method === 'GET') {
+    const s2 = sessionUser(req);
+    if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+    const icsEsc = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+    const events = [];
+    const seen = new Set();
+    for (const r of db.plans.list(s2.email)) {
+      const park = PARKS[r.park]; if (!park) continue;
+      let stops = []; try { stops = JSON.parse(r.stops); } catch {}
+      const named = stops.filter((st) => st.name);
+      if (!named.length) continue;
+      seen.add(`${r.date}|${r.park}`);
+      const order = stops.map((st) => st.name ? `${st.time ? st.time + ' — ' : ''}${st.name}` : `${st.time ? st.time + ' — ' : ''}${st.break}`).join('\n');
+      events.push({ date: r.date, title: `${park.name} — ${named.length} attractions (ParkPulse)`, desc: `First ride ${named[0].time || 'at opening'}.\n\n${order}` });
+    }
+    let trip = null; try { trip = db.trips.get(s2.email); } catch {}
+    if (trip) {
+      let plan = []; try { plan = JSON.parse(trip.plan); } catch {}
+      for (const d of plan) {
+        if (seen.has(`${d.date}|${d.park}`) || !PARKS[d.park]) continue;
+        events.push({ date: d.date, title: `${PARKS[d.park].name} (ParkPulse trip)`, desc: 'Park day from your saved trip — build a plan in ParkPulse for a running order.' });
+      }
+    }
+    if (!events.length) return sendJson(res, 404, { error: 'no plans or trip saved yet' });
+    events.sort((a, b) => a.date < b.date ? -1 : 1);
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, 'Z');
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ParkPulse//trip//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    for (const ev of events) {
+      const d = ev.date.replace(/-/g, '');
+      lines.push('BEGIN:VEVENT',
+        `UID:pp-${ev.date}-${icsEsc(ev.title).slice(0, 24).replace(/[^A-Za-z0-9]/g, '')}@parkpulse.fun`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${d}`,
+        `SUMMARY:${icsEsc(ev.title)}`,
+        `DESCRIPTION:${icsEsc(ev.desc)}`,
+        'END:VEVENT');
+    }
+    lines.push('END:VCALENDAR');
+    res.writeHead(200, { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': 'attachment; filename="parkpulse-trip.ics"' });
+    return res.end(lines.join('\r\n'));
+  }
+
   if (url.pathname === '/api/trip' && req.method === 'GET') {
     const s = sessionUser(req);
     if (!s) return sendJson(res, 401, { error: 'not logged in' });
@@ -2472,20 +2620,7 @@ const server = http.createServer(async (req, res) => {
         if (!sess) return sendJson(res, 401, { error: 'log in first' });
         const park = PARKS[parsed.park];
         if (!park) return sendJson(res, 400, { error: 'unknown park' });
-        const rawStops = Array.isArray(parsed.stops) ? parsed.stops.slice(0, 34) : [];
-        const stops = rawStops
-          .filter((st) => st && (typeof st.name === 'string' || typeof st.break === 'string'))
-          .map((st) => (typeof st.name === 'string'
-            ? {
-              name: st.name.slice(0, 120),
-              time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
-              wait: Number.isFinite(st.wait) ? Math.max(0, Math.round(st.wait)) : null,
-            }
-            : {
-              break: st.break.slice(0, 80),
-              time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
-              why: typeof st.why === 'string' ? st.why.slice(0, 140) : '',
-            }));
+        const stops = sanitizeStops(parsed.stops);
         if (!stops.some((st) => st.name)) return sendJson(res, 400, { error: 'no plan to send' });
         if (planMailBlocked(sess.email)) return sendJson(res, 429, { error: 'you have sent a few plans already today — try again tomorrow' });
 
@@ -2976,6 +3111,39 @@ const server = http.createServer(async (req, res) => {
           console.log(`consultant error: ${err.message}`);
           return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
         }
+      }
+
+      // Save (or update) the plan for one park+date on the account. Written
+      // by the app on every build for logged-in users, so the library and
+      // the night-before email always see the latest version.
+      if (url.pathname === '/api/plans') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'log in to save plans' });
+        const park = PARKS[parsed.park] ? parsed.park : null;
+        const date = typeof parsed.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : null;
+        if (!park || !date) return sendJson(res, 400, { error: 'invalid plan' });
+        const stops = sanitizeStops(parsed.stops);
+        if (!stops.some((st) => st.name)) return sendJson(res, 400, { error: 'empty plan' });
+        const savedMin = Number.isFinite(parsed.savedMin) ? Math.max(0, Math.round(parsed.savedMin)) : 0;
+        if (db.plans.list(s2.email).length >= 40 && !db.plans.get(s2.email, park, date)) {
+          return sendJson(res, 400, { error: 'plan library is full — delete a few old ones' });
+        }
+        db.plans.set(s2.email, park, date, JSON.stringify(stops), savedMin);
+        return sendJson(res, 200, { ok: true });
+      }
+      if (url.pathname === '/api/plans/delete') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+        if (!PARKS[parsed.park] || !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date || '')) return sendJson(res, 400, { error: 'invalid' });
+        db.plans.remove(s2.email, parsed.park, parsed.date);
+        return sendJson(res, 200, { ok: true });
+      }
+      // Night-before plan emails on or off, per account.
+      if (url.pathname === '/api/plans/evening-mail') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+        db.users.setEveningMail(s2.email, parsed.on ? 1 : 0);
+        return sendJson(res, 200, { ok: true, on: Boolean(parsed.on) });
       }
 
       if (url.pathname === '/api/trip') {

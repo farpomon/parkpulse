@@ -101,6 +101,16 @@ db.exec(`
     plan TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS saved_plans (
+    email TEXT NOT NULL,
+    park TEXT NOT NULL,
+    date TEXT NOT NULL,
+    stops TEXT NOT NULL,
+    saved_min INTEGER DEFAULT 0,
+    mailed_at TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (email, park, date)
+  );
   CREATE TABLE IF NOT EXISTS advisor_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT,
@@ -186,6 +196,7 @@ for (const ddl of [
   "ALTER TABLE trips ADD COLUMN notified INTEGER DEFAULT 0",
   "ALTER TABLE users ADD COLUMN delete_at INTEGER",
   "ALTER TABLE users ADD COLUMN delete_token TEXT",
+  "ALTER TABLE users ADD COLUMN evening_mail INTEGER DEFAULT 1",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
@@ -269,6 +280,7 @@ const users = {
     db.prepare('INSERT INTO users (email, salt, hash, created_at, verified) VALUES (?, ?, ?, ?, ?)').run(email, salt, hash, new Date().toISOString(), verified),
   setVerifyCode: (email, codeHash, exp) =>
     db.prepare('UPDATE users SET verify_code = ?, verify_exp = ? WHERE email = ?').run(codeHash, exp, email),
+  setEveningMail: (email, on) => db.prepare('UPDATE users SET evening_mail = ? WHERE email = ?').run(on, email),
   markVerified: (email) =>
     db.prepare('UPDATE users SET verified = 1, verify_code = NULL, verify_exp = NULL WHERE email = ?').run(email),
   grant: (email, plan, exp) =>
@@ -414,6 +426,22 @@ const trips = {
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
 
+// One saved plan per account+park+date. `stops` is the sanitized JSON the
+// plan email already trusts; mailed_at makes the night-before send one-shot.
+const plans = {
+  get: (email, park, date) => db.prepare('SELECT stops, saved_min FROM saved_plans WHERE email = ? AND park = ? AND date = ?').get(email, park, date) ?? null,
+  list: (email) => db.prepare('SELECT park, date, stops, saved_min, updated_at FROM saved_plans WHERE email = ? ORDER BY date, park').all(email),
+  set: (email, park, date, stops, savedMin) =>
+    db.prepare('INSERT INTO saved_plans (email, park, date, stops, saved_min, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email, park, date) DO UPDATE SET stops = excluded.stops, saved_min = excluded.saved_min, updated_at = excluded.updated_at')
+      .run(email, park, date, stops, savedMin, new Date().toISOString()),
+  remove: (email, park, date) => db.prepare('DELETE FROM saved_plans WHERE email = ? AND park = ? AND date = ?').run(email, park, date),
+  // Plans for a given date that have not had their night-before email yet.
+  unmailedFor: (date) => db.prepare('SELECT email, park, date, stops, saved_min FROM saved_plans WHERE date = ? AND mailed_at IS NULL').all(date),
+  markMailed: (email, park, date) => db.prepare("UPDATE saved_plans SET mailed_at = ? WHERE email = ? AND park = ? AND date = ?").run(new Date().toISOString(), email, park, date),
+  purgeOld: (before) => db.prepare('DELETE FROM saved_plans WHERE date < ?').run(before),
+  clearUser: (email) => db.prepare('DELETE FROM saved_plans WHERE email = ?').run(email),
+};
+
 // Account deletion (required by both app stores, and the right default anyway).
 // Personal data is destroyed; two tables are de-identified instead of dropped:
 // `passes` are sale records worth keeping for accounting, and `advisor_feedback`
@@ -436,6 +464,7 @@ const accounts = {
       run('sessions', 'DELETE FROM sessions WHERE email = ?');
       run('trips', 'DELETE FROM trips WHERE email = ?');
       run('daystate', 'DELETE FROM daystate WHERE email = ?');
+      run('savedPlans', 'DELETE FROM saved_plans WHERE email = ?');
       run('whatsappLinks', 'DELETE FROM wa_links WHERE email = ?');
       run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
       run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
@@ -559,4 +588,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, rideinfo, dining, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, rideinfo, dining, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
