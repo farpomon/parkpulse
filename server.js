@@ -1580,7 +1580,7 @@ function forecastFor(slug, horizon = 7) {
   // planner can actually use. The model is day-of-week plus a holiday table,
   // which projects arbitrarily far -- what degrades with distance is the
   // holiday coverage, not the arithmetic, and the page says so.
-  const span = Math.min(Math.max(Number(horizon) || 7, 7), 120);
+  const span = Math.min(Math.max(Number(horizon) || 7, 7), 370);
   for (let i = 0; i < span; i++) {
     const d = new Date(Date.now() + i * 86400000);
     // Date and weekday in the PARK's timezone, not the server's.
@@ -2079,9 +2079,12 @@ const server = http.createServer(async (req, res) => {
     const park = PARKS[calPage[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
-    const days = forecastFor(park.slug, 120).days;
+    // A full year: trip planning happens months out, and the model -- weekday
+    // pattern, seasonal months, holiday table -- projects that far honestly,
+    // with the page saying what degrades with distance.
+    const days = forecastFor(park.slug, 365).days;
     let best = null;
-    try { best = bestParkByDate(park.slug, 120); } catch (err) { console.log(`best-park (${park.slug}): ${err.message}`); }
+    try { best = bestParkByDate(park.slug, 365); } catch (err) { console.log(`best-park (${park.slug}): ${err.message}`); }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
     return res.end(pages.renderCalendarPage(park, days, best, REGISTRY, origin));
   }

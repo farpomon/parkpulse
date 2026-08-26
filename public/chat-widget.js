@@ -364,17 +364,12 @@
     };
     if (!document.body) await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
     mount();
-    // Logged-in users get their saved conversation back on any device; the
-    // tab's own sessionStorage history (if any) is fresher, so it wins.
-    if (!state.history.length && localStorage.getItem('pp-session')) {
-      try {
-        const r = await fetch('/api/advisor/history', { headers: authHeaders() });
-        if (r.ok) {
-          const d = await r.json();
-          if (Array.isArray(d.messages) && d.messages.length) { state.history = d.messages.slice(-24); saveHistory(); }
-        }
-      } catch {}
-    }
+    // Deliberately NOT restoring the old transcript: each visit opens a clean
+    // pane. Mila still remembers the person -- her durable notes (party, trip
+    // dates, must-dos, saved via the remember tool) are injected server-side
+    // into every consult -- but memory of you and a wall of last week's
+    // messages are different things, and the user asked for the first without
+    // the second. Same-tab continuity via sessionStorage stays.
     if (state.opts.offsetBottom) $id('ppc-fab').style.bottom = `calc(${state.opts.offsetBottom} + env(safe-area-inset-bottom))`;
     let enabled = opts.enabled;
     // Sent with credentials: /api/config reports access for the caller, and an

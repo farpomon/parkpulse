@@ -221,6 +221,34 @@
   .planai-done { font-size: .82rem; font-weight: 700; color: var(--green, #2e9e6b); }
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
+  /* Free-preview gate: half the board as a teaser, nothing interactive. */
+  body.gated { overflow: hidden; height: 100vh; }
+  #gatecover { display: none; }
+  body.gated #gatecover { display: block; position: fixed; inset: 0; z-index: 70; cursor: pointer;
+    background: linear-gradient(180deg, transparent 30%, var(--bg) 72%); }
+  body.gated #ppc-fab { display: none !important; }
+  body.gated #wiz, body.gated #wiz-bg { display: none !important; }
+  .gate-bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 1rem 1rem calc(1.2rem + env(safe-area-inset-bottom));
+    display: flex; align-items: center; justify-content: center; gap: .7rem; flex-wrap: wrap; text-align: center; }
+  .gate-bar img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--brand); }
+  .gate-bar b { color: var(--ink); }
+  .gate-bar .btn-see { background: var(--brand); color: #fff; border: none; border-radius: 12px; font: inherit;
+    font-weight: 800; padding: .7rem 1.2rem; cursor: pointer; }
+  .gate { display: none; position: fixed; inset: 0; z-index: 120; background: rgba(20, 14, 40, .55);
+    align-items: center; justify-content: center; padding: 1rem; }
+  .gate.open { display: flex; }
+  .gate-card { background: var(--card); border-radius: 20px; max-width: 420px; width: 100%; padding: 1.5rem 1.4rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35); text-align: center; max-height: 90vh; overflow-y: auto; }
+  .gate-mila { border-radius: 50%; border: 3px solid var(--brand); }
+  .gate-card h3 { margin: .6rem 0 .2rem; font-size: 1.25rem; }
+  .gate-sub { color: var(--muted); font-size: .9rem; margin: 0 0 .9rem; }
+  .gate-list { list-style: none; margin: 0 0 1.1rem; padding: 0; text-align: left; }
+  .gate-list li { display: flex; gap: .55rem; align-items: flex-start; font-size: .9rem; padding: .3rem 0; color: var(--ink); }
+  .gate-list li span { flex: 0 0 auto; }
+  .gate-cta { display: block; background: var(--brand); color: #fff; font-weight: 800; text-decoration: none;
+    border-radius: 12px; padding: .8rem; margin-bottom: .5rem; }
+  .gate-later { border: none; background: none; color: var(--muted); font: inherit; font-size: .85rem;
+    cursor: pointer; text-decoration: underline; }
   .mila-mini { width: 22px; height: 22px; border-radius: 50%; vertical-align: -6px; margin-right: .15rem; }
   .hchips { display: block; margin-top: .1rem; }
   .ride-meta { font-size: .74rem; color: var(--muted); margin-top: .25rem; font-weight: 600; }
@@ -582,6 +610,31 @@
 </div>
 
 <div class="onboard-bg" id="wiz-bg"></div>
+<!-- Free-preview gate: shown when PRO_GATE is on and the visitor holds no
+     pass. The board stays half-visible behind a fade as the teaser. -->
+<div id="gatecover"><div class="gate-bar">
+  <img src="/img/mila/mila-welcome-320.webp" alt="">
+  <span><b>Preview only.</b> The full board — and Mila — come with a pass.</span>
+  <button class="btn-see" id="gate-open">See what you're missing</button>
+</div></div>
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="What the pass unlocks">
+  <div class="gate-card">
+    <img src="/img/mila/mila-cool-160.webp" alt="" width="72" height="72" class="gate-mila">
+    <h3>You're seeing the free preview</h3>
+    <p class="gate-sub">The live board keeps moving behind this page. Here's what a pass unlocks:</p>
+    <ul class="gate-list">
+      <li><span>🎢</span>Live wait times for all <b>56 parks</b> — refreshed every minute</li>
+      <li><span>✨</span><b>Mila plans your whole day</b> — one tap, ordered against the crowds, explained</li>
+      <li><span>📏</span>Child height filter — only rides your kid can actually board</li>
+      <li><span>🔔</span>Wait-drop alerts on any ride</li>
+      <li><span>🗓️</span>Plan any day up to 60 out, with weather and events baked in</li>
+      <li><span>📧</span>Your plan emailed, with Mila's read on the day</li>
+    </ul>
+    <a class="gate-cta" href="/#pricing">See passes — one-time, from $24.99</a>
+    <button class="gate-later" id="gate-later">Keep previewing</button>
+  </div>
+</div>
+
 <div class="onboard" id="wiz" role="dialog" aria-modal="true" aria-label="Your group">
   <div class="card">
     <div class="wiz-top"><span class="wiz-dots" id="wiz-dots"></span><a class="wiz-skip" id="wiz-skip">Skip</a></div>
@@ -1186,6 +1239,7 @@
         if (!res.ok) throw new Error();
         localStorage.setItem('pp-pass', data.token);
         isPro = true;
+        applyGate();
         $('plan-out').innerHTML = '';
         syncPlanHero();
         load();
@@ -1504,6 +1558,22 @@
       fail(tr("Your advisor couldn't be reached — the plan below still stands."));
     }
   }
+
+  // The free preview: half the board visible behind a fade, nothing
+  // interactive, and one honest pitch. Applies only when the server says the
+  // gate is on AND the visitor holds no pass -- launch preview stays open.
+  function applyGate() {
+    document.body.classList.toggle('gated', !isPro);
+    if (isPro) { $('gate').classList.remove('open'); return; }
+    if (!sessionStorage.getItem('pp-gate-shown')) {
+      try { sessionStorage.setItem('pp-gate-shown', '1'); } catch {}
+      $('gate').classList.add('open');
+    }
+  }
+  $('gatecover').addEventListener('click', () => $('gate').classList.add('open'));
+  $('gate-open').addEventListener('click', (e) => { e.stopPropagation(); $('gate').classList.add('open'); });
+  $('gate-later').addEventListener('click', () => $('gate').classList.remove('open'));
+  $('gate').addEventListener('click', (e) => { if (e.target === $('gate')) $('gate').classList.remove('open'); });
 
   const authHeadersApp = () => {
     const h = {};
@@ -1911,6 +1981,7 @@
       if (res.status === 402) { // pass expired mid-session
         isPro = false;
         current = FREE_PARK;
+        applyGate();
         renderTabs();
         showUpsell();
         return load({ silent: true });
@@ -2946,6 +3017,7 @@
     if (data.passToken) {
       localStorage.setItem('pp-pass', data.passToken);
       isPro = true;
+      applyGate();
     }
     claimInvite();
   }
@@ -2967,6 +3039,7 @@
         localStorage.setItem('pp-plan', d.plan);
         localStorage.setItem('pp-plan-exp', String(d.exp));
         isPro = true;
+        applyGate();
       }
       toast(tr('Invite accepted — full access unlocked! 🎉'));
       load();
@@ -3293,6 +3366,7 @@
       const saved = localStorage.getItem('pp-park');
       if (saved && parks[saved] && (isPro || saved === FREE_PARK)) current = saved;
       else if (!isPro) current = FREE_PARK;
+      applyGate();
     } catch {
       parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } };
     }
