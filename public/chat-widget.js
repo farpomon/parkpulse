@@ -128,7 +128,7 @@
     root.innerHTML = `
       <button id="ppc-fab" title="Ask Mila, your park advisor" aria-label="Ask Mila, your park advisor"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
       <div id="ppc-panel" role="dialog" aria-label="Park consultant chat">
-        <div id="ppc-head"><div><b>${T()('Park Consultant')}</b><span id="ppc-sub"></span></div>
+        <div id="ppc-head"><div><b>${T()('Mila — your park consultant')}</b><span id="ppc-sub"></span></div>
           <button id="ppc-close" aria-label="Close chat">✕</button></div>
         <div id="ppc-scrollwrap">
           <div id="ppc-msgs"></div>
@@ -182,7 +182,7 @@
     const div = document.createElement('div');
     div.className = 'ppc-bubble ppc-bot';
     const p1 = document.createElement('p');
-    p1.textContent = `The park consultant reads today's live waits at ${parkName} and tells you whether the paid line-skipping pass is worth it, what to ride and in what order, and when to walk straight on instead of queueing.`;
+    p1.textContent = `Mila reads today's live waits at ${parkName} and tells you whether the paid line-skipping pass is worth it, what to ride and in what order, and when to walk straight on instead of queueing — with a little magic in the telling.`;
     const p2 = document.createElement('p');
     p2.textContent = 'It comes with any pass. ';
     const a = document.createElement('a');
@@ -229,7 +229,7 @@
         if (state.locked) {
           lockedBubble(name);
         } else {
-          bubble('bot', `Hi! I'm your park consultant — I can see today's waits at ${name}. Ask me whether Lightning Lane or Express Pass is worth it, or how to plan your day.`);
+          bubble('bot', `Hi, I'm Mila! ✨ I can see today's waits at ${name}, and I'd love to help you write a great chapter of your day — ask me if Lightning Lane or Express Pass is worth it, what to ride first, or how to dodge the crowds.`);
         }
       }
     }
