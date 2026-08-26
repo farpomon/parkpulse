@@ -26,6 +26,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const consultant = require('./consultant');
 const pages = require('./pages');
+const premade = require('./premade');
 const history = require('./history');
 const db = require('./db');
 
@@ -511,6 +512,7 @@ let CLOSURES = {};
 // the same curve or it would be scoring a model nobody is shown. Change one,
 // change both.
 const HOURLY_SHAPE = { 7: .45, 8: .4, 9: .55, 10: .8, 11: 1.0, 12: 1.1, 13: 1.15, 14: 1.15, 15: 1.1, 16: 1.0, 17: .9, 18: .85, 19: .75, 20: .6, 21: .45, 22: .35, 23: .3 };
+premade.init({ hourlyShape: HOURLY_SHAPE });
 // Observed-wait aggregates, keyed park -> hour. Empty until reports accrue;
 // the chart draws its second line only when this fills.
 let ACTUAL_WAITS = {};
@@ -598,6 +600,67 @@ const typicalFor = (slug, rideName) => {
   const key = normName(rideName);
   return MEASURED[slug]?.get(key) ?? TYPICAL[slug]?.get(key) ?? null;
 };
+
+// --- Premade touring plans ---------------------------------------------------
+// The ride universe for a park's premade plans: display names + lands from the
+// tag store (the app populates it the first time anyone opens the park), each
+// with its typical wait for the popularity ranking. Live waits are deliberately
+// NOT used — these pages are evergreen and regenerate weekly.
+async function premadeEntries(slug) {
+  let tags = {};
+  try { tags = JSON.parse(db.ridetags.get(slug) || '{}'); } catch {}
+  const names = Object.keys(tags).filter((n) => tags[n] && typeof tags[n] === 'object');
+  if (names.length) {
+    return names.map((n) => ({
+      name: n,
+      land: tags[n].land || '',
+      base: typicalFor(slug, n) ?? ({ thrill: 40, water: 30, family: 25, gentle: 15, show: 12 }[tags[n].vibe] || 20),
+      tags: tags[n],
+    }));
+  }
+  // No tags yet (nobody has opened this park in the app): take the ride
+  // universe from the feed — names and lands, closed rides included, since a
+  // premade plan describes the park, not this afternoon. Static sample last.
+  try {
+    const w = await getWaits(slug);
+    if (w.rides.length) {
+      return w.rides.map((r) => ({ name: r.name, land: r.land || '', base: typicalFor(slug, r.name) ?? r.wait ?? 20, tags: null }));
+    }
+  } catch {}
+  const sample = SAMPLE[slug];
+  if (!sample) return [];
+  return sample.rides.map((r) => ({ name: r.name, land: '', base: typicalFor(slug, r.name) ?? r.wait, tags: null }));
+}
+
+const PREMADE_TTL = 7 * 24 * 3600 * 1000;
+const PREMADE_MEM = new Map();
+async function premadePlan(slug, personaSlug) {
+  const persona = premade.PERSONAS.find((p) => p.slug === personaSlug);
+  const park = PARKS[slug];
+  if (!persona || !park) return null;
+  const key = `premade:v2:${slug}:${personaSlug}`;   // bump on scheduler changes
+  const hit = PREMADE_MEM.get(key);
+  if (hit && Date.now() - hit.at < PREMADE_TTL) return hit.plan;
+  let stored = null;
+  try { stored = JSON.parse(db.kv.get(key) || 'null'); } catch {}
+  if (stored && Date.now() - stored.at < PREMADE_TTL) {
+    PREMADE_MEM.set(key, stored);
+    return stored.plan;
+  }
+  const plan = premade.buildPremade(park, await premadeEntries(slug), persona);
+  const wrap = { at: Date.now(), plan };
+  PREMADE_MEM.set(key, wrap);
+  try { db.kv.set(key, JSON.stringify(wrap)); } catch {}
+  return plan;
+}
+async function premadeIndexFor(slug) {
+  const out = [];
+  for (const p of premade.PERSONAS) {
+    const plan = await premadePlan(slug, p.slug);
+    if (plan) out.push({ persona: p, plan });
+  }
+  return out;
+}
 
 // Park registry: display data, typical hours/shows, and queue-times matching
 // hints. Static ids are fallbacks — resolveParkIds() corrects them against
@@ -2296,6 +2359,34 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
     return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null, ACTUAL_WAITS[park.slug] || null, CLOSURES[park.slug] || null));
   }
+  // Premade touring plans: the free library. /plans hub, per-park index,
+  // one page per persona, and the JSON the app's deep link consumes.
+  if (url.pathname === '/plans') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderPlansHub(REGISTRY, premade.PERSONAS));
+  }
+  const plansParkMatch = url.pathname.match(/^\/plans\/([a-z-]+)$/);
+  if (plansParkMatch) {
+    const park = PARKS[plansParkMatch[1]];
+    if (!park) { res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' }); return res.end(pages.renderNotFoundPage()); }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderParkPlansPage(park, await premadeIndexFor(park.slug), REGISTRY));
+  }
+  const plansOneMatch = url.pathname.match(/^\/plans\/([a-z-]+)\/([a-z-]+)$/);
+  if (plansOneMatch) {
+    const park = PARKS[plansOneMatch[1]];
+    const plan = park && await premadePlan(park.slug, plansOneMatch[2]);
+    if (!plan) { res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' }); return res.end(pages.renderNotFoundPage()); }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
+    return res.end(pages.renderPremadePlanPage(park, plan, await premadeIndexFor(park.slug), REGISTRY));
+  }
+  const premadeApiMatch = url.pathname.match(/^\/api\/premade\/([a-z-]+)\/([a-z-]+)$/);
+  if (premadeApiMatch) {
+    const plan = PARKS[premadeApiMatch[1]] && await premadePlan(premadeApiMatch[1], premadeApiMatch[2]);
+    if (!plan) return sendJson(res, 404, { error: 'no such plan' });
+    return sendJson(res, 200, plan);
+  }
+
   if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') {
     const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
     const isMap = url.pathname === '/sitemap.xml';
@@ -2303,7 +2394,7 @@ const server = http.createServer(async (req, res) => {
     if (APP_ENV !== 'production') {
       return res.end(isMap ? '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' : 'User-agent: *\nDisallow: /\n');
     }
-    return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug)) : pages.renderRobots(origin));
+    return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug), REGISTRY.map((p) => ({ slug: p.slug, personas: premade.PERSONAS.filter((x) => !x.needsTags).map((x) => x.slug) }))) : pages.renderRobots(origin));
   }
 
   // Tap-for-description: AI-generated once per ride per language, cached in

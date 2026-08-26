@@ -2309,6 +2309,7 @@
   }
 
   let plannerPark = null;
+  let pendingPremade = null;   // persona slug from a /app?premade= deep link
 
   async function load(opts = {}) {
     renderTabs();
@@ -2375,6 +2376,21 @@
       updatePlanbar();
       syncPlanHero();
       if (viewMode === 'map') renderMap();
+      // A premade-plan deep link: fetch the persona's running order, stage its
+      // picks, and build locally. One-shot — a later park switch is a normal day.
+      if (pendingPremade && rides.length) {
+        const persona = pendingPremade;
+        pendingPremade = null;
+        try {
+          const r = await fetch(`/api/premade/${current}/${persona}`);
+          if (r.ok) {
+            const pre = await r.json();
+            pickedNames.clear();
+            for (const st of pre.steps) if (st.name) pickedNames.add(st.name);
+            buildPlan();
+          }
+        } catch {}
+      }
       // A park planned earlier this session gets its plan back for free: the
       // running order recomputes locally and Mila's read replays from cache —
       // no AI call, no jump to the Plan pane.
@@ -4097,6 +4113,18 @@
       const saved = localStorage.getItem('pp-park');
       if (saved && parks[saved] && (isPro || saved === FREE_PARK)) current = saved;
       else if (!isPro) current = FREE_PARK;
+      // Deep link from the premade library: /app?park=X&premade=Y lands on
+      // that park with the persona's picks staged and the plan built locally.
+      // Params are consumed once, then cleaned off the address bar.
+      const qs = new URLSearchParams(location.search);
+      const qPark = qs.get('park'), qPremade = qs.get('premade');
+      if (qPark && parks[qPark] && (isPro || qPark === FREE_PARK)) {
+        current = qPark;
+        dest = parks[qPark].group;
+        localStorage.setItem('pp-park', qPark);
+      }
+      if (qPark || qPremade) history.replaceState(null, '', '/app');
+      if (qPremade && (isPro || current === FREE_PARK)) pendingPremade = qPremade;
       applyGate();
     } catch {
       parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } };

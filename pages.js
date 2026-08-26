@@ -500,7 +500,7 @@ function renderParkPage(park, sample, allParks, bands, curves, actual, closures)
 <p class="sub">${esc(park.group)} &middot; ${esc(park.region)} &middot; typical hours ${hour12(park.open)}&ndash;${hour12(park.close)}</p>
 <div class="card"><p><strong>The one-minute version:</strong> be at the gate 30–45 minutes before opening and ride <strong>${esc(seo.drop[0])}</strong> first. Waits peak from late morning to mid-afternoon — do shows and meals then. The final hour is often as quiet as rope drop. ${showLine}</p>
 <p><strong>${VERDICT_LABEL[seo.worth]}:</strong> ${esc(seo.verdict.split('. ')[0])}.</p>
-<a class="cta" href="/app">See today's live waits free</a></div>
+<a class="cta" href="/app">See today's live waits free</a> <a class="cta" href="/plans/${park.slug}" style="background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Ready-made touring plans</a></div>
 ${curveSection(park, seo)}
 ${dropSection(park, seo)}
 ${monthsSection(park, seo)}
@@ -793,12 +793,18 @@ function renderNotFoundPage() {
 </div></body></html>`;
 }
 
-const renderSitemap = (origin, slugs) => {
+const renderSitemap = (origin, slugs, planParks = []) => {
   const today = new Date().toISOString().slice(0, 10);
   const entries = [
     { p: '', pri: '1.0' },
     { p: '/app', pri: '0.9' },
     { p: '/parks', pri: '0.9' },
+    { p: '/plans', pri: '0.9' },
+    // The premade library: a page per park, a page per always-available
+    // persona. Tag-dependent personas are linked from the park pages and
+    // crawled from there, so a URL here never 404s.
+    ...planParks.map((pp) => ({ p: `/plans/${pp.slug}`, pri: '0.8' })),
+    ...planParks.flatMap((pp) => pp.personas.map((per) => ({ p: `/plans/${pp.slug}/${per}`, pri: '0.7' }))),
     { p: '/guide', pri: '0.8' },
     ...slugs.map((s) => ({ p: `/parks/${s}`, pri: '0.8' })),
     // The calendars are the free wedge — they should be crawled as eagerly
@@ -954,4 +960,102 @@ ${seo ? `<h2>The months that actually matter at ${esc(park.name)}</h2>
 </div><script src="/i18n.js"></script></body></html>`;
 }
 
-module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderAccuracyPage, renderNotFoundPage, renderSitemap, renderRobots, allParksIndex };
+
+// --- Premade touring plans (the free library) --------------------------------
+// One page per park+persona, a hub per park, a hub for everything. Evergreen,
+// crawlable, and every page funnels into the live app where the same plan
+// updates against real waits.
+
+function renderPlansHub(allParks, personas) {
+  const order = ['Florida', 'California', 'US & Canada', 'Europe', 'Asia'];
+  const byRegion = {};
+  for (const p of allParks) (byRegion[p.region] || (byRegion[p.region] = [])).push(p);
+  const regions = [...order.filter((r) => byRegion[r]), ...Object.keys(byRegion).filter((r) => !order.includes(r))];
+  const total = allParks.length * personas.length;
+  const sections = regions.map((r) => `<h2>${esc(r)}</h2>` + byRegion[r].slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) =>
+    `<a href="/plans/${p.slug}" style="display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;margin:.4rem 0">
+<strong>${esc(p.name)} touring plans</strong><br><span style="color:var(--muted);font-size:.85rem">${esc(p.group)} &middot; ${personas.length} ready-made days</span></a>`).join('')).join('');
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Theme Park Touring Plans: ${total}+ Ready-Made Days | ParkPulse</title>
+<meta name="description" content="${total}+ free touring plans for ${allParks.length} theme parks — for families with little ones, thrill seekers, rainy days, scorchers and more. Built from real crowd patterns, free to open live in the app.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<link rel="canonical" href="https://www.parkpulse.fun/plans">
+<meta property="og:title" content="${total}+ Free Theme Park Touring Plans | ParkPulse">
+<meta property="og:description" content="Ready-made park days for every kind of crew — free, and live in the app.">
+<meta property="og:image" content="https://www.parkpulse.fun/og.png">
+<style>${CSS}</style></head><body><div class="wrap">
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/app">Live waits</a><a class="plain" href="/parks">All parks</a></span></nav>
+<h1>${total}+ free touring plans</h1>
+<p class="sub">A ready-made day for every kind of crew — parents with little ones, thrill seekers, rainy days, heat waves, late sleepers. Built from each park's real crowd patterns, and every one opens live in the app where the waits update in real time.</p>
+${sections}
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. Wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. <a href="/">ParkPulse home</a> &middot; <a href="/parks">All parks</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></footer>
+</div></body></html>`;
+}
+
+function renderParkPlansPage(park, planList, allParks) {
+  const cards = planList.map(({ persona, plan }) => `<a href="/plans/${park.slug}/${persona.slug}" style="display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.85rem 1rem;margin:.5rem 0">
+<strong>${persona.emoji} ${esc(persona.title)}</strong><br>
+<span style="color:var(--muted);font-size:.88rem">${esc(persona.who)}</span><br>
+<span style="color:var(--muted);font-size:.82rem">${plan.stats.attractions} attractions &middot; ${esc(plan.stats.span)}${plan.stats.headliner ? ` &middot; headliner: ${esc(plan.stats.headliner)}` : ''}</span></a>`).join('');
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(park.name)} Touring Plans: ${planList.length} Ready-Made Days | ParkPulse</title>
+<meta name="description" content="Free ${esc(park.name)} touring plans — for families with small children, thrill seekers, one big day, rainy days and more. Hour-by-hour running orders from real crowd patterns.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<link rel="canonical" href="https://www.parkpulse.fun/plans/${park.slug}">
+<meta property="og:title" content="${esc(park.name)} Touring Plans | ParkPulse">
+<meta property="og:description" content="${planList.length} ready-made ${esc(park.name)} days, free.">
+<meta property="og:image" content="https://www.parkpulse.fun/og.png">
+<style>${CSS}</style></head><body><div class="wrap">
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/plans">All plans</a><a class="plain" href="/parks/${park.slug}">${esc(park.name)}</a></span></nav>
+<h1>${esc(park.name)} touring plans</h1>
+<p class="sub">${esc(park.group)} &middot; ${planList.length} ready-made days, built from ${esc(park.name)}'s typical crowd patterns. Pick the one that sounds like your crew, then open it live in the app.</p>
+${cards}
+<div class="card" style="margin-top:1rem"><p><b>None of these exactly your crew?</b> The app builds a custom plan in one tap — your picks, your hours, your kids' heights — and Mila, your park fairy, reviews the order before you walk a step.</p><a class="cta" href="/app?park=${park.slug}">Build my own plan</a></div>
+<h2>More parks</h2><div class="allparks">${allParksIndex(allParks, park.slug)}</div>
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. <a href="/plans">All touring plans</a> &middot; <a href="/parks/${park.slug}">${esc(park.name)} wait times</a> &middot; <a href="/">Home</a></footer>
+</div></body></html>`;
+}
+
+function renderPremadePlanPage(park, plan, planList, allParks) {
+  const rows = plan.steps.map((st) => st.name
+    ? `<tr><td style="white-space:nowrap;font-weight:700;color:var(--brand);padding:.45rem .8rem .45rem 0;vertical-align:top">${esc(st.time)}</td>
+<td style="padding:.45rem 0"><b>${esc(st.name)}</b>${st.land ? ` <span style="color:var(--muted)">&middot; ${esc(st.land)}</span>` : ''} <span style="color:var(--muted)">&middot; ~${st.wait} min</span><br><span style="color:var(--muted);font-size:.85rem">${esc(st.why)}</span></td></tr>`
+    : `<tr><td style="white-space:nowrap;font-weight:700;color:var(--muted);padding:.45rem .8rem .45rem 0;vertical-align:top">${esc(st.time)}</td>
+<td style="padding:.45rem 0"><b style="color:var(--muted)">${esc(st.break)}</b><br><span style="color:var(--muted);font-size:.85rem">${esc(st.why)}</span></td></tr>`).join('');
+  const others = planList.filter((x) => x.persona.slug !== plan.persona)
+    .map((x) => `<a class="plain" href="/plans/${park.slug}/${x.persona.slug}">${x.persona.emoji} ${esc(x.persona.title)}</a>`).join(' ');
+  const schema = {
+    '@context': 'https://schema.org', '@type': 'ItemList',
+    name: `${plan.title} — ${park.name} touring plan`,
+    numberOfItems: plan.stats.attractions,
+    itemListElement: plan.steps.filter((st) => st.name).map((st, i) => ({ '@type': 'ListItem', position: i + 1, name: st.name })),
+  };
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(park.name)}: ${esc(plan.title)} Touring Plan | ParkPulse</title>
+<meta name="description" content="${esc(plan.title)} at ${esc(park.name)}: ${plan.stats.attractions} attractions from ${esc(plan.stats.first)}, ordered around typical crowds. ${esc(plan.who)}. Free, and live in the app.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml"><meta name="theme-color" content="#2c2154">
+<link rel="canonical" href="https://www.parkpulse.fun/plans/${park.slug}/${plan.persona}">
+<meta property="og:title" content="${esc(park.name)}: ${esc(plan.title)} | ParkPulse">
+<meta property="og:description" content="${plan.stats.attractions} attractions, ${esc(plan.stats.span)} — free touring plan.">
+<meta property="og:image" content="https://www.parkpulse.fun/og.png">
+<script type="application/ld+json">${JSON.stringify(schema)}</script>
+<style>${CSS}</style></head><body><div class="wrap">
+<nav><a class="logo" href="/"><img src="/icon.svg" alt="" width="22" height="22" style="vertical-align:-4px;margin-right:.2rem"> ParkPulse</a><span><a class="plain" href="/plans/${park.slug}">${esc(park.name)} plans</a><a class="plain" href="/app?park=${park.slug}&premade=${plan.persona}">Open live</a></span></nav>
+<h1>${plan.emoji} ${esc(plan.title)} &mdash; ${esc(park.name)}</h1>
+<p class="sub">${esc(plan.who)} &middot; ${plan.stats.attractions} attractions &middot; ${esc(plan.stats.span)}</p>
+<div class="card" style="display:flex;gap:.7rem;align-items:center">
+<img src="/img/mila/mila-wink-160.webp" alt="" width="44" height="44" style="border-radius:50%;border:2px solid var(--brand)">
+<p style="margin:0;font-size:.92rem"><b>Mila says:</b> ${esc(plan.mila)}</p></div>
+<div class="card"><table style="border-collapse:collapse;width:100%">${rows}</table></div>
+<div class="card"><p><b>Make it live.</b> This is the typical-day version. Open it in the app and the same plan re-times itself against today's real waits — and re-shuffles when the day changes.</p>
+<a class="cta" href="/app?park=${park.slug}&premade=${plan.persona}">Open this plan live</a></div>
+<p style="color:var(--muted);font-size:.82rem">Built from ${esc(park.name)}'s typical crowd patterns; times are a guide, not a promise. Refreshes weekly.</p>
+${others ? `<h2>Other ${esc(park.name)} plans</h2><p>${others}</p>` : ''}
+<footer>Unofficial fan guide &mdash; not affiliated with the park operators. <a href="/plans/${park.slug}">All ${esc(park.name)} plans</a> &middot; <a href="/parks/${park.slug}">${esc(park.name)} wait times</a> &middot; <a href="/plans">Every park's plans</a> &middot; <a href="/">Home</a></footer>
+</div></body></html>`;
+}
+
+module.exports = { renderParkPage, renderCalendarPage, renderParksIndex, renderAccuracyPage, renderNotFoundPage, renderSitemap, renderRobots, allParksIndex, renderPlansHub, renderParkPlansPage, renderPremadePlanPage };
