@@ -563,8 +563,10 @@
     body:not(.pane-plan) #skipcard,
     body:not(.pane-plan) #forecast,
     body:not(.pane-plan) .planrow,
-    body:not(.pane-plan) #plan-hero,
     body:not(.pane-plan) #plan-out { display: none !important; }
+    /* The one-tap pitch shows on BOTH panes: Today is where people actually
+       are, and the plan it builds still lands them on Plan. syncPlanHero()
+       keeps hiding it (inline style) once a plan exists, on either pane. */
 
     body.pane-plan #crowdline,
     body.pane-plan #weatherline,
