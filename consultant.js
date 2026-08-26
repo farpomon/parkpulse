@@ -12,6 +12,12 @@ let client = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 const enabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 const MODEL = 'claude-opus-5';
+// Bulk mechanical work rides the cheap tier: ride blurbs (one cold call per
+// ride per language, then cached forever) and feed<->map name matching are
+// high-volume and low-stakes. Anything needing real park knowledge or read
+// as advice — the consultant, plan briefings, ride tags with their height
+// minimums, map pin placement — stays on the smart tier.
+const LIGHT_MODEL = process.env.AI_LIGHT_MODEL || 'claude-haiku-4-5';
 const MAX_TURNS = 6;
 
 // Injected by server.js at boot (registry, live-waits fetcher, alert writer).
@@ -20,7 +26,7 @@ function init(d) { deps = d; }
 
 // Every billed API call reports its token usage so the server can price it.
 const noteUsage = (feature, msg) => {
-  try { if (deps && deps.recordUsage && msg && msg.usage) deps.recordUsage(feature, MODEL, msg.usage); } catch {}
+  try { if (deps && deps.recordUsage && msg && msg.usage) deps.recordUsage(feature, msg.model || MODEL, msg.usage); } catch {}
 };
 
 // Test hook: swap the Anthropic client for a fake.
@@ -488,11 +494,8 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
 // Generated once per ride per language, then cached by the caller.
 async function describeRide(parkName, rideName, lang) {
   const msg = await client.beta.messages.create({
-    model: MODEL,
+    model: LIGHT_MODEL,
     max_tokens: 250,
-    output_config: { effort: 'low' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
     system: 'You write tiny attraction blurbs for a theme-park app. At most 2 short sentences: what kind of ride or experience it is, thrill level, and who it suits (small kids? thrill seekers?). If you are not confident about this specific attraction, infer only its likely type from the name and park and keep it generic — never invent specifics like drops, speeds, or heights you are unsure of. No preamble, no quotes.',
     messages: [{ role: 'user', content: `Attraction: "${rideName}" at ${parkName}. Reply in ${lang || 'English'}.` }],
   });
@@ -547,11 +550,8 @@ async function diningGuide(parkName, group, lang) {
 // "Rock 'n' Roller Coaster Starring Aerosmith"). One shot per park, cached.
 async function matchNames(parkName, feedNames, osmNames) {
   const msg = await client.beta.messages.create({
-    model: MODEL,
+    model: LIGHT_MODEL,
     max_tokens: 2000,
-    output_config: { effort: 'low' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
     system: 'You match theme-park attraction names between two lists that describe the SAME park: list A from a wait-time feed, list B from OpenStreetMap. Output STRICT JSON only — a JSON array of {"a": string, "b": string} pairs, names copied verbatim from each list, one pair per A-name that clearly refers to the same physical attraction as a B-name. Omit A-names with no confident match. Never pair different attractions just because they are similar types.',
     messages: [{ role: 'user', content: `Park: ${parkName}\nList A (wait feed):\n${feedNames.map((n) => `- ${n}`).join('\n')}\nList B (OpenStreetMap):\n${osmNames.map((n) => `- ${n}`).join('\n')}` }],
   }, { timeout: 60000, maxRetries: 1 });

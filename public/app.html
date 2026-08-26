@@ -864,6 +864,23 @@
   const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
   const myAlerts = JSON.parse(localStorage.getItem('pp-alerts') || '{}'); // rideName -> threshold
   const pickedNames = new Set();
+  // Picks are per park, per day. Flipping between parks to compare options
+  // must not cost the user their selections — stash on the way out, restore
+  // on the way back. Session-scoped on purpose: yesterday's picks are stale,
+  // and the account-side day state already covers reinstalls.
+  const picksKey = (park) => `pp-picks-${park}-${parkDay()}`;
+  function savePicks(park) {
+    try { sessionStorage.setItem(picksKey(park), JSON.stringify([...pickedNames])); } catch {}
+  }
+  function restorePicks(park) {
+    pickedNames.clear();
+    try { for (const n of JSON.parse(sessionStorage.getItem(picksKey(park)) || '[]')) pickedNames.add(n); } catch {}
+  }
+  // Which parks have a plan on screen this session, and for which day —
+  // enough to rebuild it for free when the user hops back.
+  let planStash = {};
+  try { planStash = JSON.parse(sessionStorage.getItem('pp-planstash') || '{}'); } catch {}
+  const savePlanStash = () => { try { sessionStorage.setItem('pp-planstash', JSON.stringify(planStash)); } catch {} };
 
   const $ = (id) => document.getElementById(id);
 
@@ -1332,8 +1349,7 @@
       if (slug === current) return;
       current = slug;
       localStorage.setItem('pp-park', slug);
-      pickedNames.clear();
-      load();
+            load();
     }));
   }
 
@@ -1552,6 +1568,17 @@
   let aiPlanKey = null;
   let aiPlanText = '';
   let aiPlanAbort = null;
+  // Mila's plan reads, keyed by park|day|running order (ride names only —
+  // predicted minutes drift call to call and must not bust the cache).
+  // Replaying a plan while park-hopping costs zero tokens.
+  let aiPlanCache = {};
+  try { aiPlanCache = JSON.parse(sessionStorage.getItem('pp-aiplan') || '{}'); } catch {}
+  function cacheAdvice(key, text) {
+    if (!key || !text) return;
+    aiPlanCache[key] = text;
+    for (const k of Object.keys(aiPlanCache).slice(0, -10)) delete aiPlanCache[k];
+    try { sessionStorage.setItem('pp-aiplan', JSON.stringify(aiPlanCache)); } catch {}
+  }
   // Set for exactly one rebuild when the user applies the advisor's own order:
   // that rebuild changes the plan lines, which would otherwise read as a new
   // plan and trigger a fresh paid consult about the order the advisor itself
@@ -1559,7 +1586,7 @@
   // burned tokens in a loop. Applying adopts the advice; it never re-asks.
   let adoptAdvice = false;
 
-  function refinePlanWithAI(steps) {
+  function refinePlanWithAI(steps, opts = {}) {
     const adopting = adoptAdvice;
     adoptAdvice = false;
     const box = $('plan-ai');
@@ -1567,10 +1594,11 @@
     const ride = steps.filter((x) => x.ride);
     if (!ride.length) return;
     const lines = ride.map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
-    const key = `${current}|${planDate || 'today'}|${lines}`;
+    const key = `${current}|${planDate || 'today'}|${ride.map((x) => x.ride.name).join(';')}`;
 
     if (adopting && aiPlanText) {
       aiPlanKey = key;   // pin the standing advice to the applied plan
+      cacheAdvice(key, aiPlanText);
       box.style.display = '';
       $('planai-state').textContent = '';
       $('planai-body').innerHTML = mdLite(aiPlanText);
@@ -1579,14 +1607,20 @@
       return;
     }
 
-    // Same plan as last time — show what the advisor already said.
-    if (key === aiPlanKey && aiPlanText) {
+    // Same plan as before — replay what the advisor already said, whether
+    // from this visit or from a park the user hopped away from and back to.
+    const said = (key === aiPlanKey && aiPlanText) ? aiPlanText : aiPlanCache[key];
+    if (said) {
+      aiPlanKey = key; aiPlanText = said;
       box.style.display = '';
       $('planai-state').textContent = '';
-      $('planai-body').innerHTML = mdLite(aiPlanText);
+      $('planai-body').innerHTML = mdLite(said);
       $('planbase-h').style.display = '';
       return;
     }
+    // Restoring a stashed plan must never spend an AI call on its own. The
+    // plan stands by itself; Mila's read returns the next time it is asked for.
+    if (opts.cachedOnly) { box.style.display = 'none'; return; }
     if (aiPlanAbort) aiPlanAbort.abort();
 
     box.style.display = '';
@@ -1681,6 +1715,7 @@
         }
       }
       if (!aiPlanText.trim()) return fail(tr("Your advisor couldn't be reached — the plan below still stands."));
+      cacheAdvice(aiPlanKey, aiPlanText);
       $('planbase-h').style.display = '';
       const proposal = actions.find((a) => a.type === 'plan' && Array.isArray(a.rides) && a.rides.length);
       if (proposal) {
@@ -1880,7 +1915,7 @@
     }
   }
 
-  function buildPlan() {
+  function buildPlan(opts = {}) {
     if (!isPro) { showUpsell(); return; }
     const p = parks[current] || { open: 9, close: 21 };
     const futureDay = Boolean(planDate);
@@ -2063,11 +2098,14 @@
     // selection, which is the one place the two views must never disagree.
     if (picksChanged) renderRides();
     // The advisor now runs on every plan rather than waiting to be asked.
-    refinePlanWithAI(steps);
+    refinePlanWithAI(steps, opts.quiet ? { cachedOnly: true } : undefined);
     syncPlanHero();
+    planStash[current] = { planDate: planDate || null };
+    savePlanStash();
     // The plan renders into the Plan pane; on a phone that is off-screen from
-    // the board, so take the user to the thing they just asked for.
-    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan'); syncTabs('plan'); }
+    // the board, so take the user to the thing they just asked for. A quiet
+    // rebuild (restoring a stashed plan on park return) must not yank them.
+    if (!opts.quiet && !matchMedia('(min-width: 1080px)').matches) { setPane('plan'); syncTabs('plan'); }
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
     updatePlanNote();
@@ -2110,7 +2148,7 @@
       } catch { toast(tr('Connection trouble — try again.')); }
       finally { btn.disabled = false; btn.textContent = label; }
     });
-    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; syncPlanHero(); if (viewMode === 'map') renderMap(); });
+    $('plan-clear').addEventListener('click', () => { $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; syncPlanHero(); delete planStash[current]; savePlanStash(); if (viewMode === 'map') renderMap(); });
     $('plan-out').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -2126,8 +2164,20 @@
       // A chat transcript is advice about one park. Carrying it into another
       // reads as nonsense and, worse, gets sent back as context.
       if (chatCtl) chatCtl.reset();
+      // Leaving a park is not losing your work there: picks and the plan are
+      // stashed per park and come back — rebuilt locally, advisor text from
+      // cache — when the user returns. The board itself always shows the park
+      // just chosen, so a switch made from the Plan pane lands on attractions.
+      savePicks(plannerPark);
+      if ($('plan-out').querySelector('.plan')) planStash[plannerPark] = { planDate: planDate || null };
+      else delete planStash[plannerPark];
+      savePlanStash();
+      $('plan-out').innerHTML = '';
+      planOrder = []; planStops = [];
+      planDate = null;
+      if (document.body.classList.contains('pane-plan')) setViewMode('rides');
     }
-    if (plannerPark !== current) { setupPlanner(); plannerPark = current; }
+    if (plannerPark !== current) { setupPlanner(); restorePicks(current); plannerPark = current; }
     if (!opts.silent) {
       $('rides').classList.add('skeleton');
       $('rides').innerHTML = '<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>';
@@ -2149,7 +2199,7 @@
       if (tripToday && tripToday.park !== current) crowdHtml = `🧳 Today on your trip: <a href=\"#\" id=\"trip-jump\"><b>${parks[tripToday.park].name}</b></a> · ` + crowdHtml;
       $('crowdline').innerHTML = crowdHtml;
       const tj = document.getElementById('trip-jump');
-      if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); pickedNames.clear(); load(); });
+      if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); load(); });
       renderSkip();
       loadTags();
       loadClosures().then(() => { if (closureList.length) renderRides(); });
@@ -2169,6 +2219,14 @@
       updatePlanbar();
       syncPlanHero();
       if (viewMode === 'map') renderMap();
+      // A park planned earlier this session gets its plan back for free: the
+      // running order recomputes locally and Mila's read replays from cache —
+      // no AI call, no jump to the Plan pane.
+      if (planStash[current] && rides.length && !$('plan-out').innerHTML.trim()) {
+        planDate = planStash[current].planDate || null;
+        renderDayOptions();
+        buildPlan({ quiet: true });
+      }
     } catch {
       $('rides').classList.remove('skeleton');
       $('rides').innerHTML = `<div class="state">Couldn't load wait times — check your connection.<br><br><button class="btn" id="retry">Try again</button></div>`;
@@ -3003,8 +3061,7 @@
         current = slug;
         dest = parks[slug].group;
         localStorage.setItem('pp-park', slug);
-        pickedNames.clear();
-        load();
+                load();
         renderWiz(); // park may gain/lose the on-site hotel step
       };
       sel.addEventListener('change', () => switchPark(sel.value));
@@ -3098,8 +3155,7 @@
         current = best;
         dest = parks[best].group;
         localStorage.setItem('pp-park', best);
-        pickedNames.clear();
-        load();
+                load();
       }
       $('updated').textContent = `📍 You're at ${parks[best].name}`;
     }, () => alert('Could not get your location — check the browser permission.'), { timeout: 8000 });
@@ -3527,8 +3583,7 @@
     }
     current = isPro ? first[0] : FREE_PARK;
     localStorage.setItem('pp-park', current);
-    pickedNames.clear();
-    load();
+        load();
   });
 
   // Boot: resolve access (launch preview or a valid pass), restore park, load.
