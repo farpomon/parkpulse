@@ -156,7 +156,7 @@
   .sheet-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
   .sheet-opts button { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .6rem .2rem; font-weight: 700; cursor: pointer; font-size: .9rem; }
   .sheet .cancel { margin-top: .8rem; width: 100%; border: none; background: none; color: var(--muted); cursor: pointer; padding: .5rem; font-size: .9rem; }
-  .sheet input[type=email], .sheet input[type=password] { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .65rem .9rem; font-size: 1rem; margin-bottom: .6rem; }
+  .sheet input[type=text], .sheet input[type=email], .sheet input[type=password] { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .65rem .9rem; font-size: 1rem; margin-bottom: .6rem; }
   .sheet .wide { width: 100%; }
   .sheet .err { color: var(--red); font-size: .85rem; min-height: 1.2em; margin: 0 0 .4rem; }
   .sheet .hint { color: var(--muted); font-size: .82rem; margin: -.2rem 0 .6rem; }
@@ -884,7 +884,8 @@
     <p id="acct-sub">Your pass follows your account onto any device.</p>
     <form id="acct-form">
       <input type="text" id="acct-name" placeholder="First name" autocomplete="given-name" maxlength="30"
-        autocapitalize="words" spellcheck="false" style="display:none">
+        autocapitalize="words" spellcheck="false" enterkeyhint="next" style="display:none">
+      <p class="hint" id="acct-name-hint" style="display:none">So Mila knows what to call you ✨</p>
       <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email" required
         autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
       <div class="pwwrap">
@@ -2780,6 +2781,8 @@
     $('onboard-go').textContent = tr("Let's beat the lines →");
     renderAcctMode();
     $('acct-pw').placeholder = tr('Password');
+    $('acct-name').placeholder = tr('First name');
+    $('acct-name-hint').textContent = tr('So Mila knows what to call you ✨');
     $('acct-pw-hint').textContent = tr('At least 8 characters.');
     $('acct-pw-eye').setAttribute('aria-label', tr('Show or hide password'));
     $('acct-forgot').textContent = tr('Forgot password?');
@@ -3624,9 +3627,11 @@
   }
 
   function openWizard() {
-    // The pass picker has the floor — closePassPick re-opens the wizard
-    // if the daily questions are still owed.
+    // The pass picker or the sign-up sheet has the floor — both re-queue
+    // the wizard themselves (closePassPick, and the login/signup success
+    // handlers), so opening over them would just double the questions.
     if ($('passpick') && $('passpick').classList.contains('open')) return;
+    if ($('acct-sheet') && $('acct-sheet').classList.contains('open')) return;
     wizDraft = profile ? JSON.parse(JSON.stringify(profile)) : { party: 2, ages: [], vibes: [], onsite: null, strict: false };
     // Frozen for this opening: saving the name mid-wizard must not renumber
     // the remaining steps under the user's feet.
@@ -4103,7 +4108,7 @@
     $('acct-err').textContent = '';
     $('acct-sheet').classList.add('open');
     $('sheet-bg').classList.add('open');
-    if (!email) { renderAcctMode(); setTimeout(() => $('acct-email').focus(), 200); }
+    if (!email) { renderAcctMode(); setTimeout(() => (acctMode === 'signup' ? $('acct-name') : $('acct-email')).focus(), 200); }
   }
 
   function closeAcct() {
@@ -4253,6 +4258,7 @@
     $('acct-toggle').textContent = login ? tr('Create an account') : tr('Log in');
     $('acct-pw').autocomplete = login ? 'current-password' : 'new-password';
     $('acct-name').style.display = login ? 'none' : '';
+    $('acct-name-hint').style.display = login ? 'none' : '';
     $('acct-pw-hint').style.display = login ? 'none' : '';
     $('acct-forgot').parentElement.style.display = login ? '' : 'none';
     $('acct-err').textContent = '';
@@ -4262,7 +4268,8 @@
   $('acct-toggle').addEventListener('click', () => {
     acctMode = acctMode === 'login' ? 'signup' : 'login';
     renderAcctMode();
-    $('acct-email').focus();
+    // Sign-up leads with the name — the first thing Mila asks for.
+    (acctMode === 'signup' ? $('acct-name') : $('acct-email')).focus();
   });
   $('acct-pw-eye').addEventListener('click', () => {
     const pw = $('acct-pw');
@@ -4517,7 +4524,17 @@
     // sheet is dismissible — the board stays browsable behind it.
     if (!localStorage.getItem('pp-email') && location.hash !== '#account') {
       acctMode = 'signup';
-      setTimeout(openAcct, 350);
+      // First-ever visit: the welcome tour has the floor — sign-up opens the
+      // moment it's dismissed instead of stacking beneath it.
+      if (!localStorage.getItem('pp-onboarded')) {
+        // 150ms beats the tour's own 250ms wizard timer, so the sheet is
+        // already open when the wizard checks who has the floor.
+        const after = () => setTimeout(openAcct, 150);
+        $('onboard-go').addEventListener('click', after, { once: true });
+        $('onboard-bg').addEventListener('click', after, { once: true });
+      } else {
+        setTimeout(openAcct, 350);
+      }
     } else {
       maybeJoinPass(); // already signed in — straight to the pass picker
     }
