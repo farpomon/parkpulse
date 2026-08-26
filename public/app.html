@@ -2223,12 +2223,44 @@
     // arrival to exit with no dead gaps.
     const extras = rides.filter((r) => (r.open || futureDay) && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
     let fillMode = false;
-    while (t < end && steps.filter((x) => x.ride).length < 18) {
+    // Encore mix: when every attraction in the park is on the plan and there
+    // is still daylight, the day doesn't just stop. Early dinner once the
+    // evening opens (beat the rush), then victory-lap re-rides of the
+    // favorites while the lines are short, ending at the night show.
+    let encoreMode = false;
+    let dinnerDone = false;
+    let encorePool = null;
+    let encoreLaps = 0;
+    while (t < end && steps.filter((x) => x.ride).length < 30) {
       if (!remaining.length) {
-        if (!extras.length) break;
-        fillMode = true;
+        if (extras.length) {
+          fillMode = true;
+        } else {
+          if (!dinnerDone && t >= 16.5 && t < 20.5) {
+            steps.push({ time: t, break: '🍽 ' + tr('Early dinner'), why: tr('Every attraction is done — beat the dinner rush, then come back for the encore') });
+            t += 0.75;
+            dinnerDone = true;
+            continue;
+          }
+          if (encorePool === null) {
+            // Favorites first, then the biggest hits of the day.
+            const ridden = new Set([...steps.filter((s) => s.ride).map((s) => s.ride.name), ...doneSet]);
+            encorePool = rides.filter((r) => (r.open || futureDay) && ridden.has(r.name))
+              .sort((a, b) => ((favs.has(b.name) ? 1 : 0) - (favs.has(a.name) ? 1 : 0)) || ((b.typical || b.wait || 0) - (a.typical || a.wait || 0)))
+              .slice(0, 8);
+          }
+          if (!encorePool.length) {
+            // A small park can drain the encore round early — go again
+            // (two extra rounds at most; the step cap bounds it anyway).
+            if (encoreLaps >= 2) break;
+            encoreLaps += 1;
+            encorePool = null;
+            continue;
+          }
+          encoreMode = true;
+        }
       }
-      const pool = remaining.length ? remaining : extras;
+      const pool = remaining.length ? remaining : (extras.length ? extras : encorePool);
       if (!lunchDone && t >= 12) {
         steps.push({ time: t, break: '🍔 ' + tr('Lunch break'), why: 'Peak-crowd hour — perfect time to be out of line' });
         t += 0.75;
@@ -2297,8 +2329,15 @@
       const stayed = Boolean(ride.land && ride.land === lastLand);
       lastLand = ride.land || lastLand;
       const predicted = llSet.has(ride.name) ? Math.min(10, ride.wait) : Math.max(5, Math.round(baseWait(ride) * mult * srF(ride) / 5) * 5);
-      steps.push({ time: t, ride, predicted, suggested: fillMode, ll: llSet.has(ride.name), why: (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : srOn(ride.name) ? '🚶 ' + tr('single rider — party rides separately') : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
+      steps.push({ time: t, ride, predicted, suggested: fillMode && !encoreMode, encore: encoreMode, ll: llSet.has(ride.name), why: encoreMode
+        ? '✨ ' + (favs.has(ride.name) ? tr('Victory lap — your favorite, one more time while the line is short') : t >= 16 ? tr('Victory lap — ride the big one again while everyone else is at dinner') : tr('Victory lap — the line is short right now, so ride it again'))
+        : (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : srOn(ride.name) ? '🚶 ' + tr('single rider — party rides separately') : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
       t += (predicted + RIDE_MINUTES) / 60;
+    }
+    // An encore day can still leave a gap before the show — name it rather
+    // than leaving dead air: the wind-down is part of the plan too.
+    if (encoreMode && t < (show && attendShow ? Math.min(end, show.hour) : end) - 0.5) {
+      steps.push({ time: t, break: '🌇 ' + tr('Golden-hour wander'), why: tr('Shops, snacks and the best photo spots — you earned the slow lap before the finale') });
     }
     if (!showDone && end > show.hour) {
       steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: tr('Cap off the night') });
@@ -2325,6 +2364,7 @@
     // what the day actually contains and a ride can be dropped where the user
     // is already looking.
     const filled = steps.filter((s) => s.ride && s.suggested).length;
+    const encores = steps.filter((s) => s.ride && s.encore).length;
     let picksChanged = false;
     for (const st of steps) {
       if (st.ride && !pickedNames.has(st.ride.name)) { pickedNames.add(st.ride.name); picksChanged = true; }
@@ -2338,6 +2378,7 @@
       ${riskBanner(risk)}
       ${eventNotice(dayEvents, closer)}
       ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask the advisor below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
+      ${encores ? `<p class="fillnote">✨ ${tr("You'll have seen everything! Mila tucked in an early dinner and")} <b>${encores}</b> ${tr('victory lap(s) on your favorites to close out the night.')}</p>` : ''}
       <!-- The advisor's read is the headline. The computed running order below
            is the skeleton it works from and stays visible, because it renders
            instantly and has to carry the plan on its own when the advisor is
@@ -2352,7 +2393,7 @@
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${stepBadges(s)}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
+        : `<div class="step${s.suggested || s.encore ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${stepBadges(s)}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.encore ? ` <span class="why">✨ ${tr('encore')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
            <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${esc(s.ride.name)} ridden">✓</button></div>`
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
