@@ -339,8 +339,31 @@
       </div>
       <div class="mila-intro">
         <img src="/img/mila/mila-welcome-320.webp" alt="Mila, the ParkPulse fairy mascot, waving" width="52" height="52" loading="lazy">
-        <span><b>Meet Mila</b> &mdash; your AI park advisor. She reads the lines so you don't stand in them.</span>
+        <span><b>Meet Mila</b> &mdash; <span id="mila-line">your AI park advisor. She reads the lines so you don't stand in them.</span></span>
       </div>
+      <script>
+      // Mila greets differently every visit — fifteen voices, one fairy.
+      (() => {
+        const LINES = [
+          "let me make your day MAGICAL — minus the standing-in-line part.",
+          "I read the lines so you can ride them.",
+          "your day, planned to the minute. Your feet will thank me.",
+          "more rides, fewer sighs — that's my whole job.",
+          "I know which queue is lying to you.",
+          "a sprinkle of data, a dash of fairy dust, zero hour-long lines.",
+          "you bring the snacks. I'll bring the strategy.",
+          "every park has a secret rhythm. I'll hum it to you.",
+          "shorter lines are my love language.",
+          "one tap, and your whole day falls into place.",
+          "I've never met a crowd I couldn't dodge.",
+          "the fireworks are at nine. I'll get you everything before them.",
+          "plans so smooth you'll think it's magic. (It's mostly math. And magic.)",
+          "let's turn 'we waited two hours' into 'we rode it twice.'",
+          "follow me — I know a shortcut.",
+        ];
+        document.getElementById('mila-line').textContent = LINES[Math.floor(Math.random() * LINES.length)];
+      })();
+      </script>
     </div>
     <!--HERO_BOARD-->
   </div>

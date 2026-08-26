@@ -238,7 +238,7 @@ async function waAgentReply(link, text) {
   while (messages.length && messages[0].role !== 'user') messages.shift();
   let reply = '';
   await consultant.consult({
-    park: PARKS[slug], waits, messages,
+    park: PARKS[slug], waits, messages, name: db.users.get(link.email)?.name || null,
     favorites: strList(ds.favorites, 30),
     planPicks: strList(ds.picked, 30),
     done: strList(ds.done, 40),
@@ -407,6 +407,33 @@ function noteParkUse(email, slug) {
 }
 
 const passFromReq = (req) => verifyPass(req.headers['x-pass']);
+// First names are for greeting people, so they get greeted properly: trimmed,
+// letters only, and never a curse word wearing a name tag. The check is a
+// short list of unambiguous hard words across the languages we serve, matched
+// on whole normalized tokens -- so nobody from Scunthorpe gets flagged, and
+// nobody gets addressed as something Mila would blush at.
+const PROFANE_NAMES = new Set([
+  'fuck', 'fucker', 'shit', 'bitch', 'cunt', 'asshole', 'dick', 'bastard', 'whore', 'slut', 'twat', 'wanker',
+  'puta', 'puto', 'mierda', 'cono', 'cabron', 'pendejo', 'gilipollas', 'joder', 'polla', 'verga',
+  'putain', 'merde', 'salope', 'connard', 'connasse', 'encule', 'pute',
+  'scheisse', 'fotze', 'arschloch', 'hurensohn', 'wichser', 'schlampe',
+  'caralho', 'porra', 'buceta', 'foda', 'merda', 'viado',
+  'cazzo', 'stronzo', 'puttana', 'vaffanculo', 'troia', 'minchia',
+]);
+function cleanFirstName(raw) {
+  if (typeof raw !== 'string') return { name: null, profane: false };
+  const name = raw.replace(/[\u{10000}-\u{10FFFF}]/gu, '').replace(/[^\p{L}\p{M}' \-]/gu, '')
+    .replace(/\s+/g, ' ').trim().slice(0, 30);
+  if (!name) return { name: null, profane: false };
+  const tokens = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  if (tokens.some((t) => PROFANE_NAMES.has(t))) return { name: null, profane: true };
+  // Title-case for display so "luis" greets as "Luis".
+  return { name: name.replace(/\p{L}[\p{L}\p{M}']*/gu, (w) => w[0].toUpperCase() + w.slice(1)), profane: false };
+}
+// What we say instead of the word: kind, in character, and it names the
+// stand-in so the app's later greetings make sense.
+const NAME_NOTE = "That one made Mila hide behind her wings! We'll go with 'Dear Friend' for now — you can tell us your real name any time in your account.";
+
 function hasAccess(req) {
   if (!PRO_GATE) return true;
   if (passFromReq(req)) return true;
@@ -899,7 +926,7 @@ async function planKpis(park, stops, profile) {
   };
 }
 
-function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) {
+function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName }) {
   const B = '#5b3df5';
   const INK = '#251d3d', MUTED = '#8b83a8', SOFT = '#f4f1ff';
   // The last one of these printed from Outlook came back with every astral
@@ -1065,7 +1092,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile }) 
       <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td width="40" valign="top"><img src="https://www.parkpulse.fun/img/mila/mila-thinking-160.webp" width="32" height="32" alt="" style="border-radius:99px;display:block"></td>
-          <td valign="top"><b>Mila's read on the day</b><br>${E(briefing).replace(/\n/g, '<br>')}</td>
+          <td valign="top"><b>Mila's read${firstName ? ` for ${E(firstName)}` : ''} on the day</b><br>${E(briefing).replace(/\n/g, '<br>')}</td>
         </tr></table>
       </div></div>` : ''}
     <div style="padding:18px 26px 6px">
@@ -2455,7 +2482,8 @@ const server = http.createServer(async (req, res) => {
             briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, stops, kpis, profile, savedMin, lang });
           } catch (err) { console.log(`day briefing failed: ${err.message}`); }
         }
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile });
+        const firstName = db.users.get(sess.email)?.name || null;
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName });
         try {
           // "18 attractions, 0 km" went out to a real inbox: the km figure is
           // only real when the route was actually measured. Lead with the two
@@ -2512,6 +2540,7 @@ const server = http.createServer(async (req, res) => {
           const existing = db.users.get(email);
           if (existing && existing.verified) return sendJson(res, 409, { error: 'account already exists — log in instead' });
           const salt = crypto.randomBytes(16).toString('hex');
+          const asked = cleanFirstName(parsed.name);
           if (existing) {
             // Unfinished signup (never verified): treat this as a retry —
             // take the new password and send a fresh code. Whoever controls
@@ -2520,8 +2549,9 @@ const server = http.createServer(async (req, res) => {
           } else {
             db.users.create(email, salt, hashPassword(password, salt), 0);
           }
+          db.users.setName(email, asked.name);
           startVerification(email);
-          return sendJson(res, 200, { pending: true, email });
+          return sendJson(res, 200, { pending: true, email, ...(asked.profane && { nameNote: NAME_NOTE }) });
         }
         if (loginBlocked(email)) return sendJson(res, 429, { error: 'too many attempts — try again in 15 minutes' });
         const u0 = db.users.get(email);
@@ -2583,6 +2613,7 @@ const server = http.createServer(async (req, res) => {
           plan: active ? fresh.plan : null,
           exp: active ? fresh.plan_exp : null,
           passToken: active ? signPass(fresh.plan, fresh.plan_exp) : null,
+          name: fresh.name || null,
         });
       }
 
@@ -2679,6 +2710,7 @@ const server = http.createServer(async (req, res) => {
           plan: active ? fresh.plan : null,
           exp: active ? fresh.plan_exp : null,
           passToken: active ? signPass(fresh.plan, fresh.plan_exp) : null,
+          name: fresh.name || null,
         });
       }
 
@@ -2856,6 +2888,7 @@ const server = http.createServer(async (req, res) => {
           // advisor falls back to its own knowledge, as before.
           try { waits.tags = JSON.parse(db.ridetags.get(park) || 'null') || undefined; } catch {}
           const s = sessionUser(req);
+          const firstName = s ? (db.users.get(s.email)?.name || null) : null;
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
           let replyText = '';
@@ -2868,7 +2901,7 @@ const server = http.createServer(async (req, res) => {
           let failed = false;
           try {
             await consultant.consult({
-              park: PARKS[park], waits, messages, favorites, planPicks, profile, done,
+              park: PARKS[park], waits, name: firstName, messages, favorites, planPicks, profile, done,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,

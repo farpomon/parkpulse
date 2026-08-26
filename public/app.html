@@ -516,7 +516,11 @@
     <div id="group-chip"></div>
     <div class="tabs" id="tabs" role="tablist"></div>
     <div class="searchrow">
-      <input type="search" id="search" placeholder="Search rides…" aria-label="Search rides">
+      <!-- name + autocomplete=off: Chrome's password manager was treating this
+           as a login field (the account sheet's email/password inputs live in
+           the same document) and offering saved credentials over ride names. -->
+      <input type="search" id="search" name="ride-filter" placeholder="Search rides…" aria-label="Search rides"
+        autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search">
       <button class="clear" id="clear-search" aria-label="Clear search">✕</button>
     </div>
     <div class="planrow">
@@ -669,6 +673,8 @@
     <h3 id="acct-title">Log in</h3>
     <p id="acct-sub">Your pass follows your account onto any device.</p>
     <form id="acct-form">
+      <input type="text" id="acct-name" placeholder="First name" autocomplete="given-name" maxlength="30"
+        autocapitalize="words" spellcheck="false" style="display:none">
       <input type="email" id="acct-email" placeholder="you@example.com" autocomplete="email" required
         autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
       <div class="pwwrap">
@@ -3007,6 +3013,10 @@
   function applyAuth(data) {
     localStorage.setItem('pp-session', data.session ?? sessionToken());
     localStorage.setItem('pp-email', data.email);
+    if ('name' in data) {
+      if (data.name) localStorage.setItem('pp-name', data.name);
+      else localStorage.removeItem('pp-name');
+    }
     if (data.plan) {
       localStorage.setItem('pp-plan', data.plan);
       localStorage.setItem('pp-plan-exp', String(data.exp));
@@ -3137,6 +3147,7 @@
     $('acct-switch').firstChild.textContent = (login ? tr('New here?') : tr('Already have an account?')) + ' ';
     $('acct-toggle').textContent = login ? tr('Create an account') : tr('Log in');
     $('acct-pw').autocomplete = login ? 'current-password' : 'new-password';
+    $('acct-name').style.display = login ? 'none' : '';
     $('acct-pw-hint').style.display = login ? 'none' : '';
     $('acct-forgot').parentElement.style.display = login ? '' : 'none';
     $('acct-err').textContent = '';
@@ -3162,14 +3173,21 @@
       const res = await api(`/api/auth/${acctMode}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value, device: deviceId }),
+        body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value, device: deviceId,
+          ...(acctMode === 'signup' && { name: $('acct-name').value }) }),
       });
       const data = await res.json();
       if (!res.ok) { $('acct-err').textContent = data.error || tr('Something went wrong.'); return; }
-      if (data.pending) { showVerify(data.email); return; }
+      if (data.pending) {
+        // The kind version of a profanity filter: say who we'll call them.
+        if (data.nameNote) toast(data.nameNote);
+        showVerify(data.email);
+        return;
+      }
       applyAuth(data);
       $('acct-pw').value = '';
       closeAcct();
+      toast(`${tr('Welcome back')}, ${localStorage.getItem('pp-name') || tr('Dear Friend')}! 👋`);
       // Signing back in during the grace period calls off a pending deletion.
       if (data.deletionCancelled) alert(tr('Welcome back! Your account was scheduled for deletion — that is now cancelled and nothing was lost.'));
       load();
@@ -3200,7 +3218,7 @@
       $('acct-pw').value = '';
       hideVerify();
       closeAcct();
-      if (wasSignup) toast(tr("You're in — welcome to ParkPulse! 🎢"));
+      if (wasSignup) toast(`${tr('Welcome aboard')}, ${localStorage.getItem('pp-name') || tr('Dear Friend')}! 🎢`);
       load();
     } catch { $('verify-err').textContent = tr('Connection trouble — try again.'); }
     finally {
@@ -3263,7 +3281,7 @@
       if (!res.ok) { $('acct-del-err').textContent = data.error || tr('Could not delete the account.'); $('acct-del-go').disabled = false; return; }
       // Clear every local trace, then land on the goodbye page.
       try {
-        ['pp-session', 'pp-email', 'pp-plan', 'pp-plan-exp', 'pp-pass', 'pp-trip', 'pp-park', 'pp-favs', 'pp-onboarded', 'pp-device'].forEach((k) => localStorage.removeItem(k));
+        ['pp-session', 'pp-email', 'pp-name', 'pp-plan', 'pp-plan-exp', 'pp-pass', 'pp-trip', 'pp-park', 'pp-favs', 'pp-onboarded', 'pp-device'].forEach((k) => localStorage.removeItem(k));
         sessionStorage.clear();
       } catch {}
       location.href = '/delete-account?done=1';
@@ -3274,7 +3292,7 @@
   });
 
   $('acct-logout').addEventListener('click', () => {
-    ['pp-session', 'pp-email', 'pp-plan', 'pp-plan-exp', 'pp-pass'].forEach((k) => localStorage.removeItem(k));
+    ['pp-session', 'pp-email', 'pp-name', 'pp-plan', 'pp-plan-exp', 'pp-pass'].forEach((k) => localStorage.removeItem(k));
     closeAcct();
     location.reload(); // re-resolve access from a clean slate
   });
@@ -3339,7 +3357,7 @@
         try {
           const meRes = await api('/api/auth/me');
           if (meRes.status === 401) {
-            ['pp-session', 'pp-email', 'pp-plan', 'pp-plan-exp'].forEach((k) => localStorage.removeItem(k));
+            ['pp-session', 'pp-email', 'pp-name', 'pp-plan', 'pp-plan-exp'].forEach((k) => localStorage.removeItem(k));
           } else if (meRes.ok) {
             applyAuth(await meRes.json());
           }

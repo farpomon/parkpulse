@@ -178,6 +178,7 @@ db.exec(`
 // new signups insert 0 explicitly until they confirm their email code.
 for (const ddl of [
   "ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 1",
+  "ALTER TABLE users ADD COLUMN name TEXT",
   "ALTER TABLE users ADD COLUMN verify_code TEXT",
   "ALTER TABLE users ADD COLUMN verify_exp INTEGER",
   "ALTER TABLE trips ADD COLUMN onsite INTEGER DEFAULT 0",
@@ -282,6 +283,7 @@ const users = {
     db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL, verified = 1 WHERE email = ?').run(salt, hash, email),
   // Password change that does NOT vouch for the email — used when an
   // unverified signup retries; the code check still gates verification.
+  setName: (email, name) => db.prepare('UPDATE users SET name = ? WHERE email = ?').run(name, email),
   setPassword: (email, salt, hash) =>
     db.prepare('UPDATE users SET salt = ?, hash = ? WHERE email = ?').run(salt, hash, email),
 };
