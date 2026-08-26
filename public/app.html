@@ -497,6 +497,12 @@
   .step.sugg .what b { font-weight: 700; opacity: .85; }
   .step.sugg .time { background: var(--bg); color: var(--muted); }
   .plan .replan { margin-top: .7rem; }
+  .riskbox { background: var(--amber-soft, #fff7e6); border: 1px solid #e8c98a; border-radius: 12px;
+    padding: .7rem .9rem; margin: 0 0 .7rem; font-size: .86rem; color: var(--ink); }
+  .riskbox b { display: block; margin-bottom: .25rem; }
+  .riskbox .riskrow { margin: .2rem 0 0; color: var(--muted); }
+  .riskbox .riskrow b { display: inline; color: var(--ink); }
+  @media (prefers-color-scheme: dark) { .riskbox { background: rgba(240,180,41,.08); border-color: rgba(240,180,41,.35); } }
   .plan .mailcard { display: flex; align-items: center; gap: .7rem; margin-top: .9rem; padding: .8rem .9rem;
     background: var(--bg); border: 1.5px solid var(--brand); border-radius: 14px; flex-wrap: wrap; }
   .plan .mailcard img { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
@@ -1601,6 +1607,40 @@
   // different things: a confirmed date is a fact about the visitor's day, a
   // seasonal match is only a reason to go and check. Saying the second in the
   // voice of the first is how a planner loses trust.
+  // Everything that could bend the day, computed from data already on hand:
+  // the planned day's hourly weather, its crowd level, and a confirmed
+  // early-close event. Returns banner lines plus the hour-sets that drive
+  // the per-step badges. Free — no network, no AI.
+  function planRisks(planDay, closer) {
+    const risks = [];
+    const wetHours = new Set(), hotHours = new Set();
+    const day = weatherDay();
+    const p = parks[current] || { open: 9, close: 22 };
+    const hours = ((day && day.hours) || []).filter((h) => h.hour >= p.open && h.hour <= Math.min(23, p.close));
+    const wet = hours.filter((h) => h.rain >= 40);
+    if (wet.length) {
+      wet.forEach((h) => wetHours.add(h.hour));
+      const span = wet.length > 1 ? `${hourLabel(wet[0].hour)}–${hourLabel(wet[wet.length - 1].hour + 1)}` : `${tr('around')} ${hourLabel(wet[0].hour)}`;
+      risks.push(`🌧 ${tr('Rain likely')} ${span} (${Math.max(...wet.map((h) => h.rain))}%) — ${tr('the plan leans indoors there, but pack the poncho')}`);
+    }
+    const hot = hours.filter((h) => (h.feels ?? h.temp) >= 33);
+    if (hot.length) {
+      hot.forEach((h) => hotHours.add(h.hour));
+      const peak = hot.reduce((a, b) => ((b.feels ?? b.temp) > (a.feels ?? a.temp) ? b : a));
+      risks.push(`🥵 ${tr('Feels like')} ${degrees(peak.feels ?? peak.temp)} ${tr('around')} ${hourLabel(peak.hour)} — ${tr('water bottles and AC breaks are part of the plan')}`);
+    }
+    if (closer) risks.push(`🎟 ${tr('The plan ends by')} ${hourLabel(closer.closesEarlyAt)} — <b>${esc(closer.name)}</b> ${tr('needs its own ticket after that')}`);
+    if (planDay && planDay.level >= 5) risks.push(`👥 ${tr('A')} ${tr('Packed')} ${tr('day — expect every queue to run long; the order below matters more than usual')}`);
+    else if (planDay && planDay.level === 4) risks.push(`👥 ${tr('A')} ${tr('Busy')} ${tr('day — stick to the order; the margin for detours is thin')}`);
+    if (!planDate && lastData && lastData.source !== 'live') risks.push(`📶 ${tr("The park's live feed is quiet — this plan runs on typical patterns, so check waits as you go")}`);
+    return { risks, wetHours, hotHours };
+  }
+
+  function riskBanner(r) {
+    if (!r.risks.length) return '';
+    return `<div class="riskbox"><b>⚠️ ${tr('Heads up for this day')}</b>${r.risks.map((t) => `<div class="riskrow">${t}</div>`).join('')}</div>`;
+  }
+
   function eventNotice(events, closer) {
     if (!events || !events.length) return '';
     const bits = events.map((e) => {
@@ -1627,6 +1667,7 @@
   //    the same ride list at the same times reuses the answer it already got.
   //  - Every failure is silent and non-blocking. No pass, advisor off, rate
   //    limited, offline: the plan below is still the plan.
+  let lastPlanRisks = [];
   let aiPlanKey = null;
   let aiPlanText = '';
   let aiPlanAbort = null;
@@ -1694,6 +1735,7 @@
       ? new Date(planDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
       : 'today';
     const ask = `This is the running order my planner built for ${parks[current].name} on ${dayLabel}: ${lines}. `
+      + (lastPlanRisks.length ? `Known risks for this day: ${lastPlanRisks.join('; ')}. If one of these genuinely threatens the plan, open your reply with it and how the order handles it. ` : '')
       + 'Give me your read on it in 3-5 short sentences: what to move, what to keep, and the one thing that will cost me the most time if I get it wrong. '
       + 'Be specific about named rides and times. If you would reorder it, call propose_plan with the revised order.';
 
@@ -1998,6 +2040,21 @@
     const dayEvents = (planDay && planDay.events) || [];
     const closer = dayEvents.find((e) => e.certainty === 'confirmed' && e.kind === 'hard-ticket' && e.closesEarlyAt);
     if (closer && end > closer.closesEarlyAt) end = closer.closesEarlyAt;
+    const risk = planRisks(planDay, closer);
+    lastPlanRisks = risk.risks.map((t) => t.replace(/<[^>]+>/g, ''));
+    // The risk lands on the step it bites: rain on the wet hours, heat on
+    // outdoor rides in the hot hours. Indoor rides are the shelter, not the
+    // problem, so they stay unbadged.
+    const stepBadges = (st) => {
+      if (!st.ride) return '';
+      const h = Math.floor(st.time);
+      const tags = tagsCache[current] || {};
+      const indoors = (tags[st.ride.name] || {}).in === 'indoor';
+      let b = '';
+      if (risk.wetHours.has(h) && !indoors) b += ' 🌧';
+      if (risk.hotHours.has(h) && (tags[st.ride.name] || {}).in === 'outdoor') b += ' 🥵';
+      return b;
+    };
     // "Now" after closing means the day is over — plan a fresh day from open.
     if ($('start-hour').value === 'now' && !futureDay && t >= end) t = p.open;
     if (end <= t) { alert('End time must be after start time.'); return; }
@@ -2135,6 +2192,7 @@
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
       ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")}</p>` : ''}
+      ${riskBanner(risk)}
       ${eventNotice(dayEvents, closer)}
       ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask the advisor below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
       <!-- The advisor's read is the headline. The computed running order below
@@ -2151,7 +2209,7 @@
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
-        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
+        : `<div class="step${s.suggested ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${stepBadges(s)}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
            <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${esc(s.ride.name)} ridden">✓</button></div>`
       ).join('')}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
