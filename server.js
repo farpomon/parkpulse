@@ -1857,6 +1857,9 @@ const HERO_PARKS = ['magic-kingdom', 'universal-studios-florida', 'busch-gardens
 // London its two). When many share it (US Eastern) one park per resort group
 // keeps the tabs varied, and a lone match is padded from its region. A
 // timezone with no parks near it falls back to the Florida trio.
+// Cached render of the Queue-Times directory page (/qt-directory).
+let qtDirCache = { at: 0, html: '' };
+
 const tzOffsetCache = new Map();
 function tzOffsetMin(tz) {
   if (tzOffsetCache.has(tz)) return tzOffsetCache.get(tz);
@@ -2360,6 +2363,54 @@ const server = http.createServer(async (req, res) => {
       .replace('<!--SHOTS-->', () => productShots());
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     return res.end(html);
+  }
+
+  // The complete Queue-Times park directory, fetched server-side and annotated
+  // with ParkPulse coverage — the shopping list for "which park do we add
+  // next". Server-side because this host can reach queue-times.com while the
+  // development sandbox (and some visitors' networks) cannot. noindex: it is
+  // an internal tool, not content.
+  if (url.pathname === '/qt-directory') {
+    if (!qtDirCache.html || Date.now() - qtDirCache.at > 60 * 60 * 1000) {
+      try {
+        const r = await fetch('https://queue-times.com/parks.json', {
+          signal: AbortSignal.timeout(10000),
+          headers: { 'user-agent': 'ParkPulse/0.1 (directory view with attribution)' },
+        });
+        if (!r.ok) throw new Error(`upstream ${r.status}`);
+        const companies = await r.json();
+        const ours = new Map(REGISTRY.filter((p) => p.id != null).map((p) => [p.id, p]));
+        let total = 0, covered = 0;
+        const sections = companies.map((c) => {
+          const rows = (c.parks || []).map((p) => {
+            total += 1;
+            const mine = ours.get(p.id);
+            if (mine) covered += 1;
+            return `<li class="${mine ? 'have' : 'miss'}">${esc(p.name)} <small>#${p.id}${mine ? ` &middot; tracked as ${esc(mine.slug)}` : ''}</small></li>`;
+          }).join('');
+          return `<section><h2>${esc(c.name)} <small>${(c.parks || []).length}</small></h2><ul>${rows}</ul></section>`;
+        }).join('');
+        qtDirCache = { at: Date.now(), html: `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>Queue-Times directory — ParkPulse coverage</title>
+<style>body{font:15px/1.6 system-ui,sans-serif;max-width:900px;margin:0 auto;padding:2rem 1.2rem;color:#1c1630}
+h1{font-size:1.5rem}h2{font-size:1.05rem;margin:1.6rem 0 .4rem}h2 small{color:#888;font-weight:400}
+ul{margin:0;padding:0;list-style:none;columns:2 320px;column-gap:2rem}
+li{padding:.15rem 0;break-inside:avoid}li small{color:#888}
+li.have{color:#1d7a4f}li.have::before{content:"✓ "}li.miss::before{content:"· ";color:#bbb}
+.sum{background:#f0edff;border-radius:10px;padding:.8rem 1rem;margin:1rem 0}</style></head><body>
+<h1>Queue-Times park directory</h1>
+<div class="sum"><b>${total} parks</b> in the Queue-Times feed &middot; <b>${covered} tracked by ParkPulse</b> (green) &middot; ${total - covered} not yet covered.</div>
+${sections}
+<p>Data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. Snapshot cached for 1 hour.</p>
+</body></html>` };
+      } catch (err) {
+        res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8' });
+        return res.end(`Could not reach the Queue-Times directory right now (${err.message}). Try again in a minute.`);
+      }
+    }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, max-age=300' });
+    return res.end(qtDirCache.html);
   }
 
   // The landing hero board re-picked for the visitor's timezone. Public on
