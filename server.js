@@ -2930,8 +2930,18 @@ const server = http.createServer(async (req, res) => {
             });
           } catch (err) {
             failed = true;
-            console.log(`consultant error: ${err.message}`);
-            send('error', { error: err.code === 'bad_request' ? 'invalid messages' : 'The consultant is having a moment — try again shortly.' });
+            // Log the whole shape -- status and type are what distinguish a
+            // dead key from an exhausted balance from a rate limit, and
+            // "having a moment" told nobody anything.
+            const status = err.status || err.statusCode || null;
+            console.log(`consultant error: status=${status ?? 'none'} type=${err.type || err.name || 'unknown'} msg=${err.message}`);
+            const friendly = err.code === 'bad_request' ? 'invalid messages'
+              : status === 401 || status === 403 ? "Mila's key isn't being accepted right now — the operator has been told."
+              : status === 429 ? 'Mila is at her limit for the moment — try again shortly.'
+              : status === 400 && /credit|balance|quota/i.test(err.message || '') ? "Mila's account needs topping up — the operator has been told."
+              : status >= 500 ? 'The advisor service is having trouble — try again shortly.'
+              : 'The consultant is having a moment — try again shortly.';
+            send('error', { error: friendly });
           }
           // Persist the conversation for logged-in users so it follows the
           // account across devices (mirrors the client's own history rules).

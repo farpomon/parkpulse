@@ -10,7 +10,8 @@
 (function () {
   const script = document.currentScript;
   const T = () => window.PP_T || ((k) => k); // resolved lazily so load order never matters
-  const state = { history: [], busy: false, opts: null, locked: false };
+  const state = { history: [], busy: false, opts: null, locked: false, park: null };
+  try { state.park = sessionStorage.getItem('ppc-park'); } catch {}
   try { state.history = JSON.parse(sessionStorage.getItem('ppc-history') || '[]'); } catch {}
   const saveHistory = () => { try { sessionStorage.setItem('ppc-history', JSON.stringify(state.history.slice(-24))); } catch {} };
 
@@ -193,8 +194,27 @@
     return div;
   }
 
+  // A transcript belongs to the park it was written about. Switching park
+  // invalidates it twice over: it reads as advice for somewhere else, and
+  // historyWindow() would send it as context for a question about here.
+  function syncPark() {
+    const now = state.opts && state.opts.getPark ? state.opts.getPark() : null;
+    if (!now) return;
+    if (state.park && state.park !== now) {
+      state.history = [];
+      saveHistory();
+      const box = $id('ppc-msgs');
+      if (box) box.innerHTML = '';
+      const chips = $id('ppc-chips');
+      if (chips) chips.style.display = '';
+    }
+    state.park = now;
+    try { sessionStorage.setItem('ppc-park', now); } catch {}
+  }
+
   function openPanel() {
     if (state.opts.requireAccess && !state.opts.requireAccess()) return;
+    syncPark();
     $id('ppc-panel').classList.add('ppc-open');
     if (!msgs.children.length) {
       for (const m of state.history) {
@@ -274,6 +294,7 @@
 
   async function send(text) {
     if (state.busy || !text.trim()) return;
+    syncPark();   // ask() can reach here without the panel ever being opened
     state.busy = true;
     $id('ppc-chips').style.display = 'none';
     bubble('user', text);
@@ -380,7 +401,23 @@
       state.locked = Boolean(cfg.consultant) && cfg.consultantAccess === false;
     } catch { if (enabled === undefined) enabled = false; }
     if (enabled) $id('ppc-fab').classList.add('ppc-show');
-    return { setEnabled: (on) => $id('ppc-fab').classList.toggle('ppc-show', Boolean(on)) };
+    return {
+      setEnabled: (on) => $id('ppc-fab').classList.toggle('ppc-show', Boolean(on)),
+      // Called when the app switches park: a transcript about Disneyland is
+      // both confusing to read and wrong to send as context for a question
+      // about Universal. Start clean at the new park.
+      reset: () => {
+        state.history = [];
+        saveHistory();
+        const box = $id('ppc-msgs');
+        if (box) box.innerHTML = '';
+        const chips = $id('ppc-chips');
+        if (chips) chips.style.display = '';
+        // Adopt the new park now, so syncPark() does not clear a second time.
+        const now = state.opts && state.opts.getPark ? state.opts.getPark() : null;
+        if (now) { state.park = now; try { sessionStorage.setItem('ppc-park', now); } catch {} }
+      },
+    };
   }
 
   // Open the panel and (optionally) send a question — lets the app deep-link

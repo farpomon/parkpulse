@@ -1309,6 +1309,7 @@
   // Long closures, detected from the feed. Shown once above the list so a
   // family does not walk to a ride that has been shut for a fortnight.
   let closureList = [];
+  let chatCtl = null;             // the chat widget's controller, once mounted
   async function loadClosures() {
     try {
       const r = await api(`/api/closures/${current}`);
@@ -2003,7 +2004,13 @@
     renderTabs();
     try { if (parks[current]?.tz) localStorage.setItem('pp-tz', parks[current].tz); } catch {}
     loadDone();
-    if (plannerPark !== null && plannerPark !== current) { llSet.clear(); hidePlanNote(); openDesc.clear(); if (viewMode === 'dining') renderDining(); }
+    if (plannerPark !== null && plannerPark !== current) {
+      llSet.clear(); hidePlanNote(); openDesc.clear();
+      if (viewMode === 'dining') renderDining();
+      // A chat transcript is advice about one park. Carrying it into another
+      // reads as nonsense and, worse, gets sent back as context.
+      if (chatCtl) chatCtl.reset();
+    }
     if (plannerPark !== current) { setupPlanner(); plannerPark = current; }
     if (!opts.silent) {
       $('rides').classList.add('skeleton');
@@ -3369,6 +3376,8 @@
         document.querySelector('.logo').insertAdjacentHTML('beforeend',
           ' <span style="font-size:.62rem;font-weight:800;letter-spacing:.08em;background:#e5484d;color:#fff;border-radius:6px;padding:.12rem .4rem;vertical-align:middle">DEV</span>');
       }
+      // init() is async (it fetches /api/config for access) -- take the
+      // controller from the promise rather than storing the promise itself.
       if (window.ParkPulseChat) ParkPulseChat.init({
         enabled: Boolean(c.consultant),
         getPark: () => current,
@@ -3397,7 +3406,7 @@
         onAlert: (action) => { myAlerts[action.ride] = action.threshold; saveAlerts(); renderRides(); },
         requireAccess: () => { if (isPro) return true; showUpsell(); return false; },
         offsetBottom: '5.2rem',
-      });
+      }).then((c) => { chatCtl = c; });
       if (sessionToken()) {
         // Refresh account state; re-issues the pass token if the account has one.
         try {
