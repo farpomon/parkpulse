@@ -238,12 +238,17 @@
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
   /* Free-preview gate: half the board as a teaser, nothing interactive. */
-  body.gated { overflow: hidden; height: 100vh; }
+  /* Two tiers of gate. gated = free user: the free park's board is usable —
+     one park, today, one plan — with paid features locking individually.
+     gated-hard = a free user somehow on a LOCKED park: half-page cover. */
+  body.gated-hard { overflow: hidden; height: 100vh; }
   #gatecover { display: none; }
-  body.gated #gatecover { display: block; position: fixed; inset: 0; z-index: 70; cursor: pointer;
+  body.gated-hard #gatecover { display: block; position: fixed; inset: 0; z-index: 70; cursor: pointer;
     background: linear-gradient(180deg, transparent 30%, var(--bg) 72%); }
   body.gated #ppc-fab { display: none !important; }
-  body.gated #wiz, body.gated #wiz-bg { display: none !important; }
+  body.gated-hard #wiz, body.gated-hard #wiz-bg { display: none !important; }
+  /* Today only for free users: the Day picker is a pass feature. */
+  body.gated #lab-day { display: none !important; }
   .gate-bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 1rem 1rem calc(1.2rem + env(safe-area-inset-bottom));
     display: flex; align-items: center; justify-content: center; gap: .7rem; flex-wrap: wrap; text-align: center; }
   .gate-bar img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--brand); }
@@ -588,7 +593,7 @@
   #ppc-fab { display: none !important; }
   /* Gated visitors get half a page and the upsell -- the bar would be a way
      around it, and #gatecover would bury it anyway. */
-  body.gated .tabbar { display: none; }
+  body.gated-hard .tabbar { display: none; }
   @media (max-width: 1079px) {
     .planbar { padding-bottom: .7rem; }
     /* Duplicated by the bar; the toolbar row keeps Filters and Select all. */
@@ -795,8 +800,8 @@
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="What the pass unlocks">
   <div class="gate-card">
     <img src="/img/mila/mila-cool-160.webp" alt="" width="72" height="72" class="gate-mila">
-    <h3>You're seeing the free preview</h3>
-    <p class="gate-sub">The live board keeps moving behind this page. Here's what a pass unlocks:</p>
+    <h3>Your free day at Magic Kingdom</h3>
+    <p class="gate-sub">Free: Magic Kingdom's live board, today, and one "Plan my day" — on the house. A pass unlocks the rest:</p>
     <ul class="gate-list">
       <li><span>🎢</span>Live wait times for all <b>56 parks</b> — refreshed every minute</li>
       <li><span>✨</span><b>Mila plans your whole day</b> — one tap, ordered against the crowds, explained</li>
@@ -1151,6 +1156,7 @@
   // expected crowd level — picking the quiet day is the point.
   function renderDayOptions() {
     const sel = $('plan-day-sel');
+    if (!isPro) { planDate = null; sel.innerHTML = `<option value="">${tr('Today')}</option>`; $('lab-day').style.display = 'none'; return; }
     const horizon = planHorizonDays();
     const days = (lastForecast?.days || []).slice(0, horizon);
     if (!days.length) {
@@ -1846,6 +1852,7 @@
   // gate is on AND the visitor holds no pass -- launch preview stays open.
   function applyGate() {
     document.body.classList.toggle('gated', !isPro);
+    document.body.classList.toggle('gated-hard', !isPro && current !== FREE_PARK);
     if (isPro) { $('gate').classList.remove('open'); return; }
     if (!sessionStorage.getItem('pp-gate-shown')) {
       try { sessionStorage.setItem('pp-gate-shown', '1'); } catch {}
@@ -2028,7 +2035,16 @@
   }
 
   function buildPlan(opts = {}) {
-    if (!isPro) { showUpsell(); return; }
+    // Free tier: one plan per day, for the free park, for today. The server
+    // enforces the matching consultant allowance; this is the polite half.
+    if (!isPro && !opts.quiet) {
+      if (current !== FREE_PARK || planDate) { showUpsell(); return; }
+      let used = null;
+      try { used = localStorage.getItem('pp-free-plan'); } catch {}
+      if (used === parkDay()) { showUpsell(); return; }
+      try { localStorage.setItem('pp-free-plan', parkDay()); } catch {}
+    }
+    if (!isPro && opts.quiet && current !== FREE_PARK) return;
     const p = parks[current] || { open: 9, close: 21 };
     const futureDay = Boolean(planDate);
     // Planning a future day: use THAT day's expected crowds, and drop the
@@ -2313,6 +2329,7 @@
 
   async function load(opts = {}) {
     renderTabs();
+    applyGate();   // the gate tier depends on which park is showing
     try { if (parks[current]?.tz) localStorage.setItem('pp-tz', parks[current].tz); } catch {}
     loadDone();
     if (plannerPark !== null && plannerPark !== current) {
@@ -2618,7 +2635,8 @@
     requestAnimationFrame(() => $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' }));
   });
   $('plan-day').addEventListener('click', () => {
-    if (!isPro) { showUpsell(); return; }
+    // Free-tier limits live in buildPlan (one park, today, once a day) —
+    // a second gate here would deny the free plan the tier promises.
     // Nothing to plan with: the feed gave us no rides for this park. Saying so
     // beats a button that silently does nothing -- the failure is upstream and
     // the honest move is to name it and offer the two ways out.

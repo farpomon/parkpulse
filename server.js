@@ -435,6 +435,9 @@ function cleanFirstName(raw) {
 // stand-in so the app's later greetings make sense.
 const NAME_NOTE = "That one made Mila hide behind her wings! We'll go with 'Dear Friend' for now — you can tell us your real name any time in your account.";
 
+// One free consultant call per day per client, tracked in memory. A restart
+// resets it; the free plan is a taste, not a metered entitlement.
+const FREE_CONSULT = new Map();
 function hasAccess(req) {
   if (!PRO_GATE) return true;
   if (passFromReq(req)) return true;
@@ -2556,8 +2559,12 @@ const server = http.createServer(async (req, res) => {
     const slug = forecastMatch[1];
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
-    // Planning ahead needs more than this week; the pass length caps it client-side.
-    return sendJson(res, 200, forecastFor(slug, url.searchParams.get('days')));
+    // Planning ahead is a pass feature: without one the horizon clamps to the
+    // 7-day strip. Server-side — the year calendar must not be scrapeable by
+    // pointing the free API at day 365.
+    const askedDays = url.searchParams.get('days');
+    const horizon = hasAccess(req) ? askedDays : Math.min(Number(askedDays) || 7, 7);
+    return sendJson(res, 200, forecastFor(slug, horizon));
   }
 
   const waitsMatch = url.pathname.match(/^\/api\/waits\/([a-z-]+)$/);
@@ -3103,7 +3110,22 @@ const server = http.createServer(async (req, res) => {
 
       if (url.pathname === '/api/consultant') {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
-        if (!hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
+        // Free tier: exactly ONE consultant call per day — the review that
+        // rides along with the single free "Plan my day" — and only for the
+        // free park, only about today. Everything else is 402. Server-side,
+        // because a hidden button is not a limit.
+        if (!hasAccess(req)) {
+          const freePark = typeof parsed.park === 'string' && parsed.park === FREE_PARK;
+          const today = !(typeof parsed.planDate === 'string' && parsed.planDate);
+          if (!freePark || !today) return sendJson(res, 402, { error: 'pass required' });
+          const fkey = throttleIdentity(req).slice(0, 64);
+          const fday = etNow().date;
+          if (FREE_CONSULT.get(fkey) === fday) {
+            return sendJson(res, 402, { error: "Today's free plan review is used — every pass includes unlimited Mila." });
+          }
+          FREE_CONSULT.set(fkey, fday);
+          if (FREE_CONSULT.size > 20000) FREE_CONSULT.clear(); // bounded memory
+        }
         const { park, messages, favorites, planPicks, subscription } = parsed;
         // Group profile from the setup wizard — whitelisted, never trusted raw.
         const profile = sanitizeProfile(parsed.profile);
