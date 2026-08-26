@@ -1992,18 +1992,41 @@ ${rail(i)}
   return `<div class="board">${bodies}</div>`;
 }
 
-// Four regional columns of real parks, each linking to its own guide page.
+// The full park directory for the landing page: the most-visited parks up
+// front as highlighted cards, then every park by region — each with one line
+// of Mila. Lines are editorial data, not AI: written once, zero token cost.
+let PARK_MAGIC = {};
+try {
+  PARK_MAGIC = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-magic.json'), 'utf8'));
+} catch (err) { console.log(`park magic lines unavailable: ${err.message}`); }
+
+const POPULAR_PARKS = [
+  'magic-kingdom', 'disneyland', 'epic-universe', 'universal-studios-florida',
+  'islands-of-adventure', 'epcot', 'tokyo-disneyland', 'disneyland-paris',
+];
+
 function parkGuides(registry) {
-  const by = (fn) => registry.filter(fn);
-  const groups = [
-    ['Walt Disney World', by((p) => p.group === 'Walt Disney World')],
-    ['Universal &amp; Orlando', by((p) => p.group === 'Universal Orlando' || (p.region === 'Florida' && p.group !== 'Walt Disney World' && p.group !== 'Universal Orlando'))],
-    ['California &amp; West', by((p) => p.region === 'California')],
-    ['Worldwide', by((p) => p.region === 'Asia' || p.region === 'Europe')],
+  const magicLine = (p) => {
+    const m = PARK_MAGIC[p.slug];
+    return m ? `<span class="pg-magic">${esc(m)}</span>` : '';
+  };
+  const popular = POPULAR_PARKS
+    .map((slug) => registry.find((p) => p.slug === slug))
+    .filter(Boolean);
+  const cards = popular.map((p) =>
+    `<a class="pg-card" href="/parks/${p.slug}"><span class="pg-badge">&#10024; Most popular</span><span class="pg-cn">${esc(p.name)}</span>${magicLine(p)}</a>`).join('');
+  const regions = [
+    ['Florida', 'Florida'], ['California', 'California &amp; West'],
+    ['US & Canada', 'US &amp; Canada'], ['Europe', 'Europe'], ['Asia', 'Asia'],
   ];
-  return groups.map(([region, parks]) => `<div class="pg-col"><div class="pg-head">${region}</div>${
-    parks.slice(0, 6).map((p) => `<a href="/parks/${p.slug}">${esc(p.name)}</a>`).join('')
-  }</div>`).join('');
+  const cols = regions.map(([key, label]) => {
+    const parks = registry.filter((p) => p.region === key && !POPULAR_PARKS.includes(p.slug));
+    if (!parks.length) return '';
+    return `<div class="pg-col"><div class="pg-head">${label}</div>${
+      parks.map((p) => `<a href="/parks/${p.slug}"><span class="pg-n">${esc(p.name)}</span>${magicLine(p)}</a>`).join('')
+    }</div>`;
+  }).join('');
+  return `<div class="pg-pop">${cards}</div><div class="pg">${cols}</div>`;
 }
 
 const SHOTS = [
@@ -2334,7 +2357,6 @@ const server = http.createServer(async (req, res) => {
       .replace('<!--PHOTO_BAND-->', () => photoBand())
       .replace('<!--CAPTURE_BG-->', () => captureStyle())
       .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
-      .replace('<!--FOOTER_PARKS-->', () => `<div class="allparks">${pages.allParksIndex(REGISTRY)}</div>`)
       .replace('<!--SHOTS-->', () => productShots());
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     return res.end(html);

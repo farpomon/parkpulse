@@ -4316,6 +4316,13 @@
       parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } };
     }
     load();
+    // Anonymous visitors land on sign-up first: every free feature is tracked
+    // per verified email, so the front door of the app is an account. The
+    // sheet is dismissible — the board stays browsable behind it.
+    if (!localStorage.getItem('pp-email') && location.hash !== '#account') {
+      acctMode = 'signup';
+      setTimeout(openAcct, 350);
+    }
   })();
   setInterval(() => load({ silent: true }), 5 * 60 * 1000);
   setInterval(() => { setUpdated(); renderParkClock(); }, 30 * 1000);

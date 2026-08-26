@@ -178,6 +178,8 @@ flat-file lead/pass storage.
 
 ## Legal
 
-Unofficial fan tool, not affiliated with or endorsed by The Walt Disney Company.
-No Disney trademarks in branding; park/ride names used nominatively. No scraping
-or automation of Disney systems — wait data comes from queue-times.com's public API.
+Unofficial fan tool, not affiliated with, endorsed by, or sponsored by any park
+or operator listed on the site. No operator trademarks in branding; park/ride
+names used nominatively. No scraping or automation of park systems — wait data
+comes from queue-times.com's public API (attribution link required and shown
+wherever the data is displayed).

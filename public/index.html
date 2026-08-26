@@ -193,11 +193,21 @@
   .chelp{font-size:13px;color:#a99fd0;margin-top:10px}
   .chelp.ok{color:#8ee0b4}
 
-  /* Park guides */
-  .pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:32px}
-  .pg-head{font-size:12.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--ink);padding-bottom:10px;border-bottom:1px solid var(--border)}
-  .pg-col a{display:block;font-size:14.5px;color:var(--muted);padding:7px 0}
-  .pg-col a:hover{color:var(--brand)}
+  /* Park guides — popular cards up top, then the full directory by region. */
+  .pg-pop{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(235px,100%),1fr));gap:13px;margin-bottom:34px}
+  .pg-card{display:flex;flex-direction:column;gap:5px;padding:16px 17px;border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+  .pg-card:hover{border-color:var(--brand)}
+  .pg-badge{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--brand)}
+  .pg-cn{font-size:16px;font-weight:750;color:var(--ink)}
+  /* Multi-column so the long US & Canada region balances against the short
+     ones instead of towering over them; entries stay atomic across breaks. */
+  .pg{columns:4 210px;column-gap:32px}
+  .pg-head{font-size:12.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--ink);padding-bottom:10px;border-bottom:1px solid var(--border);break-after:avoid;margin-top:22px}
+  .pg-col:first-child .pg-head{margin-top:0}
+  .pg-col a{display:block;padding:9px 0;break-inside:avoid}
+  .pg-n{display:block;font-size:14.5px;font-weight:600;color:var(--ink)}
+  .pg-col a:hover .pg-n,.pg-card:hover .pg-cn{color:var(--brand)}
+  .pg-magic{display:block;font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:2px}
 
   /* Screenshots */
   .shots{display:flex;flex-wrap:wrap;gap:2rem;justify-content:center;align-items:center;max-width:760px;margin:0 auto}
@@ -230,8 +240,6 @@
   /* Every park page linked from every page. This is the crawl path for the 56
      park guides -- an index page alone leaves them one hop deeper than they
      need to be, and it is what a visitor scans for their own park. */
-  .footparks{border-top:1px solid var(--border);padding-top:28px;margin-bottom:36px}
-  .footparks h2{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;text-align:left;font-family:inherit;font-weight:600}
   .allparks{columns:4;column-gap:28px;font-size:13.5px}
   .allparks a{display:block;color:var(--muted);text-decoration:none;padding:2px 0;break-inside:avoid}
   .allparks a:hover{color:var(--brand)}
@@ -487,19 +495,15 @@
 
 <section class="sec" id="parks">
   <h2>Park guides</h2>
-  <p class="lead">Hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; for every park we cover. <a href="/parks">Browse all 56 &rarr;</a></p>
-  <div class="pg"><!--PARK_GUIDES--></div>
+  <p class="lead">Every park we cover, with hour-by-hour wait patterns, rope-drop order, best and worst months, and a straight verdict on the skip-the-line pass &mdash; plus a whisper from Mila about each one.</p>
+  <!--PARK_GUIDES-->
 </section>
 
 <footer>
-  <nav class="footparks" aria-label="All parks we track">
-    <h2>Wait times by park</h2>
-    <!--FOOTER_PARKS-->
-  </nav>
   <div class="footin">
     <div class="disc">
-      Unofficial fan tool. Not affiliated with or endorsed by The Walt Disney Company.<br>
-      Wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>.
+      ParkPulse is an independent, unofficial fan tool &mdash; not affiliated with, endorsed by, or sponsored by any park or operator listed on this site. Park and attraction names are used only to identify them; all trademarks belong to their respective owners.<br>
+      Live wait-time data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>.
     </div>
     <div class="footlinks">
       <a href="/terms">Terms &amp; Refunds</a><a href="/privacy">Privacy</a><a href="/delete-account">Delete account</a><a href="mailto:support@parkpulse.fun">Support</a>
