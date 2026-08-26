@@ -3121,7 +3121,7 @@ const server = http.createServer(async (req, res) => {
           const fkey = throttleIdentity(req).slice(0, 64);
           const fday = etNow().date;
           if (FREE_CONSULT.get(fkey) === fday) {
-            return sendJson(res, 402, { error: "Today's free plan review is used — every pass includes unlimited Mila." });
+            return sendJson(res, 402, { error: 'My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.' });
           }
           FREE_CONSULT.set(fkey, fday);
           if (FREE_CONSULT.size > 20000) FREE_CONSULT.clear(); // bounded memory

@@ -507,6 +507,18 @@
   .wiz-mila img { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
   .wiz-mila .wm-txt { flex: 1 1 10rem; min-width: 0; font-size: .88rem; color: var(--ink); line-height: 1.35; }
   .wiz-mila .btn { flex: 1 1 auto; white-space: normal; padding: .55rem .8rem; font-size: .88rem; }
+  /* Locked-park preview: real layout, deliberately unreadable. */
+  .blurwrap { position: relative; min-height: 22rem; }
+  .blurwrap .blurred { filter: blur(6px); pointer-events: none; user-select: none; opacity: .8; }
+  .blurwrap .blurred .ride { display: flex; justify-content: space-between; align-items: center;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; margin: .5rem 0; }
+  .blurcard { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; gap: .45rem; padding: 1rem; z-index: 2; }
+  .blurcard img { border-radius: 50%; border: 2.5px solid var(--brand); }
+  .blurcard b { font-size: 1.05rem; }
+  .blurcard span { color: var(--muted); font-size: .88rem; max-width: 22rem; line-height: 1.4; }
+  .blurcard .btn { margin-top: .3rem; text-decoration: none; }
+  .blurcard .cancel { width: auto; padding: .5rem .9rem; }
   .riskbox { background: var(--amber-soft, #fff7e6); border: 1px solid #e8c98a; border-radius: 12px;
     padding: .7rem .9rem; margin: 0 0 .7rem; font-size: .86rem; color: var(--ink); }
   .riskbox b { display: block; margin-bottom: .25rem; }
@@ -1008,7 +1020,14 @@
   let unitPref = localStorage.getItem('pp-units') || 'auto';   // 'auto' | 'metric' | 'imperial'
   const regionUsesF = () => /United States|USA|US$/.test(parks[current]?.region || '') || /Florida|California|Orlando|Anaheim|Ohio|Texas|New Jersey/.test(parks[current]?.region || '');
   const usesFahrenheit = () => (unitPref === 'imperial' ? true : unitPref === 'metric' ? false : regionUsesF());
-  const setUnitPref = (v) => { unitPref = v; try { localStorage.setItem('pp-units', v); } catch {} renderWeather(); };
+  const setUnitPref = (v) => {
+    unitPref = v;
+    try { localStorage.setItem('pp-units', v); } catch {}
+    renderWeather();
+    // Times follow the unit system (12h vs 24h): repaint what shows clocks.
+    setupPlanner(); renderDayOptions();
+    if ($('plan-out').querySelector('.plan')) buildPlan({ quiet: true });
+  };
   const degrees = (c) => usesFahrenheit() ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
   async function loadWeather() {
     const parkAtStart = current;
@@ -1030,7 +1049,7 @@
   const clockLabel = (hhmm) => {
     if (!/^\d{2}:\d{2}$/.test(hhmm || '')) return hhmm || '';
     const [h, m] = hhmm.split(':').map(Number);
-    return regionUsesF() ? `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : hhmm;
+    return usesFahrenheit() ? `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` : hhmm;
   };
   const UV_WORDS = (uv) => (uv >= 11 ? 'extreme' : uv >= 8 ? 'very high' : uv >= 6 ? 'high' : uv >= 3 ? 'moderate' : 'low');
 
@@ -1424,7 +1443,6 @@
     ).join('');
     $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       const slug = b.dataset.slug;
-      if (!isPro && slug !== FREE_PARK) { showUpsell(); return; }
       if (slug === current) return;
       current = slug;
       localStorage.setItem('pp-park', slug);
@@ -1432,6 +1450,7 @@
     }));
   }
 
+  const WAND_MSG = () => tr('My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.');
   function showUpsell() {
     $('plan-out').innerHTML = `<div class="upsell"><img class="mila-up" src="/img/mila/mila-cool-160.webp" alt="Mila, arms crossed, confident"><strong>56 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in every ParkPulse pass.</strong><br>
       From $24.99 for a park day — the price of one person's Lightning Lane, covering your whole family's devices.<br><br>
@@ -1794,7 +1813,11 @@
           profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
         }),
       });
-      if (res.status === 402) return fail(tr('An advisor read of your plan comes with any pass.'), true);
+      if (res.status === 402) {
+        let msg = null;
+        try { msg = (await res.json()).error; } catch {}
+        return fail(msg || tr('An advisor read of your plan comes with any pass.'), true);
+      }
       if (res.status === 429) return fail(tr('The advisor is resting — your plan below still stands.'));
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         console.warn('advisor unavailable:', res.status);
@@ -1852,7 +1875,6 @@
   // gate is on AND the visitor holds no pass -- launch preview stays open.
   function applyGate() {
     document.body.classList.toggle('gated', !isPro);
-    document.body.classList.toggle('gated-hard', !isPro && current !== FREE_PARK);
     if (isPro) { $('gate').classList.remove('open'); return; }
     if (!sessionStorage.getItem('pp-gate-shown')) {
       try { sessionStorage.setItem('pp-gate-shown', '1'); } catch {}
@@ -2020,14 +2042,23 @@
   // Clock style follows the chosen language — 24-hour where that's the norm,
   // AM/PM where it isn't — instead of forcing US formatting on everyone.
   let hourFmt = null;
+  let hourFmtKey = null;
   function hourLabel(h) {
     const whole = Math.floor(h) % 24;
     const mins = Math.round((h - Math.floor(h)) * 60);
+    // The clock follows the unit switch: imperial reads 2:30 PM, metric reads
+    // 14:30. One toggle, one worldview — temperature and time together.
+    const imperial = usesFahrenheit();
     try {
-      if (!hourFmt) hourFmt = new Intl.DateTimeFormat(window.PP_LANG || 'en', { hour: 'numeric', minute: '2-digit' });
+      const key = (window.PP_LANG || 'en') + (imperial ? ':12' : ':24');
+      if (!hourFmt || hourFmtKey !== key) {
+        hourFmt = new Intl.DateTimeFormat(window.PP_LANG || 'en', { hour: imperial ? 'numeric' : '2-digit', minute: '2-digit', hourCycle: imperial ? 'h12' : 'h23' });
+        hourFmtKey = key;
+      }
       const d = new Date(2020, 0, 1, whole, mins);
       return hourFmt.format(d);
     } catch {
+      if (!imperial) return `${String(whole).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
       const ampm = whole >= 12 ? 'PM' : 'AM';
       const disp = whole % 12 === 0 ? 12 : whole % 12;
       return `${disp}:${String(mins).padStart(2, '0')} ${ampm}`;
@@ -2041,7 +2072,14 @@
       if (current !== FREE_PARK || planDate) { showUpsell(); return; }
       let used = null;
       try { used = localStorage.getItem('pp-free-plan'); } catch {}
-      if (used === parkDay()) { showUpsell(); return; }
+      if (used === parkDay()) {
+        $('plan-out').innerHTML = `<div class="upsell"><img class="mila-up" src="/img/mila/mila-nervous-160.webp" alt="Mila, apologetic"><strong>${WAND_MSG()}</strong><br><br>
+          <a class="btn wide" href="/#pricing" style="display:block;text-align:center;text-decoration:none">${tr('See passes — from $24.99')}</a></div>`;
+        syncPlanHero();
+        if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
+        requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        return;
+      }
       try { localStorage.setItem('pp-free-plan', parkDay()); } catch {}
     }
     if (!isPro && opts.quiet && current !== FREE_PARK) return;
@@ -2325,7 +2363,44 @@
   }
 
   let plannerPark = null;
-  let pendingPremade = null;   // persona slug from a /app?premade= deep link
+  let pendingPremade = null;
+
+  // A locked park for a free visitor: the board renders from the park's
+  // public premade plan (typical waits — the same numbers the SEO pages
+  // publish), blurred, with the unlock card on top. Look, don't touch.
+  async function renderLockedPreview() {
+    rides = [];
+    lastData = { source: 'locked', updatedAt: new Date().toISOString() };
+    $('rides').classList.remove('skeleton');
+    $('crowdline').innerHTML = `🔒 <b>${esc(parks[current].name)}</b> ${tr('is a pass park — this preview shows a typical day.')}`;
+    $('updated').textContent = tr('preview');
+    let rows = [];
+    try {
+      for (const persona of ['one-big-day', 'first-visit']) {
+        const r = await fetch(`/api/premade/${current}/${persona}`);
+        if (r.ok) { rows = (await r.json()).steps.filter((st) => st.name); break; }
+      }
+    } catch {}
+    const list = rows.length
+      ? rows.map((st) => `<div class="ride"><span class="r-name"><b>${esc(st.name)}</b>${st.land ? ` · ${esc(st.land)}` : ''}</span><span class="wait mid">~${st.wait} ${tr('min')}</span></div>`).join('')
+      : `<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>`;
+    $('rides').innerHTML = `<div class="blurwrap">
+      <div class="blurred">${list}</div>
+      <div class="blurcard">
+        <img src="/img/mila/mila-cool-160.webp" alt="" width="56" height="56">
+        <b>${esc(parks[current].name)} ${tr('live is a pass feature')}</b>
+        <span>${tr('The real board updates every minute — waits, plans, Mila, alerts. This one is yesterday-ish, and blurry on purpose.')}</span>
+        <a class="btn" href="/#pricing">${tr('See passes — from $24.99')}</a>
+        <button class="cancel" id="preview-back">${tr('Back to Magic Kingdom — free today')}</button>
+      </div></div>`;
+    document.getElementById('preview-back').addEventListener('click', () => {
+      current = FREE_PARK; dest = parks[FREE_PARK].group;
+      localStorage.setItem('pp-park', FREE_PARK);
+      load();
+    });
+    updatePlanbar(0);
+    syncPlanHero();
+  }   // persona slug from a /app?premade= deep link
 
   async function load(opts = {}) {
     renderTabs();
@@ -2358,13 +2433,19 @@
     }
     try {
       const res = await api(`/api/waits/${current}`);
-      if (res.status === 402) { // pass expired mid-session
-        isPro = false;
-        current = FREE_PARK;
-        applyGate();
-        renderTabs();
-        showUpsell();
-        return load({ silent: true });
+      if (res.status === 402) {
+        // A pro whose pass just expired falls back to the free park. A free
+        // user who chose a locked park gets to SEE it — the typical day,
+        // blurred on purpose, with the unlock on top.
+        if (isPro) {
+          isPro = false;
+          current = FREE_PARK;
+          applyGate();
+          renderTabs();
+          showUpsell();
+          return load({ silent: true });
+        }
+        return renderLockedPreview();
       }
       if (!res.ok) throw new Error(res.status);
       lastData = await res.json();
@@ -3443,7 +3524,6 @@
           .map(([slug, p]) => `<option value="${slug}" ${slug === current ? 'selected' : ''}>${p.name}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</option>`).join('')}</optgroup>`).join('');
       const switchPark = (slug) => {
         if (!parks[slug] || slug === current) return;
-        if (!isPro && slug !== FREE_PARK) { sel.value = current; closeWizard(false); showUpsell(); return; }
         current = slug;
         dest = parks[slug].group;
         localStorage.setItem('pp-park', slug);
@@ -3538,7 +3618,6 @@
         alert(best ? `No covered park nearby — closest is ${parks[best].name}, ${Math.round(bestKm)} km away.` : 'No covered park nearby.');
         return;
       }
-      if (!isPro && best !== FREE_PARK) { showUpsell(); return; }
       if (best !== current) {
         current = best;
         dest = parks[best].group;
@@ -4046,12 +4125,7 @@
     dest = e.target.value;
     const first = Object.entries(parks).find(([, p]) => p.group === dest);
     if (!first) return;
-    if (!isPro && first[0] !== FREE_PARK && !Object.entries(parks).some(([s, p]) => p.group === dest && s === FREE_PARK)) {
-      renderTabs(); // show the locked tabs for this destination
-      showUpsell();
-      return;
-    }
-    current = isPro ? first[0] : FREE_PARK;
+    current = first[0];
     localStorage.setItem('pp-park', current);
         load();
   });
@@ -4129,14 +4203,13 @@
         } catch { isPro = false; }
       }
       const saved = localStorage.getItem('pp-park');
-      if (saved && parks[saved] && (isPro || saved === FREE_PARK)) current = saved;
-      else if (!isPro) current = FREE_PARK;
+      if (saved && parks[saved]) current = saved;
       // Deep link from the premade library: /app?park=X&premade=Y lands on
       // that park with the persona's picks staged and the plan built locally.
       // Params are consumed once, then cleaned off the address bar.
       const qs = new URLSearchParams(location.search);
       const qPark = qs.get('park'), qPremade = qs.get('premade');
-      if (qPark && parks[qPark] && (isPro || qPark === FREE_PARK)) {
+      if (qPark && parks[qPark]) {
         current = qPark;
         dest = parks[qPark].group;
         localStorage.setItem('pp-park', qPark);
