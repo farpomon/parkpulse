@@ -1385,5 +1385,225 @@
     },
     "lat": 33.1266,
     "lng": -117.311
+  },
+  {
+    "slug": "universal-studios-japan",
+    "name": "Universal Studios Japan",
+    "group": "Universal Studios Japan",
+    "id": null,
+    "tokens": [
+      "universal",
+      "japan"
+    ],
+    "open": 9,
+    "close": 21,
+    "show": null,
+    "tz": "Asia/Tokyo",
+    "region": "Asia",
+    "skip": {
+      "name": "Universal Express Pass",
+      "type": "day",
+      "cur": "¥",
+      "low": 7800,
+      "high": 29800,
+      "note": "per person · 4- or 7-ride tiers, price varies by date"
+    },
+    "lat": 34.6654,
+    "lng": 135.4323
+  },
+  {
+    "slug": "gardaland",
+    "name": "Gardaland",
+    "group": "Gardaland",
+    "id": null,
+    "tokens": [
+      "gardaland"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "Europe/Rome",
+    "region": "Europe",
+    "skip": {
+      "name": "Gardaland Express",
+      "type": "day",
+      "cur": "€",
+      "low": 20,
+      "high": 45,
+      "note": "per person/day · price rises with the season"
+    },
+    "lat": 45.455,
+    "lng": 10.7143
+  },
+  {
+    "slug": "heide-park",
+    "name": "Heide Park",
+    "group": "Heide Park",
+    "id": null,
+    "tokens": [
+      "heide"
+    ],
+    "open": 10,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/Berlin",
+    "region": "Europe",
+    "skip": {
+      "name": "Express Pass",
+      "type": "day",
+      "cur": "€",
+      "low": 25,
+      "high": 60,
+      "note": "per person/day · tiers by season"
+    },
+    "lat": 53.0257,
+    "lng": 9.8768
+  },
+  {
+    "slug": "legoland-windsor",
+    "name": "LEGOLAND Windsor",
+    "group": "LEGOLAND Windsor",
+    "id": null,
+    "tokens": [
+      "legoland",
+      "windsor"
+    ],
+    "open": 10,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/London",
+    "region": "Europe",
+    "skip": {
+      "name": "Reserve & Ride",
+      "type": "day",
+      "cur": "£",
+      "low": 20,
+      "high": 90,
+      "note": "per device for the party · tiers by wait cut"
+    },
+    "lat": 51.4627,
+    "lng": -0.6493
+  },
+  {
+    "slug": "chessington",
+    "name": "Chessington",
+    "group": "Chessington",
+    "id": null,
+    "tokens": [
+      "chessington"
+    ],
+    "open": 10,
+    "close": 17,
+    "show": null,
+    "tz": "Europe/London",
+    "region": "Europe",
+    "skip": {
+      "name": "Fastrack",
+      "type": "ride",
+      "cur": "£",
+      "low": 4,
+      "high": 12,
+      "note": "per ride, per person"
+    },
+    "lat": 51.348,
+    "lng": -0.3162
+  },
+  {
+    "slug": "toverland",
+    "name": "Toverland",
+    "group": "Toverland",
+    "id": null,
+    "tokens": [
+      "toverland"
+    ],
+    "open": 10,
+    "close": 18,
+    "show": null,
+    "tz": "Europe/Amsterdam",
+    "region": "Europe",
+    "skip": {
+      "type": "none",
+      "note": "No paid skip — Fēnix and Troy are shortest at opening and near close"
+    },
+    "lat": 51.3968,
+    "lng": 6.0803
+  },
+  {
+    "slug": "futuroscope",
+    "name": "Futuroscope",
+    "group": "Futuroscope",
+    "id": null,
+    "tokens": [
+      "futuroscope"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": {
+      "name": "La Clé des Songes night show",
+      "hour": 21
+    },
+    "tz": "Europe/Paris",
+    "region": "Europe",
+    "skip": {
+      "name": "Pass Premium",
+      "type": "day",
+      "cur": "€",
+      "low": 15,
+      "high": 29,
+      "note": "per person/day · priority lanes on the headliners"
+    },
+    "lat": 46.6672,
+    "lng": 0.3686
+  },
+  {
+    "slug": "everland",
+    "name": "Everland",
+    "group": "Everland",
+    "id": null,
+    "tokens": [
+      "everland"
+    ],
+    "open": 10,
+    "close": 22,
+    "show": null,
+    "tz": "Asia/Seoul",
+    "region": "Asia",
+    "skip": {
+      "name": "Q-Pass",
+      "type": "ride",
+      "cur": "₩",
+      "low": 5000,
+      "high": 15000,
+      "note": "per ride, per person"
+    },
+    "lat": 37.2946,
+    "lng": 127.2022
+  },
+  {
+    "slug": "lotte-world",
+    "name": "Lotte World",
+    "group": "Lotte World",
+    "id": null,
+    "tokens": [
+      "lotte"
+    ],
+    "exclude": [
+      "busan"
+    ],
+    "open": 10,
+    "close": 21,
+    "show": null,
+    "tz": "Asia/Seoul",
+    "region": "Asia",
+    "skip": {
+      "name": "Magic Pass",
+      "type": "ride",
+      "cur": "₩",
+      "low": 3000,
+      "high": 10000,
+      "note": "per ride, per person · free daily quota with some tickets"
+    },
+    "lat": 37.5111,
+    "lng": 127.098
   }
 ]

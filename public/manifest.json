@@ -2,7 +2,7 @@
   "id": "/app",
   "name": "ParkPulse — Theme Park Wait Times",
   "short_name": "ParkPulse",
-  "description": "Live wait times, smart day plans and an AI park advisor for 56 theme parks worldwide.",
+  "description": "Live wait times, smart day plans and an AI park advisor for 65 theme parks worldwide.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",

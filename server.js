@@ -306,7 +306,7 @@ const sendDeletionEmail = (origin, email, token, deleteAt) => {
 const sendInviteEmail = (origin, email, token, days, note) => {
   const link = `${origin}/invite?t=${token}`;
   return sendEmail(email, "You're invited to ParkPulse 🎢",
-    `<p>You've been given <b>full ParkPulse access for ${days} days</b> — live wait times for 56 parks worldwide, the AI day planner, and wait-drop alerts.</p>
+    `<p>You've been given <b>full ParkPulse access for ${days} days</b> — live wait times for 65 parks worldwide, the AI day planner, and wait-drop alerts.</p>
      ${note ? `<p><i>${note.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i></p>` : ''}
      <p><a href="${link}" style="display:inline-block;background:#5b3df5;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Accept your invite →</a></p>
      <p>Or open this link: ${link}</p>`,

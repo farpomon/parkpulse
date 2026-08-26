@@ -1,562 +1,2018 @@
 {
-  "magic-kingdom": {
-    "arch": "disney",
-    "drop": ["Seven Dwarfs Mine Train", "TRON Lightcycle / Run", "Peter Pan's Flight", "Space Mountain", "Big Thunder Mountain Railroad"],
-    "dropWhy": "Seven Dwarfs and TRON build the longest lines fastest, and Peter Pan's tiny hourly capacity means it is never short again after 10 AM.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, the summer school holiday, and the week between Christmas and New Year, when the park regularly reaches capacity" },
-    "quiet": { "months": [1, 2, 9], "why": "late January and early February after the marathon weekend, and September once school returns" },
-    "worth": "often",
-    "verdict": "Magic Kingdom has more Lightning Lane-eligible headliners than any other Walt Disney World park, so Multi Pass genuinely converts here on a busy day. On a September or late-January weekday it is dead money — rope drop plus the last hour covers the same rides for free.",
-    "tip": "Book the earliest Seven Dwarfs return you can get; it is the one attraction whose standby line never meaningfully recovers."
+ "magic-kingdom": {
+  "arch": "disney",
+  "drop": [
+   "Seven Dwarfs Mine Train",
+   "TRON Lightcycle / Run",
+   "Peter Pan's Flight",
+   "Space Mountain",
+   "Big Thunder Mountain Railroad"
+  ],
+  "dropWhy": "Seven Dwarfs and TRON build the longest lines fastest, and Peter Pan's tiny hourly capacity means it is never short again after 10 AM.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, the summer school holiday, and the week between Christmas and New Year, when the park regularly reaches capacity"
   },
-  "epcot": {
-    "arch": "disney",
-    "drop": ["Guardians of the Galaxy: Cosmic Rewind", "Frozen Ever After", "Test Track", "Remy's Ratatouille Adventure"],
-    "dropWhy": "Only a handful of EPCOT attractions build real lines; clear those four early and the rest of the day is walk-ons and World Showcase.",
-    "peak": { "months": [3, 4, 9, 10, 11, 12], "why": "the Flower & Garden and Food & Wine festivals, which drive weekend crowds far more than school holidays do" },
-    "quiet": { "months": [1, 2, 5], "why": "January and February between festivals, and May weekdays before the summer break" },
-    "worth": "sometimes",
-    "verdict": "EPCOT is the weakest Lightning Lane case at Walt Disney World — there simply are not enough long lines to earn the money back. Rope drop Guardians, take Frozen Ever After in the last hour, and put the savings toward the festival booths.",
-    "tip": "EPCOT's crowd is festival-driven, not season-driven: a Food & Wine Saturday in October is busier than most of July."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9
+   ],
+   "why": "late January and early February after the marathon weekend, and September once school returns"
   },
-  "hollywood-studios": {
-    "arch": "disney",
-    "drop": ["Rise of the Resistance", "Slinky Dog Dash", "Millennium Falcon: Smugglers Run", "Mickey & Minnie's Runaway Railway", "The Twilight Zone Tower of Terror"],
-    "dropWhy": "Rise and Slinky Dog are the two worst standby lines on Disney property; whichever you skip at opening will cost you an hour later.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, summer, and the Christmas fortnight" },
-    "quiet": { "months": [1, 2, 9], "why": "late January, early February and September weekdays" },
-    "worth": "often",
-    "verdict": "This is the park where paying is most defensible. Hollywood Studios has the worst ride-to-guest ratio at Walt Disney World, and Lightning Lane Multi Pass reliably saves a family two to three hours on any moderate or busy day. If you buy it for exactly one day of your trip, buy it for this one.",
-    "tip": "Slinky Dog Dash is the Multi Pass booking to fight for at 7 AM — it is the hardest return time to get and the least pleasant line to stand in."
+  "worth": "often",
+  "verdict": "Magic Kingdom has more Lightning Lane-eligible headliners than any other Walt Disney World park, so Multi Pass genuinely converts here on a busy day. On a September or late-January weekday it is dead money — rope drop plus the last hour covers the same rides for free.",
+  "tip": "Book the earliest Seven Dwarfs return you can get; it is the one attraction whose standby line never meaningfully recovers."
+ },
+ "epcot": {
+  "arch": "disney",
+  "drop": [
+   "Guardians of the Galaxy: Cosmic Rewind",
+   "Frozen Ever After",
+   "Test Track",
+   "Remy's Ratatouille Adventure"
+  ],
+  "dropWhy": "Only a handful of EPCOT attractions build real lines; clear those four early and the rest of the day is walk-ons and World Showcase.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    9,
+    10,
+    11,
+    12
+   ],
+   "why": "the Flower & Garden and Food & Wine festivals, which drive weekend crowds far more than school holidays do"
   },
-  "animal-kingdom": {
-    "arch": "disney",
-    "drop": ["Avatar Flight of Passage", "Expedition Everest", "Kilimanjaro Safaris", "Na'vi River Journey"],
-    "dropWhy": "Flight of Passage is the only genuinely brutal line here, and the safari is a better ride in the first two hours while the animals are still active.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, summer and the Christmas holidays" },
-    "quiet": { "months": [1, 2, 5, 9], "why": "January, February, May weekdays and September" },
-    "worth": "rarely",
-    "verdict": "Save your money. Animal Kingdom has one attraction that builds a punishing line and a short operating day; rope drop Flight of Passage and the rest of the park is comfortable without paying. This is the day to skip Lightning Lane on a Walt Disney World trip.",
-    "tip": "Do Kilimanjaro Safaris early for the ride itself, not the queue — animals are visibly more active before the Florida heat sets in."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5
+   ],
+   "why": "January and February between festivals, and May weekdays before the summer break"
   },
-  "disneyland": {
-    "arch": "disney",
-    "drop": ["Star Wars: Rise of the Resistance", "Indiana Jones Adventure", "Space Mountain", "Matterhorn Bobsleds", "Peter Pan's Flight"],
-    "dropWhy": "Rise has the deepest demand, and Indiana Jones and Peter Pan both have low capacity that never catches up once the park fills.",
-    "peak": { "months": [6, 7, 8, 10, 12], "why": "summer, Halloween Time weekends and the Christmas season, when annual passholders and tourists overlap" },
-    "quiet": { "months": [1, 2, 5, 9], "why": "January and February after New Year, early May, and mid-September weekdays" },
-    "worth": "sometimes",
-    "verdict": "Disneyland is compact and its ride capacity is better than Walt Disney World's, so the full Multi Pass is often overkill. The sharper play is a single Lightning Lane Single Pass for Rise of the Resistance plus a genuine rope drop — that combination beats paying for everything on all but the busiest dates.",
-    "tip": "Disneyland's crowd swings on the local passholder calendar as much as the tourist one; blockout dates matter more than school holidays here."
+  "worth": "sometimes",
+  "verdict": "EPCOT is the weakest Lightning Lane case at Walt Disney World — there simply are not enough long lines to earn the money back. Rope drop Guardians, take Frozen Ever After in the last hour, and put the savings toward the festival booths.",
+  "tip": "EPCOT's crowd is festival-driven, not season-driven: a Food & Wine Saturday in October is busier than most of July."
+ },
+ "hollywood-studios": {
+  "arch": "disney",
+  "drop": [
+   "Rise of the Resistance",
+   "Slinky Dog Dash",
+   "Millennium Falcon: Smugglers Run",
+   "Mickey & Minnie's Runaway Railway",
+   "The Twilight Zone Tower of Terror"
+  ],
+  "dropWhy": "Rise and Slinky Dog are the two worst standby lines on Disney property; whichever you skip at opening will cost you an hour later.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, summer, and the Christmas fortnight"
   },
-  "california-adventure": {
-    "arch": "disney",
-    "drop": ["Radiator Springs Racers", "Web Slingers: A Spider-Man Adventure", "Incredicoaster", "Guardians of the Galaxy: Mission Breakout"],
-    "dropWhy": "Radiator Springs Racers is the only line here that reaches Disneyland-park lengths, and it does so within twenty minutes of opening.",
-    "peak": { "months": [6, 7, 8, 10, 12], "why": "summer, Halloween Time and the winter holidays, plus the Food & Wine Festival in spring" },
-    "quiet": { "months": [1, 2, 5, 9], "why": "January, February, early May and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "One ride carries the whole argument. If you can rope drop Radiator Springs Racers or get a Single Pass for it, skip the rest — California Adventure's other lines are manageable without paying.",
-    "tip": "Radiator Springs Racers also runs a single-rider line that routinely beats the paid option for parties willing to split up."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9
+   ],
+   "why": "late January, early February and September weekdays"
   },
-  "universal-studios-florida": {
-    "arch": "universal",
-    "drop": ["Harry Potter and the Escape from Gringotts", "Hollywood Rip Ride Rockit", "Revenge of the Mummy", "Transformers: The Ride 3D"],
-    "dropWhy": "Gringotts absorbs the entire opening crowd; the rest of the park stays reasonable if you clear it first.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, summer and the Christmas period" },
-    "quiet": { "months": [1, 2, 9], "why": "January, February and September, Orlando's two reliable lulls" },
-    "worth": "sometimes",
-    "verdict": "Express Pass here costs nearly as much as a second ticket, and since Epic Universe opened, demand at the original parks has softened on non-peak dates. Worth it on a summer Saturday; hard to justify on a September weekday.",
-    "tip": "Staying at Hard Rock, Royal Pacific or Portofino Bay includes free Unlimited Express for every guest on the room — on peak dates a single hotel night can cost less than buying passes for a family of four. It is the biggest line-skip value in Orlando."
+  "worth": "often",
+  "verdict": "This is the park where paying is most defensible. Hollywood Studios has the worst ride-to-guest ratio at Walt Disney World, and Lightning Lane Multi Pass reliably saves a family two to three hours on any moderate or busy day. If you buy it for exactly one day of your trip, buy it for this one.",
+  "tip": "Slinky Dog Dash is the Multi Pass booking to fight for at 7 AM — it is the hardest return time to get and the least pleasant line to stand in."
+ },
+ "animal-kingdom": {
+  "arch": "disney",
+  "drop": [
+   "Avatar Flight of Passage",
+   "Expedition Everest",
+   "Kilimanjaro Safaris",
+   "Na'vi River Journey"
+  ],
+  "dropWhy": "Flight of Passage is the only genuinely brutal line here, and the safari is a better ride in the first two hours while the animals are still active.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, summer and the Christmas holidays"
   },
-  "islands-of-adventure": {
-    "arch": "universal",
-    "drop": ["Hagrid's Magical Creatures Motorbike Adventure", "Jurassic World VelociCoaster", "Harry Potter and the Forbidden Journey", "The Incredible Hulk Coaster"],
-    "dropWhy": "Hagrid's and VelociCoaster both routinely pass 90 minutes and neither line recovers during the day.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, summer and Christmas week" },
-    "quiet": { "months": [1, 2, 9], "why": "January, February and September weekdays" },
-    "worth": "often",
-    "verdict": "The strongest Express case at Universal Orlando — but with a large asterisk. Hagrid's Magical Creatures Motorbike Adventure is excluded from Express Pass, so no amount of money skips the park's longest line. Buy Express for everything else if you like, but you still have to rope drop or close out on Hagrid's.",
-    "tip": "Hagrid's is not on Express. Ride it in the first thirty minutes or in the last hour before close — those are the only two cheap windows."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    9
+   ],
+   "why": "January, February, May weekdays and September"
   },
-  "epic-universe": {
-    "arch": "universal",
-    "drop": ["Harry Potter and the Battle at the Ministry", "Stardust Racers", "Mario Kart: Bowser's Challenge", "Monsters Unchained: The Frankenstein Experiment", "Hiccup's Wing Gliders"],
-    "dropWhy": "Battle at the Ministry and the Super Nintendo World rides take the opening surge; Stardust Racers holds its line longest into the afternoon.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, summer and the winter holidays, amplified by the park still being new" },
-    "quiet": { "months": [1, 2, 9], "why": "January, February and September, though Epic Universe stays busier than its neighbours year-round" },
-    "worth": "often",
-    "verdict": "Orlando's newest park still has demand well ahead of capacity, so Express earns its keep more consistently here than at Universal Studios Florida or Islands of Adventure. Crowd patterns are still settling as the opening rush fades — treat any month-by-month guidance for this park as provisional and check live waits before committing.",
-    "tip": "Super Nintendo World is often gated by a virtual queue or timed entry rather than a standby line — sort that out on arrival before you plan the rest of the day."
+  "worth": "rarely",
+  "verdict": "Save your money. Animal Kingdom has one attraction that builds a punishing line and a short operating day; rope drop Flight of Passage and the rest of the park is comfortable without paying. This is the day to skip Lightning Lane on a Walt Disney World trip.",
+  "tip": "Do Kilimanjaro Safaris early for the ride itself, not the queue — animals are visibly more active before the Florida heat sets in."
+ },
+ "disneyland": {
+  "arch": "disney",
+  "drop": [
+   "Star Wars: Rise of the Resistance",
+   "Indiana Jones Adventure",
+   "Space Mountain",
+   "Matterhorn Bobsleds",
+   "Peter Pan's Flight"
+  ],
+  "dropWhy": "Rise has the deepest demand, and Indiana Jones and Peter Pan both have low capacity that never catches up once the park fills.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "summer, Halloween Time weekends and the Christmas season, when annual passholders and tourists overlap"
   },
-  "universal-studios-hollywood": {
-    "arch": "universal",
-    "drop": ["Mario Kart: Bowser's Challenge", "Harry Potter and the Forbidden Journey", "Jurassic World: The Ride", "Transformers: The Ride 3D", "Studio Tour"],
-    "dropWhy": "Super Nintendo World fills first, and the Studio Tour's line grows steadily all morning and never really shrinks.",
-    "peak": { "months": [6, 7, 8, 10, 12], "why": "summer, Halloween Horror Nights season and the winter holidays" },
-    "quiet": { "months": [1, 2, 5, 9], "why": "January, February, May weekdays and September" },
-    "worth": "sometimes",
-    "verdict": "This is a compact park most people finish in a day or less, and Express costs close to a second admission. On a quiet weekday you will not need it; on a summer Saturday or during Horror Nights it is the difference between four rides and ten.",
-    "tip": "The park is built on two levels connected by a long escalator — plan by level, not by proximity on the map, or you will spend the day riding the Starway."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    9
+   ],
+   "why": "January and February after New Year, early May, and mid-September weekdays"
   },
-  "disneyland-paris": {
-    "arch": "disney",
-    "drop": ["Big Thunder Mountain", "Peter Pan's Flight", "Phantom Manor", "Star Wars Hyperspace Mountain"],
-    "dropWhy": "Big Thunder is the park's headline ride and Peter Pan's Flight has the lowest capacity of anything in the castle park.",
-    "peak": { "months": [2, 4, 7, 8, 10, 12], "why": "French and UK school holidays — February and Easter half-terms, the summer break, Halloween and the Christmas season" },
-    "quiet": { "months": [1, 3, 9, 11], "why": "mid-January to early February, March weekdays, and September and November outside half-term" },
-    "worth": "sometimes",
-    "verdict": "Premier Access is sold per ride rather than as a day pass, which makes it expensive to use broadly but easy to use surgically. Buy it for Big Thunder Mountain or Peter Pan's Flight on a packed day and nothing else.",
-    "tip": "Disneyland Paris runs on the French and British school calendars more than the season. A UK half-term week in October will feel busier than a random Tuesday in July."
+  "worth": "sometimes",
+  "verdict": "Disneyland is compact and its ride capacity is better than Walt Disney World's, so the full Multi Pass is often overkill. The sharper play is a single Lightning Lane Single Pass for Rise of the Resistance plus a genuine rope drop — that combination beats paying for everything on all but the busiest dates.",
+  "tip": "Disneyland's crowd swings on the local passholder calendar as much as the tourist one; blockout dates matter more than school holidays here."
+ },
+ "california-adventure": {
+  "arch": "disney",
+  "drop": [
+   "Radiator Springs Racers",
+   "Web Slingers: A Spider-Man Adventure",
+   "Incredicoaster",
+   "Guardians of the Galaxy: Mission Breakout"
+  ],
+  "dropWhy": "Radiator Springs Racers is the only line here that reaches Disneyland-park lengths, and it does so within twenty minutes of opening.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "summer, Halloween Time and the winter holidays, plus the Food & Wine Festival in spring"
   },
-  "walt-disney-studios-paris": {
-    "arch": "disney",
-    "drop": ["Crush's Coaster", "Ratatouille: The Adventure", "Avengers Assemble: Flight Force", "Spider-Man W.E.B. Adventure"],
-    "dropWhy": "Crush's Coaster has the worst capacity-to-demand ratio in European theme parks and hits an hour within minutes of opening.",
-    "peak": { "months": [2, 4, 7, 8, 10, 12], "why": "French and UK school holidays, matching the castle park next door" },
-    "quiet": { "months": [1, 3, 9, 11], "why": "mid-January, March, September and November outside half-terms" },
-    "worth": "sometimes",
-    "verdict": "One ride justifies the spend. Crush's Coaster is worth Premier Access on almost any day; the rest of the park rarely is. Note that this park is mid-transformation into Disney Adventure World, so its line-up and crowd patterns are actively changing.",
-    "tip": "Crush's Coaster has a single-rider line that is frequently the fastest way in — check it before paying."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    9
+   ],
+   "why": "January, February, early May and September weekdays"
   },
-  "tokyo-disneyland": {
-    "arch": "disney",
-    "drop": ["Beauty and the Beast: Enchanted Tale", "Baymax Happy Ride", "Pooh's Hunny Hunt", "Big Thunder Mountain"],
-    "dropWhy": "Enchanted Tale and Pooh's Hunny Hunt hold the longest standby lines in the park all day.",
-    "peak": { "months": [4, 5, 8, 12, 1], "why": "Golden Week at the end of April, Obon in mid-August, and the New Year period — plus every weekend year-round" },
-    "quiet": { "months": [1, 6, 9], "why": "mid-January after the New Year rush, June weekdays during the rainy season, and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "Tokyo runs a mix of paid Premier Access and free Standby Pass or Entry Request lotteries, and the free systems cover a lot of ground. Learn the free mechanics first — most visitors overpay here simply because they did not know the lottery existed.",
-    "tip": "The Tokyo parks are overwhelmingly weekend-driven. A Tuesday in June can post half the waits of the Saturday either side of it — the day of the week matters more than the month."
+  "worth": "sometimes",
+  "verdict": "One ride carries the whole argument. If you can rope drop Radiator Springs Racers or get a Single Pass for it, skip the rest — California Adventure's other lines are manageable without paying.",
+  "tip": "Radiator Springs Racers also runs a single-rider line that routinely beats the paid option for parties willing to split up."
+ },
+ "universal-studios-florida": {
+  "arch": "universal",
+  "drop": [
+   "Harry Potter and the Escape from Gringotts",
+   "Hollywood Rip Ride Rockit",
+   "Revenge of the Mummy",
+   "Transformers: The Ride 3D"
+  ],
+  "dropWhy": "Gringotts absorbs the entire opening crowd; the rest of the park stays reasonable if you clear it first.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, summer and the Christmas period"
   },
-  "tokyo-disneysea": {
-    "arch": "disney",
-    "drop": ["Anna and Elsa's Frozen Journey", "Soaring: Fantastic Flight", "Journey to the Center of the Earth", "Tower of Terror"],
-    "dropWhy": "The Fantasy Springs attractions draw the entire opening crowd, and Soaring holds a long line from mid-morning onward.",
-    "peak": { "months": [4, 5, 8, 12, 1], "why": "Golden Week, Obon, New Year and weekends year-round" },
-    "quiet": { "months": [1, 6, 9], "why": "mid-January, June weekdays in the rainy season, and September weekdays" },
-    "worth": "often",
-    "verdict": "Fantasy Springs demand is extreme and often managed by lottery or paid access rather than a standby line at all. Budget for paid access here in a way you would not at Tokyo Disneyland, and check the app the moment you enter.",
-    "tip": "DisneySea rewards a late day more than most parks — the harbour at night is the point, and standby waits fall sharply in the final two hours."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9
+   ],
+   "why": "January, February and September, Orlando's two reliable lulls"
   },
-  "hong-kong-disneyland": {
-    "arch": "disney",
-    "drop": ["Mystic Manor", "Big Grizzly Mountain Runaway Mine Cars", "Hyperspace Mountain", "Iron Man Experience"],
-    "dropWhy": "Mystic Manor is the park's signature attraction and the only one that reliably builds a long line.",
-    "peak": { "months": [1, 2, 7, 8, 10], "why": "Chinese New Year, the summer holiday and the October Golden Week" },
-    "quiet": { "months": [5, 6, 9, 11], "why": "May and June weekdays, September and November — genuinely quiet stretches" },
-    "worth": "rarely",
-    "verdict": "The least crowded Disney castle park in the world. Outside Chinese New Year and Golden Week you can walk onto most attractions, and paying to skip a line you would not have waited in is the definition of wasted money.",
-    "tip": "Because the park is small and quiet, it pairs well with a half-day elsewhere in Hong Kong — you do not need to give it open-to-close."
+  "worth": "sometimes",
+  "verdict": "Express Pass here costs nearly as much as a second ticket, and since Epic Universe opened, demand at the original parks has softened on non-peak dates. Worth it on a summer Saturday; hard to justify on a September weekday.",
+  "tip": "Staying at Hard Rock, Royal Pacific or Portofino Bay includes free Unlimited Express for every guest on the room — on peak dates a single hotel night can cost less than buying passes for a family of four. It is the biggest line-skip value in Orlando."
+ },
+ "islands-of-adventure": {
+  "arch": "universal",
+  "drop": [
+   "Hagrid's Magical Creatures Motorbike Adventure",
+   "Jurassic World VelociCoaster",
+   "Harry Potter and the Forbidden Journey",
+   "The Incredible Hulk Coaster"
+  ],
+  "dropWhy": "Hagrid's and VelociCoaster both routinely pass 90 minutes and neither line recovers during the day.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, summer and Christmas week"
   },
-  "shanghai-disneyland": {
-    "arch": "disney",
-    "drop": ["TRON Lightcycle Power Run", "Pirates of the Caribbean: Battle for the Sunken Treasure", "Soaring Over the Horizon", "Zootopia: Hot Pursuit", "Seven Dwarfs Mine Train"],
-    "dropWhy": "TRON and Pirates are the two must-dos and both build fast; Zootopia adds a third heavy draw.",
-    "peak": { "months": [1, 2, 7, 8, 10], "why": "Chinese New Year, the summer holiday and the October Golden Week, when crowds are among the heaviest of any park worldwide" },
-    "quiet": { "months": [3, 11, 12], "why": "March, November and early December weekdays" },
-    "worth": "sometimes",
-    "verdict": "On a Golden Week or Chinese New Year date the crowds are genuinely severe and paid access is close to essential. On an ordinary March weekday the same park is comfortable without it — the gap between peak and off-peak here is wider than at any other Disney resort.",
-    "tip": "Pirates: Battle for the Sunken Treasure is widely considered the best version of the ride anywhere; do not let the line put you off, but do ride it early."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9
+   ],
+   "why": "January, February and September weekdays"
   },
-  "knotts-berry-farm": {
-    "arch": "coaster",
-    "drop": ["HangTime", "Xcelerator the Ride", "GhostRider", "Silver Bullet"],
-    "dropWhy": "HangTime and Xcelerator have the slowest throughput; GhostRider's line grows steadily through the morning.",
-    "peak": { "months": [7, 8, 9, 10], "why": "the summer holiday and Knott's Scary Farm, which sells out many October nights" },
-    "quiet": { "months": [1, 2, 5, 11], "why": "January and February weekdays, early May and November outside holidays" },
-    "worth": "sometimes",
-    "verdict": "Fast Lane pays off on Scary Farm nights and summer Saturdays and almost never otherwise. Knott's is a locals' park with a very peaky calendar — check a live wait before you buy at the gate.",
-    "tip": "Knott's Scary Farm is a separate ticketed event with its own crowd profile; daytime park strategy does not transfer to it at all."
+  "worth": "often",
+  "verdict": "The strongest Express case at Universal Orlando — but with a large asterisk. Hagrid's Magical Creatures Motorbike Adventure is excluded from Express Pass, so no amount of money skips the park's longest line. Buy Express for everything else if you like, but you still have to rope drop or close out on Hagrid's.",
+  "tip": "Hagrid's is not on Express. Ride it in the first thirty minutes or in the last hour before close — those are the only two cheap windows."
+ },
+ "epic-universe": {
+  "arch": "universal",
+  "drop": [
+   "Harry Potter and the Battle at the Ministry",
+   "Stardust Racers",
+   "Mario Kart: Bowser's Challenge",
+   "Monsters Unchained: The Frankenstein Experiment",
+   "Hiccup's Wing Gliders"
+  ],
+  "dropWhy": "Battle at the Ministry and the Super Nintendo World rides take the opening surge; Stardust Racers holds its line longest into the afternoon.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, summer and the winter holidays, amplified by the park still being new"
   },
-  "six-flags-magic-mountain": {
-    "arch": "coaster",
-    "drop": ["X2", "Twisted Colossus", "Tatsu", "West Coast Racers", "Full Throttle"],
-    "dropWhy": "X2 has the lowest capacity of any major coaster in the park and the line never recovers; Twisted Colossus is second worst.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest weekends in October" },
-    "quiet": { "months": [1, 2, 11, 12], "why": "January and February weekdays and early December" },
-    "worth": "sometimes",
-    "verdict": "With twenty coasters and famously variable dispatch speeds, a Flash Pass can transform a Saturday here. Midweek in the off-season it is wasted money — the same queue that takes ninety minutes in July takes fifteen in February.",
-    "tip": "At Magic Mountain, operations are the variable more than attendance. The same posted wait can move at half speed on an understaffed day, so trust the live number over the crowd calendar."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9
+   ],
+   "why": "January, February and September, though Epic Universe stays busier than its neighbours year-round"
   },
-  "busch-gardens-tampa": {
-    "arch": "family",
-    "drop": ["Iron Gwazi", "Montu", "SheiKra", "Kumba", "Tigris"],
-    "dropWhy": "Iron Gwazi is the only ride here that consistently builds a long line; the older B&M coasters have excellent throughput.",
-    "peak": { "months": [3, 6, 7, 9, 10], "why": "spring break, summer, and Howl-O-Scream weekends" },
-    "quiet": { "months": [1, 2, 5, 9], "why": "January and February weekdays, May weekdays, and September weekdays before Howl-O-Scream" },
-    "worth": "rarely",
-    "verdict": "One coaster carries the whole queue load. Ride Iron Gwazi first and Quick Queue stops making sense — the rest of the park moves quickly even on moderately busy days.",
-    "tip": "Busch Gardens is also a zoo, and the animal areas are far more rewarding in the first two hours before the Florida heat."
+  "worth": "often",
+  "verdict": "Orlando's newest park still has demand well ahead of capacity, so Express earns its keep more consistently here than at Universal Studios Florida or Islands of Adventure. Crowd patterns are still settling as the opening rush fades — treat any month-by-month guidance for this park as provisional and check live waits before committing.",
+  "tip": "Super Nintendo World is often gated by a virtual queue or timed entry rather than a standby line — sort that out on arrival before you plan the rest of the day."
+ },
+ "universal-studios-hollywood": {
+  "arch": "universal",
+  "drop": [
+   "Mario Kart: Bowser's Challenge",
+   "Harry Potter and the Forbidden Journey",
+   "Jurassic World: The Ride",
+   "Transformers: The Ride 3D",
+   "Studio Tour"
+  ],
+  "dropWhy": "Super Nintendo World fills first, and the Studio Tour's line grows steadily all morning and never really shrinks.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "summer, Halloween Horror Nights season and the winter holidays"
   },
-  "seaworld-orlando": {
-    "arch": "family",
-    "drop": ["Penguin Trek", "Pipeline: The Surf Coaster", "Mako", "Manta", "Kraken"],
-    "dropWhy": "The two newest coasters take the opening crowd; Mako and Manta have strong capacity and stay reasonable.",
-    "peak": { "months": [3, 6, 7, 9, 10], "why": "spring break, summer and Howl-O-Scream season" },
-    "quiet": { "months": [1, 2, 5, 9], "why": "January, February, May weekdays and early September" },
-    "worth": "rarely",
-    "verdict": "SeaWorld is a show park with coasters attached, not the other way round. Waits are modest outside summer Saturdays, and Quick Queue solves a problem most visitors do not have.",
-    "tip": "Plan this park around show times, not ride waits — the shows are the fixed points in the day and everything else fits between them."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    9
+   ],
+   "why": "January, February, May weekdays and September"
   },
-  "cedar-point": {
-    "arch": "coaster",
-    "drop": ["Steel Vengeance", "Top Thrill 2", "Maverick", "Millennium Force", "Magnum XL-200"],
-    "dropWhy": "Steel Vengeance and Maverick both have low capacity relative to demand and routinely pass ninety minutes by noon.",
-    "peak": { "months": [7, 8, 9, 10], "why": "July and August, plus HalloWeekends Saturdays in late September and October" },
-    "quiet": { "months": [5, 6, 9], "why": "May and early June weekdays, and September weekdays when the park runs a reduced schedule" },
-    "worth": "often",
-    "verdict": "On a summer Saturday, Steel Vengeance alone can hit two hours and Fast Lane Plus is the difference between six coasters and fifteen. On a Tuesday in June the same park is close to a walk-on and you should buy nothing.",
-    "tip": "Cedar Point is a weekend park in a way few others are. Shifting your visit from Saturday to Tuesday does more for your day than any paid product — and it is free."
+  "worth": "sometimes",
+  "verdict": "This is a compact park most people finish in a day or less, and Express costs close to a second admission. On a quiet weekday you will not need it; on a summer Saturday or during Horror Nights it is the difference between four rides and ten.",
+  "tip": "The park is built on two levels connected by a long escalator — plan by level, not by proximity on the map, or you will spend the day riding the Starway."
+ },
+ "disneyland-paris": {
+  "arch": "disney",
+  "drop": [
+   "Big Thunder Mountain",
+   "Peter Pan's Flight",
+   "Phantom Manor",
+   "Star Wars Hyperspace Mountain"
+  ],
+  "dropWhy": "Big Thunder is the park's headline ride and Peter Pan's Flight has the lowest capacity of anything in the castle park.",
+  "peak": {
+   "months": [
+    2,
+    4,
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "French and UK school holidays — February and Easter half-terms, the summer break, Halloween and the Christmas season"
   },
-  "kings-island": {
-    "arch": "coaster",
-    "drop": ["Orion", "Banshee", "Diamondback", "Mystic Timbers", "The Beast"],
-    "dropWhy": "Orion and Banshee absorb the opening crowd; The Beast is deliberately left for after dark.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Halloween Haunt weekends" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and September weekdays outside Haunt" },
-    "worth": "sometimes",
-    "verdict": "Fast Lane earns its money on July and August Saturdays and during Halloween Haunt. Midweek, Kings Island has enough capacity that you will not miss it.",
-    "tip": "Ride The Beast after dark. It is a genuinely different and better ride at night, and the line is shortest in the last hour of the evening."
+  "quiet": {
+   "months": [
+    1,
+    3,
+    9,
+    11
+   ],
+   "why": "mid-January to early February, March weekdays, and September and November outside half-term"
   },
-  "six-flags-great-adventure": {
-    "arch": "coaster",
-    "drop": ["Jersey Devil Coaster", "El Toro", "Nitro", "Batman: The Ride"],
-    "dropWhy": "Jersey Devil is a single-rail coaster with modest capacity, and El Toro's line moves slowly when it is running.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest weekends" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "A Flash Pass is defensible on a July Saturday and hard to justify midweek. Check which of the marquee coasters are actually operating before you buy — this park has a patchy record on downtime, and paying to skip lines for rides that are closed is the worst outcome.",
-    "tip": "The safari is included with admission and takes over an hour; build it into the plan deliberately or it will eat your afternoon by surprise."
+  "worth": "sometimes",
+  "verdict": "Premier Access is sold per ride rather than as a day pass, which makes it expensive to use broadly but easy to use surgically. Buy it for Big Thunder Mountain or Peter Pan's Flight on a packed day and nothing else.",
+  "tip": "Disneyland Paris runs on the French and British school calendars more than the season. A UK half-term week in October will feel busier than a random Tuesday in July."
+ },
+ "walt-disney-studios-paris": {
+  "arch": "disney",
+  "drop": [
+   "Crush's Coaster",
+   "Ratatouille: The Adventure",
+   "Avengers Assemble: Flight Force",
+   "Spider-Man W.E.B. Adventure"
+  ],
+  "dropWhy": "Crush's Coaster has the worst capacity-to-demand ratio in European theme parks and hits an hour within minutes of opening.",
+  "peak": {
+   "months": [
+    2,
+    4,
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "French and UK school holidays, matching the castle park next door"
   },
-  "canadas-wonderland": {
-    "arch": "coaster",
-    "drop": ["Yukon Striker", "Leviathan", "Behemoth", "Wonder Mountain's Guardian"],
-    "dropWhy": "Yukon Striker draws the opening rush; Leviathan and Behemoth have good throughput and stay manageable.",
-    "peak": { "months": [7, 8, 10], "why": "the Ontario summer holiday and Halloween Haunt weekends" },
-    "quiet": { "months": [5, 6, 9], "why": "May and early June weekdays, and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "Worth it on summer Saturdays, unnecessary on a weekday in June. The park's season is short enough that its peak is genuinely peaky.",
-    "tip": "Wonder Mountain's Guardian is indoors and a good heat or rain fallback that most plans forget about."
+  "quiet": {
+   "months": [
+    1,
+    3,
+    9,
+    11
+   ],
+   "why": "mid-January, March, September and November outside half-terms"
   },
-  "hersheypark": {
-    "arch": "coaster",
-    "drop": ["Skyrush", "Candymonium", "Wildcat's Revenge", "Great Bear", "Storm Runner"],
-    "dropWhy": "Skyrush has the smallest trains and the longest sustained line; Candymonium moves quickly despite its popularity.",
-    "peak": { "months": [6, 7, 8, 12], "why": "the summer holiday and Christmas Candylane weekends" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and September weekends once school returns" },
-    "worth": "sometimes",
-    "verdict": "Fast Track is a summer Saturday product. On most other days Hersheypark's capacity keeps up with its crowds.",
-    "tip": "Hershey hotel guests get early entry, which is a cheaper line-skip than Fast Track if you were booking a room anyway."
+  "worth": "sometimes",
+  "verdict": "One ride justifies the spend. Crush's Coaster is worth Premier Access on almost any day; the rest of the park rarely is. Note that this park is mid-transformation into Disney Adventure World, so its line-up and crowd patterns are actively changing.",
+  "tip": "Crush's Coaster has a single-rider line that is frequently the fastest way in — check it before paying."
+ },
+ "tokyo-disneyland": {
+  "arch": "disney",
+  "drop": [
+   "Beauty and the Beast: Enchanted Tale",
+   "Baymax Happy Ride",
+   "Pooh's Hunny Hunt",
+   "Big Thunder Mountain"
+  ],
+  "dropWhy": "Enchanted Tale and Pooh's Hunny Hunt hold the longest standby lines in the park all day.",
+  "peak": {
+   "months": [
+    4,
+    5,
+    8,
+    12,
+    1
+   ],
+   "why": "Golden Week at the end of April, Obon in mid-August, and the New Year period — plus every weekend year-round"
   },
-  "dollywood": {
-    "arch": "family",
-    "drop": ["Lightning Rod", "Big Bear Mountain", "Wild Eagle", "Thunderhead", "Mystery Mine"],
-    "dropWhy": "Lightning Rod has both the highest demand and the most downtime, so ride it while it is open rather than saving it.",
-    "peak": { "months": [6, 7, 10, 11, 12], "why": "summer, the Harvest Festival in October, and Smoky Mountain Christmas in November and December" },
-    "quiet": { "months": [3, 5, 9], "why": "March weekdays at the start of the season, May weekdays, and early September" },
-    "worth": "rarely",
-    "verdict": "TimeSaver is rarely necessary outside summer Saturdays and the October and Christmas festivals. Dollywood's crowd is festival-shaped, not school-holiday-shaped.",
-    "tip": "Dollywood is busier in October and December than in July. If you are picking dates by school holidays you will get the season backwards."
+  "quiet": {
+   "months": [
+    1,
+    6,
+    9
+   ],
+   "why": "mid-January after the New Year rush, June weekdays during the rainy season, and September weekdays"
   },
-  "busch-gardens-williamsburg": {
-    "arch": "family",
-    "drop": ["Pantheon", "Griffon", "Apollo's Chariot", "Verbolten", "Loch Ness Monster"],
-    "dropWhy": "Pantheon is the newest and slowest-loading; the older B&M coasters have excellent capacity.",
-    "peak": { "months": [6, 7, 8, 9, 10, 12], "why": "summer, Howl-O-Scream in autumn and Christmas Town in December" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and early September weekdays" },
-    "worth": "rarely",
-    "verdict": "Good capacity and a large, spread-out park mean Quick Queue is seldom needed. Buy it for a Howl-O-Scream Saturday if at all.",
-    "tip": "The park is built across steep river valleys — the walking is real, and the skyride and train are genuine time-savers rather than attractions."
+  "worth": "sometimes",
+  "verdict": "Tokyo runs a mix of paid Premier Access and free Standby Pass or Entry Request lotteries, and the free systems cover a lot of ground. Learn the free mechanics first — most visitors overpay here simply because they did not know the lottery existed.",
+  "tip": "The Tokyo parks are overwhelmingly weekend-driven. A Tuesday in June can post half the waits of the Saturday either side of it — the day of the week matters more than the month."
+ },
+ "tokyo-disneysea": {
+  "arch": "disney",
+  "drop": [
+   "Anna and Elsa's Frozen Journey",
+   "Soaring: Fantastic Flight",
+   "Journey to the Center of the Earth",
+   "Tower of Terror"
+  ],
+  "dropWhy": "The Fantasy Springs attractions draw the entire opening crowd, and Soaring holds a long line from mid-morning onward.",
+  "peak": {
+   "months": [
+    4,
+    5,
+    8,
+    12,
+    1
+   ],
+   "why": "Golden Week, Obon, New Year and weekends year-round"
   },
-  "seaworld-san-diego": {
-    "arch": "family",
-    "drop": ["Emperor", "Electric Eel", "Manta", "Journey to Atlantis"],
-    "dropWhy": "Emperor and Electric Eel are the only rides that build a sustained line.",
-    "peak": { "months": [3, 6, 7, 8], "why": "spring break and the summer holiday" },
-    "quiet": { "months": [1, 2, 9, 10, 11], "why": "January, February, and weekdays from September through November" },
-    "worth": "rarely",
-    "verdict": "A show-led park with a handful of coasters. Outside summer weekends the waits do not justify Quick Queue.",
-    "tip": "San Diego's marine layer keeps mornings grey and cool well into June — the park is more comfortable but no less busy."
+  "quiet": {
+   "months": [
+    1,
+    6,
+    9
+   ],
+   "why": "mid-January, June weekdays in the rainy season, and September weekdays"
   },
-  "europa-park": {
-    "arch": "europe",
-    "drop": ["Voltron Nevera", "Silver Star", "Blue Fire Megacoaster", "Wodan Timbur Coaster", "Euro-Mir"],
-    "dropWhy": "Voltron is the newest headliner and takes the opening surge; Silver Star and Blue Fire have strong throughput once you are past it.",
-    "peak": { "months": [7, 8, 10, 12], "why": "the German and French summer holidays, Halloween in October, and the winter season around Christmas" },
-    "quiet": { "months": [1, 3, 6, 11], "why": "January and March weekdays in the winter season, June weekdays before the holidays, and November" },
-    "worth": "none",
-    "verdict": "Europa-Park sells no paid line-skip at all, and that is deliberate. Its answer to queues is operational — very high throughput, generous hourly capacity, and a free virtual queue on the newest headliner. There is nothing to buy here, which makes arrival time and ride order the only levers that matter.",
-    "tip": "Because there is no paid skip, the free virtual queue for Voltron Nevera is the single most valuable thing to sort out in your first ten minutes in the park."
+  "worth": "often",
+  "verdict": "Fantasy Springs demand is extreme and often managed by lottery or paid access rather than a standby line at all. Budget for paid access here in a way you would not at Tokyo Disneyland, and check the app the moment you enter.",
+  "tip": "DisneySea rewards a late day more than most parks — the harbour at night is the point, and standby waits fall sharply in the final two hours."
+ },
+ "hong-kong-disneyland": {
+  "arch": "disney",
+  "drop": [
+   "Mystic Manor",
+   "Big Grizzly Mountain Runaway Mine Cars",
+   "Hyperspace Mountain",
+   "Iron Man Experience"
+  ],
+  "dropWhy": "Mystic Manor is the park's signature attraction and the only one that reliably builds a long line.",
+  "peak": {
+   "months": [
+    1,
+    2,
+    7,
+    8,
+    10
+   ],
+   "why": "Chinese New Year, the summer holiday and the October Golden Week"
   },
-  "efteling": {
-    "arch": "europe",
-    "drop": ["Baron 1898", "Danse Macabre", "Symbolica", "Joris en de Draak", "Vogel Rok"],
-    "dropWhy": "Baron 1898 and Danse Macabre take the opening crowd; Symbolica's line grows all morning and stays long.",
-    "peak": { "months": [2, 4, 5, 7, 8, 12], "why": "Dutch, Belgian and German school holidays — the spring krokus and May breaks, the summer holiday, and Winter Efteling in December" },
-    "quiet": { "months": [3, 6, 9, 11], "why": "March, June, September and November weekdays outside the school breaks" },
-    "worth": "none",
-    "verdict": "Efteling does not sell a skip-the-line pass. Your only levers are the single-rider lines, arriving at opening, and choosing a Dutch school day over a holiday week — which makes date selection unusually powerful here.",
-    "tip": "Check the Dutch school holiday calendar before booking. The difference between a holiday week and an ordinary Tuesday is larger than anything a paid pass could have bought you."
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9,
+    11
+   ],
+   "why": "May and June weekdays, September and November — genuinely quiet stretches"
   },
-  "alton-towers": {
-    "arch": "europe",
-    "drop": ["Nemesis Reborn", "Wicker Man", "The Smiler", "Oblivion", "Galactica"],
-    "dropWhy": "Nemesis Reborn and Wicker Man draw the opening crowd; The Smiler's slow dispatches make it the worst line to leave until later.",
-    "peak": { "months": [5, 7, 8, 10], "why": "the late-May half-term, the UK summer holiday, and Scarefest in late October" },
-    "quiet": { "months": [4, 6, 9], "why": "term-time weekdays in April, June and September" },
-    "worth": "sometimes",
-    "verdict": "Fastrack is sold per ride and gets expensive quickly. On a term-time Wednesday you will not need it at all; during a half-term week it is the only way to get through the headliners in one day.",
-    "tip": "The entire UK crowd calendar is school terms. A Tuesday in mid-June and a Tuesday in August are effectively different parks."
+  "worth": "rarely",
+  "verdict": "The least crowded Disney castle park in the world. Outside Chinese New Year and Golden Week you can walk onto most attractions, and paying to skip a line you would not have waited in is the definition of wasted money.",
+  "tip": "Because the park is small and quiet, it pairs well with a half-day elsewhere in Hong Kong — you do not need to give it open-to-close."
+ },
+ "shanghai-disneyland": {
+  "arch": "disney",
+  "drop": [
+   "TRON Lightcycle Power Run",
+   "Pirates of the Caribbean: Battle for the Sunken Treasure",
+   "Soaring Over the Horizon",
+   "Zootopia: Hot Pursuit",
+   "Seven Dwarfs Mine Train"
+  ],
+  "dropWhy": "TRON and Pirates are the two must-dos and both build fast; Zootopia adds a third heavy draw.",
+  "peak": {
+   "months": [
+    1,
+    2,
+    7,
+    8,
+    10
+   ],
+   "why": "Chinese New Year, the summer holiday and the October Golden Week, when crowds are among the heaviest of any park worldwide"
   },
-  "thorpe-park": {
-    "arch": "europe",
-    "drop": ["Hyperia", "Stealth", "The Swarm", "Nemesis Inferno", "Saw: The Ride"],
-    "dropWhy": "Hyperia is the newest and busiest; Stealth's launch cycle makes its line slow to clear.",
-    "peak": { "months": [5, 7, 8, 10], "why": "half-terms, the UK summer holiday, and Fright Nights in October" },
-    "quiet": { "months": [4, 6, 9], "why": "term-time weekdays in spring and September" },
-    "worth": "sometimes",
-    "verdict": "A compact park with a teenage-skewing crowd and long waits on summer weekends. Fastrack is worth it during school holidays and unnecessary in term time.",
-    "tip": "Thorpe is on an island site with a lot of water — wind closures on the tall rides are common enough to be worth a contingency plan."
+  "quiet": {
+   "months": [
+    3,
+    11,
+    12
+   ],
+   "why": "March, November and early December weekdays"
   },
-  "portaventura": {
-    "arch": "europe",
-    "drop": ["Shambhala", "Uncharted: The Enigma of Penitence", "Dragon Khan", "Furius Baco"],
-    "dropWhy": "Shambhala and Uncharted take the opening crowd; Dragon Khan's capacity keeps it moving.",
-    "peak": { "months": [4, 7, 8], "why": "Easter week and the Spanish summer holiday, when the resort hotels are full" },
-    "quiet": { "months": [5, 6, 9, 10], "why": "May and June weekdays, and September and October weekdays after the Spanish holidays end" },
-    "worth": "sometimes",
-    "verdict": "Express is worth it in peak summer and rarely otherwise. Note that Ferrari Land is a separate ticket with its own queues, so budget for it deliberately rather than assuming it is included.",
-    "tip": "Spanish park days run late. The final two hours are noticeably quieter and far more comfortable than the afternoon heat."
+  "worth": "sometimes",
+  "verdict": "On a Golden Week or Chinese New Year date the crowds are genuinely severe and paid access is close to essential. On an ordinary March weekday the same park is comfortable without it — the gap between peak and off-peak here is wider than at any other Disney resort.",
+  "tip": "Pirates: Battle for the Sunken Treasure is widely considered the best version of the ride anywhere; do not let the line put you off, but do ride it early."
+ },
+ "knotts-berry-farm": {
+  "arch": "coaster",
+  "drop": [
+   "HangTime",
+   "Xcelerator the Ride",
+   "GhostRider",
+   "Silver Bullet"
+  ],
+  "dropWhy": "HangTime and Xcelerator have the slowest throughput; GhostRider's line grows steadily through the morning.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "why": "the summer holiday and Knott's Scary Farm, which sells out many October nights"
   },
-  "phantasialand": {
-    "arch": "europe",
-    "drop": ["Taron", "F.L.Y.", "Black Mamba", "Chiapas", "Winja's Fear & Force"],
-    "dropWhy": "Taron and F.L.Y. absorb the entire opening crowd, and both have lines that never fully recover during the day.",
-    "peak": { "months": [7, 8, 10, 11, 12], "why": "the German summer holiday, Halloween, and the Wintertraum season from late November" },
-    "quiet": { "months": [3, 5, 9], "why": "March, May and September weekdays outside German school holidays" },
-    "worth": "none",
-    "verdict": "Phantasialand sells no line-skip pass. The park is unusually compact and fills fast, which makes being at the gate for opening worth more here than at almost any other European park — there is no way to buy back the hour you lose by arriving at eleven.",
-    "tip": "Head straight to Taron or F.L.Y. at opening. With no paid skip available, the first hour is the only genuinely cheap capacity in the day."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    11
+   ],
+   "why": "January and February weekdays, early May and November outside holidays"
   },
-  "parc-asterix": {
-    "arch": "europe",
-    "drop": ["Toutatis", "OzIris", "Tonnerre 2 Zeus", "Discobélix"],
-    "dropWhy": "Toutatis is the newest headliner and holds the longest line; OzIris follows.",
-    "peak": { "months": [4, 7, 8, 10], "why": "French school holidays — Easter, the summer break, and the Halloween season" },
-    "quiet": { "months": [5, 6, 9], "why": "May and June weekdays in term time, and September" },
-    "worth": "sometimes",
-    "verdict": "The skip-the-line pass is worth it during French school holidays and hard to justify on a term-time weekday. This park's calendar tracks the French school year almost exactly.",
-    "tip": "Parc Astérix is much quieter than Disneyland Paris on the same date, which makes it a good second park on a busy Paris week."
+  "worth": "sometimes",
+  "verdict": "Fast Lane pays off on Scary Farm nights and summer Saturdays and almost never otherwise. Knott's is a locals' park with a very peaky calendar — check a live wait before you buy at the gate.",
+  "tip": "Knott's Scary Farm is a separate ticketed event with its own crowd profile; daytime park strategy does not transfer to it at all."
+ },
+ "six-flags-magic-mountain": {
+  "arch": "coaster",
+  "drop": [
+   "X2",
+   "Twisted Colossus",
+   "Tatsu",
+   "West Coast Racers",
+   "Full Throttle"
+  ],
+  "dropWhy": "X2 has the lowest capacity of any major coaster in the park and the line never recovers; Twisted Colossus is second worst.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest weekends in October"
   },
-  "liseberg": {
-    "arch": "europe",
-    "drop": ["Helix", "Valkyria", "Balder", "Lisebergbanan"],
-    "dropWhy": "Helix and Valkyria are the two headliners; Balder's wooden layout has decent throughput.",
-    "peak": { "months": [7, 10, 11, 12], "why": "the Swedish summer holiday, Halloween, and the Christmas market season" },
-    "quiet": { "months": [5, 6, 9], "why": "May and June weekdays, and September" },
-    "worth": "none",
-    "verdict": "Liseberg does not sell a paid line-skip. It is a city park with a strong evening rhythm, so timing rather than money is how you avoid the queues here.",
-    "tip": "Waits fall noticeably after about 6 PM in summer as the family crowd leaves — the evening is the cheapest capacity in the day."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    11,
+    12
+   ],
+   "why": "January and February weekdays and early December"
   },
-  "six-flags-over-texas": {
-    "arch": "coaster",
-    "drop": ["New Texas Giant", "Titan", "Mr. Freeze: Reverse Blast", "Batman: The Ride"],
-    "dropWhy": "New Texas Giant is the headline ride and builds the longest line; Titan's capacity keeps it moving.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest weekends" },
-    "quiet": { "months": [3, 4, 9, 11], "why": "March and April weekdays, and September through November weekdays" },
-    "worth": "sometimes",
-    "verdict": "A summer Saturday product. On a spring or autumn weekday the park is comfortable without it.",
-    "tip": "Texas summer heat is the real constraint here, and it works in your favour: waits often fall in the 2 to 4 PM heat peak as people leave for shade. Take your water break at noon and ride when everyone else has given up."
+  "worth": "sometimes",
+  "verdict": "With twenty coasters and famously variable dispatch speeds, a Flash Pass can transform a Saturday here. Midweek in the off-season it is wasted money — the same queue that takes ninety minutes in July takes fifteen in February.",
+  "tip": "At Magic Mountain, operations are the variable more than attendance. The same posted wait can move at half speed on an understaffed day, so trust the live number over the crowd calendar."
+ },
+ "busch-gardens-tampa": {
+  "arch": "family",
+  "drop": [
+   "Iron Gwazi",
+   "Montu",
+   "SheiKra",
+   "Kumba",
+   "Tigris"
+  ],
+  "dropWhy": "Iron Gwazi is the only ride here that consistently builds a long line; the older B&M coasters have excellent throughput.",
+  "peak": {
+   "months": [
+    3,
+    6,
+    7,
+    9,
+    10
+   ],
+   "why": "spring break, summer, and Howl-O-Scream weekends"
   },
-  "six-flags-fiesta-texas": {
-    "arch": "coaster",
-    "drop": ["Iron Rattler", "Dr. Diabolical's Cliffhanger", "Superman: Krypton Coaster", "Poltergeist", "Batman: The Ride"],
-    "dropWhy": "Iron Rattler and Cliffhanger take the opening crowd and hold their lines longest.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest" },
-    "quiet": { "months": [3, 4, 9, 11], "why": "spring and late-autumn weekdays" },
-    "worth": "sometimes",
-    "verdict": "Worth it on summer weekends only. The quarry setting makes for a compact park that is easy to cover without paying.",
-    "tip": "The park is built into a quarry wall, so shade is scarce on the upper levels — plan the exposed rides for morning."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    9
+   ],
+   "why": "January and February weekdays, May weekdays, and September weekdays before Howl-O-Scream"
   },
-  "six-flags-over-georgia": {
-    "arch": "coaster",
-    "drop": ["Twisted Cyclone", "Goliath", "Mind Bender", "Batman: The Ride", "Superman: Ultimate Flight"],
-    "dropWhy": "Twisted Cyclone has modest capacity and the longest sustained line.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest weekends" },
-    "quiet": { "months": [4, 5, 9], "why": "April and May weekdays and September" },
-    "worth": "sometimes",
-    "verdict": "A weekend product in summer, unnecessary otherwise. Georgia humidity thins the afternoon crowd much as Texas heat does.",
-    "tip": "The park is hilly and spread out; group rides by section rather than by wait time or you will lose the day to walking."
+  "worth": "rarely",
+  "verdict": "One coaster carries the whole queue load. Ride Iron Gwazi first and Quick Queue stops making sense — the rest of the park moves quickly even on moderately busy days.",
+  "tip": "Busch Gardens is also a zoo, and the animal areas are far more rewarding in the first two hours before the Florida heat."
+ },
+ "seaworld-orlando": {
+  "arch": "family",
+  "drop": [
+   "Penguin Trek",
+   "Pipeline: The Surf Coaster",
+   "Mako",
+   "Manta",
+   "Kraken"
+  ],
+  "dropWhy": "The two newest coasters take the opening crowd; Mako and Manta have strong capacity and stay reasonable.",
+  "peak": {
+   "months": [
+    3,
+    6,
+    7,
+    9,
+    10
+   ],
+   "why": "spring break, summer and Howl-O-Scream season"
   },
-  "six-flags-great-america": {
-    "arch": "coaster",
-    "drop": ["Maxx Force", "Goliath", "Raging Bull", "X-Flight", "American Eagle"],
-    "dropWhy": "Maxx Force has a short cycle but small trains; Goliath and X-Flight follow.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "The Chicago season is short, which concentrates the crowds into summer weekends. Buy on a July Saturday, skip it in May.",
-    "tip": "The season is genuinely short here — the park runs weekends only at each end of it, and those weekends are busier than midweek in July."
+  "quiet": {
+   "months": [
+    1,
+    2,
+    5,
+    9
+   ],
+   "why": "January, February, May weekdays and early September"
   },
-  "six-flags-new-england": {
-    "arch": "coaster",
-    "drop": ["Superman the Ride", "Wicked Cyclone", "Batman: The Dark Knight", "Goliath"],
-    "dropWhy": "Superman is the draw and holds the longest line all day.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest weekends" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "Worth it on summer Saturdays. Superman the Ride is worth structuring the day around regardless of whether you pay.",
-    "tip": "The park sits on the Connecticut River and the season is short; early June weekdays are the sweet spot for low crowds and full operation."
+  "worth": "rarely",
+  "verdict": "SeaWorld is a show park with coasters attached, not the other way round. Waits are modest outside summer Saturdays, and Quick Queue solves a problem most visitors do not have.",
+  "tip": "Plan this park around show times, not ride waits — the shows are the fixed points in the day and everything else fits between them."
+ },
+ "cedar-point": {
+  "arch": "coaster",
+  "drop": [
+   "Steel Vengeance",
+   "Top Thrill 2",
+   "Maverick",
+   "Millennium Force",
+   "Magnum XL-200"
+  ],
+  "dropWhy": "Steel Vengeance and Maverick both have low capacity relative to demand and routinely pass ninety minutes by noon.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "why": "July and August, plus HalloWeekends Saturdays in late September and October"
   },
-  "six-flags-discovery-kingdom": {
-    "arch": "coaster",
-    "drop": ["Medusa", "The Joker", "Superman: Ultimate Flight", "Batman: The Ride"],
-    "dropWhy": "Medusa and The Joker are the two headliners; the rest of the park moves quickly.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest" },
-    "quiet": { "months": [1, 2, 4, 9, 11], "why": "weekdays outside the summer season" },
-    "worth": "rarely",
-    "verdict": "A hybrid animal and coaster park with modest waits most of the year. Flash Pass is hard to justify outside peak summer weekends.",
-    "tip": "Vallejo gets windy in the afternoon and the tall rides close for it more often than you would expect — ride them early."
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May and early June weekdays, and September weekdays when the park runs a reduced schedule"
   },
-  "six-flags-st-louis": {
-    "arch": "coaster",
-    "drop": ["American Thunder", "The Boss", "Mr. Freeze: Reverse Blast", "Batman: The Ride", "Screamin' Eagle"],
-    "dropWhy": "American Thunder is the most popular and has the smallest trains.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Fright Fest weekends" },
-    "quiet": { "months": [5, 9], "why": "May and September weekdays" },
-    "worth": "rarely",
-    "verdict": "One of the quieter Six Flags parks. Outside July Saturdays you will rarely find a line long enough to justify paying.",
-    "tip": "Missouri humidity peaks mid-afternoon; the water rides here are a genuine part of the plan rather than an afterthought."
+  "worth": "often",
+  "verdict": "On a summer Saturday, Steel Vengeance alone can hit two hours and Fast Lane Plus is the difference between six coasters and fifteen. On a Tuesday in June the same park is close to a walk-on and you should buy nothing.",
+  "tip": "Cedar Point is a weekend park in a way few others are. Shifting your visit from Saturday to Tuesday does more for your day than any paid product — and it is free."
+ },
+ "kings-island": {
+  "arch": "coaster",
+  "drop": [
+   "Orion",
+   "Banshee",
+   "Diamondback",
+   "Mystic Timbers",
+   "The Beast"
+  ],
+  "dropWhy": "Orion and Banshee absorb the opening crowd; The Beast is deliberately left for after dark.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Halloween Haunt weekends"
   },
-  "carowinds": {
-    "arch": "coaster",
-    "drop": ["Fury 325", "Copperhead Strike", "Afterburn", "Intimidator"],
-    "dropWhy": "Fury 325 is the park's gravity well and takes the entire opening crowd.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Scarowinds weekends" },
-    "quiet": { "months": [4, 5, 9], "why": "April and May weekdays and September weekdays" },
-    "worth": "sometimes",
-    "verdict": "Fast Lane is a summer weekend product. Ride Fury 325 first and the rest of the park feels short by comparison.",
-    "tip": "Fury 325 has excellent throughput for its popularity — the posted wait usually overstates the real one by a good margin."
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and September weekdays outside Haunt"
   },
-  "kings-dominion": {
-    "arch": "coaster",
-    "drop": ["Twisted Timbers", "Intimidator 305", "Dominator", "Racer 75"],
-    "dropWhy": "Twisted Timbers and Intimidator 305 hold the longest lines; the older coasters move quickly.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Halloween Haunt weekends" },
-    "quiet": { "months": [5, 9], "why": "May weekdays and September weekdays" },
-    "worth": "rarely",
-    "verdict": "Generally comfortable capacity outside peak summer Saturdays. Fast Lane is a nice-to-have rather than a fix here.",
-    "tip": "Intimidator 305 is intense enough that many riders only do it once — its line moves faster than its reputation suggests."
+  "worth": "sometimes",
+  "verdict": "Fast Lane earns its money on July and August Saturdays and during Halloween Haunt. Midweek, Kings Island has enough capacity that you will not miss it.",
+  "tip": "Ride The Beast after dark. It is a genuinely different and better ride at night, and the line is shortest in the last hour of the evening."
+ },
+ "six-flags-great-adventure": {
+  "arch": "coaster",
+  "drop": [
+   "Jersey Devil Coaster",
+   "El Toro",
+   "Nitro",
+   "Batman: The Ride"
+  ],
+  "dropWhy": "Jersey Devil is a single-rail coaster with modest capacity, and El Toro's line moves slowly when it is running.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest weekends"
   },
-  "dorney-park": {
-    "arch": "coaster",
-    "drop": ["Steel Force", "Talon", "Hydra the Revenge", "Possessed"],
-    "dropWhy": "Talon and Hydra have the steadiest lines; Steel Force's long train keeps it moving.",
-    "peak": { "months": [7, 8, 10], "why": "the summer holiday and Halloween weekends" },
-    "quiet": { "months": [5, 6, 9], "why": "May, June and September weekdays" },
-    "worth": "rarely",
-    "verdict": "Dorney is one of the least crowded major coaster parks in the United States. Fast Lane here is almost always money you did not need to spend.",
-    "tip": "Waits over thirty minutes are genuinely unusual outside July Saturdays — turn up, ride, and skip the upsell."
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and September weekdays"
   },
-  "worlds-of-fun": {
-    "arch": "coaster",
-    "drop": ["Mamba", "Prowler", "Patriot", "Timber Wolf"],
-    "dropWhy": "Prowler and Patriot draw the crowd; Mamba's capacity keeps its line short.",
-    "peak": { "months": [6, 7, 8, 10], "why": "the summer holiday and Halloween Haunt" },
-    "quiet": { "months": [5, 9], "why": "May and September weekdays" },
-    "worth": "rarely",
-    "verdict": "A comfortable park most days. Fast Lane rarely repays itself outside a peak summer Saturday.",
-    "tip": "The water park is included with admission and is where the crowd goes in July — the coasters get quieter as the afternoon heats up."
+  "worth": "sometimes",
+  "verdict": "A Flash Pass is defensible on a July Saturday and hard to justify midweek. Check which of the marquee coasters are actually operating before you buy — this park has a patchy record on downtime, and paying to skip lines for rides that are closed is the worst outcome.",
+  "tip": "The safari is included with admission and takes over an hour; build it into the plan deliberately or it will eat your afternoon by surprise."
+ },
+ "canadas-wonderland": {
+  "arch": "coaster",
+  "drop": [
+   "Yukon Striker",
+   "Leviathan",
+   "Behemoth",
+   "Wonder Mountain's Guardian"
+  ],
+  "dropWhy": "Yukon Striker draws the opening rush; Leviathan and Behemoth have good throughput and stay manageable.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10
+   ],
+   "why": "the Ontario summer holiday and Halloween Haunt weekends"
   },
-  "valleyfair": {
-    "arch": "coaster",
-    "drop": ["Wild Thing", "Renegade", "Steel Venom", "Delirium"],
-    "dropWhy": "Renegade is the standout and holds the longest line; Wild Thing's capacity keeps it moving.",
-    "peak": { "months": [7, 8], "why": "the short Minnesota summer, which concentrates almost all attendance into two months" },
-    "quiet": { "months": [5, 6, 9], "why": "May, early June and September weekends at the edges of the season" },
-    "worth": "rarely",
-    "verdict": "A short season and modest crowds. Outside July and August weekends you are unlikely to find a queue worth paying to skip.",
-    "tip": "The season is compressed into a few months, so the shoulder weekends in May and September are unusually good value for low waits."
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May and early June weekdays, and September weekdays"
   },
-  "michigans-adventure": {
-    "arch": "coaster",
-    "drop": ["Shivering Timbers", "Thunderhawk", "Wolverine Wildcat", "Mad Mouse"],
-    "dropWhy": "Shivering Timbers is the reason to come and has the only line that builds at all.",
-    "peak": { "months": [7, 8], "why": "the summer holiday, and really only its Saturdays" },
-    "quiet": { "months": [6, 8, 9], "why": "June weekdays and late-August weekdays once Michigan schools return" },
-    "worth": "rarely",
-    "verdict": "This park rarely posts a wait over thirty minutes outside a July Saturday. There is a Fast Lane for sale and almost no scenario in which you need it.",
-    "tip": "Shivering Timbers is a world-class wooden coaster attached to a genuinely quiet park — ride it repeatedly rather than rushing to cover everything."
+  "worth": "sometimes",
+  "verdict": "Worth it on summer Saturdays, unnecessary on a weekday in June. The park's season is short enough that its peak is genuinely peaky.",
+  "tip": "Wonder Mountain's Guardian is indoors and a good heat or rain fallback that most plans forget about."
+ },
+ "hersheypark": {
+  "arch": "coaster",
+  "drop": [
+   "Skyrush",
+   "Candymonium",
+   "Wildcat's Revenge",
+   "Great Bear",
+   "Storm Runner"
+  ],
+  "dropWhy": "Skyrush has the smallest trains and the longest sustained line; Candymonium moves quickly despite its popularity.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    12
+   ],
+   "why": "the summer holiday and Christmas Candylane weekends"
   },
-  "seaworld-san-antonio": {
-    "arch": "family",
-    "drop": ["Texas Stingray", "Wave Breaker: The Rescue Coaster", "Great White", "Steel Eel"],
-    "dropWhy": "Texas Stingray is the newest and busiest; the older coasters stay short.",
-    "peak": { "months": [6, 7, 8], "why": "the summer holiday, when the included water park drives most of the attendance" },
-    "quiet": { "months": [3, 4, 9, 10, 11], "why": "spring and autumn weekdays" },
-    "worth": "rarely",
-    "verdict": "Waits here are modest year-round and the water park absorbs the summer crowd. Quick Queue is seldom the constraint on your day.",
-    "tip": "The included water park is the real draw in summer — arrive early for the coasters and switch over when the heat arrives."
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and September weekends once school returns"
   },
-  "silver-dollar-city": {
-    "arch": "family",
-    "drop": ["Time Traveler", "Outlaw Run", "Powder Keg", "Mystic River Falls", "Thunderation"],
-    "dropWhy": "Time Traveler and Outlaw Run have the lowest capacity and the longest sustained lines.",
-    "peak": { "months": [6, 7, 10, 11, 12], "why": "summer, the Harvest Festival in October, and An Old Time Christmas in November and December" },
-    "quiet": { "months": [4, 5, 9], "why": "April and May weekdays and early September" },
-    "worth": "sometimes",
-    "verdict": "Worth it during the autumn and Christmas festivals, which are genuinely the park's busiest stretches. Summer weekdays rarely need it.",
-    "tip": "An Old Time Christmas is busier than any summer day here. If you are picking dates for low crowds, November and December are peak season, not off-season."
+  "worth": "sometimes",
+  "verdict": "Fast Track is a summer Saturday product. On most other days Hersheypark's capacity keeps up with its crowds.",
+  "tip": "Hershey hotel guests get early entry, which is a cheaper line-skip than Fast Track if you were booking a room anyway."
+ },
+ "dollywood": {
+  "arch": "family",
+  "drop": [
+   "Lightning Rod",
+   "Big Bear Mountain",
+   "Wild Eagle",
+   "Thunderhead",
+   "Mystery Mine"
+  ],
+  "dropWhy": "Lightning Rod has both the highest demand and the most downtime, so ride it while it is open rather than saving it.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    10,
+    11,
+    12
+   ],
+   "why": "summer, the Harvest Festival in October, and Smoky Mountain Christmas in November and December"
   },
-  "holiday-world": {
-    "arch": "family",
-    "drop": ["The Voyage", "Thunderbird", "The Raven", "The Legend"],
-    "dropWhy": "The Voyage is the only ride that sustains a long line; the other wooden coasters clear quickly.",
-    "peak": { "months": [6, 7], "why": "June and July Saturdays, when the included water park is at its busiest" },
-    "quiet": { "months": [5, 8, 9], "why": "May weekdays and August weekdays once Indiana schools return" },
-    "worth": "none",
-    "verdict": "Holiday World sells no line-skip pass, and it does not really need one. The park is famous for including parking, sunscreen and soft drinks in admission, and its ride capacity comfortably outruns its crowds on most days.",
-    "tip": "The Voyage is the one line worth planning around. Everything else stays short enough that you can ride on impulse."
+  "quiet": {
+   "months": [
+    3,
+    5,
+    9
+   ],
+   "why": "March weekdays at the start of the season, May weekdays, and early September"
   },
-  "kennywood": {
-    "arch": "coaster",
-    "drop": ["Steel Curtain", "Phantom's Revenge", "Thunderbolt", "Jack Rabbit", "Racer"],
-    "dropWhy": "Steel Curtain has the most downtime and the longest line when running; Phantom's Revenge follows.",
-    "peak": { "months": [7, 8, 10], "why": "the summer holiday and Phantom Fall Fest weekends" },
-    "quiet": { "months": [5, 6, 9], "why": "May and June weekdays and September weekends" },
-    "worth": "none",
-    "verdict": "Kennywood sells no paid line-skip. It is a compact historic park where arriving at opening and riding the classics first is the whole strategy.",
-    "tip": "The three historic wooden coasters are the reason to come and almost never have a line — the modern steel takes the crowd."
+  "worth": "rarely",
+  "verdict": "TimeSaver is rarely necessary outside summer Saturdays and the October and Christmas festivals. Dollywood's crowd is festival-shaped, not school-holiday-shaped.",
+  "tip": "Dollywood is busier in October and December than in July. If you are picking dates by school holidays you will get the season backwards."
+ },
+ "busch-gardens-williamsburg": {
+  "arch": "family",
+  "drop": [
+   "Pantheon",
+   "Griffon",
+   "Apollo's Chariot",
+   "Verbolten",
+   "Loch Ness Monster"
+  ],
+  "dropWhy": "Pantheon is the newest and slowest-loading; the older B&M coasters have excellent capacity.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    12
+   ],
+   "why": "summer, Howl-O-Scream in autumn and Christmas Town in December"
   },
-  "lagoon": {
-    "arch": "coaster",
-    "drop": ["Cannibal", "Colossus the Fire Dragon", "Wicked", "BomBora"],
-    "dropWhy": "Cannibal has the longest line in the park by a wide margin and the slowest loading.",
-    "peak": { "months": [7, 8, 10], "why": "July and August, and Frightmares weekends in October" },
-    "quiet": { "months": [5, 6, 9], "why": "May and early June weekdays, and September weekdays" },
-    "worth": "none",
-    "verdict": "Lagoon does not sell a paid queue-skip, so date and arrival time are your only levers. That makes the local calendar unusually important here.",
-    "tip": "Pioneer Day week, around 24 July, is Lagoon's single busiest stretch of the year — a Utah-specific spike that most national crowd calendars miss entirely."
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and early September weekdays"
   },
-  "legoland-florida": {
-    "arch": "family",
-    "drop": ["The Great LEGO Race", "The Dragon", "Coastersaurus", "LEGO NINJAGO The Ride"],
-    "dropWhy": "The family coasters have small trains, so their lines build faster than their popularity suggests.",
-    "peak": { "months": [3, 4, 6, 7, 12], "why": "spring break, the summer holiday and the Christmas period" },
-    "quiet": { "months": [1, 2, 9, 10], "why": "January and February weekdays, and September and October weekdays" },
-    "worth": "rarely",
-    "verdict": "Reserve 'N' Ride is rarely necessary. LEGOLAND's audience is young enough that the park thins out dramatically in the afternoon without any intervention.",
-    "tip": "The crowd here is preschool to about ten years old, and it empties noticeably after 3 PM when naps and the water park win. The last two hours are the quietest of any Orlando-area park."
+  "worth": "rarely",
+  "verdict": "Good capacity and a large, spread-out park mean Quick Queue is seldom needed. Buy it for a Howl-O-Scream Saturday if at all.",
+  "tip": "The park is built across steep river valleys — the walking is real, and the skyride and train are genuine time-savers rather than attractions."
+ },
+ "seaworld-san-diego": {
+  "arch": "family",
+  "drop": [
+   "Emperor",
+   "Electric Eel",
+   "Manta",
+   "Journey to Atlantis"
+  ],
+  "dropWhy": "Emperor and Electric Eel are the only rides that build a sustained line.",
+  "peak": {
+   "months": [
+    3,
+    6,
+    7,
+    8
+   ],
+   "why": "spring break and the summer holiday"
   },
-  "legoland-california": {
-    "arch": "family",
-    "drop": ["The LEGO Movie Masters of Flight", "The Dragon", "Coastersaurus", "LEGO NINJAGO The Ride"],
-    "dropWhy": "Masters of Flight is the headline attraction and the only one that builds a real line.",
-    "peak": { "months": [3, 6, 7, 8], "why": "spring break and the summer holiday" },
-    "quiet": { "months": [1, 2, 9, 10, 11], "why": "January and February, and weekdays from September through November" },
-    "worth": "rarely",
-    "verdict": "A young-family park with short waits most of the year. Save the money and plan around nap schedules instead.",
-    "tip": "Like its Florida sibling, this park empties after mid-afternoon — the late slot is the best value in the day."
-  }
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9,
+    10,
+    11
+   ],
+   "why": "January, February, and weekdays from September through November"
+  },
+  "worth": "rarely",
+  "verdict": "A show-led park with a handful of coasters. Outside summer weekends the waits do not justify Quick Queue.",
+  "tip": "San Diego's marine layer keeps mornings grey and cool well into June — the park is more comfortable but no less busy."
+ },
+ "europa-park": {
+  "arch": "europe",
+  "drop": [
+   "Voltron Nevera",
+   "Silver Star",
+   "Blue Fire Megacoaster",
+   "Wodan Timbur Coaster",
+   "Euro-Mir"
+  ],
+  "dropWhy": "Voltron is the newest headliner and takes the opening surge; Silver Star and Blue Fire have strong throughput once you are past it.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "the German and French summer holidays, Halloween in October, and the winter season around Christmas"
+  },
+  "quiet": {
+   "months": [
+    1,
+    3,
+    6,
+    11
+   ],
+   "why": "January and March weekdays in the winter season, June weekdays before the holidays, and November"
+  },
+  "worth": "none",
+  "verdict": "Europa-Park sells no paid line-skip at all, and that is deliberate. Its answer to queues is operational — very high throughput, generous hourly capacity, and a free virtual queue on the newest headliner. There is nothing to buy here, which makes arrival time and ride order the only levers that matter.",
+  "tip": "Because there is no paid skip, the free virtual queue for Voltron Nevera is the single most valuable thing to sort out in your first ten minutes in the park."
+ },
+ "efteling": {
+  "arch": "europe",
+  "drop": [
+   "Baron 1898",
+   "Danse Macabre",
+   "Symbolica",
+   "Joris en de Draak",
+   "Vogel Rok"
+  ],
+  "dropWhy": "Baron 1898 and Danse Macabre take the opening crowd; Symbolica's line grows all morning and stays long.",
+  "peak": {
+   "months": [
+    2,
+    4,
+    5,
+    7,
+    8,
+    12
+   ],
+   "why": "Dutch, Belgian and German school holidays — the spring krokus and May breaks, the summer holiday, and Winter Efteling in December"
+  },
+  "quiet": {
+   "months": [
+    3,
+    6,
+    9,
+    11
+   ],
+   "why": "March, June, September and November weekdays outside the school breaks"
+  },
+  "worth": "none",
+  "verdict": "Efteling does not sell a skip-the-line pass. Your only levers are the single-rider lines, arriving at opening, and choosing a Dutch school day over a holiday week — which makes date selection unusually powerful here.",
+  "tip": "Check the Dutch school holiday calendar before booking. The difference between a holiday week and an ordinary Tuesday is larger than anything a paid pass could have bought you."
+ },
+ "alton-towers": {
+  "arch": "europe",
+  "drop": [
+   "Nemesis Reborn",
+   "Wicker Man",
+   "The Smiler",
+   "Oblivion",
+   "Galactica"
+  ],
+  "dropWhy": "Nemesis Reborn and Wicker Man draw the opening crowd; The Smiler's slow dispatches make it the worst line to leave until later.",
+  "peak": {
+   "months": [
+    5,
+    7,
+    8,
+    10
+   ],
+   "why": "the late-May half-term, the UK summer holiday, and Scarefest in late October"
+  },
+  "quiet": {
+   "months": [
+    4,
+    6,
+    9
+   ],
+   "why": "term-time weekdays in April, June and September"
+  },
+  "worth": "sometimes",
+  "verdict": "Fastrack is sold per ride and gets expensive quickly. On a term-time Wednesday you will not need it at all; during a half-term week it is the only way to get through the headliners in one day.",
+  "tip": "The entire UK crowd calendar is school terms. A Tuesday in mid-June and a Tuesday in August are effectively different parks."
+ },
+ "thorpe-park": {
+  "arch": "europe",
+  "drop": [
+   "Hyperia",
+   "Stealth",
+   "The Swarm",
+   "Nemesis Inferno",
+   "Saw: The Ride"
+  ],
+  "dropWhy": "Hyperia is the newest and busiest; Stealth's launch cycle makes its line slow to clear.",
+  "peak": {
+   "months": [
+    5,
+    7,
+    8,
+    10
+   ],
+   "why": "half-terms, the UK summer holiday, and Fright Nights in October"
+  },
+  "quiet": {
+   "months": [
+    4,
+    6,
+    9
+   ],
+   "why": "term-time weekdays in spring and September"
+  },
+  "worth": "sometimes",
+  "verdict": "A compact park with a teenage-skewing crowd and long waits on summer weekends. Fastrack is worth it during school holidays and unnecessary in term time.",
+  "tip": "Thorpe is on an island site with a lot of water — wind closures on the tall rides are common enough to be worth a contingency plan."
+ },
+ "portaventura": {
+  "arch": "europe",
+  "drop": [
+   "Shambhala",
+   "Uncharted: The Enigma of Penitence",
+   "Dragon Khan",
+   "Furius Baco"
+  ],
+  "dropWhy": "Shambhala and Uncharted take the opening crowd; Dragon Khan's capacity keeps it moving.",
+  "peak": {
+   "months": [
+    4,
+    7,
+    8
+   ],
+   "why": "Easter week and the Spanish summer holiday, when the resort hotels are full"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9,
+    10
+   ],
+   "why": "May and June weekdays, and September and October weekdays after the Spanish holidays end"
+  },
+  "worth": "sometimes",
+  "verdict": "Express is worth it in peak summer and rarely otherwise. Note that Ferrari Land is a separate ticket with its own queues, so budget for it deliberately rather than assuming it is included.",
+  "tip": "Spanish park days run late. The final two hours are noticeably quieter and far more comfortable than the afternoon heat."
+ },
+ "phantasialand": {
+  "arch": "europe",
+  "drop": [
+   "Taron",
+   "F.L.Y.",
+   "Black Mamba",
+   "Chiapas",
+   "Winja's Fear & Force"
+  ],
+  "dropWhy": "Taron and F.L.Y. absorb the entire opening crowd, and both have lines that never fully recover during the day.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10,
+    11,
+    12
+   ],
+   "why": "the German summer holiday, Halloween, and the Wintertraum season from late November"
+  },
+  "quiet": {
+   "months": [
+    3,
+    5,
+    9
+   ],
+   "why": "March, May and September weekdays outside German school holidays"
+  },
+  "worth": "none",
+  "verdict": "Phantasialand sells no line-skip pass. The park is unusually compact and fills fast, which makes being at the gate for opening worth more here than at almost any other European park — there is no way to buy back the hour you lose by arriving at eleven.",
+  "tip": "Head straight to Taron or F.L.Y. at opening. With no paid skip available, the first hour is the only genuinely cheap capacity in the day."
+ },
+ "parc-asterix": {
+  "arch": "europe",
+  "drop": [
+   "Toutatis",
+   "OzIris",
+   "Tonnerre 2 Zeus",
+   "Discobélix"
+  ],
+  "dropWhy": "Toutatis is the newest headliner and holds the longest line; OzIris follows.",
+  "peak": {
+   "months": [
+    4,
+    7,
+    8,
+    10
+   ],
+   "why": "French school holidays — Easter, the summer break, and the Halloween season"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May and June weekdays in term time, and September"
+  },
+  "worth": "sometimes",
+  "verdict": "The skip-the-line pass is worth it during French school holidays and hard to justify on a term-time weekday. This park's calendar tracks the French school year almost exactly.",
+  "tip": "Parc Astérix is much quieter than Disneyland Paris on the same date, which makes it a good second park on a busy Paris week."
+ },
+ "liseberg": {
+  "arch": "europe",
+  "drop": [
+   "Helix",
+   "Valkyria",
+   "Balder",
+   "Lisebergbanan"
+  ],
+  "dropWhy": "Helix and Valkyria are the two headliners; Balder's wooden layout has decent throughput.",
+  "peak": {
+   "months": [
+    7,
+    10,
+    11,
+    12
+   ],
+   "why": "the Swedish summer holiday, Halloween, and the Christmas market season"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May and June weekdays, and September"
+  },
+  "worth": "none",
+  "verdict": "Liseberg does not sell a paid line-skip. It is a city park with a strong evening rhythm, so timing rather than money is how you avoid the queues here.",
+  "tip": "Waits fall noticeably after about 6 PM in summer as the family crowd leaves — the evening is the cheapest capacity in the day."
+ },
+ "six-flags-over-texas": {
+  "arch": "coaster",
+  "drop": [
+   "New Texas Giant",
+   "Titan",
+   "Mr. Freeze: Reverse Blast",
+   "Batman: The Ride"
+  ],
+  "dropWhy": "New Texas Giant is the headline ride and builds the longest line; Titan's capacity keeps it moving.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest weekends"
+  },
+  "quiet": {
+   "months": [
+    3,
+    4,
+    9,
+    11
+   ],
+   "why": "March and April weekdays, and September through November weekdays"
+  },
+  "worth": "sometimes",
+  "verdict": "A summer Saturday product. On a spring or autumn weekday the park is comfortable without it.",
+  "tip": "Texas summer heat is the real constraint here, and it works in your favour: waits often fall in the 2 to 4 PM heat peak as people leave for shade. Take your water break at noon and ride when everyone else has given up."
+ },
+ "six-flags-fiesta-texas": {
+  "arch": "coaster",
+  "drop": [
+   "Iron Rattler",
+   "Dr. Diabolical's Cliffhanger",
+   "Superman: Krypton Coaster",
+   "Poltergeist",
+   "Batman: The Ride"
+  ],
+  "dropWhy": "Iron Rattler and Cliffhanger take the opening crowd and hold their lines longest.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest"
+  },
+  "quiet": {
+   "months": [
+    3,
+    4,
+    9,
+    11
+   ],
+   "why": "spring and late-autumn weekdays"
+  },
+  "worth": "sometimes",
+  "verdict": "Worth it on summer weekends only. The quarry setting makes for a compact park that is easy to cover without paying.",
+  "tip": "The park is built into a quarry wall, so shade is scarce on the upper levels — plan the exposed rides for morning."
+ },
+ "six-flags-over-georgia": {
+  "arch": "coaster",
+  "drop": [
+   "Twisted Cyclone",
+   "Goliath",
+   "Mind Bender",
+   "Batman: The Ride",
+   "Superman: Ultimate Flight"
+  ],
+  "dropWhy": "Twisted Cyclone has modest capacity and the longest sustained line.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest weekends"
+  },
+  "quiet": {
+   "months": [
+    4,
+    5,
+    9
+   ],
+   "why": "April and May weekdays and September"
+  },
+  "worth": "sometimes",
+  "verdict": "A weekend product in summer, unnecessary otherwise. Georgia humidity thins the afternoon crowd much as Texas heat does.",
+  "tip": "The park is hilly and spread out; group rides by section rather than by wait time or you will lose the day to walking."
+ },
+ "six-flags-great-america": {
+  "arch": "coaster",
+  "drop": [
+   "Maxx Force",
+   "Goliath",
+   "Raging Bull",
+   "X-Flight",
+   "American Eagle"
+  ],
+  "dropWhy": "Maxx Force has a short cycle but small trains; Goliath and X-Flight follow.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest"
+  },
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and September weekdays"
+  },
+  "worth": "sometimes",
+  "verdict": "The Chicago season is short, which concentrates the crowds into summer weekends. Buy on a July Saturday, skip it in May.",
+  "tip": "The season is genuinely short here — the park runs weekends only at each end of it, and those weekends are busier than midweek in July."
+ },
+ "six-flags-new-england": {
+  "arch": "coaster",
+  "drop": [
+   "Superman the Ride",
+   "Wicked Cyclone",
+   "Batman: The Dark Knight",
+   "Goliath"
+  ],
+  "dropWhy": "Superman is the draw and holds the longest line all day.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest weekends"
+  },
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and September weekdays"
+  },
+  "worth": "sometimes",
+  "verdict": "Worth it on summer Saturdays. Superman the Ride is worth structuring the day around regardless of whether you pay.",
+  "tip": "The park sits on the Connecticut River and the season is short; early June weekdays are the sweet spot for low crowds and full operation."
+ },
+ "six-flags-discovery-kingdom": {
+  "arch": "coaster",
+  "drop": [
+   "Medusa",
+   "The Joker",
+   "Superman: Ultimate Flight",
+   "Batman: The Ride"
+  ],
+  "dropWhy": "Medusa and The Joker are the two headliners; the rest of the park moves quickly.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest"
+  },
+  "quiet": {
+   "months": [
+    1,
+    2,
+    4,
+    9,
+    11
+   ],
+   "why": "weekdays outside the summer season"
+  },
+  "worth": "rarely",
+  "verdict": "A hybrid animal and coaster park with modest waits most of the year. Flash Pass is hard to justify outside peak summer weekends.",
+  "tip": "Vallejo gets windy in the afternoon and the tall rides close for it more often than you would expect — ride them early."
+ },
+ "six-flags-st-louis": {
+  "arch": "coaster",
+  "drop": [
+   "American Thunder",
+   "The Boss",
+   "Mr. Freeze: Reverse Blast",
+   "Batman: The Ride",
+   "Screamin' Eagle"
+  ],
+  "dropWhy": "American Thunder is the most popular and has the smallest trains.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Fright Fest weekends"
+  },
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May and September weekdays"
+  },
+  "worth": "rarely",
+  "verdict": "One of the quieter Six Flags parks. Outside July Saturdays you will rarely find a line long enough to justify paying.",
+  "tip": "Missouri humidity peaks mid-afternoon; the water rides here are a genuine part of the plan rather than an afterthought."
+ },
+ "carowinds": {
+  "arch": "coaster",
+  "drop": [
+   "Fury 325",
+   "Copperhead Strike",
+   "Afterburn",
+   "Intimidator"
+  ],
+  "dropWhy": "Fury 325 is the park's gravity well and takes the entire opening crowd.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Scarowinds weekends"
+  },
+  "quiet": {
+   "months": [
+    4,
+    5,
+    9
+   ],
+   "why": "April and May weekdays and September weekdays"
+  },
+  "worth": "sometimes",
+  "verdict": "Fast Lane is a summer weekend product. Ride Fury 325 first and the rest of the park feels short by comparison.",
+  "tip": "Fury 325 has excellent throughput for its popularity — the posted wait usually overstates the real one by a good margin."
+ },
+ "kings-dominion": {
+  "arch": "coaster",
+  "drop": [
+   "Twisted Timbers",
+   "Intimidator 305",
+   "Dominator",
+   "Racer 75"
+  ],
+  "dropWhy": "Twisted Timbers and Intimidator 305 hold the longest lines; the older coasters move quickly.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Halloween Haunt weekends"
+  },
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May weekdays and September weekdays"
+  },
+  "worth": "rarely",
+  "verdict": "Generally comfortable capacity outside peak summer Saturdays. Fast Lane is a nice-to-have rather than a fix here.",
+  "tip": "Intimidator 305 is intense enough that many riders only do it once — its line moves faster than its reputation suggests."
+ },
+ "dorney-park": {
+  "arch": "coaster",
+  "drop": [
+   "Steel Force",
+   "Talon",
+   "Hydra the Revenge",
+   "Possessed"
+  ],
+  "dropWhy": "Talon and Hydra have the steadiest lines; Steel Force's long train keeps it moving.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Halloween weekends"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May, June and September weekdays"
+  },
+  "worth": "rarely",
+  "verdict": "Dorney is one of the least crowded major coaster parks in the United States. Fast Lane here is almost always money you did not need to spend.",
+  "tip": "Waits over thirty minutes are genuinely unusual outside July Saturdays — turn up, ride, and skip the upsell."
+ },
+ "worlds-of-fun": {
+  "arch": "coaster",
+  "drop": [
+   "Mamba",
+   "Prowler",
+   "Patriot",
+   "Timber Wolf"
+  ],
+  "dropWhy": "Prowler and Patriot draw the crowd; Mamba's capacity keeps its line short.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Halloween Haunt"
+  },
+  "quiet": {
+   "months": [
+    5,
+    9
+   ],
+   "why": "May and September weekdays"
+  },
+  "worth": "rarely",
+  "verdict": "A comfortable park most days. Fast Lane rarely repays itself outside a peak summer Saturday.",
+  "tip": "The water park is included with admission and is where the crowd goes in July — the coasters get quieter as the afternoon heats up."
+ },
+ "valleyfair": {
+  "arch": "coaster",
+  "drop": [
+   "Wild Thing",
+   "Renegade",
+   "Steel Venom",
+   "Delirium"
+  ],
+  "dropWhy": "Renegade is the standout and holds the longest line; Wild Thing's capacity keeps it moving.",
+  "peak": {
+   "months": [
+    7,
+    8
+   ],
+   "why": "the short Minnesota summer, which concentrates almost all attendance into two months"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May, early June and September weekends at the edges of the season"
+  },
+  "worth": "rarely",
+  "verdict": "A short season and modest crowds. Outside July and August weekends you are unlikely to find a queue worth paying to skip.",
+  "tip": "The season is compressed into a few months, so the shoulder weekends in May and September are unusually good value for low waits."
+ },
+ "michigans-adventure": {
+  "arch": "coaster",
+  "drop": [
+   "Shivering Timbers",
+   "Thunderhawk",
+   "Wolverine Wildcat",
+   "Mad Mouse"
+  ],
+  "dropWhy": "Shivering Timbers is the reason to come and has the only line that builds at all.",
+  "peak": {
+   "months": [
+    7,
+    8
+   ],
+   "why": "the summer holiday, and really only its Saturdays"
+  },
+  "quiet": {
+   "months": [
+    6,
+    8,
+    9
+   ],
+   "why": "June weekdays and late-August weekdays once Michigan schools return"
+  },
+  "worth": "rarely",
+  "verdict": "This park rarely posts a wait over thirty minutes outside a July Saturday. There is a Fast Lane for sale and almost no scenario in which you need it.",
+  "tip": "Shivering Timbers is a world-class wooden coaster attached to a genuinely quiet park — ride it repeatedly rather than rushing to cover everything."
+ },
+ "seaworld-san-antonio": {
+  "arch": "family",
+  "drop": [
+   "Texas Stingray",
+   "Wave Breaker: The Rescue Coaster",
+   "Great White",
+   "Steel Eel"
+  ],
+  "dropWhy": "Texas Stingray is the newest and busiest; the older coasters stay short.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    8
+   ],
+   "why": "the summer holiday, when the included water park drives most of the attendance"
+  },
+  "quiet": {
+   "months": [
+    3,
+    4,
+    9,
+    10,
+    11
+   ],
+   "why": "spring and autumn weekdays"
+  },
+  "worth": "rarely",
+  "verdict": "Waits here are modest year-round and the water park absorbs the summer crowd. Quick Queue is seldom the constraint on your day.",
+  "tip": "The included water park is the real draw in summer — arrive early for the coasters and switch over when the heat arrives."
+ },
+ "silver-dollar-city": {
+  "arch": "family",
+  "drop": [
+   "Time Traveler",
+   "Outlaw Run",
+   "Powder Keg",
+   "Mystic River Falls",
+   "Thunderation"
+  ],
+  "dropWhy": "Time Traveler and Outlaw Run have the lowest capacity and the longest sustained lines.",
+  "peak": {
+   "months": [
+    6,
+    7,
+    10,
+    11,
+    12
+   ],
+   "why": "summer, the Harvest Festival in October, and An Old Time Christmas in November and December"
+  },
+  "quiet": {
+   "months": [
+    4,
+    5,
+    9
+   ],
+   "why": "April and May weekdays and early September"
+  },
+  "worth": "sometimes",
+  "verdict": "Worth it during the autumn and Christmas festivals, which are genuinely the park's busiest stretches. Summer weekdays rarely need it.",
+  "tip": "An Old Time Christmas is busier than any summer day here. If you are picking dates for low crowds, November and December are peak season, not off-season."
+ },
+ "holiday-world": {
+  "arch": "family",
+  "drop": [
+   "The Voyage",
+   "Thunderbird",
+   "The Raven",
+   "The Legend"
+  ],
+  "dropWhy": "The Voyage is the only ride that sustains a long line; the other wooden coasters clear quickly.",
+  "peak": {
+   "months": [
+    6,
+    7
+   ],
+   "why": "June and July Saturdays, when the included water park is at its busiest"
+  },
+  "quiet": {
+   "months": [
+    5,
+    8,
+    9
+   ],
+   "why": "May weekdays and August weekdays once Indiana schools return"
+  },
+  "worth": "none",
+  "verdict": "Holiday World sells no line-skip pass, and it does not really need one. The park is famous for including parking, sunscreen and soft drinks in admission, and its ride capacity comfortably outruns its crowds on most days.",
+  "tip": "The Voyage is the one line worth planning around. Everything else stays short enough that you can ride on impulse."
+ },
+ "kennywood": {
+  "arch": "coaster",
+  "drop": [
+   "Steel Curtain",
+   "Phantom's Revenge",
+   "Thunderbolt",
+   "Jack Rabbit",
+   "Racer"
+  ],
+  "dropWhy": "Steel Curtain has the most downtime and the longest line when running; Phantom's Revenge follows.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10
+   ],
+   "why": "the summer holiday and Phantom Fall Fest weekends"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May and June weekdays and September weekends"
+  },
+  "worth": "none",
+  "verdict": "Kennywood sells no paid line-skip. It is a compact historic park where arriving at opening and riding the classics first is the whole strategy.",
+  "tip": "The three historic wooden coasters are the reason to come and almost never have a line — the modern steel takes the crowd."
+ },
+ "lagoon": {
+  "arch": "coaster",
+  "drop": [
+   "Cannibal",
+   "Colossus the Fire Dragon",
+   "Wicked",
+   "BomBora"
+  ],
+  "dropWhy": "Cannibal has the longest line in the park by a wide margin and the slowest loading.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10
+   ],
+   "why": "July and August, and Frightmares weekends in October"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "May and early June weekdays, and September weekdays"
+  },
+  "worth": "none",
+  "verdict": "Lagoon does not sell a paid queue-skip, so date and arrival time are your only levers. That makes the local calendar unusually important here.",
+  "tip": "Pioneer Day week, around 24 July, is Lagoon's single busiest stretch of the year — a Utah-specific spike that most national crowd calendars miss entirely."
+ },
+ "legoland-florida": {
+  "arch": "family",
+  "drop": [
+   "The Great LEGO Race",
+   "The Dragon",
+   "Coastersaurus",
+   "LEGO NINJAGO The Ride"
+  ],
+  "dropWhy": "The family coasters have small trains, so their lines build faster than their popularity suggests.",
+  "peak": {
+   "months": [
+    3,
+    4,
+    6,
+    7,
+    12
+   ],
+   "why": "spring break, the summer holiday and the Christmas period"
+  },
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9,
+    10
+   ],
+   "why": "January and February weekdays, and September and October weekdays"
+  },
+  "worth": "rarely",
+  "verdict": "Reserve 'N' Ride is rarely necessary. LEGOLAND's audience is young enough that the park thins out dramatically in the afternoon without any intervention.",
+  "tip": "The crowd here is preschool to about ten years old, and it empties noticeably after 3 PM when naps and the water park win. The last two hours are the quietest of any Orlando-area park."
+ },
+ "legoland-california": {
+  "arch": "family",
+  "drop": [
+   "The LEGO Movie Masters of Flight",
+   "The Dragon",
+   "Coastersaurus",
+   "LEGO NINJAGO The Ride"
+  ],
+  "dropWhy": "Masters of Flight is the headline attraction and the only one that builds a real line.",
+  "peak": {
+   "months": [
+    3,
+    6,
+    7,
+    8
+   ],
+   "why": "spring break and the summer holiday"
+  },
+  "quiet": {
+   "months": [
+    1,
+    2,
+    9,
+    10,
+    11
+   ],
+   "why": "January and February, and weekdays from September through November"
+  },
+  "worth": "rarely",
+  "verdict": "A young-family park with short waits most of the year. Save the money and plan around nap schedules instead.",
+  "tip": "Like its Florida sibling, this park empties after mid-afternoon — the late slot is the best value in the day."
+ },
+ "universal-studios-japan": {
+  "arch": "universal",
+  "drop": [
+   "The Flying Dinosaur",
+   "Mario Kart: Koopa's Challenge",
+   "Harry Potter and the Forbidden Journey",
+   "Hollywood Dream: The Ride",
+   "Despicable Me Minion Mayhem"
+  ],
+  "dropWhy": "Super Nintendo World runs on timed entry that can be gone by mid-morning, and The Flying Dinosaur builds the longest standby line in the park almost immediately.",
+  "peak": {
+   "months": [
+    4,
+    8,
+    10,
+    12
+   ],
+   "why": "Golden Week at the end of April, Obon in mid-August, the enormous Halloween season, and the year-end holidays"
+  },
+  "quiet": {
+   "months": [
+    1,
+    6,
+    9
+   ],
+   "why": "mid-January after the New Year rush, June weekdays in the rainy season, and September weekdays between the holidays"
+  },
+  "worth": "often",
+  "verdict": "USJ is one of the most crowded parks on Earth per square metre, and Express Pass is priced accordingly. On peak days it is close to essential for the headliners; on quiet weekdays the free timed-entry systems plus rope drop cover most of it. Decide by the date, not by habit.",
+  "tip": "Secure Super Nintendo World timed entry in the official app the moment you scan your ticket at the gate — it is free, and it disappears faster than any queue."
+ },
+ "gardaland": {
+  "arch": "europe",
+  "drop": [
+   "Raptor",
+   "Oblivion — The Black Hole",
+   "Blue Tornado",
+   "Shaman",
+   "Fuga da Atlantide"
+  ],
+  "dropWhy": "Raptor and Oblivion are the two queues that never recover once the coaches arrive, and Fuga da Atlantide's line triples in the afternoon heat.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10,
+    12
+   ],
+   "why": "the Italian summer holidays, Halloween weekends, and the Magic Winter season"
+  },
+  "quiet": {
+   "months": [
+    4,
+    5,
+    9
+   ],
+   "why": "April and May weekdays outside the holidays, and September weekdays once Italian schools return"
+  },
+  "worth": "sometimes",
+  "verdict": "Gardaland Express earns its price on summer weekends and August, when the lake resort crowds arrive together. On a spring or September weekday the park is walkable without it — spend the money on lunch with the lake view instead.",
+  "tip": "The park sits on Lake Garda's tourist strip: crowds surge after 11 AM when day-trippers arrive, so the first two hours are worth more here than almost anywhere."
+ },
+ "heide-park": {
+  "arch": "europe",
+  "drop": [
+   "Colossos — Kampf der Giganten",
+   "Flug der Dämonen",
+   "Krake",
+   "Desert Race",
+   "Big Loop"
+  ],
+  "dropWhy": "Colossos and Flug der Dämonen are the two headliners everyone walks to first; both load slowly relative to their fame.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10
+   ],
+   "why": "the north-German summer holidays and the Halloween season"
+  },
+  "quiet": {
+   "months": [
+    4,
+    5,
+    9
+   ],
+   "why": "spring and September weekdays, when the park often feels half-empty"
+  },
+  "worth": "sometimes",
+  "verdict": "Express Pass is worth it on summer Saturdays and Halloween weekends; on an ordinary weekday the park's short season keeps crowds moderate and rope-drop order does the job for free.",
+  "tip": "Colossos first, Dämonen second, then work outward — the wooden giant's queue only grows all day."
+ },
+ "legoland-windsor": {
+  "arch": "family",
+  "drop": [
+   "Flight of the Sky Lion",
+   "Minifigure Speedway",
+   "The Dragon",
+   "Ninjago The Ride",
+   "Fire and Ice Freefall"
+  ],
+  "dropWhy": "Sky Lion is the newest flagship and its indoor queue moves slowly; the Dragon is every first-timer's target and never recovers after 10:30.",
+  "peak": {
+   "months": [
+    4,
+    7,
+    8,
+    10
+   ],
+   "why": "the Easter and summer school holidays and October half-term — this park lives and dies by the UK school calendar"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "term-time weekdays in May, June and September, when queues can be a tenth of holiday levels"
+  },
+  "worth": "sometimes",
+  "verdict": "Reserve & Ride is priced per party, not per person, which changes the maths for families — on a school-holiday visit the mid tier often costs less than the sanity it buys. On a term-time weekday, keep your money; the park is gentle.",
+  "tip": "Everything here is aimed at under-12 stamina: plan the headliners before lunch, because the afternoon belongs to meltdowns and the queues never shrink again."
+ },
+ "chessington": {
+  "arch": "family",
+  "drop": [
+   "Mandrill Mayhem",
+   "Vampire",
+   "Dragon's Fury",
+   "Rattlesnake",
+   "Tiger Rock"
+  ],
+  "dropWhy": "Mandrill Mayhem is the park's newest headliner with modest hourly capacity — it opens with a sprint and stays long all day.",
+  "peak": {
+   "months": [
+    4,
+    7,
+    8,
+    10
+   ],
+   "why": "UK school holidays and October half-term with the Howl'o'ween season"
+  },
+  "quiet": {
+   "months": [
+    5,
+    6,
+    9
+   ],
+   "why": "term-time weekdays, when much of the park is a walk-on"
+  },
+  "worth": "sometimes",
+  "verdict": "Fastrack per-ride pricing means you only buy the two or three queues that actually hurt — usually Mandrill Mayhem and Vampire on a holiday date. Buying it for everything is paying to skip queues that barely exist.",
+  "tip": "The zoo half is genuinely good and absorbs the peak hours well — ride mornings, animals at midday, ride again after 3 PM."
+ },
+ "toverland": {
+  "arch": "europe",
+  "drop": [
+   "Fēnix",
+   "Troy",
+   "Booster Bike",
+   "Dwervelwind",
+   "Expedition Zork"
+  ],
+  "dropWhy": "Fēnix and Troy are the two destination coasters; everything else in the park rarely tops half an hour.",
+  "peak": {
+   "months": [
+    7,
+    8,
+    10
+   ],
+   "why": "the Dutch summer holidays and the Halloween Nights events"
+  },
+  "quiet": {
+   "months": [
+    3,
+    6,
+    9,
+    11
+   ],
+   "why": "weekdays outside school holidays — this is one of Europe's most relaxed major parks"
+  },
+  "worth": "none",
+  "verdict": "There is no paid skip at Toverland and it does not need one: capacity is generous for its crowds. Ride Fēnix at opening, Troy in the last hour, and you will never see a serious queue.",
+  "tip": "The indoor halves (Land van Toos and Wunderwald) make this one of Europe's best rainy-day parks — a wet forecast actually empties it."
+ },
+ "futuroscope": {
+  "arch": "family",
+  "drop": [
+   "Chasseurs de Tornades",
+   "Objectif Mars",
+   "L'Extraordinaire Voyage",
+   "La Machine à Voyager dans le Temps",
+   "Dans les Yeux de Thomas Pesquet"
+  ],
+  "dropWhy": "Tornado Chasers and Objectif Mars are the two modern headliners with the smallest hourly throughput — both are show-format rides that admit groups in batches.",
+  "peak": {
+   "months": [
+    4,
+    7,
+    8,
+    10
+   ],
+   "why": "French school holidays — Easter, the summer, and the Toussaint break"
+  },
+  "quiet": {
+   "months": [
+    3,
+    6,
+    9,
+    11
+   ],
+   "why": "term-time weekdays, when most experiences are near walk-on"
+  },
+  "worth": "sometimes",
+  "verdict": "Futuroscope is shows and simulators, not coasters, so the queues behave differently: they are batch-loaded and predictable. The Premium pass is only worth it on French school-holiday dates; otherwise timing beats paying.",
+  "tip": "Stay for the night show — the day is paced so the evening is the finale, and the last two hours before it are the emptiest of the day."
+ },
+ "everland": {
+  "arch": "family",
+  "drop": [
+   "T Express",
+   "Rolling X-Train",
+   "Thunder Falls",
+   "Amazon Express",
+   "Safari World"
+  ],
+  "dropWhy": "T Express is one of the world's great wooden coasters and the single line that defines the day — it can hit three hours while the rest of the park stays moderate.",
+  "peak": {
+   "months": [
+    4,
+    5,
+    8,
+    10
+   ],
+   "why": "the cherry-blossom and tulip festivals, Children's Day week in early May, the summer holiday, and Halloween"
+  },
+  "quiet": {
+   "months": [
+    1,
+    2,
+    6
+   ],
+   "why": "the cold midwinter weekdays and June between festival seasons"
+  },
+  "worth": "sometimes",
+  "verdict": "Buy Q-Pass for T Express and nothing else — it is the one queue that can eat your afternoon. The rest of Everland is gardens, safari and festivals, and those don't queue.",
+  "tip": "T Express single-file at rope drop, then drift with the gardens — the park is as much a flower festival as a ride park, and it is planted accordingly."
+ },
+ "lotte-world": {
+  "arch": "family",
+  "drop": [
+   "Atlantis",
+   "French Revolution",
+   "Pharaoh's Fury",
+   "Gyro Drop",
+   "Comet Express"
+  ],
+  "dropWhy": "Atlantis is the flagship coaster with a short train and a long line from opening; the indoor headliners build steadily as the day-trippers arrive.",
+  "peak": {
+   "months": [
+    5,
+    8,
+    12
+   ],
+   "why": "Children's Day and spring festival season, the summer holiday, and the Christmas season under the glass dome"
+  },
+  "quiet": {
+   "months": [
+    2,
+    6,
+    9
+   ],
+   "why": "weekdays in late winter, June, and September between the holiday waves"
+  },
+  "worth": "sometimes",
+  "verdict": "Magic Pass is per-ride, so spend it on Atlantis and Gyro Drop on busy days and skip it otherwise. Half this park is indoors under the dome — weather never rescues you from crowds here the way it does elsewhere.",
+  "tip": "The indoor Adventure hall peaks mid-afternoon; ride outdoor Magic Island in daylight and save the dome for the evening parade hours."
+ }
 }

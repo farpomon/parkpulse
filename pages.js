@@ -419,7 +419,7 @@ function bandsTable(park, bands) {
 
 // What's closed right now, straight from the feed. The competitors keep a
 // hand-maintained refurbishment page for a handful of parks and it goes stale;
-// this is generated for all 56 and dated so the reader can judge its freshness.
+// this is generated for every park and dated so the reader can judge its freshness.
 function closureSection(park, closures) {
   const current = (closures?.rides || []).filter((r) => r.current);
   const reopened = (closures?.rides || []).filter((r) => !r.current).slice(0, 6);
@@ -603,7 +603,7 @@ function renderBasicParkPage(park, sample, allParks) {
 </div></body></html>`;
 }
 
-// /parks — the hub every park page links back to, so crawlers reach all 56
+// /parks — the hub every park page links back to, so crawlers reach every park
 // from any entry point in two clicks.
 function renderParksIndex(allParks) {
   const order = ['Florida', 'California', 'US & Canada', 'Europe', 'Asia'];
@@ -787,7 +787,7 @@ function renderNotFoundPage() {
   <img src="/img/mila/mila-sad-320.webp" alt="Mila the ParkPulse fairy, looking disappointed">
   <h1>This page doesn't exist</h1>
   <p>Mila checked twice. The queue for it is infinite, and not in the fun way.</p>
-  <div class="btns"><a class="b" href="/app">Open live waits</a><a class="b ghost" href="/parks">Browse all 56 parks</a></div>
+  <div class="btns"><a class="b" href="/app">Open live waits</a><a class="b ghost" href="/parks">Browse all 65 parks</a></div>
 </div>
 <footer style="margin-top:5rem">Unofficial fan guide &mdash; not affiliated with the park operators. <a href="/">ParkPulse home</a></footer>
 </div></body></html>`;
