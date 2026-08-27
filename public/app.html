@@ -239,6 +239,9 @@
   .planai-done { font-size: .82rem; font-weight: 700; color: var(--green, #2e9e6b); }
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
+  .pip-av { border-radius: 50%; border: 1.5px solid var(--border); flex: 0 0 auto; }
+  .planby { display: flex; align-items: center; gap: .35rem; font-size: .76rem; color: var(--muted);
+    margin: -.15rem 0 .5rem; }
   /* Free-preview gate: half the board as a teaser, nothing interactive. */
   /* Two tiers of gate. gated = free user: the free park's board is usable —
      one park, today, one plan — with paid features locking individually.
@@ -2579,6 +2582,10 @@
            unavailable, throttled or behind a pass. -->
       <div id="plan-ai" class="planai" style="display:none">
         <div class="planai-h"><img class="mila-av" src="/img/mila/mila-thinking-160.webp" alt="" width="30" height="30"> <b>${tr("Mila's plan for you")}</b><span id="planai-state"></span></div>
+        <!-- Pip drafted the running order, Mila reviewed it. Saying so in the
+             card is the same fix as the one in her voice: nobody should think
+             they built this themselves and got it wrong. -->
+        <div class="planby"><img class="pip-av" src="/img/pip/pip-ledger-160.webp" alt="Pip" width="22" height="22" loading="lazy">${tr('Drafted by Pip, reviewed by Mila')}</div>
         <div id="planai-body" class="planai-b"></div>
         <div id="planai-act"></div>
       </div>
