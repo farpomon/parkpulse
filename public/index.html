@@ -83,10 +83,30 @@
     /* Two links already step aside on small screens; the picker needs a third.
        "Sign in" goes, because Open app lands on the account sheet anyway. */
     .navlinks a.mut{display:none}
-    .langpick{max-width:6.4rem;font-size:12.5px;padding:.25rem 1.3rem .25rem .5rem;
+    .langpick{max-width:6.4rem;min-width:0;font-size:12.5px;padding:.25rem 1.3rem .25rem .5rem;
       background-position:right .78rem center,right .52rem center}
+    /* The CTA no longer gives up width, so the row has to find it elsewhere:
+       a smaller wordmark and tighter gaps. */
+    .nav .row{gap:8px}
+    .navlinks{gap:8px}
+    .nav .logo{font-size:16px;gap:6px}
+    .navcta{padding:9px 15px;font-size:14px}
   }
-  .navcta{padding:10px 20px;border-radius:999px;background:var(--brand);color:#fff!important;font-weight:600;font-size:14.5px;box-shadow:0 8px 20px -10px rgba(79,58,201,.8)}
+  /* Below this the row cannot hold a link, a language picker and the CTA at
+     once -- and it is the CTA translations that decide it, not the English.
+     "Abrir la app" is 40% wider than "Open app", so budget for the longest
+     one and let the last text link step aside, the way the other three
+     already do. Pricing keeps its own section, the hero button and the footer. */
+  @media (max-width:480px){
+    .navlinks a.hide-xs{display:none}
+  }
+  /* An inline <a> in a nowrap flex row still shrinks below its own label, and
+     when "Open app" broke across two lines the pill's text sat left-aligned
+     against the padding. inline-flex centres both axes, nowrap stops the
+     break, and flex:0 0 auto makes the neighbours give way instead. */
+  .navcta{display:inline-flex;align-items:center;justify-content:center;text-align:center;
+    white-space:nowrap;flex:0 0 auto;
+    padding:10px 20px;border-radius:999px;background:var(--brand);color:#fff!important;font-weight:600;font-size:14.5px;box-shadow:0 8px 20px -10px rgba(79,58,201,.8)}
   .navcta:hover{background:var(--brand-hover)}
 
   /* Hero */
@@ -414,7 +434,7 @@
     <div class="navlinks">
       <a href="#how" class="hide-sm">How it works</a>
       <a href="#parks" class="hide-sm">Parks</a>
-      <a href="#pricing">Pricing</a>
+      <a href="#pricing" class="hide-xs">Pricing</a>
       <a href="/app#account" class="mut">Sign in</a>
       <a class="navcta" href="/app">Open app</a>
     </div>
