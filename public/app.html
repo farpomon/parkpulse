@@ -3925,16 +3925,52 @@
   function saveWizName(raw) {
     const name = (raw || '').trim().slice(0, 30);
     if (!name) return;
-    try { localStorage.setItem('pp-name', name); } catch {}
-    if (localStorage.getItem('pp-email')) {
-      api('/api/account/name', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => {
-          if (!d) return;
-          if (d.name) { try { localStorage.setItem('pp-name', d.name); } catch {} }
-          if (d.nameNote) toast(d.nameNote);
-        }).catch(() => {});
-    }
+    // Screen BEFORE storing. The old order wrote the typed name straight to
+    // localStorage and only asked the server when an account existed, so a
+    // signed-out visitor could name themselves anything and Mila would say it
+    // back to them all day. Signed in or not, the name is checked first now.
+    const route = localStorage.getItem('pp-email') ? '/api/account/name' : '/api/name-check';
+    api(route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        // No answer means offline or a hiccup, not a verdict. Keep the name —
+        // it is only ever shown back to the person who typed it, and the next
+        // successful account sync re-screens it server-side.
+        if (!d) { try { localStorage.setItem('pp-name', name); } catch {} return; }
+        try {
+          if (d.name) localStorage.setItem('pp-name', d.name);
+          else localStorage.removeItem('pp-name');
+        } catch {}
+        if (d.nameNote) toast(d.nameNote);
+        // The greeting, the wizard header and Mila's prompts all read pp-name
+        // at render time, so repaint whatever is on screen with the verdict.
+        if (typeof renderWiz === 'function' && $('wiz') && $('wiz').classList.contains('open')) renderWiz();
+      })
+      .catch(() => { try { localStorage.setItem('pp-name', name); } catch {} });
+  }
+
+  // Names stored before the screen existed -- or before a word was added to
+  // it -- are still on people's phones, being said out loud. Re-screen the
+  // stored name once per list version, then stop asking.
+  const NAME_SCREEN_VERSION = '1';
+  function screenStoredName() {
+    let name = '';
+    try {
+      if (localStorage.getItem('pp-name-screened') === NAME_SCREEN_VERSION) return;
+      name = localStorage.getItem('pp-name') || '';
+    } catch { return; }
+    if (!name) { try { localStorage.setItem('pp-name-screened', NAME_SCREEN_VERSION); } catch {} return; }
+    api('/api/name-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!d) return;   // offline: leave it, try again next boot
+        try {
+          if (d.name) localStorage.setItem('pp-name', d.name);
+          else localStorage.removeItem('pp-name');
+          localStorage.setItem('pp-name-screened', NAME_SCREEN_VERSION);
+        } catch {}
+      })
+      .catch(() => {});
   }
 
   function openWizard() {
@@ -4853,6 +4889,7 @@
 
   // Boot: resolve access (launch preview or a valid pass), restore park, load.
   (async () => {
+    screenStoredName();
     try {
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;

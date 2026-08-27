@@ -415,32 +415,11 @@ function noteParkUse(email, slug) {
 }
 
 const passFromReq = (req) => verifyPass(req.headers['x-pass']);
-// First names are for greeting people, so they get greeted properly: trimmed,
-// letters only, and never a curse word wearing a name tag. The check is a
-// short list of unambiguous hard words across the languages we serve, matched
-// on whole normalized tokens -- so nobody from Scunthorpe gets flagged, and
-// nobody gets addressed as something Mila would blush at.
-const PROFANE_NAMES = new Set([
-  'fuck', 'fucker', 'shit', 'bitch', 'cunt', 'asshole', 'dick', 'bastard', 'whore', 'slut', 'twat', 'wanker',
-  'puta', 'puto', 'mierda', 'cono', 'cabron', 'pendejo', 'gilipollas', 'joder', 'polla', 'verga',
-  'putain', 'merde', 'salope', 'connard', 'connasse', 'encule', 'pute',
-  'scheisse', 'fotze', 'arschloch', 'hurensohn', 'wichser', 'schlampe',
-  'caralho', 'porra', 'buceta', 'foda', 'merda', 'viado',
-  'cazzo', 'stronzo', 'puttana', 'vaffanculo', 'troia', 'minchia',
-]);
-function cleanFirstName(raw) {
-  if (typeof raw !== 'string') return { name: null, profane: false };
-  const name = raw.replace(/[\u{10000}-\u{10FFFF}]/gu, '').replace(/[^\p{L}\p{M}' \-]/gu, '')
-    .replace(/\s+/g, ' ').trim().slice(0, 30);
-  if (!name) return { name: null, profane: false };
-  const tokens = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().split(/[^a-z]+/).filter(Boolean);
-  if (tokens.some((t) => PROFANE_NAMES.has(t))) return { name: null, profane: true };
-  // Title-case for display so "luis" greets as "Luis".
-  return { name: name.replace(/\p{L}[\p{L}\p{M}']*/gu, (w) => w[0].toUpperCase() + w.slice(1)), profane: false };
-}
-// What we say instead of the word: kind, in character, and it names the
-// stand-in so the app's later greetings make sense.
-const NAME_NOTE = "That one made Mila hide behind her wings! We'll go with 'Dear Friend' for now — you can tell us your real name any time in your account.";
+// First names are for greeting people, so they get greeted properly: Mila says
+// the name out loud, puts it in her prompts and prints it atop the emailed
+// plan. The screen itself lives in namecheck.js -- word lists, phrase matching
+// and the non-Latin scripts are enough material to want their own file.
+const { cleanFirstName, NAME_NOTE } = require('./namecheck');
 
 function hasAccess(req) {
   if (!PRO_GATE) return true;
@@ -3750,6 +3729,15 @@ ${sections}
         const ages = Array.isArray(parsed.ages) ? parsed.ages.filter((a) => BANDS.has(a)).slice(0, 4) : [];
         db.ratings.set(s2.email, park, ride, kind, vote, JSON.stringify(ages));
         return sendJson(res, 200, { ok: true });
+      }
+
+      // Screen a name before the app stores it locally. Signed-out visitors
+      // never reach /api/account/name, so without this the wizard wrote
+      // whatever was typed straight into localStorage and Mila said it back.
+      // No session required: it reads nothing and writes nothing.
+      if (url.pathname === '/api/name-check') {
+        const asked = cleanFirstName(parsed.name);
+        return sendJson(res, 200, { name: asked.name, ...(asked.profane && { nameNote: NAME_NOTE }) });
       }
 
       // Set (or fix) the account's first name after signup — the wizard asks
