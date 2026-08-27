@@ -718,7 +718,7 @@
        the whole day with attractions and have the advisor read the result.
        Hidden while a plan is on screen -- the plan is the star then. -->
   <div class="planhero" id="plan-hero">
-    <div class="ph-txt"><b id="ph-title">🗓️ Plan my day</b><span id="ph-sub">One tap: we fill your whole day with attractions, hour by hour, crowds dodged — and your AI advisor reviews the order before you walk a step.</span></div>
+    <div class="ph-txt"><b id="ph-title">🗓️ Plan my day</b><span id="ph-sub">One tap and Mila gets to work: your whole day, hour by hour, crowds dodged — the best day ever, planned by your own park fairy. ✨</span></div>
     <button class="ph-btn" id="plan-hero-btn">✨ Plan it for me</button>
   </div>
   <!-- The hero's quieter sibling: hand-picking lives on the Today board, and
@@ -1826,6 +1826,21 @@
     'Ready the churros and the happy screams — magic o\'clock starts now!',
     'Sprinkling fairy dust on the schedule… done! Here\'s how your day sparkles:',
   ];
+  // Ten voices for the Plan-my-day hero card: Mila promising the best day
+  // ever, a different sparkle each visit (the retranslate pass picks one).
+  const PLAN_HERO_SUBS = [
+    'One tap and Mila gets to work: your whole day, hour by hour, crowds dodged — the best day ever, planned by your own park fairy. ✨',
+    "Tell Mila 'go!' and she'll conjure your best day ever — every ride in the right order, every crowd politely avoided.",
+    'Your park fairy is bouncing on her toes — one tap and she builds the best day this park can possibly give you.',
+    'Best. Day. Ever. Mila plans it in one tap — hour by hour, lines dodged, magic included at no extra charge.',
+    'One tap = one perfectly magical day. Mila orders the rides, dodges the crowds, and double-checks it all before you take a single step.',
+    "Give Mila one tap and she'll give you the day everyone talks about at dinner — planned to the minute, sprinkled with fairy dust.",
+    "Mila's wand is warmed up: one tap and your whole day falls into place — fun maximized, waiting minimized.",
+    "The best day ever doesn't happen by accident — it happens when Mila plans it. One tap, and off we go!",
+    'One little tap, one gigantic day: Mila lines up the magic hour by hour and shoos the crowds out of your way.',
+    'Ready for your best park day ever? Mila is! One tap and she plans the whole adventure — and checks it twice.',
+  ];
+
   let planIntroHtml = '';
   function pickPlanIntro() {
     const line = MILA_PLAN_OPENERS[Math.floor(Math.random() * MILA_PLAN_OPENERS.length)];
@@ -2806,7 +2821,7 @@
   function applyStaticText() {
     $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
     $('ph-title').textContent = '🗓️ ' + tr('Plan my day');
-    $('ph-sub').textContent = tr('One tap: we fill your whole day with attractions, hour by hour, crowds dodged — and your AI advisor reviews the order before you walk a step.');
+    $('ph-sub').textContent = tr(PLAN_HERO_SUBS[Math.floor(Math.random() * PLAN_HERO_SUBS.length)]);
     $('plan-hero-btn').textContent = '✨ ' + tr('Plan it for me');
     $('pc-title').textContent = '🎢 ' + tr('Or build it your way');
     $('pc-sub').textContent = tr('Tick the rides your crew wants on the attractions board — your picks anchor the plan.');
