@@ -1,7 +1,7 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v72';
+const CACHE = 'parkpulse-v73';
 const TILES = 'pp-tiles-v1'; // OSM map tiles, capped, survives app-cache bumps
 const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json', '/chat-widget.js', '/i18n.js', '/vendor/leaflet.js', '/vendor/leaflet.css'];
 
@@ -70,6 +70,27 @@ self.addEventListener('fetch', (e) => {
   }
 
   if (url.pathname.startsWith('/api/')) return; // config/subscribe always live
+
+  // HTML is network-first. It used to fall through to the stale-while-
+  // revalidate branch below, which answers from cache and only refreshes
+  // afterwards -- so every visit rendered the PREVIOUS deploy's app shell and
+  // a fix only appeared on the visit after the one that fetched it. Shipping
+  // three fixes in a row that "did nothing" is what this looks like from the
+  // outside. Cache is still the offline fallback.
+  const wantsHtml = e.request.mode === 'navigate'
+    || (e.request.headers.get('accept') || '').includes('text/html');
+  if (wantsHtml) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request).then((c) => c || caches.match('/app')))
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(e.request).then((cached) => {
