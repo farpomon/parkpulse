@@ -1346,6 +1346,16 @@
   // checking a California park from Toronto must not plan against their own
   // clock. parkNow() is the park's wall clock, whatever the device says.
   const parkTz = () => parks[current]?.tz || localStorage.getItem('pp-tz') || undefined;
+  // Outside operating hours every ride comes back open:false, which used to
+  // strip the plan down to nothing -- the button did all its work and rendered
+  // an empty day. A closed park is really just "planning a day we are not in
+  // yet", so eligibility follows the same rule futureDay already uses.
+  function parkClosedNow() {
+    const p = parks[current];
+    if (!p || p.open == null) return false;
+    const h = parkNow().hour;
+    return h < p.open || h >= p.close;
+  }
   function parkNow() {
     try {
       const p = new Intl.DateTimeFormat('en-GB', { timeZone: parkTz(), hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' }).formatToParts(new Date());
@@ -2263,6 +2273,7 @@
     if (!isPro && opts.quiet && current !== FREE_PARK) return;
     const p = parks[current] || { open: 9, close: 21 };
     const futureDay = Boolean(planDate);
+    const closedNow = !futureDay && parkClosedNow();
     // Planning a future day: use THAT day's expected crowds, and drop the
     // live-wait anchor — today's queues say nothing about next Saturday.
     const planDay = planDate ? (lastForecast?.days || []).find((d) => d.date === planDate) : (lastForecast?.days || [])[0];
@@ -2303,7 +2314,7 @@
     const paceExtra = elderly ? 6 : 0;
     let rested = !elderly;
     // On a future day, today's closures say nothing — plan the whole list.
-    const remaining = rides.filter((r) => pickedNames.has(r.name) && (r.open || futureDay) && !doneSet.has(r.name));
+    const remaining = rides.filter((r) => pickedNames.has(r.name) && (r.open || futureDay || closedNow) && !doneSet.has(r.name));
     if (!remaining.length) return;
     const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
     let lunchDone = !$('lunch').checked;
@@ -2321,7 +2332,7 @@
     // Once every picked ride is scheduled, keep filling the day with the
     // best remaining attractions (marked as suggestions) so the plan covers
     // arrival to exit with no dead gaps.
-    const extras = rides.filter((r) => (r.open || futureDay) && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
+    const extras = rides.filter((r) => (r.open || futureDay || closedNow) && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
     let fillMode = false;
     // Encore mix: when every attraction in the park is on the plan and there
     // is still daylight, the day doesn't just stop. Early dinner once the
@@ -2366,7 +2377,7 @@
           if (encorePool === null) {
             // Favorites first, then the biggest hits of the day.
             const ridden = new Set([...steps.filter((s) => s.ride).map((s) => s.ride.name), ...doneSet]);
-            encorePool = rides.filter((r) => (r.open || futureDay) && ridden.has(r.name))
+            encorePool = rides.filter((r) => (r.open || futureDay || closedNow) && ridden.has(r.name))
               .sort((a, b) => ((favs.has(b.name) ? 1 : 0) - (favs.has(a.name) ? 1 : 0)) || ((b.typical || b.wait || 0) - (a.typical || a.wait || 0)))
               .slice(0, 8);
           }
@@ -3027,7 +3038,9 @@
     }
     if (!pickedNames.size) {
       const doneSet = new Set(doneOrder);
-      const open = rides.filter((r) => r.open && !doneSet.has(r.name) && passesFilter(r));
+      // Same rule as buildPlan: a closed park still has a day worth planning.
+      const shut = parkClosedNow();
+      const open = rides.filter((r) => (r.open || shut) && !doneSet.has(r.name) && passesFilter(r));
       const starters = open.filter((r) => favs.has(r.name));
       (starters.length ? starters
         : [...open].sort((a, b) => (ageOk(b.name) - ageOk(a.name)) || (vibeHit(b.name) - vibeHit(a.name)) || (b.wait - a.wait)).slice(0, 6))
