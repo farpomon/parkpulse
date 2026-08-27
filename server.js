@@ -1017,7 +1017,25 @@ async function planKpis(park, stops, profile) {
   };
 }
 
-function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future }) {
+// Everything here is decoration the plan can survive without: the park's
+// one-liner, the local tip, a bit of lore, and the forecast for the day being
+// planned. Each piece degrades to an empty string rather than to an error, so
+// a park with no seo entry or a day beyond the forecast still gets its email.
+async function planEmailFlavor(park, dateISO) {
+  const flavor = {
+    magic: PARK_MAGIC[park.slug] || '',
+    tip: PARK_TIPS[park.slug] || '',
+    fact: PARK_FACTS[park.slug] || '',
+    weather: null,
+  };
+  try {
+    const w = await getWeather(park);
+    flavor.weather = (w.days || []).find((d) => d.date === dateISO) || null;
+  } catch {}
+  return flavor;
+}
+
+function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor = {} }) {
   const B = '#5b3df5';
   const INK = '#251d3d', MUTED = '#8b83a8', SOFT = '#f4f1ff';
   // The last one of these printed from Outlook came back with every astral
@@ -1027,6 +1045,36 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   // client-supplied string before it is interpolated.
   const noAstral = (v) => String(v ?? '').replace(/[\u{10000}-\u{10FFFF}]/gu, '').replace(/️/g, '').trim();
   const E = (v) => esc(noAstral(v));
+  // PNG, never webp: Outlook desktop renders webp as a broken-image icon, and
+  // this email's whole cast is Mila. Absolute URLs — email clients have no
+  // origin to resolve against.
+  const MILA = (pose) => `https://www.parkpulse.fun/img/mila/${pose}.png`;
+  const milaImg = (pose, size, ring) => `<img src="${MILA(pose)}" width="${size}" height="${size}" alt="Mila" style="border-radius:99px;display:block${ring ? `;border:3px solid ${ring}` : ''}">`;
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  // Rotating high-spirit copy. Server-side pick: every plan email opens a
+  // little differently, same as Mila does in the app.
+  const HEADLINES = [
+    'Cue the fireworks — your day is planned.',
+    'Today has main-character energy.',
+    'One magical day, sequenced to the minute.',
+    'Less waiting. More wow. Let&#39;s go!',
+    'Adventure called. Mila answered.',
+    'A whole day of magic, minus the boring bits.',
+    'Big day energy, zero second guesses.',
+    'Pixie dust: loaded. Queues: outsmarted.',
+    'The best day ever, now boarding.',
+    'Follow the sparkle — the magic is mapped.',
+  ];
+  const SIGNOFFS = [
+    'Go make the kind of memories that don&#39;t fit in a camera roll.',
+    'My wand is charged and so is your plan — see you at the gates!',
+    'The queues never saw you coming.',
+    'Walk fast, snack often, and scream on the big one for me.',
+    'You bring the sunscreen, I&#39;ll bring the shortcuts.',
+    'Somewhere in that park, your new favourite memory is already waiting.',
+    'Plans are magic you can hold. Yours is ready.',
+    'Today is going to be one for the storybooks.',
+  ];
   const badge = (txt, bg, fg, w) => `<span style="display:inline-block;min-width:${w || 26}px;height:26px;border-radius:99px;background:${bg};color:${fg};font-weight:800;font-size:${String(txt).length > 2 ? 10 : 12}px;text-align:center;line-height:26px;padding:0 ${String(txt).length > 2 ? 8 : 0}px">${txt}</span>`;
 
   const tile = (v, label, sub, pct) => `<td style="padding:0 6px" width="${pct || 25}%" valign="top">
@@ -1127,6 +1175,13 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   const hourOfFirst = hourOf(first && first.time), hourOfLast = hourOf(last && last.time);
   const dayHours = hourOfFirst != null && hourOfLast != null && hourOfLast > hourOfFirst ? `${hourOfLast - hourOfFirst}h` : '~';
   const queueHours = savedMin >= 60 ? (savedMin / 60).toFixed(1) : null;
+  // Who's actually going shapes the jokes: kids, grandparents, and big crews
+  // each get a line that only appears when the profile says it applies.
+  const ages = Array.isArray(profile?.ages) ? profile.ages : [];
+  const kidsArr = Array.isArray(profile?.kids) ? profile.kids : [];
+  const breakCount = stops.filter((st) => st.break).length;
+  const kidAges = kidsArr.map((k) => Number(k.age)).filter(Number.isFinite);
+  const youngest = kidAges.length ? Math.min(...kidAges) : null;
   const totalQueue = namedStops.reduce((sum, st) => sum + (Number.isFinite(st.wait) ? st.wait : 0), 0);
   const paceRides = hourOfFirst != null && hourOfLast != null && hourOfLast > hourOfFirst
     ? (namedStops.length / (hourOfLast - hourOfFirst)).toFixed(1).replace(/\.0$/, '') : null;
@@ -1137,11 +1192,52 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     kpis.water ? fact(badge(kpis.water, ...CAT.water), `Forecast dampness: <b>${kpis.water}</b> ride${kpis.water === 1 ? '' : 's'} that can return you visibly wetter than you arrived`) : '',
     kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), `Stomach relocation${kpis.thrills === 1 ? '' : 's'} booked: <b>${kpis.thrills}</b>`) : '',
     kpis.mapped && kpis.steps ? fact(badge('~', ...CAT.neutral), `About <b>${kpis.steps.toLocaleString()}</b> steps — your shoes knew what they signed up for`) : '',
-    totalQueue >= 30 ? fact(badge(totalQueue >= 60 ? `${Math.round(totalQueue / 60)}h` : `${totalQueue}m`, ...CAT.money, 34), `Projected time in lines all day: <b>${totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h ${totalQueue % 60}m` : `${totalQueue} min`}</b> — already the fat-trimmed version`) : '',
+    totalQueue >= 30 ? fact(badge(totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h` : `${totalQueue}m`, ...CAT.money, 34), `Projected time in lines all day: <b>${totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h ${totalQueue % 60}m` : `${totalQueue} min`}</b> — already the fat-trimmed version`) : '',
     hourOfFirst != null && hourOfFirst <= 9 && first ? fact(badge('AM', ...CAT.show, 34), `Rope-drop warrior: first ride at <b>${esc(first.time)}</b>, when queues are half their afternoon selves`) : '',
     hourOfLast != null && hourOfLast >= 20 && last ? fact(badge('PM', ...CAT.show, 34), `Closing-time finisher: last stop at <b>${esc(last.time)}</b> — the park empties out, you don't`) : '',
     paceRides && Number(paceRides) >= 1 ? fact(badge(paceRides, ...CAT.map, 34), `Pace: about <b>${paceRides} attraction${paceRides === '1' ? '' : 's'} per hour</b>, gate to gate — Olympic, by vacation standards`) : '',
+    kidsArr.length ? fact(badge(kidsArr.length, ...CAT.show), `Crew includes <b>${kidsArr.length} kid${kidsArr.length === 1 ? '' : 's'}</b>${youngest != null ? ` (youngest is ${youngest})` : ''} — ${kpis.toddlerFriendly ? `<b>${kpis.toddlerFriendly}</b> stop${kpis.toddlerFriendly === 1 ? ' is' : 's are'} certified little-legs friendly` : 'pacing tuned for shorter strides and longer wonder'}`) : '',
+    ages.includes('elderly') ? fact(badge(breakCount || '~', ...CAT.money), `Grand-tour pacing: ${breakCount ? `<b>${breakCount}</b> built-in sit-down break${breakCount === 1 ? '' : 's'}` : 'a gentler rhythm all day'} — park benches are the real thrones of a great day`) : '',
+    kpis.party >= 5 ? fact(badge(kpis.party, ...CAT.neutral), `Party of <b>${kpis.party}</b>, synchronised through ${kpis.attractions} attractions — NASA schedules launches with less coordination`) : '',
   ].filter(Boolean).join('');
+
+  // Forecast for the planned day, told the way Mila would tell it. Every
+  // number is open-meteo's; only the commentary is hers.
+  const wx = flavor.weather;
+  const degF = (c) => Math.round(c * 9 / 5 + 32);
+  const wxLines = wx ? [
+    Number.isFinite(wx.high) ? fact(badge(`${wx.high}°`, ...CAT.water, 34), `${E(wx.label || 'Forecast')}, <b>${wx.low}°–${wx.high}°C</b> (${degF(wx.low)}–${degF(wx.high)}°F) — ${wx.high >= 30 ? 'officially ice-cream weather; Mila prescribes two scoops, minimum' : wx.high <= 8 ? 'hot-chocolate weather — the magic works fine in mittens' : 'prime strolling conditions, zero excuses'}`) : '',
+    wx.rainChance >= 50 ? fact(badge(`${wx.rainChance}%`, ...CAT.water, 34), `Rain chance <b>${wx.rainChance}%</b> — pack the poncho and grin: queues shrink when the sky opens, and Mila calls that a feature`)
+      : wx.rainChance >= 20 ? fact(badge(`${wx.rainChance}%`, ...CAT.water, 34), `A <b>${wx.rainChance}%</b> whisper of rain — a sprinkle has never once cancelled the magic`) : '',
+    wx.uvMax >= 7 ? fact(badge('UV', ...CAT.thrill), `UV index peaks at <b>${wx.uvMax}</b> — sunscreen is the one queue you are not allowed to skip`) : '',
+    wx.sunset ? fact(badge('PM', ...CAT.show, 34), `Sunset at <b>${esc(wx.sunset)}</b> — golden-hour photos are included free of charge`) : '',
+  ].filter(Boolean).join('') : '';
+  const weatherCard = wxLines ? `<div style="padding:14px 26px 2px">
+    <div style="background:#eef5ff;border-radius:14px;padding:13px 16px">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+        <td width="56" valign="top" style="padding-top:2px">${milaImg('mila-cool-160', 44, '#fff')}</td>
+        <td valign="top">
+          <div style="font-weight:800;font-size:15px;color:${INK}">Mila checked the skies over ${esc(park.name)}</div>
+          <table width="100%" cellpadding="0" cellspacing="0">${wxLines}</table>
+        </td></tr></table>
+    </div></div>` : '';
+
+  // The insider corner: the practical local secret and one piece of park lore,
+  // each with its own Mila. Real editorial content, not filler — both come
+  // from the same per-park data that powers the guide pages.
+  const insiderRow = (pose, kicker, color, body) => `<tr>
+    <td width="56" valign="top" style="padding:8px 0">${milaImg(pose, 44, SOFT)}</td>
+    <td valign="top" style="padding:8px 0">
+      <div style="font-size:10.5px;font-weight:800;letter-spacing:.08em;color:${color}">${kicker}</div>
+      <div style="font-size:13.5px;color:#3f3762;line-height:1.5;margin-top:2px">${body}</div>
+    </td></tr>`;
+  const insider = (flavor.tip || flavor.fact) ? `<div style="padding:14px 26px 2px">
+    <div style="border:2px dashed #d9d2f5;border-radius:14px;padding:10px 16px">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+        ${flavor.tip ? insiderRow('mila-wink-160', 'MILA&#39;S LOCAL SECRET', B, E(flavor.tip)) : ''}
+        ${flavor.fact ? insiderRow('mila-map-160', 'PARK LORE, FREE OF CHARGE', '#0f7a45', E(flavor.fact)) : ''}
+      </table>
+    </div></div>` : '';
 
   const tileRow = [
     (w) => tile(kpis.attractions, 'Attractions', 'on the plan', w),
@@ -1156,8 +1252,12 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   const dodgedBanner = kpis.dodged
     ? `<div style="padding:4px 26px 0"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
         <td style="background:#eafaf1;border-radius:12px;padding:12px 16px;font-size:14px;color:#14532d">
-        <span style="font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#0f7a45">TODAY'S ADVANTAGE</span><br>
-        ${E(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>.
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td width="52" valign="top">${milaImg('mila-thumbs-160', 40, '#fff')}</td>
+          <td valign="top">
+            <span style="font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#0f7a45">TODAY'S ADVANTAGE</span><br>
+            ${E(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>. Mila approves.
+          </td></tr></table>
       </td></tr></table></div>`
     : '';
   const preheader = `${kpis.attractions} stops mapped for ${esc(park.name)}${kpis.dodged ? `, dodging the ${kpis.dodged.standby}-minute line at ${E(kpis.dodged.name)}` : ''}.`;
@@ -1177,11 +1277,18 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     <!-- bgcolor as well as the gradient: Outlook renders through Word, which
          ignores linear-gradient entirely. Without the attribute the header lost
          its background and printed white text on white. -->
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr><td style="padding:26px 26px 22px;color:#fff">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr>
+     <td style="padding:26px 0 20px 26px;color:#fff" valign="middle">
       <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · ${future ? 'advance plan' : 'live route'} · ${esc(park.name)}</div>
-      <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">A full park day, with fewer second&nbsp;guesses.</div>
+      <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">${pick(HEADLINES)}</div>
       <div style="opacity:.85;font-size:14px;margin-top:4px">${day} · sequenced around ${future ? "that day's predicted crowds" : 'live waits'}, park geography, and the rides you care about.</div>
-    </td></tr></table>
+     </td>
+     <td width="128" valign="middle" align="center" style="padding:20px 18px 14px 8px">
+      <img src="${MILA('mila-welcome-160')}" width="104" height="104" alt="Mila, your park fairy" style="border-radius:99px;display:block;border:3px solid rgba(255,255,255,.6)">
+     </td>
+    </tr>${flavor.magic ? `<tr><td colspan="2" style="padding:0 26px 20px">
+      <div style="background:rgba(255,255,255,.16);border-radius:12px;padding:9px 14px;color:#fff;font-size:13.5px;line-height:1.5"><b>Mila says:</b> &ldquo;${E(flavor.magic)}&rdquo;</div>
+    </td></tr>` : ''}</table>
     <div style="padding:22px 20px 6px">
       <table width="100%" cellpadding="0" cellspacing="0"><tr>${tiles}</tr></table>
     </div>
@@ -1189,15 +1296,17 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     ${briefing ? `<div style="padding:16px 26px 4px">
       <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-          <td width="40" valign="top"><img src="https://www.parkpulse.fun/img/mila/mila-thinking-160.webp" width="32" height="32" alt="" style="border-radius:99px;display:block"></td>
+          <td width="48" valign="top">${milaImg('mila-thinking-160', 38)}</td>
           <td valign="top"><b>Mila's read${firstName ? ` for ${E(firstName)}` : ''} on the day</b><br>${E(briefing).replace(/\n/g, '<br>')}</td>
         </tr></table>
       </div></div>` : ''}
+    ${weatherCard}
     <div style="padding:18px 26px 6px">
       <div style="font-weight:800;font-size:16px;margin-bottom:2px">${future ? `${esc(String(day).split(',')[0])}'s running order` : "Today's running order"}</div>
       <div style="color:${MUTED};font-size:13px">Follow the numbers — they match the pins on your map.</div>
       <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
     </div>
+    ${insider}
     ${facts ? `<div style="padding:14px 21px 2px">
       <div style="font-weight:800;font-size:16px;margin-bottom:4px;padding:0 5px">Plan signals worth knowing</div>
       <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
@@ -1207,14 +1316,18 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
       <table width="100%" cellpadding="0" cellspacing="0">${funFacts}</table></div>` : ''}
     <div style="padding:18px 26px 8px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#2c2154,#443b6b);background-color:#2c2154" bgcolor="#2c2154">
-        <div style="padding:18px 20px;color:#fff">
-          <div style="font-size:10.5px;font-weight:800;letter-spacing:.1em;opacity:.8">KEEP THE DAY MOVING</div>
-          <div style="font-size:17px;font-weight:800;margin-top:4px;line-height:1.35">The plan is your starting point. Live waits make it smarter as you go.</div>
-          <div style="font-size:13px;opacity:.85;margin-top:4px">A delay, a hungry kid, or a wait swing doesn't undo the day — reopen your plan and take the next better move.</div>
-        </div>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td width="76" valign="middle" style="padding:18px 0 18px 16px">${milaImg('mila-celebrate-160', 56, 'rgba(255,255,255,.45)')}</td>
+          <td valign="middle" style="padding:18px 20px 18px 12px;color:#fff">
+            <div style="font-size:10.5px;font-weight:800;letter-spacing:.1em;opacity:.8">KEEP THE DAY MOVING</div>
+            <div style="font-size:17px;font-weight:800;margin-top:4px;line-height:1.35">The plan is your starting point. Live waits make it smarter as you go.</div>
+            <div style="font-size:13px;opacity:.85;margin-top:4px">A delay, a hungry kid, or a wait swing doesn't undo the day — reopen your plan and take the next better move.</div>
+          </td>
+        </tr></table>
       </td></tr></table>
     </div>
     <div style="padding:4px 26px 26px">
+      <div style="font-size:14.5px;font-weight:700;color:${B};margin:2px 0 12px;line-height:1.5">&ldquo;${pick(SIGNOFFS)}&rdquo; <span style="color:${MUTED};font-weight:800">— Mila</span></div>
       <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
       <div style="color:#a49cc0;font-size:12px;margin-top:6px">Your route, ready to adapt.</div>
       ${kpis.mapped ? `<div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
@@ -1395,7 +1508,8 @@ async function sweepEveningPlanMail() {
             briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, future: true, stops, kpis, profile, savedMin: row.saved_min || 0, lang: 'English' });
           } catch (err) { console.log(`evening briefing failed: ${err.message}`); }
         }
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true });
+        const flavor = await planEmailFlavor(park, row.date);
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true, flavor });
         const firstRide = stops.find((st) => st.name && st.time);
         await sendEmail(row.email, `Tomorrow at ${park.name} — your plan is ready${firstRide ? ` (first ride ${firstRide.time})` : ''}`, html);
         sent += 1;
@@ -1712,12 +1826,19 @@ try {
 // visit" call could never fire and each park's own grid could show Light in a
 // month its page copy calls the busiest of the year.
 let PARK_SEASONS = {};
+let PARK_TIPS = {};
 try {
   const seo = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-seo.json'), 'utf8'));
   for (const [slug, v] of Object.entries(seo)) {
     PARK_SEASONS[slug] = { peak: new Set(v.peak?.months || []), quiet: new Set(v.quiet?.months || []) };
+    if (v.tip) PARK_TIPS[slug] = v.tip;
   }
 } catch (err) { console.log(`park seasons unavailable: ${err.message}`); }
+// One true, playful fact per park for the plan email's lore line.
+let PARK_FACTS = {};
+try {
+  PARK_FACTS = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-facts.json'), 'utf8'));
+} catch (err) { console.log(`park facts unavailable: ${err.message}`); }
 
 function eventsFor(slug, iso) {
   const list = (PARK_EVENTS[slug] || []).filter((e) => e && e.name);
@@ -2911,7 +3032,8 @@ ${sections}
           } catch (err) { console.log(`day briefing failed: ${err.message}`); }
         }
         const firstName = db.users.get(sess.email)?.name || null;
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future });
+        const flavor = await planEmailFlavor(park, planDateRaw || todayAtPark);
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor });
         try {
           // "18 attractions, 0 km" went out to a real inbox: the km figure is
           // only real when the route was actually measured. Lead with the two
