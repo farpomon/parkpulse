@@ -231,6 +231,8 @@
     cursor: pointer; white-space: nowrap; flex: 0 1 auto; }
   .planhero b { display: block; font-size: 1.15rem; margin-bottom: .15rem; }
   .planhero span { font-size: .85rem; opacity: .92; line-height: 1.35; }
+  /* Its own row under the button, quieter than the pitch above it. */
+  .planhero .ph-note { flex: 1 1 100%; font-size: .78rem; opacity: .8; }
   .ph-btn { flex: 0 0 auto; background: #fff; color: var(--brand); border: none; border-radius: 10px;
     font-weight: 800; font-size: .95rem; padding: .7rem 1.1rem; cursor: pointer; }
   .ph-btn:active { transform: scale(.97); }
@@ -740,6 +742,11 @@
   <div class="planhero" id="plan-hero">
     <div class="ph-txt"><b id="ph-title">🗓️ Plan my day</b><span id="ph-sub">One tap and Mila gets to work: your whole day, hour by hour, crowds dodged — the best day ever, planned by your own park fairy. ✨</span></div>
     <button class="ph-btn" id="plan-hero-btn">✨ Plan it for me</button>
+    <!-- Signed-out visitors used to tap the button and get a login sheet with
+         no warning; the only explanation was a toast that faded. Say it up
+         front instead. Shown by syncPlanHero() only when the gate is on and
+         nobody is signed in. -->
+    <span class="ph-note" id="ph-note" style="display:none"></span>
   </div>
   <!-- The hero's quieter sibling: hand-picking lives on the Today board, and
        nothing on this pane said so. Phone-only (see the pane CSS) — on
@@ -2233,6 +2240,10 @@
         toast(milaSays('freeplan'));
         acctMode = 'login';
         openAcct();
+        // The toast fades; the sheet is what the visitor is looking at. Tell
+        // them there why it opened, or the tap reads as a dead button.
+        const sub = document.getElementById('acct-sub');
+        if (sub) sub.textContent = tr("Sign in and Mila plans your day free — it takes a moment and no card.");
         return;
       }
       let used = null;
@@ -2971,6 +2982,16 @@
     const dead = !rides.length && Boolean(lastData);
     const busy = Boolean($('plan-out').innerHTML.trim()) || dead;
     $('plan-hero').style.display = busy ? 'none' : '';
+    // Free plans need an account (that is how one person stays one person),
+    // so warn before the tap rather than after it.
+    const note = $('ph-note');
+    if (note) {
+      let signedIn = false;
+      try { signedIn = Boolean(localStorage.getItem('pp-email')); } catch {}
+      const needsLogin = !isPro && !signedIn;
+      note.style.display = needsLogin ? '' : 'none';
+      if (needsLogin) note.textContent = tr('Free — takes a quick sign-in, no card needed.');
+    }
     // The hand-pick card follows the hero: once a plan is on screen the
     // plan's own note already links back to the attractions list.
     $('pick-card').style.display = busy ? 'none' : '';
@@ -2997,7 +3018,11 @@
       toast(lastData
         ? tr("No live ride data for this park right now — try again shortly, or pick another park.")
         : tr('Still loading this park — give it a second.'));
-      $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // The board lives on the Today pane; on a phone #rides is display:none
+      // while the Plan pane is up, so scrolling to it did nothing and the
+      // toast was the only sign the tap had registered at all.
+      if (!matchMedia('(min-width: 1080px)').matches) { setPane('today', { scroll: false }); syncTabs('today'); }
+      requestAnimationFrame(() => $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' }));
       return;
     }
     if (!pickedNames.size) {
