@@ -486,6 +486,18 @@
   .planbar .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .9rem; }
   .planbar select { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .4rem .5rem; font-size: .9rem; }
   .planbar label.lunch { display: flex; align-items: center; gap: .3rem; color: var(--muted); }
+  .pb-mila, .pb-ready { display: none; }
+  /* Laptop view: the screen-wide strip becomes a floating pill sized to its
+     content — Mila's avatar, a friendly count, and the controls in one hand. */
+  @media (min-width: 1080px) {
+    .planbar { left: 50%; right: auto; transform: translateX(-50%); bottom: 18px; width: max-content; max-width: 94vw;
+      border: 1px solid var(--border); border-top: 1px solid var(--border); border-radius: 999px;
+      padding: .5rem .6rem .5rem 1rem; box-shadow: 0 6px 16px rgba(20,12,48,.12), 0 18px 44px -12px rgba(20,12,48,.35); }
+    .planbar .inner { max-width: none; flex-wrap: nowrap; gap: .85rem; white-space: nowrap; }
+    .planbar .btn { border-radius: 999px; }
+    .pb-mila { display: block; border-radius: 50%; border: 2px solid var(--brand); flex-shrink: 0; }
+    .pb-ready { display: inline; color: var(--muted); font-size: .88rem; }
+  }
   .plan, .upsell { border-radius: 16px; padding: 1.1rem 1.25rem; margin-top: 1rem; }
   .plan { background: var(--card); border: 1px solid var(--border); position: relative; margin-bottom: .5rem; overflow: hidden;
     box-shadow: 0 2px 6px rgba(20,12,48,.06), 0 10px 30px rgba(20,12,48,.07); animation: rise .3s ease; }
@@ -663,6 +675,7 @@
   }
   @media (min-width: 1080px) {
     :root { --navh: 0px; }
+    .planbar { bottom: 18px; } /* the floating pill hovers, it doesn't dock */
     .tabbar { display: none; }
     #ppc-fab.ppc-show { display: flex !important; }
   }
@@ -775,7 +788,9 @@
 
 <div class="planbar" id="planbar">
   <div class="inner">
+    <img src="/img/mila/mila-thumbs-160.webp" alt="" width="34" height="34" class="pb-mila">
     <strong id="picked-count"></strong>
+    <span class="pb-ready" id="pb-ready">— Mila's ready when you are ✨</span>
     <label class="lunch"><input type="checkbox" id="lunch"> lunch</label>
     <label class="lunch" id="show-wrap" style="display:none"><input type="checkbox" id="show-cb"> <span id="show-short">show</span></label>
     <button class="btn" id="build" style="margin-inline-start:auto">Plan it</button>
