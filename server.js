@@ -1526,6 +1526,94 @@ setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
 
 // Language codes the app ships, mapped to names the model understands.
+// --- Landing page localisation -----------------------------------------------
+// English is the canonical at "/"; the rest get their own URL so search
+// engines index a real translated page instead of a script that rewrites one.
+// A missing string falls back to English, so a partial dictionary reads as
+// mixed rather than broken -- and never blocks shipping a language.
+// Target set, in the order the picker shows them.
+const LANDING_WANTED = ['en', 'es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'];
+// Each language named in its own language -- someone looking for their
+// language is scanning for the word they actually use.
+const LANDING_NATIVE = {
+  en: 'English', es: 'Espa\u00f1ol', pt: 'Portugu\u00eas', fr: 'Fran\u00e7ais', de: 'Deutsch',
+  it: 'Italiano', zh: '\u4e2d\u6587', ja: '\u65e5\u672c\u8a9e', ko: '\ud55c\uad6d\uc5b4', ru: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439',
+};
+let LANDING_I18N = {};
+try {
+  LANDING_I18N = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'landing-i18n.json'), 'utf8'));
+} catch (err) { console.log(`landing i18n unavailable: ${err.message}`); }
+// Only offer a language whose body copy is actually translated. Listing one
+// that only has meta strings would hand visitors a page that is English
+// everywhere except the browser tab -- worse than not offering it at all.
+const LANDING_MIN_STRINGS = 60;
+const LANDING_LANGS = LANDING_WANTED.filter((l) => l === 'en'
+  || Object.keys(LANDING_I18N[l] || {}).length >= LANDING_MIN_STRINGS);
+console.log(`landing languages: ${LANDING_LANGS.join(', ')}`);
+
+// Translation runs only on the markup between tags, never inside <script> or
+// <style> -- a dictionary key that happens to appear in JS would otherwise be
+// rewritten and break the page.
+function translateMarkup(html, dict) {
+  const parts = html.split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)/);
+  // Longest first, so a short key never eats part of a longer one.
+  const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
+  const rx = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part;                       // the script/style itself
+    let out = part;
+    for (const en of keys) {
+      const to = dict[en];
+      if (!to || to === en) continue;
+      // Surrounding whitespace is preserved: the source is indented markup,
+      // so an exact ">text<" match would miss most of the page.
+      out = out.replace(new RegExp('>(\\s*)' + rx(en) + '(\\s*)<', 'g'), (m, a, b) => '>' + a + to + b + '<');
+    }
+    return out;
+  }).join('');
+}
+
+function landingAlternates() {
+  return LANDING_LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="https://www.parkpulse.fun${l === 'en' ? '/' : '/' + l}">`).join('\n')
+    + '\n<link rel="alternate" hreflang="x-default" href="https://www.parkpulse.fun/">';
+}
+
+// The picker is a plain form: no JavaScript, works before hydration, and each
+// option is a real URL a crawler can follow.
+function langPicker(active) {
+  const opts = LANDING_LANGS
+    .map((l) => `<option value="${l === 'en' ? '/' : '/' + l}" data-l="${l}"${l === active ? ' selected' : ''}>${esc(LANDING_NATIVE[l] || l)}</option>`)
+    .join('');
+  // Carrying the choice into pp-lang means the app opens in the same language
+  // the visitor just chose here, instead of asking them twice.
+  return `<select class="langpick" aria-label="Language" onchange="var o=this.options[this.selectedIndex];try{localStorage.setItem('pp-lang',o.getAttribute('data-l')||'en')}catch(e){}location.href=o.value">${opts}</select>`;
+}
+
+// Meta/OG copy lives in attributes, not between tags, so it needs its own
+// pass -- otherwise a translated page still shares and indexes in English.
+function translateAttrs(html, dict) {
+  let out = html;
+  const rx = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const en of Object.keys(dict).sort((a, b) => b.length - a.length)) {
+    const to = dict[en];
+    if (!to || to === en) continue;
+    out = out.replace(new RegExp('content="' + rx(en) + '"', 'g'), `content="${to.replace(/"/g, '&quot;')}"`);
+  }
+  return out;
+}
+
+function localizeLanding(html, lang) {
+  const dict = lang === 'en' ? null : LANDING_I18N[lang];
+  let out = dict ? translateAttrs(translateMarkup(html, dict), dict) : html;
+  if (lang !== 'en') out = out.replace('<html lang="en">', `<html lang="${lang}">`);
+  // Canonical + alternates, injected once, right after the charset line.
+  const head = `\n<link rel="canonical" href="https://www.parkpulse.fun${lang === 'en' ? '/' : '/' + lang}">\n${landingAlternates()}\n`;
+  out = out.replace('<title>', head + '<title>');
+  // The picker sits with the nav links.
+  out = out.replace('<a href="/app#account" class="mut">', `${langPicker(lang)}<a href="/app#account" class="mut">`);
+  return out;
+}
+
 const LANG_NAMES = { en: 'English', zh: 'Chinese', hi: 'Hindi', es: 'Spanish', fr: 'French', ar: 'Arabic', bn: 'Bengali', de: 'German', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', mr: 'Marathi', pt: 'Portuguese', ru: 'Russian', ta: 'Tamil', te: 'Telugu', tr: 'Turkish', ur: 'Urdu', vi: 'Vietnamese' };
 
 // In-flight dining-guide generations, one per park+language.
@@ -2478,10 +2566,17 @@ const server = http.createServer(async (req, res) => {
 
   // The landing page is templated (hero board, park guides, screenshots), so
   // it is rendered here rather than streamed by the static handler.
-  if (url.pathname === '/' || url.pathname === '/index.html') {
+  // The landing page in each supported language. English stays at "/" as the
+  // canonical; every other language is its own indexable URL (/es, /fr, ...)
+  // rather than a client-side swap, so search engines see real translated
+  // pages and visitors never watch the copy change under them.
+  const landingLang = url.pathname === '/' || url.pathname === '/index.html'
+    ? 'en'
+    : (LANDING_LANGS.includes(url.pathname.slice(1)) ? url.pathname.slice(1) : null);
+  if (landingLang) {
     let board = '';
     try { board = heroBoardHtml(await heroBoardPanels()); } catch (err) { console.log(`hero board: ${err.message}`); }
-    const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
+    let html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
       .replace('<!--HERO_BOARD-->', () => board)
       .replace('<!--HERO_PHOTO-->', () => heroPhoto())
       .replace('<!--VIP_PHOTO-->', () => vipPhoto())
@@ -2489,6 +2584,7 @@ const server = http.createServer(async (req, res) => {
       .replace('<!--CAPTURE_BG-->', () => captureStyle())
       .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
       .replace('<!--SHOTS-->', () => productShots());
+    html = localizeLanding(html, landingLang);
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     return res.end(html);
   }

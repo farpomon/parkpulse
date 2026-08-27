@@ -68,6 +68,24 @@
   .navlinks{display:flex;align-items:center;gap:26px;flex-wrap:wrap;justify-content:flex-end}
   .navlinks a{color:var(--ink);font-weight:600;font-size:14.5px}
   .navlinks a.mut{color:var(--muted)}
+  /* Language picker: a real <select> of real URLs, so it works without JS and
+     each translation is a link a crawler can follow. */
+  .langpick{background:var(--card,#fff);color:var(--ink);border:1px solid var(--border,#e3dff2);
+    border-radius:999px;padding:.3rem 1.6rem .3rem .7rem;font:inherit;font-size:13.5px;font-weight:600;
+    cursor:pointer;appearance:none;-webkit-appearance:none;min-height:32px;
+    background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+    background-position:right 1rem center,right .72rem center;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  /* The picker adds a control to a row that was already tight; without this
+     the links wrapped onto their own lines above the logo. */
+  @media (max-width:560px){
+    .nav .row{padding:10px 16px;gap:10px}
+    .navlinks{gap:10px;flex-wrap:nowrap}
+    /* Two links already step aside on small screens; the picker needs a third.
+       "Sign in" goes, because Open app lands on the account sheet anyway. */
+    .navlinks a.mut{display:none}
+    .langpick{max-width:6.4rem;font-size:12.5px;padding:.25rem 1.3rem .25rem .5rem;
+      background-position:right .78rem center,right .52rem center}
+  }
   .navcta{padding:10px 20px;border-radius:999px;background:var(--brand);color:#fff!important;font-weight:600;font-size:14.5px;box-shadow:0 8px 20px -10px rgba(79,58,201,.8)}
   .navcta:hover{background:var(--brand-hover)}
 
