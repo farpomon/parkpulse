@@ -229,6 +229,36 @@
   .pickcard .pc-btn { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
     border-radius: 12px; font: inherit; font-weight: 800; font-size: .92rem; padding: .6rem 1rem;
     cursor: pointer; white-space: nowrap; flex: 0 1 auto; }
+  /* --- More at this park -------------------------------------------------
+     The Plan pane used to stop dead at the last step: nothing under it but the
+     tab bar, and no answer to the question a family actually asks next --
+     "what else is here?". Built from the selected park's live board, so
+     switching parks switches the card. */
+  .morecard { display: none; width: 100%; background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: .85rem 1rem 1rem; margin: .7rem 0 0;
+    box-shadow: var(--shadow, 0 4px 16px rgba(20,12,48,.07)); }
+  .morecard .mo-h { font-size: 1rem; font-weight: 800; display: block; }
+  .morecard .mo-sub { display: block; color: var(--muted); font-size: .82rem; line-height: 1.35; margin: .12rem 0 .55rem; }
+  .morecard .mo-row { display: flex; align-items: center; gap: .6rem; width: 100%;
+    background: none; border: none; border-top: 1px solid var(--border); font: inherit; color: var(--ink);
+    padding: .55rem .1rem; text-align: left; cursor: pointer; }
+  .morecard .mo-row:first-of-type { border-top: none; }
+  .morecard .mo-row:active { opacity: .55; }
+  .morecard .mo-row[disabled] { cursor: default; opacity: .65; }
+  .morecard .mo-add { flex: 0 0 auto; width: 1.7rem; height: 1.7rem; border-radius: 999px;
+    border: 1.5px solid var(--brand); color: var(--brand); background: var(--bg);
+    display: grid; place-items: center; font-size: .9rem; font-weight: 800; line-height: 1; }
+  .morecard .mo-row.on .mo-add { background: var(--brand); color: #fff; }
+  .morecard .mo-row[disabled] .mo-add { border-color: var(--border); color: var(--muted); }
+  .morecard .mo-mid { flex: 1 1 auto; min-width: 0; }
+  .morecard .mo-name { display: block; font-weight: 700; font-size: .92rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .morecard .mo-land { display: block; color: var(--muted); font-size: .75rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .morecard .mo-all { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
+    border-radius: 12px; font: inherit; font-weight: 800; font-size: .9rem; padding: .6rem 1rem;
+    cursor: pointer; margin-top: .7rem; width: 100%; }
+  .morecard .mo-all:active { transform: scale(.98); }
   .planhero b { display: block; font-size: 1.15rem; margin-bottom: .15rem; }
   .planhero span { font-size: .85rem; opacity: .92; line-height: 1.35; }
   /* Its own row under the button, quieter than the pitch above it. */
@@ -664,11 +694,16 @@
     body:not(.pane-plan) #forecast,
     body:not(.pane-plan) .planrow,
     body:not(.pane-plan) #pick-card,
+    body:not(.pane-plan) #more-card,
     body:not(.pane-plan) #plan-out { display: none !important; }
     /* Flex only inside the Plan pane: the base rule is display:none, so
        desktop — where the attraction list is on the same screen — never
        shows the card at all. */
     body.pane-plan #pick-card { display: flex; }
+    /* Same deal for the "more at this park" card: the Plan pane on a phone is
+       the only place the board is not already on screen. renderMoreCard()
+       hides it inline when the park has nothing left to offer. */
+    body.pane-plan #more-card { display: block; }
     /* The one-tap pitch shows on BOTH panes: Today is where people actually
        are, and the plan it builds still lands them on Plan. syncPlanHero()
        keeps hiding it (inline style) once a plan exists, on either pane. */
@@ -764,6 +799,9 @@
     <button class="pc-btn" id="pick-card-btn">Choose attractions →</button>
   </div>
   <div id="plan-out"></div>
+  <!-- Filled by renderMoreCard() from the selected park's live board, so it
+       follows the park picker without a fetch of its own. -->
+  <div class="morecard" id="more-card"></div>
   <div class="sectionhead">
     <h2 id="listhead-title">🎢 Park attractions</h2>
     <div class="listtools"><a id="filter-open" style="display:none">🎛 Filters</a><a id="map-toggle">🗺 Map</a><a id="view-toggle">🍽 Dining</a><a id="pick-all">Select all</a></div>
@@ -3073,11 +3111,66 @@
     const c = $('pc-count');
     c.style.display = n ? '' : 'none';
     if (n) c.textContent = '✓ ' + n + ' ' + (n === 1 ? tr('ride picked so far') : tr('rides picked so far'));
+    renderMoreCard();
   };
   $('pick-card-btn').addEventListener('click', () => {
     setPane('today', { scroll: false });
     setViewMode('rides');
     requestAnimationFrame(() => $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  });
+
+  // --- 🎢 More at this park -----------------------------------------
+  // The Plan pane ran out at the last step. What comes after a plan is the
+  // question "what else is here?", and on a phone the board that answers it
+  // is on the other pane. So answer it here, from the data already in hand:
+  // the selected park's live rides, minus what the plan already covers.
+  // No fetch, no AI -- and because it reads `current` every time, changing
+  // park changes the card.
+  const MORE_ROWS = 6;
+  function goToBoard() {
+    setPane('today', { scroll: false });
+    setViewMode('rides');
+    requestAnimationFrame(() => $('rides').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+  function renderMoreCard() {
+    const el = document.getElementById('more-card');
+    if (!el) return;
+    const hide = () => { el.innerHTML = ''; el.style.display = 'none'; };
+    // A blurred locked park or a quiet feed has nothing honest to offer.
+    if (!rides.length || !parks[current]) return hide();
+    const planned = new Set(planOrder);
+    const done = new Set(doneOrder);
+    const hasPlan = Boolean($('plan-out').querySelector('.plan'));
+    // Same filters as the board -- a card that offers a ride the height
+    // filter hides is the heartbreak those filters exist to prevent.
+    const pool = rides.filter(passesFilter);
+    const left = pool.filter((r) => !planned.has(r.name) && !done.has(r.name));
+    if (!left.length) return hide();
+    // Open and quick first: this card is for "we have twenty minutes", not
+    // for browsing. Closed rides sink and stay unpickable.
+    const list = [...left].sort((a, b) => (b.open - a.open) || (a.wait - b.wait)).slice(0, MORE_ROWS);
+    el.style.display = '';
+    el.innerHTML = `
+      <b class="mo-h">🎢 ${hasPlan ? tr('More at') : tr("What's on at")} ${esc(parks[current].name)}</b>
+      <span class="mo-sub">${hasPlan
+        ? tr("Not in today's plan — tap to add one, then plan again.")
+        : tr('The shortest waits right now — tap the ones your crew wants.')}</span>
+      ${list.map((r) => `<button type="button" class="mo-row${pickedNames.has(r.name) ? ' on' : ''}" data-name="${encodeURIComponent(r.name)}"${r.open ? '' : ' disabled'} aria-pressed="${pickedNames.has(r.name)}">
+        <span class="mo-add" aria-hidden="true">${pickedNames.has(r.name) ? '✓' : '＋'}</span>
+        <span class="mo-mid"><span class="mo-name">${esc(r.name)}</span>${r.land ? `<span class="mo-land">${esc(r.land)}</span>` : ''}</span>
+        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
+      </button>`).join('')}
+      <button type="button" class="mo-all" id="mo-all">${tr('See all attractions')} (${pool.length}) →</button>`;
+  }
+  document.getElementById('more-card').addEventListener('click', (e) => {
+    if (e.target.closest('#mo-all')) return goToBoard();
+    const row = e.target.closest('.mo-row');
+    if (!row) return;
+    const name = decodeURIComponent(row.dataset.name);
+    if (pickedNames.has(name)) pickedNames.delete(name); else pickedNames.add(name);
+    savePicks(current);
+    renderRides();       // the board and this card must never disagree
+    updatePlanbar();     // -> syncPlanHero() -> renderMoreCard(), repainting the row
   });
   $('plan-day').addEventListener('click', () => {
     // Free-tier limits live in buildPlan (one park, today, once a day) —
