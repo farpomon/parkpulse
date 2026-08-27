@@ -3893,13 +3893,34 @@
               k.cm = Number.isFinite(v) && v > 0 ? Math.min(200, Math.floor(v)) : 0;
             });
           }
-          row.querySelector('.hclear').addEventListener('click', () => { wizDraft.kids.splice(i, 1); renderKids(); });
+          row.querySelector('.hclear').addEventListener('click', () => {
+            wizDraft.kids.splice(i, 1);
+            // One fewer person — but never fewer than the kids still listed
+            // (plus one grown-up to push the stroller).
+            wizDraft.party = Math.max(1, wizDraft.kids.length + 1, wizDraft.party - 1);
+            syncParty();
+            renderKids();
+          });
           rows.appendChild(row);
         });
         kidsWrap.querySelector('#kid-add').addEventListener('click', () => {
-          if (wizDraft.kids.length < 8) { wizDraft.kids.push({ age: 0, cm: 0 }); renderKids(); }
+          if (wizDraft.kids.length < 8) {
+            wizDraft.kids.push({ age: 0, cm: 0 });
+            wizDraft.party = Math.min(12, wizDraft.party + 1); // a child is a person too
+            syncParty();
+            renderKids();
+          }
         });
       };
+      // The stepper lives outside the kids editor — keep the visible count in
+      // step with child rows, and never let the party be smaller than the
+      // children listed plus one grown-up.
+      const syncParty = () => { const c = $('wiz-count'); if (c) c.textContent = wizDraft.party; };
+      if (Array.isArray(wizDraft.kids) && wizDraft.kids.length + 1 > wizDraft.party
+          && (wizDraft.ages.includes('toddler') || wizDraft.ages.includes('kid'))) {
+        wizDraft.party = Math.min(12, wizDraft.kids.length + 1);
+        syncParty();
+      }
       renderKids();
     } else if (step === 2) {
       body.innerHTML = `<h2>🎢 ${tr('What does your group love?')}</h2><div class="chipgrid" id="wiz-vibes"></div><div id="wiz-strict" style="margin-top:1rem"></div>`;
