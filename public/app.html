@@ -824,12 +824,12 @@
     <h3>Your free day at Magic Kingdom</h3>
     <p class="gate-sub">Free: Magic Kingdom's live board, today, and one "Plan my day" — on the house. A pass unlocks the rest:</p>
     <ul class="gate-list">
-      <li><span>🎢</span>Live wait times for all <b>65 parks</b> — refreshed every minute</li>
-      <li><span>✨</span><b>Mila plans your whole day</b> — one tap, ordered against the crowds, explained</li>
-      <li><span>📏</span>Child height filter — only rides your kid can actually board</li>
-      <li><span>🔔</span>Wait-drop alerts on any ride</li>
-      <li><span>🗓️</span>Plan any day up to 60 out, with weather and events baked in</li>
-      <li><span>📧</span>Your plan emailed, with Mila's read on the day</li>
+      <li><span>🎢</span><div>Live wait times for all <b>65 parks</b> — refreshed every minute</div></li>
+      <li><span>✨</span><div><b>Mila plans your whole day</b> — one tap, ordered against the crowds, explained</div></li>
+      <li><span>📏</span><div>Child height filter — only rides your kid can actually board</div></li>
+      <li><span>🔔</span><div>Wait-drop alerts on any ride</div></li>
+      <li><span>🗓️</span><div>Plan any day up to 60 out, with weather and events baked in</div></li>
+      <li><span>📧</span><div>Your plan emailed, with Mila's read on the day</div></li>
     </ul>
     <a class="gate-cta" href="/#pricing">See passes — one-time, from $24.99</a>
     <button class="gate-later" id="gate-later">Keep previewing</button>
@@ -1963,7 +1963,10 @@
     if (isPro) { $('gate').classList.remove('open'); return; }
     if (!sessionStorage.getItem('pp-gate-shown')) {
       try { sessionStorage.setItem('pp-gate-shown', '1'); } catch {}
-      $('gate').classList.add('open');
+      // Anonymous visitors are already getting the sign-up sheet as the
+      // front door — stacking the gate pitch on top of it buried both.
+      // The bottom gate bar still offers "See what you're missing".
+      if (localStorage.getItem('pp-email')) $('gate').classList.add('open');
     }
   }
   $('gatecover').addEventListener('click', () => $('gate').classList.add('open'));
