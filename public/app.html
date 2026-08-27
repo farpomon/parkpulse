@@ -292,6 +292,7 @@
   .mila-up { width: 64px; height: 64px; border-radius: 50%; float: right; margin: 0 0 .4rem .6rem; border: 2px solid var(--brand); }
   .planai-h span { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 600; font-style: italic; }
   .planai-b { font-size: .98rem; line-height: 1.62; color: var(--ink); }
+  .planai-open { font-weight: 750; color: var(--brand); margin: 0 0 .45rem; font-size: 1.02rem; }
   .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
   .planai-off { color: var(--muted); font-size: .92rem; margin: 0; }
   .planai-cta { margin-top: .7rem; padding: .5rem 1rem; font-size: .9rem; }
@@ -1804,6 +1805,36 @@
   // burned tokens in a loop. Applying adopts the advice; it never re-asks.
   let adoptAdvice = false;
 
+  // Fifteen sparkly ways for Mila to greet a freshly planned day. The tactical
+  // read follows — but the FIRST thing anyone sees is "we're making magic",
+  // not a ride list that feels pre-decided. Chosen once per advisor run so
+  // the opener holds still while the text streams in beneath it.
+  const MILA_PLAN_OPENERS = [
+    'Oh, this is going to be a GOOD one — let\'s make your day pure magic! ✨',
+    'What a special day this is about to be! Wand up — here\'s my read:',
+    'I did a little twirl when I saw this lineup. Twice, actually.',
+    'Deep breath, big smile — we are about to have the best day in the whole park!',
+    'The crowds have no idea what\'s coming. Let\'s make some magic!',
+    'Someone\'s about to have a magical day, and spoiler: it\'s you!',
+    'My wings are tingling — that\'s always a good sign. Here\'s the sparkle:',
+    'Buckle up, buttercup — today has \'best day ever\' written all over it!',
+    'A whole park, a whole day, and one very excited fairy. Let\'s GO!',
+    'I love this day already — now watch me make it shine:',
+    'Snacks packed? Shoes tied? Fairy consulted? You\'re crushing it already!',
+    'This is my favorite part — turning a good day into a magical one:',
+    'Ooh, I\'ve been waiting all morning for this one! Here\'s the magic:',
+    'Ready the churros and the happy screams — magic o\'clock starts now!',
+    'Sprinkling fairy dust on the schedule… done! Here\'s how your day sparkles:',
+  ];
+  let planIntroHtml = '';
+  function pickPlanIntro() {
+    const line = MILA_PLAN_OPENERS[Math.floor(Math.random() * MILA_PLAN_OPENERS.length)];
+    let uname = '';
+    try { uname = localStorage.getItem('pp-name') || ''; } catch {}
+    const greet = uname && Math.random() < 0.5 ? `${esc(uname)}! ` : '';
+    planIntroHtml = `<p class="planai-open">${greet}${esc(tr(line))}</p>`;
+  }
+
   function refinePlanWithAI(steps, opts = {}) {
     const adopting = adoptAdvice;
     adoptAdvice = false;
@@ -1811,6 +1842,7 @@
     if (!box) return;
     const ride = steps.filter((x) => x.ride);
     if (!ride.length) return;
+    pickPlanIntro();
     const lines = ride.map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
     const key = `${current}|${planDate || 'today'}|${ride.map((x) => x.ride.name).join(';')}`;
 
@@ -1819,7 +1851,7 @@
       cacheAdvice(key, aiPlanText);
       box.style.display = '';
       $('planai-state').textContent = '';
-      $('planai-body').innerHTML = mdLite(aiPlanText);
+      $('planai-body').innerHTML = planIntroHtml + mdLite(aiPlanText);
       $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using Mila's order")}</span>`;
       $('planbase-h').style.display = '';
       return;
@@ -1832,7 +1864,7 @@
       aiPlanKey = key; aiPlanText = said;
       box.style.display = '';
       $('planai-state').textContent = '';
-      $('planai-body').innerHTML = mdLite(said);
+      $('planai-body').innerHTML = planIntroHtml + mdLite(said);
       $('planbase-h').style.display = '';
       return;
     }
@@ -1910,7 +1942,7 @@
       }
 
       state.textContent = '';
-      body.innerHTML = '<p></p>';
+      body.innerHTML = planIntroHtml + '<p></p>';
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = '', actions = [];
@@ -1928,7 +1960,7 @@
           }
           if (!data) continue;
           let payload; try { payload = JSON.parse(data); } catch { continue; }
-          if (ev === 'delta' && payload.text) { aiPlanText += payload.text; body.innerHTML = mdLite(aiPlanText); }
+          if (ev === 'delta' && payload.text) { aiPlanText += payload.text; body.innerHTML = planIntroHtml + mdLite(aiPlanText); }
           else if (ev === 'action') actions.push(payload);
           // The server reports its own failures as an SSE error event. This
           // used to be dropped on the floor, the panel hid itself, and an
