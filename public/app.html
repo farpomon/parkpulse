@@ -1312,6 +1312,15 @@
     return (fVibe !== 'all' ? 1 : 0) + (fAge !== 99 ? 1 : 0) + (query.trim() ? 1 : 0) + (fHeight > 0 ? 1 : 0);
   }
 
+  // Height is a real limit; vibe and age are preferences. When preferences
+  // exclude the whole park the planner relaxes them -- it must never relax
+  // this one.
+  function heightOk(r) {
+    const tags = tagsCache[current];
+    const tg = tags && tags[r.name];
+    if (!tg) return true;
+    return !(fHeight > 0 && Number.isFinite(tg.hmin) && tg.hmin > 0 && tg.hmin > fHeight);
+  }
   function passesFilter(r) {
     const tags = tagsCache[current];
     if (!tags) return true;
@@ -2243,6 +2252,38 @@
     }
   }
 
+  // Why the day came back empty, in the visitor's terms, with the one action
+  // that fixes it. Used by every path in buildPlan that cannot produce stops.
+  function explainEmptyPlan() {
+    const doneSet = new Set(doneOrder);
+    const usable = rides.filter((r) => !doneSet.has(r.name));
+    const doneAll = rides.length > 0 && !usable.length;
+    const filtered = usable.length > 0 && !usable.some((r) => passesFilter(r));
+    const tooShort = !doneAll && !filtered;
+    const why = doneAll
+      ? tr('You have already ticked off every attraction here — nothing left to queue for!')
+      : filtered
+        ? tr('Your current filters rule out every attraction in this park.')
+        : tr('Nothing fits between your arrival and departure times yet.');
+    const fix = doneAll
+      ? tr('Untick a few in Park attractions to ride them again, or try another park.')
+      : filtered
+        ? tr('Widen them and Mila will fill the day.')
+        : tr('Try arriving earlier or leaving later, then plan again.');
+    $('plan-out').innerHTML = `<div class="plan">
+      <button class="plan-x" id="plan-clear" aria-label="${tr('Dismiss plan')}">✕</button>
+      <h2>${tr("Mila couldn't fill this day")}</h2>
+      <p class="fillnote"><img class="mila-mini" src="/img/mila/mila-thinking-160.webp" alt="">${why} ${fix}</p>
+      ${filtered ? `<button class="btn wide" id="plan-relax">${tr('Clear filters and plan again')}</button>` : ''}</div>`;
+    const relax = document.getElementById('plan-relax');
+    if (relax) relax.addEventListener('click', () => { resetFilters(); renderRides(); $('plan-day').click(); });
+    const x = document.getElementById('plan-clear');
+    if (x) x.addEventListener('click', () => { $('plan-out').innerHTML = ''; syncPlanHero(); });
+    syncPlanHero();
+    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
+    requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
   function buildPlan(opts = {}) {
     // Free tier: one plan per day, for the free park, for today. The server
     // enforces the matching consultant allowance; this is the polite half.
@@ -2319,7 +2360,10 @@
     let rested = !elderly;
     // On a future day, today's closures say nothing — plan the whole list.
     const remaining = rides.filter((r) => pickedNames.has(r.name) && (r.open || futureDay || closedNow) && !doneSet.has(r.name));
-    if (!remaining.length) return;
+    // Nothing to route. This bare `return` is where every silent "Plan it for
+    // me" failure ended: no stops, no message, an untouched pane, and a button
+    // that looked broken. Name the reason instead, and offer the way out.
+    if (!remaining.length) { explainEmptyPlan(); return; }
     const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
     let lunchDone = !$('lunch').checked;
     // Land clustering: switching lands costs real walking time, so a slightly
@@ -2515,6 +2559,8 @@
     }
     if (picksChanged) scheduleSync();
     planSaved = saved;
+    // Same story if the router produced steps but no rides in them.
+    if (!steps.some((st) => st.ride)) { explainEmptyPlan(); return; }
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
@@ -3044,7 +3090,16 @@
       const doneSet = new Set(doneOrder);
       // Same rule as buildPlan: a closed park still has a day worth planning.
       const shut = parkClosedNow();
-      const open = rides.filter((r) => (r.open || shut) && !doneSet.has(r.name) && passesFilter(r));
+      const eligible = (f) => rides.filter((r) => (r.open || shut) && !doneSet.has(r.name) && f(r));
+      // The wizard turns "we like thrill rides" into a hard filter (fVibe) and
+      // strict mode into an age cap. On a park whose tags match neither, that
+      // excluded every ride -- and the day came back empty with nothing said.
+      // Taste yields before the day does; height never yields.
+      let open = eligible(passesFilter);
+      if (!open.length) {
+        open = eligible(heightOk);
+        if (open.length) toast(tr('Nothing matched your ride preferences here, so Mila widened the net for this plan.'));
+      }
       const starters = open.filter((r) => favs.has(r.name));
       (starters.length ? starters
         : [...open].sort((a, b) => (ageOk(b.name) - ageOk(a.name)) || (vibeHit(b.name) - vibeHit(a.name)) || (b.wait - a.wait)).slice(0, 6))
