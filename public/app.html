@@ -1948,7 +1948,11 @@
     const dayLabel = planDate
       ? new Date(planDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
       : 'today';
-    const ask = `This is the running order my planner built for ${parks[current].name} on ${dayLabel}: ${lines}. `
+    // Attribute the draft to the auto-planner, not the traveller. Saying "my
+    // planner" made Mila answer as though they had built it themselves and got
+    // it wrong -- "that heat peak lands your planner on top of the Studio Tour".
+    // The persona turns this into Pip's draft, which she is free to improve.
+    const ask = `This is the running order ParkPulse's auto-planner drafted for ${parks[current].name} on ${dayLabel} (I did not build it myself): ${lines}. `
       + (lastPlanRisks.length ? `Known risks for this day: ${lastPlanRisks.join('; ')}. If one of these genuinely threatens the plan, open your reply with it and how the order handles it. ` : '')
       + 'Give me your read on it in 3-5 short sentences: what to move, what to keep, and the one thing that will cost me the most time if I get it wrong. '
       + 'Be specific about named rides and times. If you would reorder it, call propose_plan with the revised order.';
