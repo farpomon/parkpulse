@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ParkPulse | Live Theme Park Wait Times &amp; Smart Day Plans</title>
-<meta name="description" content="Meet Mila, your park fairy: live wait times for 65 theme parks, your whole day planned in one tap, and a straight answer on whether skip-the-line passes are worth it.">
-<meta property="og:title" content="ParkPulse | Spend less time in line">
-<meta property="og:description" content="Live waits, smarter routes, and practical park-pass guidance for better days at the parks.">
+<title>ParkPulse | Live Wait Times, AI Day Planner &amp; Free Touring Plans</title>
+<meta name="description" content="Meet Mila, your AI park fairy: live wait times for 65 theme parks, your whole day planned in one tap, 500+ free touring plans, and a straight answer on whether skip-the-line passes are worth it. Free to start — no subscription, ever.">
+<meta property="og:title" content="ParkPulse | Mila reads the lines so you don't stand in them">
+<meta property="og:description" content="Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.">
 <meta property="og:image" content="https://www.parkpulse.fun/og.png">
 <meta property="og:url" content="https://www.parkpulse.fun/">
 <meta property="og:type" content="website">
@@ -18,7 +18,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
  {"@type":"Organization","@id":"https://www.parkpulse.fun/#org","name":"ParkPulse","url":"https://www.parkpulse.fun/","logo":"https://www.parkpulse.fun/icon-512.png"},
- {"@type":"WebApplication","name":"ParkPulse","url":"https://www.parkpulse.fun/","applicationCategory":"TravelApplication","operatingSystem":"Any (web app)","browserRequirements":"Requires JavaScript","description":"Live wait times for 65 theme parks worldwide — Disney, Universal, Six Flags, Cedar Point, Europa-Park and more — with an AI day planner, crowd forecasts and wait-drop alerts.","publisher":{"@id":"https://www.parkpulse.fun/#org"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"24.99","highPrice":"199.99","offerCount":5}}
+ {"@type":"WebApplication","name":"ParkPulse","url":"https://www.parkpulse.fun/","applicationCategory":"TravelApplication","operatingSystem":"Any (web app)","browserRequirements":"Requires JavaScript","description":"Live wait times for 65 theme parks worldwide — Disney, Universal (including Universal Studios Japan), Six Flags, LEGOLAND, Europa-Park, Everland and more — with Mila, an AI day planner, 500+ free ready-made touring plans, crowd calendars, trip itineraries and wait-drop alerts.","featureList":["Live wait times for 65 theme parks, refreshed every minute","Mila — AI day planner that builds and re-times your whole day in one tap","500+ free ready-made touring plans for every kind of crew","Crowd calendars scoring every day four months out","Honest skip-the-line pass verdicts, park by park","Multi-park trip itineraries with plans emailed the night before","Wait-drop alerts on any ride"],"publisher":{"@id":"https://www.parkpulse.fun/#org"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"0","highPrice":"199.99","offerCount":6,"description":"Free tier included; one-time passes from $24.99 — no subscription."}}
 ]}
 </script>
 <link rel="manifest" href="/manifest.json">
@@ -192,6 +192,15 @@
   .cform button{padding:14px 22px;border-radius:11px;background:var(--gold);color:#2a1f52;font:inherit;font-size:15px;font-weight:700;cursor:pointer;border:none;white-space:nowrap}
   .chelp{font-size:13px;color:#a99fd0;margin-top:10px}
   .chelp.ok{color:#8ee0b4}
+
+  /* FAQ */
+  .faqwrap{max-width:720px;margin:0 auto}
+  .faqwrap details{border-bottom:1px solid var(--border);padding:.9rem 0}
+  .faqwrap summary{cursor:pointer;font-weight:700;font-size:16.5px;list-style:none;position:relative;padding-right:1.6rem}
+  .faqwrap summary::-webkit-details-marker{display:none}
+  .faqwrap summary::after{content:"+";position:absolute;right:.2rem;top:0;color:var(--brand);font-weight:700}
+  .faqwrap details[open] summary::after{content:"–"}
+  .faqwrap p{color:var(--muted);margin:.6rem 0 0;line-height:1.65}
 
   /* Park guides — popular cards up top, then the full directory by region. */
   .pg-pop{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(235px,100%),1fr));gap:13px;margin-bottom:34px}
@@ -492,6 +501,34 @@
       <div class="chelp" id="chelp">One email, seven days before you go. No spam.</div>
     </div>
   </div>
+</section>
+
+<section class="sec" id="faq">
+  <h2>Questions, answered straight</h2>
+  <div class="faqwrap">
+    <details><summary>Is ParkPulse free?</summary>
+      <p>Yes, to start. Free forever: the live wait board for Magic Kingdom, one Mila-built day plan every day, all 500+ ready-made touring plans, and every park's crowd calendar and strategy guide. One-time passes from $24.99 unlock live waits and unlimited planning across all 65 parks.</p></details>
+    <details><summary>What is Mila?</summary>
+      <p>Mila is ParkPulse's AI park fairy. She builds your whole day in one tap around live waits and crowd forecasts, re-plans when the day changes, answers questions like &ldquo;is the skip pass worth it today?&rdquo; &mdash; and tells you when to keep your money.</p></details>
+    <details><summary>How accurate are the wait times?</summary>
+      <p>Live waits are the parks' own posted times via Queue-Times.com, refreshed about every minute. Forecasts are built from historical patterns per ride and hour &mdash; they are estimates, and we publish <a href="/accuracy">our accuracy record</a> openly.</p></details>
+    <details><summary>Which parks does ParkPulse cover?</summary>
+      <p>65 parks across five regions: every Walt Disney World and Disneyland park, Universal Orlando, Hollywood and Japan, Six Flags, LEGOLAND, Busch Gardens, SeaWorld, Cedar Point, Europa-Park, Efteling, Everland, Lotte World and more. <a href="/parks">See the full list</a>.</p></details>
+    <details><summary>Is it a subscription?</summary>
+      <p>No. Passes are one-time purchases &mdash; a day, a week, a month, six months or a year &mdash; and nothing auto-renews. Full refund within 14 days if the pass hasn't been materially used.</p></details>
+    <details><summary>What is a touring plan?</summary>
+      <p>An hour-by-hour running order for a park day: what to ride first, when to eat, when the lines dip. ParkPulse publishes <a href="/plans">500+ free touring plans</a> &mdash; for families with little ones, thrill seekers, rainy days and more &mdash; and each one opens live in the app, where it re-times itself against today's actual waits.</p></details>
+  </div>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+   {"@type":"Question","name":"Is ParkPulse free?","acceptedAnswer":{"@type":"Answer","text":"Yes, to start. Free forever: the live wait board for Magic Kingdom, one Mila-built day plan every day, all 500+ ready-made touring plans, and every park's crowd calendar and strategy guide. One-time passes from $24.99 unlock live waits and unlimited planning across all 65 parks."}},
+   {"@type":"Question","name":"What is Mila?","acceptedAnswer":{"@type":"Answer","text":"Mila is ParkPulse's AI park fairy. She builds your whole day in one tap around live waits and crowd forecasts, re-plans when the day changes, answers questions like 'is the skip pass worth it today?' — and tells you when to keep your money."}},
+   {"@type":"Question","name":"How accurate are the wait times?","acceptedAnswer":{"@type":"Answer","text":"Live waits are the parks' own posted times via Queue-Times.com, refreshed about every minute. Forecasts are built from historical patterns per ride and hour — they are estimates, and we publish our accuracy record openly at parkpulse.fun/accuracy."}},
+   {"@type":"Question","name":"Which parks does ParkPulse cover?","acceptedAnswer":{"@type":"Answer","text":"65 parks across five regions: every Walt Disney World and Disneyland park, Universal Orlando, Hollywood and Japan, Six Flags, LEGOLAND, Busch Gardens, SeaWorld, Cedar Point, Europa-Park, Efteling, Everland, Lotte World and more."}},
+   {"@type":"Question","name":"Is it a subscription?","acceptedAnswer":{"@type":"Answer","text":"No. Passes are one-time purchases — a day, a week, a month, six months or a year — and nothing auto-renews. Full refund within 14 days if the pass hasn't been materially used."}},
+   {"@type":"Question","name":"What is a touring plan?","acceptedAnswer":{"@type":"Answer","text":"An hour-by-hour running order for a park day: what to ride first, when to eat, when the lines dip. ParkPulse publishes 500+ free touring plans — for families with little ones, thrill seekers, rainy days and more — and each one opens live in the app, where it re-times itself against today's actual waits."}}
+  ]}
+  </script>
 </section>
 
 <section class="sec" id="parks">

@@ -508,7 +508,7 @@ function renderParkPage(park, sample, allParks, bands, curves, actual, closures)
   const title = seo.worth === 'none'
     ? `${park.name} Wait Times: Live Queues, Rope Drop Order & Best Months`
     : `${park.name} Wait Times & Is ${name} Worth It? (Live Queues + Rope Drop)`;
-  const desc = `Live ${park.name} wait times, hour-by-hour queue patterns, the best and worst months to visit, what to ride first, and a straight answer on whether ${seo.worth === 'none' ? 'you can skip the lines' : name + ' is worth it'}.`;
+  const desc = `Live ${park.name} wait times, hour-by-hour queue patterns, the best and worst months to visit, what to ride first, and a straight answer on whether ${seo.worth === 'none' ? 'you can skip the lines' : name + ' is worth it'}. Plus free ready-made ${park.name} touring plans.`;
 
   const waitsRows = sample
     ? sample.rides.map((r) => `<tr><td>${esc(r.name)}</td><td><span class="w ${waitClass(r.wait)}">${r.wait} min</span></td></tr>`).join('')
