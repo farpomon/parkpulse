@@ -385,6 +385,11 @@
       offsetBottom: opts.offsetBottom || null,
     };
     if (!document.body) await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+    // The dictionary arrives over the network on a first visit, and mount()
+    // reads T() once to build the chrome -- so without this wait Mila greeted a
+    // Portuguese reader in English until their second page load. Repeat visits
+    // resolve instantly from the localStorage mirror.
+    if (window.PP_READY) { try { await window.PP_READY; } catch {} }
     mount();
     // Deliberately NOT restoring the old transcript: each visit opens a clean
     // pane. Mila still remembers the person -- her durable notes (party, trip

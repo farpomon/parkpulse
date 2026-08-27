@@ -1554,20 +1554,41 @@ console.log(`landing languages: ${LANDING_LANGS.join(', ')}`);
 // Translation runs only on the markup between tags, never inside <script> or
 // <style> -- a dictionary key that happens to appear in JS would otherwise be
 // rewritten and break the page.
+const HTML_ENT = {
+  amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'",
+  rsquo: '\u2019', lsquo: '\u2018', ldquo: '\u201c', rdquo: '\u201d',
+  mdash: '\u2014', ndash: '\u2013', middot: '\u00b7', nbsp: '\u00a0', hellip: '\u2026',
+};
+const decodeEnt = (t) => t.replace(/&([a-z#0-9]+);/gi, (m, e) => (HTML_ENT[e] !== undefined ? HTML_ENT[e] : m));
+
+// Walks the text between tags and translates a whole node at a time. Looking
+// the node up BOTH as authored and entity-decoded is what makes the dictionary
+// forgiving: source copy is full of &rsquo; and &mdash;, while strings recovered
+// from a rendered page carry the real characters, and both are legitimate keys.
 function translateMarkup(html, dict) {
   const parts = html.split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)/);
-  // Longest first, so a short key never eats part of a longer one.
-  const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
+  // Placeholder keys ({} standing in for a park name) still need the old
+  // regex treatment -- there is no whole-node equality to test.
+  const tmpl = Object.keys(dict).filter((k) => k.includes('{}'));
   const rx = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return parts.map((part, i) => {
     if (i % 2 === 1) return part;                       // the script/style itself
-    let out = part;
-    for (const en of keys) {
+    let out = part.replace(/>([^<>]+)</g, (m, text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return m;
+      const to = dict[trimmed] !== undefined ? dict[trimmed] : dict[decodeEnt(trimmed)];
+      if (to === undefined || to === trimmed) return m;
+      // Keep the node's own indentation so the markup stays readable.
+      const lead = text.slice(0, text.indexOf(trimmed[0]));
+      const tail = text.slice(lead.length + trimmed.length);
+      return '>' + lead + to + tail + '<';
+    });
+    for (const en of tmpl) {
       const to = dict[en];
-      if (!to || to === en) continue;
-      // Surrounding whitespace is preserved: the source is indented markup,
-      // so an exact ">text<" match would miss most of the page.
-      out = out.replace(new RegExp('>(\\s*)' + rx(en) + '(\\s*)<', 'g'), (m, a, b) => '>' + a + to + b + '<');
+      if (!to) continue;
+      const [a0, b0] = en.split('{}');
+      out = out.replace(new RegExp('>(\\s*)' + rx(a0) + '(.*?)' + rx(b0) + '(\\s*)<', 'g'),
+        (m, a, mid, b) => '>' + a + to.replace('{}', mid) + b + '<');
     }
     return out;
   }).join('');
@@ -1602,12 +1623,46 @@ function translateAttrs(html, dict) {
   return out;
 }
 
+// Plenty of the page's copy lives in client-side JS: the rotating hero lines,
+// the "more than a planner" band, the pricing blurbs, the advisor demo rows.
+// The markup pass never sees any of it, so a translated page kept speaking
+// English in those places.
+//
+// A whole string literal must equal a dictionary key before it is replaced.
+// Substring rewriting inside scripts would eventually corrupt real code; a
+// full-literal match against a complete marketing sentence will not.
+function translateScriptStrings(html, dict) {
+  const parts = html.split(/(<script[\s\S]*?<\/script>)/);
+  return parts.map((part, i) => {
+    if (i % 2 === 0) return part;                        // markup, handled elsewhere
+    // One pattern per quote style. A single combined class would exclude the
+    // other quote characters from the body, and "ParkPulse's" inside a
+    // double-quoted string would end the match halfway through the sentence.
+    let out = part;
+    for (const q of ['"', "'", '`']) {
+      const pat = new RegExp(q + '((?:[^' + q + '\\\\\\n]|\\\\.)*)' + q, 'g');
+      out = out.replace(pat, (lit, body) => {
+        const plain = body.replace(new RegExp('\\\\' + q, 'g'), q);
+        const to = dict[plain];
+        if (!to) return lit;
+        return q + to.replace(/\\/g, '\\\\').split(q).join('\\' + q) + q;
+      });
+    }
+    return out;
+  }).join('');
+}
+
 function localizeLanding(html, lang) {
   const dict = lang === 'en' ? null : LANDING_I18N[lang];
-  let out = dict ? translateAttrs(translateMarkup(html, dict), dict) : html;
+  let out = dict ? translateScriptStrings(translateAttrs(translateMarkup(html, dict), dict), dict) : html;
   if (lang !== 'en') out = out.replace('<html lang="en">', `<html lang="${lang}">`);
   // Canonical + alternates, injected once, right after the charset line.
-  const head = `\n<link rel="canonical" href="https://www.parkpulse.fun${lang === 'en' ? '/' : '/' + lang}">\n${landingAlternates()}\n`;
+  // Arriving straight at /pt is itself a choice of language. Recording it lets
+  // everything that reads pp-lang -- the chat widget on this page, and the app
+  // behind the CTA -- follow along instead of resetting to English. Runs in the
+  // head so it lands before anything reads the value.
+  const carry = lang === 'en' ? '' : `<script>try{localStorage.setItem('pp-lang','${lang}')}catch(e){}</script>`;
+  const head = `\n<link rel="canonical" href="https://www.parkpulse.fun${lang === 'en' ? '/' : '/' + lang}">\n${landingAlternates()}\n${carry}\n`;
   out = out.replace('<title>', head + '<title>');
   // The picker sits with the nav links.
   out = out.replace('<a href="/app#account" class="mut">', `${langPicker(lang)}<a href="/app#account" class="mut">`);
@@ -2644,6 +2699,10 @@ ${sections}
     let board = '';
     try { board = heroBoardHtml(await heroBoardPanels(tzHeroParks(url.searchParams.get('tz')))); }
     catch (err) { console.log(`hero board api: ${err.message}`); }
+    // The landing swaps this board in over the server-rendered one, so on a
+    // translated page an untranslated reply put English back on screen.
+    const bl = url.searchParams.get('lang');
+    if (bl && bl !== 'en' && LANDING_I18N[bl]) board = translateMarkup(board, LANDING_I18N[bl]);
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, max-age=120' });
     return res.end(board);
   }

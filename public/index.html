@@ -622,7 +622,10 @@
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const current = document.querySelector('.board');
       if (!tz || !current) return;
-      const r = await fetch('/api/hero-board?tz=' + encodeURIComponent(tz));
+      // Ask for the board in the language this page is being read in, or the
+      // swap drops English back over a translated page.
+      const bl = document.documentElement.lang || 'en';
+      const r = await fetch('/api/hero-board?tz=' + encodeURIComponent(tz) + '&lang=' + encodeURIComponent(bl));
       if (!r.ok) return;
       const html = await r.text();
       const tmp = document.createElement('div');
@@ -819,6 +822,10 @@
   } else play(1400);
 })();
 </script>
+<!-- Sets window.PP_T (and nothing else -- it never touches the DOM). Without
+     it the chat widget's T() falls back to identity and Mila greets a
+     Portuguese reader in English. Must precede the widget. -->
+<script src="/i18n.js"></script>
 <script src="/chat-widget.js" defer></script>
 </body>
 </html>
