@@ -306,6 +306,16 @@
   .ad-ai-h img{border-radius:50%;vertical-align:-7px;margin-right:.25rem}
   .aidemo{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center}
   @media (max-width:860px){.aidemo{grid-template-columns:1fr}}
+  /* The two-of-them section: art beside the division of labour. */
+  .crew{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center}
+  .crew-art img{width:100%;height:auto;border-radius:18px;display:block;
+    box-shadow:0 18px 44px -18px rgba(20,12,48,.45)}
+  .crew-row{display:flex;gap:.85rem;align-items:flex-start;margin:1rem 0}
+  .crew-row img{border-radius:50%;flex:0 0 auto;border:2px solid var(--border)}
+  .crew-row p{margin:0;font-size:15px;line-height:1.6;color:var(--muted)}
+  .crew-row b{color:var(--ink)}
+  .crew-foot{margin:1.1rem 0 0;font-size:15px;font-weight:600;color:var(--ink)}
+  @media (max-width:860px){.crew{grid-template-columns:1fr;gap:1.6rem}}
   .ad-list{list-style:none;padding:0;margin:1rem 0 1.4rem;display:grid;gap:.65rem}
   .ad-list li{display:flex;gap:.6rem;align-items:flex-start;color:var(--muted)}
   .ad-list li span{flex:0 0 auto;font-size:1.05rem;line-height:1.5}
@@ -467,6 +477,31 @@
       <div class="ad-rows" id="ad-rows"></div>
       <div class="ad-ai" id="ad-ai"><span class="ad-ai-h"><img src="/img/mila/mila-map-320.webp" alt="" width="26" height="26" loading="lazy"> Mila's read</span><span id="ad-ai-txt"></span></div>
       <div class="ad-save" id="ad-save">🎉 ≈ 55 min of line time back</div>
+    </div>
+  </div>
+</section>
+
+<!-- Who actually builds the plan. The product really is two passes -- an
+     algorithm drafts the running order, the advisor reviews it -- and that is
+     worth saying out loud, because "AI planned your day" tells nobody
+     anything. Pip is the draft; Mila is the judgement. -->
+<section class="sec" id="crew">
+  <div class="crew">
+    <div class="crew-art">
+      <img src="/img/pip/mila-and-pip-640.webp" alt="Pip the gnome holding up a plan draft while Mila the park fairy reads it" width="640" height="345" loading="lazy">
+    </div>
+    <div class="crew-copy">
+      <h2>Two of them work on your day</h2>
+      <p class="lead">Pip drafts it. Mila decides.</p>
+      <div class="crew-row">
+        <img src="/img/pip/pip-ledger-160.webp" alt="Pip" width="52" height="52" loading="lazy">
+        <p><b>Pip does the numbers.</b> Crowd curves, walking metres, opening hours &mdash; he has your running order down in seconds, and he has never once looked out of a window.</p>
+      </div>
+      <div class="crew-row">
+        <img src="/img/mila/mila-thinking-160.webp" alt="Mila" width="52" height="52" loading="lazy">
+        <p><b>Mila reads it back.</b> The heat at one o&rsquo;clock, the ride that shuts early tonight, the six-year-old who needs a sit-down &mdash; she moves what needs moving, and tells you why.</p>
+      </div>
+      <p class="crew-foot">You get the plan and the second opinion, before you walk a single step.</p>
     </div>
   </div>
 </section>

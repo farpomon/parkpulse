@@ -1629,15 +1629,20 @@ function langPicker(active) {
   return `<select class="langpick" aria-label="Language" onchange="var o=this.options[this.selectedIndex];try{localStorage.setItem('pp-lang',o.getAttribute('data-l')||'en')}catch(e){}location.href=o.value">${opts}</select>`;
 }
 
-// Meta/OG copy lives in attributes, not between tags, so it needs its own
-// pass -- otherwise a translated page still shares and indexes in English.
+// Copy that lives in attributes rather than between tags: meta and Open Graph
+// (or a translated page still shares and indexes in English), and alt/title,
+// which is the text a screen-reader user actually receives.
+const TRANSLATED_ATTRS = ['content', 'alt', 'title'];
 function translateAttrs(html, dict) {
   let out = html;
   const rx = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   for (const en of Object.keys(dict).sort((a, b) => b.length - a.length)) {
     const to = dict[en];
     if (!to || to === en) continue;
-    out = out.replace(new RegExp('content="' + rx(en) + '"', 'g'), `content="${to.replace(/"/g, '&quot;')}"`);
+    const safe = to.replace(/"/g, '&quot;');
+    for (const attr of TRANSLATED_ATTRS) {
+      out = out.replace(new RegExp(attr + '="' + rx(en) + '"', 'g'), `${attr}="${safe}"`);
+    }
   }
   return out;
 }
