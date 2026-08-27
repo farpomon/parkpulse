@@ -193,6 +193,14 @@
   .chelp{font-size:13px;color:#a99fd0;margin-top:10px}
   .chelp.ok{color:#8ee0b4}
 
+  /* "More than a planner" band — Mila + one rotating line, right under the hero. */
+  .magicband-sec{padding-top:56px}
+  .magicband{display:flex;gap:24px;align-items:center;max-width:860px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px 30px;box-shadow:var(--shadow)}
+  .magicband img{width:88px;height:88px;border-radius:50%;border:3px solid var(--brand);flex:0 0 auto}
+  .magicband p{margin:0;font-size:17.5px;line-height:1.62;color:var(--ink)}
+  .magicband b{color:var(--brand)}
+  @media (max-width:560px){ .magicband{flex-direction:column;text-align:center;padding:22px 18px;gap:14px} }
+
   /* FAQ */
   .faqwrap{max-width:720px;margin:0 auto}
   .faqwrap details{border-bottom:1px solid var(--border);padding:.9rem 0}
@@ -393,6 +401,33 @@
     <!--HERO_BOARD-->
   </div>
 </header>
+
+<section class="sec magicband-sec" id="magic">
+  <div class="magicband">
+    <img src="/img/mila/mila-map-320.webp" alt="Mila the park fairy holding a park map" width="88" height="88" loading="lazy">
+    <p id="magic-line"><b>Planners make lists. Mila makes days.</b> She weighs your party size, your kids&rsquo; ages, the weather and the forecast &mdash; then builds the one day that fits <i>your</i> family, not the average one.</p>
+  </div>
+  <script>
+  // Ten ways to say the same true thing: Mila is more than a planner. A new
+  // voice greets each visit; the server-rendered first line covers no-JS.
+  (() => {
+    const M = [
+      ['Planners make lists. Mila makes days.', ' She weighs your party size, your kids’ ages, the weather and the forecast — then builds the one day that fits <i>your</i> family, not the average one.'],
+      ['More than a planner — a magical helper.', ' Mila knows your crew: how many of you there are, who’s tall enough for what, when the rain rolls in and when the heat peaks — and she shapes the whole day around it.'],
+      ['Not a planner. A park fairy.', ' Party of two or party of seven, toddlers or teens, blazing sun or afternoon showers — Mila folds it all into a day that just works.'],
+      ['Every family’s magic is different.', ' Mila plans around yours — group size, age groups, weather patterns and the day’s forecast — so the day you get is the best one possible.'],
+      ['A spreadsheet can order rides.', ' Only a fairy asks who’s coming, how old the little ones are, and what the sky plans to do — then writes the day your family will actually love.'],
+      ['Mila doesn’t plan a day at the park. She plans YOUR day.', ' Sized to your group, gentle where the ages need it, indoors when the rain shows up, shady when the heat does.'],
+      ['Bring the whole crew — grandma, the teens, the stroller.', ' Mila reads party size, age bands, weather and forecast like tea leaves, and pours out the smoothest day the park can give.'],
+      ['The difference between a plan and magic? Magic checks the radar.', ' Mila blends your group, your kids’ ages and the hour-by-hour forecast into a day that dodges the lines AND the rain.'],
+      ['Some apps know the waits. Mila knows your family.', ' How many, how tall, how brave — and what the clouds are up to. That’s how a good park day becomes the best one.'],
+      ['A planner gives everyone the same route. Your fairy tailors it.', ' Party size, ages, sun, showers and crowds all weighed — so the day feels made for you. Because it was.'],
+    ];
+    const [b, t] = M[Math.floor(Math.random() * M.length)];
+    document.getElementById('magic-line').innerHTML = `<b>${b}</b>${t}`;
+  })();
+  </script>
+</section>
 
 <section class="sec" id="ai">
   <div class="aidemo">
