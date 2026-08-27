@@ -3601,6 +3601,23 @@
   let wizStep = 0;
   let wizDraft = null;
   let wizNameStep = false;
+  // The park question never assumes "today" — half the visitors are planning
+  // tomorrow, next week, or ten days out. Eleven voices, one per opening
+  // (fixed for the whole wizard run so it doesn't flicker between steps).
+  const WIZ_PARK_QS = [
+    "Which park gets the magic — today, tomorrow, or any day you're dreaming of?",
+    'Where shall I wave the wand — this morning, or a day still on the calendar?',
+    'Pick a park, any park — I plan today, next week, or ten days out.',
+    'Which gates are we walking through — now, or on a day you are counting down to?',
+    "Where's the magic headed — today's park, or a trip still to come?",
+    "Choose your kingdom — I'll plan it for today or any day up to 60 out.",
+    'Which park is calling you? Near or far, today or someday soon.',
+    "Where do the fireworks go off — tonight, or a night you're still dreaming of?",
+    'Point me at a park — I read the crowds today, tomorrow and weeks ahead.',
+    "Which map do we unfold — for today, or a day you're saving up smiles for?",
+    "Where's the adventure — this very day, or one circled on the fridge calendar?",
+  ];
+  let wizParkQ = WIZ_PARK_QS[0];
   // Wizard answers reset at midnight park time too — each new park day
   // starts by re-confirming the group (prefilled from yesterday).
   const needsWizard = () => (profile ? profile.day !== parkDay() : localStorage.getItem('pp-wiz-seen') !== parkDay());
@@ -3637,6 +3654,7 @@
     // the remaining steps under the user's feet.
     wizNameStep = wizAsksName();
     wizStep = 0;
+    wizParkQ = WIZ_PARK_QS[Math.floor(Math.random() * WIZ_PARK_QS.length)];
     renderWiz();
     $('wiz').classList.add('open');
     $('wiz-bg').classList.add('open');
@@ -3709,8 +3727,8 @@
       const inp = body.querySelector('#wiz-name');
       setTimeout(() => inp.focus(), 150);
     } else if (step === 0) {
-      body.insertAdjacentHTML('beforeend', `<h2>📍 ${tr('Where are you headed today?')}</h2>
-        <select id="wiz-park" aria-label="${tr('Where are you headed today?')}"
+      body.insertAdjacentHTML('beforeend', `<h2>📍 ${tr(wizParkQ)}</h2>
+        <select id="wiz-park" aria-label="${tr('Which park are you planning?')}"
           style="width:100%;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.65rem .9rem;font-size:1rem;margin-bottom:.8rem"></select>
         <div class="chipgrid" id="wiz-where"></div>
         <p class="wiz-note">${tr('You can switch parks anytime from the picker at the top.')}</p>`);
