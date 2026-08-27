@@ -933,10 +933,13 @@
   <div class="card">
     <h2>Welcome to ParkPulse 🎢</h2>
     <p class="sub" id="ob-sub">Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:</p>
-    <div class="ob-step"><span>📡</span><div><b>See every wait, live</b>Pick your park up top. Waits refresh every minute, grouped by land, with hints like <i>"▼ 20 min below typical — go now"</i> so you catch the steals.</div></div>
-    <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b>Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</div></div>
-    <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b>One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</div></div>
-    <div class="ob-step"><span>💬</span><div><b>Ask the AI consultant</b>"Is Lightning Lane worth it today?" Honest advice from live data — including when to keep your money. Log in and it remembers your trip.</div></div>
+    <!-- Each run of copy is its own <span class="ob-t">, because the loop below
+         translates whole text units and a bare text node beside an <i> is not
+         one. The italic example keeps its own span for the same reason. -->
+    <div class="ob-step"><span>📡</span><div><b>See every wait, live</b><span class="ob-t">Pick your park up top. Waits refresh every minute, grouped by land, with hints like</span> <i class="ob-t">"▼ 20 min below typical — go now"</i> <span class="ob-t">so you catch the steals.</span></div></div>
+    <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b><span class="ob-t">Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</span></div></div>
+    <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b><span class="ob-t">One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</span></div></div>
+    <div class="ob-step"><span>💬</span><div><b>Ask the AI consultant</b><span class="ob-t">"Is Lightning Lane worth it today?" Honest advice from live data — including when to keep your money. Log in and it remembers your trip.</span></div></div>
     <button class="btn wide" id="onboard-go">Let's beat the lines →</button>
   </div>
 </div>
@@ -1100,9 +1103,9 @@
   function deltaHtml(r) {
     if (!r.open || r.typical == null || lastData.source !== 'live') return '';
     const d = r.wait - r.typical;
-    if (d <= -10) return `<div class="delta below">▼ ${-d} min below typical — go now</div>`;
-    if (d >= 10) return `<div class="delta above">▲ ${d} min above typical</div>`;
-    return `<div class="delta even">≈ typical for this ride</div>`;
+    if (d <= -10) return `<div class="delta below">▼ ${-d} ${tr('min below typical — go now')}</div>`;
+    if (d >= 10) return `<div class="delta above">▲ ${d} ${tr('min above typical')}</div>`;
+    return `<div class="delta even">≈ ${tr('typical for this ride')}</div>`;
   }
 
   // Park weather. Degrees follow the park's own convention (°F in the US) so
@@ -1689,11 +1692,11 @@
     const rode = doneOrder.includes(r.name);
     return `
       <div class="ride${rode ? ' isdone' : ''}">
-        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="Add ${esc(r.name)} to plan">
-        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="Favorite ${esc(r.name)}">★</button>
+        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
+        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="${tr('Favorite:')} ${esc(r.name)}">★</button>
         <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}${heightChips(r)}</span>
         <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
-        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `Alert set: under ${myAlerts[r.name]} min (tap to remove)` : 'Alert me when the wait drops'}" aria-label="Wait alert for ${esc(r.name)}">🔔</button>
+        <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `${tr('Alert set:')} ${tr('under')} ${myAlerts[r.name]} ${tr('min')} (${tr('tap to remove')})` : tr('Alert me when the wait drops')}" aria-label="${tr('Wait alert for:')} ${esc(r.name)}">🔔</button>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
         ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}${rideMetaLine(r)}</div>` : ''}
         ${srPromptHtml(r)}
@@ -1840,8 +1843,11 @@
       risks.push(`🥵 ${tr('Feels like')} ${degrees(peak.feels ?? peak.temp)} ${tr('around')} ${hourLabel(peak.hour)} — ${tr('water bottles and AC breaks are part of the plan')}`);
     }
     if (closer) risks.push(`🎟 ${tr('The plan ends by')} ${hourLabel(closer.closesEarlyAt)} — <b>${esc(closer.name)}</b> ${tr('needs its own ticket after that')}`);
-    if (planDay && planDay.level >= 5) risks.push(`👥 ${tr('A')} ${tr('Packed')} ${tr('day — expect every queue to run long; the order below matters more than usual')}`);
-    else if (planDay && planDay.level === 4) risks.push(`👥 ${tr('A')} ${tr('Busy')} ${tr('day — stick to the order; the margin for detours is thin')}`);
+    // One key per sentence, not three glued together. "A" + "Busy" + "day — ..."
+    // reads fine in English and comes out as "Um Movimentado dia" in Portuguese:
+    // adjective order is a property of the language, not of the string concat.
+    if (planDay && planDay.level >= 5) risks.push(`👥 ${tr('A Packed day — expect every queue to run long; the order below matters more than usual')}`);
+    else if (planDay && planDay.level === 4) risks.push(`👥 ${tr('A Busy day — stick to the order; the margin for detours is thin')}`);
     if (!planDate && lastData && lastData.source !== 'live') risks.push(`📶 ${tr("The park's live feed is quiet — this plan runs on typical patterns, so check waits as you go")}`);
     return { risks, wetHours, hotHours };
   }
@@ -2583,9 +2589,9 @@
     const savedLabel = saved >= 60
       ? `${Math.floor(saved / 60)} hr${saved % 60 ? ` ${saved % 60} min` : ''}`
       : `${saved} min`;
-    const savedPerk = saved >= 90 ? "that's 3-4 extra rides together (or one very peaceful sit-down lunch)"
+    const savedPerk = tr(saved >= 90 ? "that's 3-4 extra rides together (or one very peaceful sit-down lunch)"
       : saved >= 45 ? "that's an extra headliner AND an ice-cream stop"
-      : "that's one more ride together instead of a queue";
+      : "that's one more ride together instead of a queue");
     planOrder = steps.filter((s) => s.ride).map((s) => s.ride.name);
     // Breaks travel too: an emailed day that silently jumps 11:50 to 1:00
     // reads like a bug, when it is actually lunch.
@@ -2608,7 +2614,7 @@
     // Same story if the router produced steps but no rides in them.
     if (!steps.some((st) => st.ride)) { explainEmptyPlan(); return; }
     $('plan-out').innerHTML = `<div class="plan">
-      <button class="plan-x" id="plan-clear" aria-label="Dismiss plan">✕</button>
+      <button class="plan-x" id="plan-clear" aria-label="${tr('Dismiss plan')}">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
       ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")}</p>` : ''}
       ${riskBanner(risk)}
@@ -2628,18 +2634,18 @@
         <div id="planai-body" class="planai-b"></div>
         <div id="planai-act"></div>
       </div>
-      ${saved > 0 ? `<div class="savings"><img class="mila-mini" src="/img/mila/mila-celebrate-160.webp" alt=""> 🎉 This plan wins your family back ≈ ${savedLabel} of line time — ${savedPerk}.</div>` : ''}
+      ${saved > 0 ? `<div class="savings"><img class="mila-mini" src="/img/mila/mila-celebrate-160.webp" alt=""> 🎉 ${tr('This plan wins your family back')} ≈ ${savedLabel} ${tr('of line time —')} ${savedPerk}.</div>` : ''}
       <div class="planbase-h" id="planbase-h" style="display:none">${tr('The running order it started from')}</div>
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
         : `<div class="step${s.suggested || s.encore ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${stepBadges(s)}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.encore ? ` <span class="why">✨ ${tr('encore')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
-           <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="Just rode it — mark done" aria-label="Mark ${esc(s.ride.name)} ridden">✓</button></div>`
+           <span class="why">${s.why}</span></span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="${tr('Just rode it — mark done')}" aria-label="${tr('Mark as ridden:')} ${esc(s.ride.name)}">✓</button></div>`
       ).join('')}
       ${finaleAsk ? `<div class="fillnote" id="fin-ask">✨ ${tr("Everything's done with time to spare — how should the night go?")}<br>
         <button class="btn" id="fin-enc" style="margin:.5rem .4rem 0 0">✨ ${tr('Encore rides')}</button>
         <button class="btn" id="fin-chill" style="margin:.5rem 0 0">🌇 ${tr('Wind down')}</button></div>` : ''}
-      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 Fit them with ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
+      ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 ${tr('Fit them with')} ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
       <div class="mailcard">
         <img src="/img/mila/mila-celebrate-160.webp" alt="" width="44" height="44">
@@ -2973,8 +2979,14 @@
     $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
     $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
     $('search').placeholder = tr('Search rides…');
-    $('locate').title = tr('Find my park');
-    $('refresh').title = tr('Refresh waits');
+    // title AND aria-label: only the tooltip was being translated, so a
+    // screen reader in Portuguese still announced these two in English.
+    for (const [id, k] of [['locate', 'Find my park'], ['refresh', 'Refresh waits']]) {
+      const b = $(id);
+      b.title = tr(k);
+      b.setAttribute('aria-label', tr(k));
+    }
+    $('wiz').setAttribute('aria-label', tr('Your group'));
     $('acct-btn').title = tr('Account');
     for (const [id, k] of [['tab-today','Today'],['tab-plan','Plan'],['tab-dining','Dining'],['tab-map','Map'],['tab-you','You']]) {
       const el = document.getElementById(id); if (el) el.textContent = tr(k);
@@ -3014,9 +3026,22 @@
     $('ft-privacy').textContent = tr('Privacy');
     $('ob-sub').textContent = tr("Your family's secret weapon against theme-park lines — here's the whole app in 20 seconds:");
     document.querySelectorAll('#onboard .ob-step').forEach((stepEl) => {
+      // Headings were translated and the copy under them was not, so the sheet
+      // read half-Portuguese. Both are text units; translate both.
       const b = stepEl.querySelector('b');
       if (b) b.textContent = tr(b.textContent);
+      stepEl.querySelectorAll('.ob-t').forEach((t) => { t.textContent = tr(t.textContent); });
     });
+    // Dialog and control labels a screen reader reads out. Static in the HTML,
+    // so nothing was translating them.
+    for (const [id, k] of [['dest-star', 'Track this destination'], ['search', 'Search rides'],
+      ['plan-day-sel', 'Which day'], ['start-hour', 'Arrival time'], ['end-hour', 'Exit time'],
+      ['onboard', 'How ParkPulse works'], ['passpick', 'Find your pass']]) {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('aria-label', tr(k));
+    }
+    $('dest-star').title = tr('Track this destination in My parks');
+    $('ontrack-lbl').textContent = '✨ ' + tr('Still on track?');
     // read the DOM, not viewMode — this can run before that binding exists
     $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions');
   }
