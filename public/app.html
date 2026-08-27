@@ -288,8 +288,12 @@
   /* Touch screens get a real target. "Remove child" sits beside the height box,
      and at 26px a mis-tap deleted the row someone had just filled in. */
   #kid-unit button { min-height: 2rem; }
+  /* Sits on the last child row beside ✕. Filled in the brand colour so the
+     two circles never read as the same control. */
+  .hadd { border: none; background: var(--brand); color: #fff; border-radius: 999px;
+    width: 2rem; height: 2rem; font-size: 1rem; line-height: 1; cursor: pointer; flex-shrink: 0; }
   @media (pointer: coarse) {
-    .hclear { width: 2.5rem; height: 2.5rem; }
+    .hclear, .hadd { width: 2.5rem; height: 2.5rem; }
     #kid-unit button { min-height: 2.5rem; }
   }
   .hnote-sub { font-size: .74rem; color: var(--muted); margin: .35rem 0 0; }
@@ -3931,7 +3935,6 @@
             <span id="kid-unit" role="group" aria-label="${tr('Height unit')}" style="display:inline-flex">${seg('cm', 'cm')}${seg('ft', 'ft·in')}</span>
           </div>
           <div id="kid-rows"></div>
-          <button class="btn ghost2" id="kid-add" style="margin-top:.4rem;font-size:.85rem">＋ ${tr('Add a child')}</button>
           <p class="wiz-note">${tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.')} ✨</p></div>`;
         kidsWrap.querySelectorAll('#kid-unit button').forEach((b) => b.addEventListener('click', () => {
           if (kidUnit === b.dataset.unit) return;
@@ -3944,14 +3947,18 @@
         wizDraft.kids.forEach((k, i) => {
           const totalIn = k.cm > 0 ? cmToIn(k.cm) : 0;
           const row = document.createElement('div');
-          row.style.cssText = 'display:flex;gap:.5rem;align-items:center;margin-top:.45rem';
+          // wrap, not clip: the ft/in layout is already wide, and the last row
+          // carries an extra button.
+          row.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.45rem';
           row.innerHTML = `
             <input type="number" min="0" max="17" inputmode="numeric" placeholder="${tr('age')}" value="${k.age || ''}" aria-label="${tr('Child age')}" style="width:4.2rem;${inputCss}">
             ${ft
               ? `<input type="number" min="0" max="6" inputmode="numeric" placeholder="ft" value="${totalIn ? Math.floor(totalIn / 12) : ''}" aria-label="${tr("Child's height, feet")}" style="width:4.2rem;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">ft</b>
                  <input type="number" min="0" max="11" inputmode="numeric" placeholder="in" value="${totalIn ? totalIn % 12 : ''}" aria-label="${tr("Child's height, inches")}" style="width:4.2rem;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">in</b>`
               : `<input type="number" min="0" max="200" inputmode="numeric" placeholder="${tr('height')}" value="${k.cm > 0 ? k.cm : ''}" aria-label="${tr("Child's height")}" style="flex:1;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">cm</b>`}
-            <button class="hclear" aria-label="${tr('Remove child')}">✕</button>`;
+            <button class="hclear" aria-label="${tr('Remove child')}">✕</button>
+            ${i === wizDraft.kids.length - 1 && wizDraft.kids.length < 8
+              ? `<button class="hadd" id="kid-add" aria-label="${tr('Add a child')}" title="${tr('Add a child')}">＋</button>` : ''}`;
           const ins = row.querySelectorAll('input');
           ins[0].addEventListener('input', () => { k.age = Math.max(0, Math.min(17, Number(ins[0].value) || 0)); });
           if (ft) {
@@ -3978,12 +3985,17 @@
           });
           rows.appendChild(row);
         });
-        kidsWrap.querySelector('#kid-add').addEventListener('click', () => {
+        const addBtn = kidsWrap.querySelector('#kid-add');
+        if (addBtn) addBtn.addEventListener('click', () => {
           if (wizDraft.kids.length < 8) {
             wizDraft.kids.push({ age: 0, cm: 0 });
             wizDraft.party = Math.min(12, wizDraft.party + 1); // a child is a person too
             syncParty();
             renderKids();
+            // Straight into the new row: the next thing anyone types is an age.
+            const fresh = kidsWrap.querySelectorAll('#kid-rows > div');
+            const last = fresh[fresh.length - 1];
+            if (last) { const a = last.querySelector('input'); if (a) a.focus(); }
           }
         });
       };
