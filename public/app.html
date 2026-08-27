@@ -3839,32 +3839,60 @@
       // planner can hide every ride they'd be turned away from. Inputs write
       // straight into the draft — re-rendering per keystroke would steal focus.
       const kidsWrap = body.querySelector('#wiz-kids');
+      // The height unit is the visitor's choice, not the region's guess:
+      // a cm/ft toggle beside the heading, remembered across visits. Feet
+      // mode gives proper ft + in boxes; centimetres stay canonical.
+      let kidUnit = (() => { try { return localStorage.getItem('pp-kid-unit'); } catch { return null; } })();
+      if (kidUnit !== 'cm' && kidUnit !== 'ft') kidUnit = usesFahrenheit() ? 'ft' : 'cm';
       const renderKids = () => {
         if (!wizDraft.ages.includes('toddler') && !wizDraft.ages.includes('kid')) { kidsWrap.innerHTML = ''; return; }
         wizDraft.kids = Array.isArray(wizDraft.kids) ? wizDraft.kids : [];
         if (!wizDraft.kids.length) wizDraft.kids.push({ age: 0, cm: 0 });
-        const imp = usesFahrenheit();
-        kidsWrap.innerHTML = `<div style="margin-top:1rem"><b style="font-size:.92rem">📏 ${tr('Your little ones — age and height')}</b>
+        const ft = kidUnit === 'ft';
+        const seg = (u, label) => `<button type="button" data-unit="${u}" style="border:1px solid var(--border);background:${kidUnit === u ? 'var(--brand)' : 'var(--bg)'};color:${kidUnit === u ? '#fff' : 'var(--ink)'};font-weight:700;font-size:.8rem;padding:.28rem .7rem;cursor:pointer;${u === 'cm' ? 'border-radius:999px 0 0 999px' : 'border-radius:0 999px 999px 0;border-left:0'}">${label}</button>`;
+        kidsWrap.innerHTML = `<div style="margin-top:1rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+            <b style="font-size:.92rem">📏 ${tr('Your little ones — age and height')}</b>
+            <span id="kid-unit" role="group" aria-label="${tr('Height unit')}" style="display:inline-flex">${seg('cm', 'cm')}${seg('ft', 'ft·in')}</span>
+          </div>
           <div id="kid-rows"></div>
           <button class="btn ghost2" id="kid-add" style="margin-top:.4rem;font-size:.85rem">＋ ${tr('Add a child')}</button>
           <p class="wiz-note">${tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.')} ✨</p></div>`;
+        kidsWrap.querySelectorAll('#kid-unit button').forEach((b) => b.addEventListener('click', () => {
+          if (kidUnit === b.dataset.unit) return;
+          kidUnit = b.dataset.unit;
+          try { localStorage.setItem('pp-kid-unit', kidUnit); } catch {}
+          renderKids(); // stored cm converts on the way back in
+        }));
         const rows = kidsWrap.querySelector('#kid-rows');
+        const inputCss = 'border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem';
         wizDraft.kids.forEach((k, i) => {
+          const totalIn = k.cm > 0 ? cmToIn(k.cm) : 0;
           const row = document.createElement('div');
           row.style.cssText = 'display:flex;gap:.5rem;align-items:center;margin-top:.45rem';
           row.innerHTML = `
-            <input type="number" min="0" max="17" inputmode="numeric" placeholder="${tr('age')}" value="${k.age || ''}" aria-label="${tr('Child age')}"
-              style="width:4.4rem;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem">
-            <input type="number" min="0" max="${imp ? 79 : 200}" inputmode="numeric" placeholder="${tr('height')}" value="${k.cm > 0 ? (imp ? cmToIn(k.cm) : k.cm) : ''}" aria-label="${tr("Child's height")}"
-              style="flex:1;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem">
-            <b style="font-size:.85rem;color:var(--muted)">${imp ? tr('inches') : 'cm'}</b>
+            <input type="number" min="0" max="17" inputmode="numeric" placeholder="${tr('age')}" value="${k.age || ''}" aria-label="${tr('Child age')}" style="width:4.2rem;${inputCss}">
+            ${ft
+              ? `<input type="number" min="0" max="6" inputmode="numeric" placeholder="ft" value="${totalIn ? Math.floor(totalIn / 12) : ''}" aria-label="${tr("Child's height, feet")}" style="width:4.2rem;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">ft</b>
+                 <input type="number" min="0" max="11" inputmode="numeric" placeholder="in" value="${totalIn ? totalIn % 12 : ''}" aria-label="${tr("Child's height, inches")}" style="width:4.2rem;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">in</b>`
+              : `<input type="number" min="0" max="200" inputmode="numeric" placeholder="${tr('height')}" value="${k.cm > 0 ? k.cm : ''}" aria-label="${tr("Child's height")}" style="flex:1;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">cm</b>`}
             <button class="hclear" aria-label="${tr('Remove child')}">✕</button>`;
-          const [ageIn, hIn] = row.querySelectorAll('input');
-          ageIn.addEventListener('input', () => { k.age = Math.max(0, Math.min(17, Number(ageIn.value) || 0)); });
-          hIn.addEventListener('input', () => {
-            const v = Number(hIn.value);
-            k.cm = Number.isFinite(v) && v > 0 ? Math.min(200, Math.floor(imp ? v * 2.54 : v)) : 0;
-          });
+          const ins = row.querySelectorAll('input');
+          ins[0].addEventListener('input', () => { k.age = Math.max(0, Math.min(17, Number(ins[0].value) || 0)); });
+          if (ft) {
+            const sync = () => {
+              const f = Math.max(0, Math.min(6, Number(ins[1].value) || 0));
+              const inch = Math.max(0, Math.min(11, Number(ins[2].value) || 0));
+              k.cm = (f || inch) ? Math.min(200, Math.round((f * 12 + inch) * 2.54)) : 0;
+            };
+            ins[1].addEventListener('input', sync);
+            ins[2].addEventListener('input', sync);
+          } else {
+            ins[1].addEventListener('input', () => {
+              const v = Number(ins[1].value);
+              k.cm = Number.isFinite(v) && v > 0 ? Math.min(200, Math.floor(v)) : 0;
+            });
+          }
           row.querySelector('.hclear').addEventListener('click', () => { wizDraft.kids.splice(i, 1); renderKids(); });
           rows.appendChild(row);
         });
