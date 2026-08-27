@@ -291,6 +291,7 @@
   /* Touch screens get a real target. "Remove child" sits beside the height box,
      and at 26px a mis-tap deleted the row someone had just filled in. */
   #kid-unit button { min-height: 2rem; }
+  .kid-hint { margin: .45rem 0 0; font-size: .78rem; color: var(--muted); }
   /* Sits on the last child row beside ✕. Filled in the brand colour so the
      two circles never read as the same control. */
   .hadd { border: none; background: var(--brand); color: #fff; border-radius: 999px;
@@ -4001,6 +4002,10 @@
             <span id="kid-unit" role="group" aria-label="${tr('Height unit')}" style="display:inline-flex">${seg('cm', 'cm')}${seg('ft', 'ft·in')}</span>
           </div>
           <div id="kid-rows"></div>
+          <!-- The add button lost its label when it moved inline onto the row,
+               which cost the affordance: a bare ＋ beside a ✕ does not announce
+               itself. Say what it does, and only while there is room to add. -->
+          <p class="kid-hint" style="display:none">${tr('Tap ＋ to add another child.')}</p>
           <p class="wiz-note">${tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.')} ✨</p></div>`;
         kidsWrap.querySelectorAll('#kid-unit button').forEach((b) => b.addEventListener('click', () => {
           if (kidUnit === b.dataset.unit) return;
@@ -4010,6 +4015,8 @@
         }));
         const rows = kidsWrap.querySelector('#kid-rows');
         const inputCss = 'border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem';
+        const hint = kidsWrap.querySelector('.kid-hint');
+        if (hint) hint.style.display = wizDraft.kids.length < 8 ? '' : 'none';
         wizDraft.kids.forEach((k, i) => {
           const totalIn = k.cm > 0 ? cmToIn(k.cm) : 0;
           const row = document.createElement('div');
