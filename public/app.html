@@ -2248,6 +2248,12 @@
     if ($('start-hour').value === 'now' && !futureDay && t >= end) t = p.open;
     if (end <= t) { alert('End time must be after start time.'); return; }
     const doneSet = new Set(planDate ? [] : doneOrder);
+    // Elderly guests in the party reshape the day's rhythm: a gentler walking
+    // pace between steps, a proper afternoon rest, and a nudge toward shows
+    // and gentle rides — without taking the thrills away from the rest.
+    const elderly = Boolean(profile && profile.ages.includes('elderly'));
+    const paceExtra = elderly ? 6 : 0;
+    let rested = !elderly;
     // On a future day, today's closures say nothing — plan the whole list.
     const remaining = rides.filter((r) => pickedNames.has(r.name) && (r.open || futureDay) && !doneSet.has(r.name));
     if (!remaining.length) return;
@@ -2334,6 +2340,12 @@
         lunchDone = true;
         continue;
       }
+      if (!rested && t >= 15 && t < 17) {
+        steps.push({ time: t, break: '☕ ' + tr('Afternoon rest'), why: tr('A slower half-hour keeps the evening magical for everyone — coffee, shade, and a good bench') });
+        t += 0.5;
+        rested = true;
+        continue;
+      }
       if (!showDone && t >= show.hour - 0.25) {
         steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: 'Grab a spot a few minutes early' });
         t = show.hour + show.duration;
@@ -2372,7 +2384,8 @@
       // Group preference nudge: favorite vibes score better, rides below the
       // youngest rider's band score worse (still schedulable — mixed groups
       // use Rider Switch — just not first picks).
-      const prefAdj = (r) => (vibeHit(r.name) ? -8 : 0) + (ageOk(r.name) ? 0 : 25);
+      const prefAdj = (r) => (vibeHit(r.name) ? -8 : 0) + (ageOk(r.name) ? 0 : 25)
+        + (elderly && ['show', 'gentle', 'family'].includes(((tagsCache[current] || {})[r.name] || {}).vibe) ? -5 : 0);
       const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r)) + prefAdj(r);
       // When the advisor's order is in force, follow it. buildPlan otherwise
       // scores every ride and re-derives its own sequence — which meant
@@ -2399,7 +2412,7 @@
       steps.push({ time: t, ride, predicted, suggested: fillMode && !encoreMode, encore: encoreMode, ll: llSet.has(ride.name), why: encoreMode
         ? '✨ ' + (favs.has(ride.name) ? tr('Victory lap — your favorite, one more time while the line is short') : t >= 16 ? tr('Victory lap — ride the big one again while everyone else is at dinner') : tr('Victory lap — the line is short right now, so ride it again'))
         : (llSet.has(ride.name) ? `🎟 ${parks[current].skip?.name || 'Skip pass'} — walk on` : srOn(ride.name) ? '🚶 ' + tr('single rider — party rides separately') : (why || (mult <= 0.6 ? tr('Low-crowd window — headliner time') : mult >= 1.05 ? tr('Peak hours — short line to knock out') : tr('Moderate crowds')))) + (stayed ? ' · ' + tr('short walk, same land') : '') });
-      t += (predicted + RIDE_MINUTES) / 60;
+      t += (predicted + RIDE_MINUTES + paceExtra) / 60;
     }
     // A finished day can still leave a gap before the show — name it rather
     // than leaving dead air: the wind-down is part of the plan too. (The
@@ -3604,11 +3617,18 @@
       strict: raw.strict === true,
       day: typeof raw.day === 'string' ? raw.day : '',
       finale: ['encore', 'laps', 'chill', 'ask'].includes(raw.finale) ? raw.finale : 'encore',
+      // Per-child detail: age in years, height in cm (canonical — the UI
+      // converts to inches for imperial folks). Height drives ride minimums.
+      kids: Array.isArray(raw.kids)
+        ? raw.kids.filter((k) => k && typeof k === 'object')
+          .map((k) => ({ age: Math.max(0, Math.min(17, Number(k.age) || 0)), cm: Math.max(0, Math.min(200, Number(k.cm) || 0)) }))
+          .slice(0, 8)
+        : [],
     };
   }
   try { profile = normalizeProfile(JSON.parse(localStorage.getItem('pp-profile') || 'null')); } catch {}
   const saveProfile = () => { try { localStorage.setItem('pp-profile', JSON.stringify(profile)); } catch {} };
-  const AGE_BANDS = [['toddler', '👶', 'Toddlers'], ['kid', '🧒', 'Kids'], ['teen', '🧑', 'Teens'], ['adult', '🧔', 'Adults']];
+  const AGE_BANDS = [['toddler', '👶', 'Toddlers'], ['kid', '🧒', 'Kids'], ['teen', '🧑', 'Teens'], ['adult', '🧔', 'Adults'], ['elderly', '🧓', 'Elderly']];
   // The fairy preference: what Mila does with the happy problem of a day
   // where every attraction is done and the park is still open.
   const FINALE_OPTS = [
@@ -3699,6 +3719,17 @@
       profile = normalizeProfile(wizDraft) || wizDraft;
       profile.day = parkDay();
       saveProfile();
+      // The shortest child is the binding constraint: their height becomes
+      // the ride filter, so "you must be this tall" surprises never make the
+      // plan. Clearing all kids clears the filter with them.
+      const hs = (profile.kids || []).map((k) => k.cm).filter((c) => c > 0);
+      if (hs.length) {
+        fHeight = Math.min(...hs);
+        try { localStorage.setItem('pp-child-height', String(fHeight)); } catch {}
+      } else if (!profile.ages.includes('toddler') && !profile.ages.includes('kid')) {
+        fHeight = 0;
+        try { localStorage.removeItem('pp-child-height'); } catch {}
+      }
       scheduleSync();
       applyProfileDefaults();
       renderGroupChip();
@@ -3719,8 +3750,10 @@
     const n = wizStepCount();
     $('wiz-dots').innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i === wizStep ? 'on' : ''}"></i>`).join('');
     $('wiz-skip').textContent = tr('Skip');
-    $('wiz-back').textContent = tr('Back');
-    $('wiz-back').style.visibility = wizStep === 0 ? 'hidden' : 'visible';
+    // The first screen's Back returns to wherever the visitor came from
+    // (it closes the wizard) instead of being a dead corner.
+    $('wiz-back').textContent = wizStep === 0 ? '← ' + tr('Back') : tr('Back');
+    $('wiz-back').style.visibility = 'visible';
     $('wiz-next').textContent = wizStep === n - 1 ? tr('Done') : tr('Next');
     const body = $('wiz-body');
     const chip = (label, on, cb) => {
@@ -3791,7 +3824,8 @@
     } else if (step === 1) {
       body.innerHTML = `<h2>👥 ${tr("Who's going?")}</h2>
         <div class="stepper"><button id="wiz-minus">−</button><b id="wiz-count">${wizDraft.party}</b><button id="wiz-plus">+</button></div>
-        <div class="chipgrid" id="wiz-ages"></div>`;
+        <div class="chipgrid" id="wiz-ages"></div>
+        <div id="wiz-kids"></div>`;
       body.querySelector('#wiz-minus').addEventListener('click', () => { wizDraft.party = Math.max(1, wizDraft.party - 1); $('wiz-count').textContent = wizDraft.party; });
       body.querySelector('#wiz-plus').addEventListener('click', () => { wizDraft.party = Math.min(12, wizDraft.party + 1); $('wiz-count').textContent = wizDraft.party; });
       const grid = body.querySelector('#wiz-ages');
@@ -3801,6 +3835,44 @@
           renderWiz();
         }));
       }
+      // Kids get names on the guest list: an age and a height each, so the
+      // planner can hide every ride they'd be turned away from. Inputs write
+      // straight into the draft — re-rendering per keystroke would steal focus.
+      const kidsWrap = body.querySelector('#wiz-kids');
+      const renderKids = () => {
+        if (!wizDraft.ages.includes('toddler') && !wizDraft.ages.includes('kid')) { kidsWrap.innerHTML = ''; return; }
+        wizDraft.kids = Array.isArray(wizDraft.kids) ? wizDraft.kids : [];
+        if (!wizDraft.kids.length) wizDraft.kids.push({ age: 0, cm: 0 });
+        const imp = usesFahrenheit();
+        kidsWrap.innerHTML = `<div style="margin-top:1rem"><b style="font-size:.92rem">📏 ${tr('Your little ones — age and height')}</b>
+          <div id="kid-rows"></div>
+          <button class="btn ghost2" id="kid-add" style="margin-top:.4rem;font-size:.85rem">＋ ${tr('Add a child')}</button>
+          <p class="wiz-note">${tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.')} ✨</p></div>`;
+        const rows = kidsWrap.querySelector('#kid-rows');
+        wizDraft.kids.forEach((k, i) => {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;gap:.5rem;align-items:center;margin-top:.45rem';
+          row.innerHTML = `
+            <input type="number" min="0" max="17" inputmode="numeric" placeholder="${tr('age')}" value="${k.age || ''}" aria-label="${tr('Child age')}"
+              style="width:4.4rem;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem">
+            <input type="number" min="0" max="${imp ? 79 : 200}" inputmode="numeric" placeholder="${tr('height')}" value="${k.cm > 0 ? (imp ? cmToIn(k.cm) : k.cm) : ''}" aria-label="${tr("Child's height")}"
+              style="flex:1;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem">
+            <b style="font-size:.85rem;color:var(--muted)">${imp ? tr('inches') : 'cm'}</b>
+            <button class="hclear" aria-label="${tr('Remove child')}">✕</button>`;
+          const [ageIn, hIn] = row.querySelectorAll('input');
+          ageIn.addEventListener('input', () => { k.age = Math.max(0, Math.min(17, Number(ageIn.value) || 0)); });
+          hIn.addEventListener('input', () => {
+            const v = Number(hIn.value);
+            k.cm = Number.isFinite(v) && v > 0 ? Math.min(200, Math.floor(imp ? v * 2.54 : v)) : 0;
+          });
+          row.querySelector('.hclear').addEventListener('click', () => { wizDraft.kids.splice(i, 1); renderKids(); });
+          rows.appendChild(row);
+        });
+        kidsWrap.querySelector('#kid-add').addEventListener('click', () => {
+          if (wizDraft.kids.length < 8) { wizDraft.kids.push({ age: 0, cm: 0 }); renderKids(); }
+        });
+      };
+      renderKids();
     } else if (step === 2) {
       body.innerHTML = `<h2>🎢 ${tr('What does your group love?')}</h2><div class="chipgrid" id="wiz-vibes"></div><div id="wiz-strict" style="margin-top:1rem"></div>`;
       const grid = body.querySelector('#wiz-vibes');
@@ -3837,7 +3909,7 @@
     if (wizStep >= wizStepCount() - 1) closeWizard(true);
     else { wizStep++; renderWiz(); }
   });
-  $('wiz-back').addEventListener('click', () => { if (wizStep > 0) { wizStep--; renderWiz(); } });
+  $('wiz-back').addEventListener('click', () => { if (wizStep > 0) { wizStep--; renderWiz(); } else closeWizard(false); });
   $('wiz-skip').addEventListener('click', () => closeWizard(false));
   $('wiz-bg').addEventListener('click', () => closeWizard(false));
 

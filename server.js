@@ -204,13 +204,17 @@ function mintWaCode(email) {
 }
 
 function sanitizeProfile(rawP) {
-  const AGES = ['toddler', 'kid', 'teen', 'adult'];
+  const AGES = ['toddler', 'kid', 'teen', 'adult', 'elderly'];
   const VIBES = ['gentle', 'family', 'thrill', 'water', 'show'];
   return rawP && typeof rawP === 'object' ? {
     party: Number.isInteger(rawP.party) && rawP.party >= 1 && rawP.party <= 20 ? rawP.party : null,
-    ages: Array.isArray(rawP.ages) ? rawP.ages.filter((a) => AGES.includes(a)).slice(0, 4) : [],
+    ages: Array.isArray(rawP.ages) ? rawP.ages.filter((a) => AGES.includes(a)).slice(0, 5) : [],
     vibes: Array.isArray(rawP.vibes) ? rawP.vibes.filter((v) => VIBES.includes(v)).slice(0, 5) : [],
     onsite: typeof rawP.onsite === 'boolean' ? rawP.onsite : null,
+    kids: Array.isArray(rawP.kids)
+      ? rawP.kids.filter((k) => k && typeof k === 'object').slice(0, 8)
+        .map((k) => ({ age: Math.max(0, Math.min(17, Number(k.age) || 0)), cm: Math.max(0, Math.min(200, Number(k.cm) || 0)) }))
+      : [],
   } : null;
 }
 
@@ -3441,7 +3445,7 @@ ${sections}
         const kind = parsed.kind === 'fav' ? 'fav' : 'rate';
         const vote = parsed.vote === -1 ? -1 : 1;
         if (!park || !ride) return sendJson(res, 400, { error: 'invalid' });
-        const BANDS = new Set(['toddler', 'kid', 'teen', 'adult']);
+        const BANDS = new Set(['toddler', 'kid', 'teen', 'adult', 'elderly']);
         const ages = Array.isArray(parsed.ages) ? parsed.ages.filter((a) => BANDS.has(a)).slice(0, 4) : [];
         db.ratings.set(s2.email, park, ride, kind, vote, JSON.stringify(ages));
         return sendJson(res, 200, { ok: true });
