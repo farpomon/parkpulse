@@ -282,7 +282,14 @@
   .hrow input { width: 6rem; font: inherit; padding: .45rem .6rem; border: 1.5px solid var(--border); border-radius: 10px;
     background: var(--bg); color: var(--ink); }
   .hrow b { color: var(--muted); font-size: .85rem; }
-  .hclear { border: none; background: var(--border); border-radius: 999px; width: 1.6rem; height: 1.6rem; cursor: pointer; color: var(--ink); }
+  .hclear { border: none; background: var(--border); border-radius: 999px; width: 2rem; height: 2rem; cursor: pointer; color: var(--ink); flex-shrink: 0; }
+  /* Touch screens get a real target. "Remove child" sits beside the height box,
+     and at 26px a mis-tap deleted the row someone had just filled in. */
+  #kid-unit button { min-height: 2rem; }
+  @media (pointer: coarse) {
+    .hclear { width: 2.5rem; height: 2.5rem; }
+    #kid-unit button { min-height: 2.5rem; }
+  }
   .hnote-sub { font-size: .74rem; color: var(--muted); margin: .35rem 0 0; }
   .clnote { margin: 0 0 .6rem; font-size: .82rem; color: var(--ink); background: var(--gold-soft, #fdf3e0);
     border: 1px solid var(--gold, #b8791a); border-radius: 10px; padding: .55rem .75rem; }

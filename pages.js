@@ -35,9 +35,13 @@ const CSS = `
   @media (prefers-color-scheme: dark) { :root { --bg:#17122b; --card:#221b3d; --ink:#efecfc; --muted:#a79fc4; --brand:#8f7bf0; --border:#362c5c; --green:#5ecb96; --green-soft:#1c3a2c; --gold:#e5b955; --gold-soft:#3d331f; --red:#ef8b96; --red-soft:#46242a; } }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",system-ui,sans-serif}
   .wrap{max-width:780px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
-  nav{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0 1.5rem}
-  .logo{font-weight:800;font-size:1.15rem;color:var(--brand);text-decoration:none}
-  nav a.plain{color:var(--ink);text-decoration:none;font-weight:500;margin-left:1rem}
+  /* On a phone the flex row squeezed the link group until "All parks" broke
+     across two lines with the logo. Each label is now unbreakable and the row
+     wraps as a whole instead. */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0 1.5rem;flex-wrap:wrap;gap:.35rem 1rem}
+  .logo{font-weight:800;font-size:1.15rem;color:var(--brand);text-decoration:none;white-space:nowrap}
+  nav>span{display:flex;flex-wrap:wrap;align-items:center;gap:0 1rem}
+  nav a.plain{color:var(--ink);text-decoration:none;font-weight:500;white-space:nowrap}
   h1{font-size:1.75rem;line-height:1.2;margin:.25rem 0 .5rem}
   .sub{color:var(--muted);margin:0 0 1.25rem}
   h2{font-size:1.3rem;margin:2.25rem 0 .6rem;scroll-margin-top:1rem}
