@@ -162,13 +162,26 @@ function milaHover() {
   var M = ${JSON.stringify(MILA_HOVER_MSGS)};
   var el = document.getElementById('mh'), msg = document.getElementById('mh-msg');
   if (!el || !msg) return;
+  // These lines were injected raw, so Mila kept her sales pitch in English on
+  // a page the visitor was reading in their own language. Not every page that
+  // shows her loads i18n.js, so pull it in when it is missing.
+  if (!window.PP_T && !document.querySelector('script[src="/i18n.js"]')) {
+    var s = document.createElement('script'); s.src = '/i18n.js'; document.head.appendChild(s);
+  }
+  var T = function (k) { return (window.PP_T && window.PP_T(k)) || k; };
   var i = Math.floor(Math.random() * M.length);
-  msg.textContent = M[i];
-  setTimeout(function(){ el.classList.add('on'); }, 2200);
+  // She appears after 2.2s either way, which is ample for the dictionary to
+  // land; awaiting PP_READY as well covers a slow network.
+  setTimeout(function(){
+    Promise.resolve(window.PP_READY).then(function(){
+      msg.textContent = T(M[i]);
+      el.classList.add('on');
+    });
+  }, 2200);
   setInterval(function(){
     i = (i + 1) % M.length;
     msg.style.opacity = 0;
-    setTimeout(function(){ msg.textContent = M[i]; msg.style.opacity = 1; }, 350);
+    setTimeout(function(){ msg.textContent = T(M[i]); msg.style.opacity = 1; }, 350);
   }, 14000);
   document.getElementById('mh-x').addEventListener('click', function(){
     el.classList.remove('on');
