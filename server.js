@@ -1269,6 +1269,25 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
        Mail auto-invert the card and the purple header turns muddy. -->
   <meta name="color-scheme" content="light">
   <meta name="supported-color-schemes" content="light">
+  <!-- Mail apps hunt for dates, addresses and phone numbers and wrap them in
+       their own <a>, styled their way. On the purple header that turned
+       "Friday, August 28" into dark green underlined text nobody could read.
+       Ask them not to, then override the styling for the ones that do it
+       anyway -- the injected link is not in our markup, so only a selector can
+       reach it. -->
+  <meta name="format-detection" content="date=no,telephone=no,address=no,email=no">
+  <style>
+    /* Apple Mail / iOS tags its detected links with this attribute. */
+    a[x-apple-data-detectors] {
+      color: inherit !important; text-decoration: none !important;
+      font-size: inherit !important; font-family: inherit !important;
+      font-weight: inherit !important; line-height: inherit !important;
+    }
+    /* Outlook mobile and the rest: anything auto-linked inside the header keeps
+       the header's own colour. Real links there are set explicitly elsewhere. */
+    .pp-head a, .pp-head a span { color: #ffffff !important; text-decoration: none !important; }
+    u + #body a, #MessageViewBody a { color: inherit !important; text-decoration: none !important; }
+  </style>
   <title>Your ${esc(park.name)} day plan</title>
   </head><body style="margin:0;padding:0;background:#f7f5ff">
   <div style="display:none;font-size:1px;color:#f7f5ff;max-height:0;overflow:hidden;mso-hide:all">${preheader}</div>
@@ -1278,10 +1297,10 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
          ignores linear-gradient entirely. Without the attribute the header lost
          its background and printed white text on white. -->
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr>
-     <td style="padding:26px 0 20px 26px;color:#fff" valign="middle">
+     <td class="pp-head" style="padding:26px 0 20px 26px;color:#fff" valign="middle">
       <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · ${future ? 'advance plan' : 'live route'} · ${esc(park.name)}</div>
       <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">${pick(HEADLINES)}</div>
-      <div style="opacity:.85;font-size:14px;margin-top:4px">${day} · sequenced around ${future ? "that day's predicted crowds" : 'live waits'}, park geography, and the rides you care about.</div>
+      <div style="opacity:.85;font-size:14px;margin-top:4px"><span style="color:#fff;text-decoration:none">${day}</span> · sequenced around ${future ? "that day's predicted crowds" : 'live waits'}, park geography, and the rides you care about.</div>
      </td>
      <td width="128" valign="middle" align="center" style="padding:20px 18px 14px 8px">
       <img src="${MILA('mila-welcome-160')}" width="104" height="104" alt="Mila, your park fairy" style="border-radius:99px;display:block;border:3px solid rgba(255,255,255,.6)">
