@@ -1143,7 +1143,11 @@
   const hasPlanFor = (park, d) => plannedDays(park).some((x) => dayKey(x) === dayKey(d));
   function rememberPlanDay(park, d) {
     const st = planStash[park] || (planStash[park] = { last: null, days: [] });
-    if (!hasPlanFor(park, d)) st.days.push(d || null);
+    // Drop any existing entry for this day first, then push it fresh, so the
+    // array order is recency of last visit -- not first insertion. Without
+    // this a day you just re-opened could still be the one the cap evicts.
+    st.days = st.days.filter((x) => dayKey(x) !== dayKey(d));
+    st.days.push(d || null);
     // A visitor replanning all week does not need last month's Tuesdays.
     if (st.days.length > 14) st.days = st.days.slice(-14);
     st.last = d || null;
@@ -2467,17 +2471,28 @@
     const usable = rides.filter((r) => !doneSet.has(r.name));
     const doneAll = rides.length > 0 && !usable.length;
     const filtered = usable.length > 0 && !usable.some((r) => passesFilter(r));
-    const tooShort = !doneAll && !filtered;
+    // Same test buildPlan's `plannable()` runs, scoped to what was actually
+    // picked: a closure elsewhere in the park is not why THIS plan came back
+    // empty, but a picked headliner shut for the foreseeable future is.
+    const shutLong = new Set(closureList.map((c) => c.name));
+    const pickedUsable = usable.filter((r) => pickedNames.has(r.name));
+    const closedLong = !doneAll && !filtered && pickedUsable.length > 0
+      && pickedUsable.every((r) => shutLong.has(r.name) && !r.open);
+    const tooShort = !doneAll && !filtered && !closedLong;
     const why = doneAll
       ? tr('You have already ticked off every attraction here — nothing left to queue for!')
       : filtered
         ? tr('Your current filters rule out every attraction in this park.')
-        : tr('Nothing fits between your arrival and departure times yet.');
+        : closedLong
+          ? tr("The attraction(s) you picked are closed long-term — Mila won't route you to a wall.")
+          : tr('Nothing fits between your arrival and departure times yet.');
     const fix = doneAll
       ? tr('Untick a few in Park attractions to ride them again, or try another park.')
       : filtered
         ? tr('Widen them and Mila will fill the day.')
-        : tr('Try arriving earlier or leaving later, then plan again.');
+        : closedLong
+          ? tr('Pick something else in Park attractions and plan again, or try another park.')
+          : tr('Try arriving earlier or leaving later, then plan again.');
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="${tr('Dismiss plan')}">✕</button>
       <h2>${tr("Mila couldn't fill this day")}</h2>
@@ -2875,6 +2890,11 @@
     // plan and wants a different date it is off-screen behind them.
     const paDay = $('plan-out').querySelector('#pa-day');
     if (paDay) paDay.addEventListener('click', () => {
+      // The Day picker is hidden outright for free-tier visitors (see
+      // renderDayOptions) -- scrolling to it would land on nothing. Planning
+      // another day is exactly what the pass unlocks, so say so instead of
+      // silently doing nothing to the one person most worth telling.
+      if (!isPro) { openPassPick(); return; }
       setPane('plan', { scroll: false });
       const sel = $('plan-day-sel');
       sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3023,7 +3043,7 @@
     try { if (parks[current]?.tz) localStorage.setItem('pp-tz', parks[current].tz); } catch {}
     loadDone();
     if (plannerPark !== null && plannerPark !== current) {
-      llSet.clear(); hidePlanNote(); openDesc.clear();
+      llSet.clear(); hidePlanNote(); openDesc.clear(); closureList = [];
       if (viewMode === 'dining') renderDining();
       // A chat transcript is advice about one park. Carrying it into another
       // reads as nonsense and, worse, gets sent back as context.
@@ -3155,7 +3175,6 @@
     // that plan straight back rather than making you ask for it again. Both
     // paths are free: the order is local arithmetic and Mila replays from cache.
     if ($('plan-out').querySelector('.plan') || hasPlanFor(current, planDate)) buildPlan({ quiet: true });
-    renderDayOptions();
   });
 
   $('pick-all').addEventListener('click', () => {
@@ -3387,7 +3406,6 @@
     if (!rides.length || !parks[current]) return hide();
     const planned = new Set(planOrder);
     const done = new Set(doneOrder);
-    const hasPlan = Boolean($('plan-out').querySelector('.plan'));
     // Same filters as the board -- a card that offers a ride the height
     // filter hides is the heartbreak those filters exist to prevent.
     const pool = rides.filter(passesFilter);
