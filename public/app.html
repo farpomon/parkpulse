@@ -266,6 +266,17 @@
   .ph-btn { flex: 0 0 auto; background: #fff; color: var(--brand); border: none; border-radius: 10px;
     font-weight: 800; font-size: .95rem; padding: .7rem 1.1rem; cursor: pointer; }
   .ph-btn:active { transform: scale(.97); }
+  /* Mila's word at the top of a finished plan. A plan arrives as a fait
+     accompli otherwise, and the one thing people most want to change about it
+     -- the date -- lives in a control they have already scrolled past. */
+  .planask { display: flex; gap: .7rem; align-items: flex-start; background: var(--brand-soft, #f2effe);
+    border: 1px solid var(--border); border-radius: 14px; padding: .7rem .8rem; margin: 0 0 .8rem; }
+  .planask img { width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto; }
+  .planask .pa-t { flex: 1 1 auto; min-width: 0; font-size: .88rem; line-height: 1.4; }
+  .planask .pa-btns { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .5rem; }
+  .planask .pa-btns button { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
+    border-radius: 999px; font: inherit; font-weight: 700; font-size: .8rem; padding: .35rem .7rem; cursor: pointer; }
+  .planask .pa-btns button:active { transform: scale(.97); }
   .planai-done { font-size: .82rem; font-weight: 700; color: var(--green, #2e9e6b); }
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
@@ -1957,6 +1968,17 @@
     'Ready for your best park day ever? Mila is! One tap and she plans the whole adventure — and checks it twice.',
   ];
 
+  // Mila checking in on a plan she just handed over. Rotated so a family that
+  // replans four times in an evening is not read the same sentence four times.
+  const PLAN_ASK = [
+    "Happy with this one? I can plan any other day too — just say when ✨",
+    "Does this day work for you? Point me at another date and I'll do it all again ✨",
+    "How's that? If another day suits you better, I'll replan in a blink ✨",
+    "Like the look of it? I can plan ahead for any day you fancy ✨",
+    "Say the word if you'd rather a different day — I've got the whole calendar ✨",
+    "This is my best read of that day. Want me to try another one? ✨",
+  ];
+  const planAskLine = () => tr(PLAN_ASK[Math.floor(Math.random() * PLAN_ASK.length)]);
   let planIntroHtml = '';
   function pickPlanIntro() {
     const line = MILA_PLAN_OPENERS[Math.floor(Math.random() * MILA_PLAN_OPENERS.length)];
@@ -2426,8 +2448,13 @@
     const elderly = Boolean(profile && profile.ages.includes('elderly'));
     const paceExtra = elderly ? 6 : 0;
     let rested = !elderly;
-    // On a future day, today's closures say nothing — plan the whole list.
-    const remaining = rides.filter((r) => pickedNames.has(r.name) && (r.open || futureDay || closedNow) && !doneSet.has(r.name));
+    // On a future day, today's closures say nothing -- a ride shut this
+    // morning will likely be open on Saturday, so `futureDay` lets it through.
+    // A LONG-TERM closure is different: it has been shut all day for days
+    // running, and scheduling it for Saturday sends a family to a wall.
+    const shutLong = new Set(closureList.map((c) => c.name));
+    const plannable = (r) => (r.open || futureDay || closedNow) && !(shutLong.has(r.name) && !r.open);
+    const remaining = rides.filter((r) => pickedNames.has(r.name) && plannable(r) && !doneSet.has(r.name));
     // Nothing to route. This bare `return` is where every silent "Plan it for
     // me" failure ended: no stops, no message, an untouched pane, and a button
     // that looked broken. Name the reason instead, and offer the way out.
@@ -2448,7 +2475,7 @@
     // Once every picked ride is scheduled, keep filling the day with the
     // best remaining attractions (marked as suggestions) so the plan covers
     // arrival to exit with no dead gaps.
-    const extras = rides.filter((r) => (r.open || futureDay || closedNow) && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
+    const extras = rides.filter((r) => plannable(r) && !doneSet.has(r.name) && !pickedNames.has(r.name) && passesFilter(r));
     let fillMode = false;
     // Encore mix: when every attraction in the park is on the plan and there
     // is still daylight, the day doesn't just stop. Early dinner once the
@@ -2528,6 +2555,24 @@
         continue;
       }
       let mult = HOURLY[Math.floor(t)] ?? 1;
+      // The banner has been promising "the plan leans indoors there" while the
+      // plan did nothing of the sort: wet and hot hours painted badges on the
+      // steps and left the running order untouched. And the crowd factor could
+      // never reorder anything either -- it scales every ride's wait by the
+      // same number, so a Packed Saturday and a Light Wednesday came out in
+      // exactly the same sequence. This is the term that makes a date matter.
+      const hourOf = Math.floor(t);
+      const wetHour = risk.wetHours.has(hourOf), hotHour = risk.hotHours.has(hourOf);
+      const weatherAdj = (r) => {
+        if (!wetHour && !hotHour) return 0;
+        const tg = (tagsCache[current] || {})[r.name] || {};
+        let a = 0;
+        if (wetHour) a += tg.in === 'indoor' ? -14 : tg.in === 'outdoor' ? 16 : 0;
+        // Heat flips the water rides: a soaking is the reward, and a queue in
+        // full sun is the punishment.
+        if (hotHour) a += tg.vibe === 'water' ? -12 : tg.in === 'indoor' ? -8 : tg.in === 'outdoor' ? 12 : 0;
+        return a;
+      };
       let why;
       if (show && !attendShow && t >= show.hour && t < show.hour + 1) {
         mult *= 0.6; // crowds are at the show — the guide's 30-50% dip
@@ -2561,7 +2606,7 @@
       // use Rider Switch — just not first picks).
       const prefAdj = (r) => (vibeHit(r.name) ? -8 : 0) + (ageOk(r.name) ? 0 : 25)
         + (elderly && ['show', 'gentle', 'family'].includes(((tagsCache[current] || {})[r.name] || {}).vibe) ? -5 : 0);
-      const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r)) + prefAdj(r);
+      const score = (r) => (mult <= 0.6 ? -(eff(r) - switchCost(r)) : eff(r) + switchCost(r)) + prefAdj(r) + weatherAdj(r);
       // When the advisor's order is in force, follow it. buildPlan otherwise
       // scores every ride and re-derives its own sequence — which meant
       // "Use the advisor's order" transferred the ride SET and silently threw
@@ -2633,6 +2678,15 @@
       <button class="plan-x" id="plan-clear" aria-label="${tr('Dismiss plan')}">✕</button>
       <h2>${tr('Your plan for the day')}</h2>
       ${lastForecast ? `<p class="why" style="color:var(--muted);margin:0 0 .4rem">🤖 ${planDate ? `${tr('Planned for')} ${new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })}` : tr("Waits predicted for today's crowds")} (${tr((planDay || lastForecast.days[0]).label)}) ${tr("from each ride's popularity")}</p>` : ''}
+      <div class="planask">
+        <img src="/img/mila/mila-wink-160.webp" alt="" width="38" height="38" loading="lazy">
+        <div class="pa-t">${esc(planAskLine())}
+          <div class="pa-btns">
+            <button type="button" id="pa-day">📅 ${tr('Plan a different day')}</button>
+            <button type="button" id="pa-tweak">💬 ${tr('Ask me to change it')}</button>
+          </div>
+        </div>
+      </div>
       ${riskBanner(risk)}
       ${eventNotice(dayEvents, closer)}
       ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask the advisor below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
@@ -2684,6 +2738,20 @@
     // card below it opens the trip-length matcher rather than a price wall.
     const dp = $('plan-out').querySelector('#delight-pass');
     if (dp) dp.addEventListener('click', openPassPick);
+    // The Day picker sits above the plan, so by the time someone has read the
+    // plan and wants a different date it is off-screen behind them.
+    const paDay = $('plan-out').querySelector('#pa-day');
+    if (paDay) paDay.addEventListener('click', () => {
+      setPane('plan', { scroll: false });
+      const sel = $('plan-day-sel');
+      sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { try { sel.focus({ preventScroll: true }); } catch {} }, 420);
+    });
+    const paTweak = $('plan-out').querySelector('#pa-tweak');
+    if (paTweak) paTweak.addEventListener('click', () => {
+      if (window.ParkPulseChat) ParkPulseChat.ask(`${tr('This is the plan you just gave me for')} ${parks[current].name}${planDate ? ' (' + planDate + ')' : ''}. ${tr("What would you change about it, and why?")}`);
+      else toast(tr('The advisor is not available right now.'));
+    });
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     // Repaint the attractions list so the ticks match the plan we just wrote.
     // Adding to pickedNames alone leaves the checkboxes showing the previous
