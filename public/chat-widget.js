@@ -197,6 +197,43 @@
   // A transcript belongs to the park it was written about. Switching park
   // invalidates it twice over: it reads as advice for somewhere else, and
   // historyWindow() would send it as context for a question about here.
+  // Which day the visitor is planning: null for today, 'YYYY-MM-DD' otherwise.
+  // Optional, so the park pages -- which mount this widget with no planner
+  // behind them -- keep behaving as "today" without having to pass anything.
+  const planDateOf = () => (state.opts && state.opts.getPlanDate ? state.opts.getPlanDate() : null) || null;
+  const planDateLabel = () => {
+    const d = planDateOf();
+    if (!d) return '';
+    try {
+      return new Date(d + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined,
+        { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+    } catch { return d; }
+  };
+
+  // The starter chips are written into the panel at mount, long before a day is
+  // chosen -- so "Worth buying today?" would still be asking about today after
+  // the visitor moved to next Thursday. Rewrite them each time the panel opens.
+  function syncChips() {
+    const box = $id('ppc-chips');
+    if (!box) return;
+    // The label is what the visitor reads, so it is localised. The question is
+    // what Mila reads, so it carries the plain ISO date -- a Portuguese label
+    // dropped into an English sentence read like neither language.
+    const when = planDateOf();
+    const specs = when
+      ? [[`Is it worth buying line-skipping passes here on ${when}?`, T()('Worth buying?')],
+         [`What's the smartest plan for ${when} here?`, T()('Plan my day')],
+         ['How do I do this park well without paying for any passes?', T()('Do it free')]]
+      : [['Is it worth buying line-skipping passes here today?', T()('Worth buying today?')],
+         ["What's the smartest plan for the rest of my day here?", T()('Plan my day')],
+         ['How do I do this park well without paying for any passes?', T()('Do it free')]];
+    box.querySelectorAll('button').forEach((b, i) => {
+      if (!specs[i]) return;
+      b.dataset.q = specs[i][0];
+      b.textContent = specs[i][1];
+    });
+  }
+
   function syncPark() {
     const now = state.opts && state.opts.getPark ? state.opts.getPark() : null;
     if (!now) return;
@@ -215,6 +252,7 @@
   function openPanel() {
     if (state.opts.requireAccess && !state.opts.requireAccess()) return;
     syncPark();
+    syncChips();   // the starter questions follow the day currently selected
     $id('ppc-panel').classList.add('ppc-open');
     if (!msgs.children.length) {
       for (const m of state.history) {
@@ -230,7 +268,16 @@
           lockedBubble(name);
         } else {
           let uname = ''; try { uname = localStorage.getItem('pp-name') || ''; } catch {}
-          bubble('bot', `${uname ? `Hi ${uname}! ` : `Hi, `}I'm Mila, your park fairy! ✨ I can see today's waits at ${name} — ask me if Lightning Lane or Express Pass is worth it, what to ride first, or how to dodge the crowds, and let's make today magical.`);
+          // Two things were wrong with the old fixed line. It promised "today's
+          // waits" to someone planning next Thursday, and it named Lightning
+          // Lane and Express Pass at every park -- including the ones whose
+          // pass is called something else entirely (Quick Queue at SeaWorld).
+          // It also never went through T(), so it stayed English everywhere.
+          const hi = uname ? `${T()('Hi')} ${uname}! ` : `${T()('Hi')}, `;
+          const when = planDateLabel();
+          bubble('bot', when
+            ? `${hi}${T()("I'm Mila, your park fairy! ✨ I'm looking ahead with you to")} ${name} · ${when} ${T()("— ask me whether a skip-the-line pass is worth it, what to ride first, or how to dodge the crowds, and let's make that day magical.")}`
+            : `${hi}${T()("I'm Mila, your park fairy! ✨ I can see today's waits at")} ${name} ${T()("— ask me whether a skip-the-line pass is worth it, what to ride first, or how to dodge the crowds, and let's make today magical.")}`);
         }
       }
     }
@@ -379,6 +426,9 @@
       getPark: opts.getPark || (() => 'magic-kingdom'),
       getParkName: opts.getParkName || (() => null),
       getContext: opts.getContext || (async () => ({ favorites: [], planPicks: [], subscription: null })),
+      // Optional: the park pages mount this widget with no planner behind it,
+      // so no accessor means "today", which is the truth there.
+      getPlanDate: opts.getPlanDate || (() => null),
       onPlan: opts.onPlan || null,
       onAlert: opts.onAlert || null,
       requireAccess: opts.requireAccess || null,

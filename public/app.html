@@ -5416,6 +5416,11 @@
         enabled: Boolean(c.consultant),
         getPark: () => current,
         getParkName: () => parks[current]?.name,
+        // Same value as the planDate inside getContext, but readable
+        // synchronously: the greeting and the starter chips are written before
+        // any request goes out, and they were promising "today's waits" to
+        // someone planning next Thursday.
+        getPlanDate: () => planDate,
         // planDate is what the Day picker is set to (null = today). Without it
         // the advisor answers about today while the plan on screen is for
         // Wednesday. `done` only means anything for today, so it is dropped
