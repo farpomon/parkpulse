@@ -1979,6 +1979,24 @@
     "This is my best read of that day. Want me to try another one? ✨",
   ];
   const planAskLine = () => tr(PLAN_ASK[Math.floor(Math.random() * PLAN_ASK.length)]);
+  // "Use the advisor's order" was the one place the app called Mila a system.
+  // She has a name and a voice everywhere else; the button that takes her
+  // advice should sound like taking her advice.
+  const PLAN_APPLY = [
+    "✨ Use Mila's magic order",
+    "✨ Let Mila work her magic",
+    "✨ Do it Mila's way",
+    "✨ Sprinkle Mila's magic on it",
+    "✨ Mila's magic order, please",
+    "✨ Rearrange it Mila's way",
+    "✨ I'll take Mila's magic order",
+    "✨ Swap in Mila's magic order",
+    "✨ Wave the wand — use Mila's order",
+    "✨ Give me Mila's magic version",
+    "✨ Make it magic",
+    "✨ Yes — Mila knows best",
+  ];
+  const planApplyLabel = () => tr(PLAN_APPLY[Math.floor(Math.random() * PLAN_APPLY.length)]);
   let planIntroHtml = '';
   function pickPlanIntro() {
     const line = MILA_PLAN_OPENERS[Math.floor(Math.random() * MILA_PLAN_OPENERS.length)];
@@ -2005,7 +2023,7 @@
       box.style.display = '';
       $('planai-state').textContent = '';
       $('planai-body').innerHTML = planIntroHtml + mdLite(aiPlanText);
-      $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using Mila's order")}</span>`;
+      $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using Mila's magic order")}</span>`;
       $('planbase-h').style.display = '';
       return;
     }
@@ -2090,12 +2108,12 @@
       if (res.status === 402) {
         let msg = null;
         try { msg = (await res.json()).error; } catch {}
-        return fail(msg || tr('An advisor read of your plan comes with any pass.'), true);
+        return fail(msg || tr("Mila's read of your plan comes with any pass."), true);
       }
-      if (res.status === 429) return fail(tr('The advisor is resting — your plan below still stands.'));
+      if (res.status === 429) return fail(tr('Mila is catching her breath — your plan below still stands.'));
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         console.warn('advisor unavailable:', res.status);
-        return fail(tr("Your advisor couldn't be reached — the plan below still stands."));
+        return fail(tr("Mila couldn't be reached — the plan below still stands."));
       }
 
       state.textContent = '';
@@ -2126,12 +2144,12 @@
           else if (ev === 'error' && payload.error) return fail(payload.error);
         }
       }
-      if (!aiPlanText.trim()) return fail(tr("Your advisor couldn't be reached — the plan below still stands."));
+      if (!aiPlanText.trim()) return fail(tr("Mila couldn't be reached — the plan below still stands."));
       cacheAdvice(aiPlanKey, aiPlanText);
       $('planbase-h').style.display = '';
       const proposal = actions.find((a) => a.type === 'plan' && Array.isArray(a.rides) && a.rides.length);
       if (proposal) {
-        $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-apply">${tr('Use the advisor\'s order')}</button>`;
+        $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-apply">${esc(planApplyLabel())}</button>`;
         document.getElementById('planai-apply').addEventListener('click', async () => {
           const ok = await applyPlan(proposal);
           toast(ok ? tr('Plan updated') : tr("Couldn't match those rides to this park"));
@@ -2140,7 +2158,7 @@
     } catch (err) {
       if (err && err.name === 'AbortError') return;
       console.warn('advisor stream failed:', err && err.message);
-      fail(tr("Your advisor couldn't be reached — the plan below still stands."));
+      fail(tr("Mila couldn't be reached — the plan below still stands."));
     }
   }
 
@@ -2689,7 +2707,7 @@
       </div>
       ${riskBanner(risk)}
       ${eventNotice(dayEvents, closer)}
-      ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask the advisor below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
+      ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask Mila below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
       ${encores ? `<p class="fillnote">✨ ${tr("You'll have seen everything! Mila tucked in an early dinner and")} <b>${encores}</b> ${tr('victory lap(s) on your favorites to close out the night.')}</p>` : ''}
       <!-- The advisor's read is the headline. The computed running order below
            is the skeleton it works from and stays visible, because it renders
@@ -2750,7 +2768,7 @@
     const paTweak = $('plan-out').querySelector('#pa-tweak');
     if (paTweak) paTweak.addEventListener('click', () => {
       if (window.ParkPulseChat) ParkPulseChat.ask(`${tr('This is the plan you just gave me for')} ${parks[current].name}${planDate ? ' (' + planDate + ')' : ''}. ${tr("What would you change about it, and why?")}`);
-      else toast(tr('The advisor is not available right now.'));
+      else toast(tr("Mila isn't available right now."));
     });
     updatePlanbar(steps.filter((x) => x.ride).length); // bar reflects the actual plan
     // Repaint the attractions list so the ticks match the plan we just wrote.
@@ -3713,7 +3731,7 @@
       setViewMode('dining');
     } else if (name === 'mila') {
       if (window.ParkPulseChat) ParkPulseChat.ask();
-      else toast(tr('The advisor is not available right now.'));
+      else toast(tr("Mila isn't available right now."));
     } else if (name === 'you') {
       openAcct();
     }
