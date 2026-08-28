@@ -309,7 +309,7 @@ function passSection(park, seo) {
 <p><span class="verdict ${seo.worth}">${VERDICT_LABEL[seo.worth]}</span></p>
 <p>${esc(seo.verdict)}</p>
 ${price}
-<p>ParkPulse shows every wait live with a "vs typical" marker, and its AI consultant will run the numbers for your party and date — including telling you to keep your money when the answer is no.</p>
+<p>ParkPulse shows every wait live with a "vs typical" marker, and your magical fairy will run the numbers for your party and date — including telling you to keep your money when the answer is no.</p>
 <a class="cta" href="/app">Check today's waits before you buy</a>
 </div>`;
 }

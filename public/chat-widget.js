@@ -365,7 +365,7 @@
       out.classList.remove('ppc-typing');
       out.textContent = (e.message && e.message.length < 130 && e.message !== 'empty reply')
         ? e.message
-        : T()('The consultant is having a moment — try again shortly.');
+        : T()('Your magical fairy is having a moment — try again shortly.');
       state.history.pop();
       saveHistory();
     } finally {

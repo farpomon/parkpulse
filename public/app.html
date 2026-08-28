@@ -990,7 +990,7 @@
     <div class="ob-step"><span>📡</span><div><b>See every wait, live</b><span class="ob-t">Pick your park up top. Waits refresh every minute, grouped by land, with hints like</span> <i class="ob-t">"▼ 20 min below typical — go now"</i> <span class="ob-t">so you catch the steals.</span></div></div>
     <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b><span class="ob-t">Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</span></div></div>
     <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b><span class="ob-t">One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</span></div></div>
-    <div class="ob-step"><span>💬</span><div><b>Ask the AI consultant</b><span class="ob-t">"Is Lightning Lane worth it today?" Honest advice from live data — including when to keep your money. Log in and it remembers your trip.</span></div></div>
+    <div class="ob-step"><span>💬</span><div><b>Ask your magical fairy</b><span class="ob-t">"Is Lightning Lane worth it today?" Honest advice from live data — including when to keep your money. Log in and she remembers your trip.</span></div></div>
     <button class="btn wide" id="onboard-go">Let's beat the lines →</button>
   </div>
 </div>
@@ -1610,7 +1610,7 @@
         : `${tr('The average line right now is')} ${Math.round(avg)} ${tr('min — you would be buying past queues that are not there')}`;
       pipMoney = `<div class="sk-pip"><img src="/img/pip/pip-ledger-160.webp" alt="" width="20" height="20" loading="lazy"><span>${head}. ${read}.</span></div>`;
     }
-    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${tr(skip.note)}</div>${pipMoney}${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask the AI →')}</button>` : ''}</div>`;
+    el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${tr(skip.note)}</div>${pipMoney}${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask your magical fairy →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
@@ -3250,7 +3250,7 @@
     $('acct-cancel').textContent = tr('Close');
     $('lab-day').childNodes[0].nodeValue = tr('Day') + ' ';
     $('wa-title').textContent = tr('WhatsApp concierge');
-    $('wa-sub').textContent = tr('Text your AI planner — it knows your park, group and plan.');
+    $('wa-sub').textContent = tr('Text your magical fairy — she knows your park, group and plan.');
     $('wa-connect').textContent = tr('Connect on WhatsApp');
     $('pick-all').textContent = tr('Select all');
     $('view-toggle').textContent = '🍽 ' + tr('Dining');
@@ -3703,7 +3703,7 @@
     builtTrip = { dest: destSel, start, days, plan, onsite: $('trip-onsite').checked };
     $('trip-out').innerHTML = tripRows(plan) + bookAdvice(builtTrip) +
       `<button class="btn wide" id="trip-save" style="margin-top:.7rem">💾 Save this trip</button>
-       <p class="why" style="color:var(--muted);margin:.4rem 0 0">${sessionToken() ? 'Saved to your account — the AI advisor will plan around it.' : 'Saved on this phone. Log in (👤) to sync it and let the AI advisor use it.'}</p>`;
+       <p class="why" style="color:var(--muted);margin:.4rem 0 0">${sessionToken() ? 'Saved to your account — your magical fairy will plan around it.' : 'Saved on this phone. Log in (👤) to sync it and let your magical fairy use it.'}</p>`;
     document.getElementById('trip-save').addEventListener('click', saveTrip);
   }
 
@@ -3786,7 +3786,7 @@
       } catch {
         el.innerHTML = `<div class="state">${tr('Dining guide unavailable right now.')}<br>
           <a href="#" id="dine-retry" style="color:var(--brand);font-weight:800">${tr('Try again')}</a>
-          ${consultantOn ? ` · <a href="#" id="dine-ask2" style="color:var(--brand);font-weight:800">${tr('Ask the AI instead')}</a>` : ''}</div>`;
+          ${consultantOn ? ` · <a href="#" id="dine-ask2" style="color:var(--brand);font-weight:800">${tr('Ask your magical fairy instead')}</a>` : ''}</div>`;
         const retry = document.getElementById('dine-retry');
         if (retry) retry.addEventListener('click', (e) => { e.preventDefault(); renderDining(); });
         const ask2 = document.getElementById('dine-ask2');

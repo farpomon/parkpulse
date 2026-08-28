@@ -325,7 +325,7 @@ const sendWelcomeEmail = (email) => sendEmail(email, 'Welcome to ParkPulse 🎢'
 <p>Three things worth trying on your next park day:</p>
 <ul>
 <li><b>Plan my day</b> builds a full-day, walk-smart ride order from live and predicted waits.</li>
-<li>The <b>AI advisor</b> answers anything — dining, skip-pass math, rainy-day backup plans.</li>
+<li>Your <b>magical fairy</b> answers anything — dining, skip-pass math, rainy-day backup plans.</li>
 <li><b>Wait alerts</b> ping your phone when a ride you want drops below your threshold.</li>
 </ul>
 <p>Happy riding!<br>— ParkPulse</p>`,
@@ -2309,14 +2309,14 @@ function parkGuides(registry) {
 const SHOTS = [
   { file: 'plan.png', alt: 'The ParkPulse day plan: eight rides sequenced by time, each with its predicted wait and the reason for its slot.',
     cap: '<strong>Your day, sequenced.</strong> Pick the rides you care about; ParkPulse orders them against the hourly crowd curve and tells you why each one sits where it does.' },
-  { file: 'advisor.png', alt: 'The ParkPulse AI consultant answering whether Lightning Lane is worth buying today.',
-    cap: '<strong>Straight answers, including no.</strong> Ask whether the paid pass is worth it today and the consultant works it out from live waits &mdash; and tells you to keep your money when that is the truth.' },
+  { file: 'advisor.png', alt: "Mila, ParkPulse's magical fairy, answering whether Lightning Lane is worth buying today.",
+    cap: '<strong>Straight answers, including no.</strong> Ask whether the paid pass is worth it today and your magical fairy works it out from live waits &mdash; and tells you to keep your money when that is the truth.' },
 ];
 function productShots() {
   const have = SHOTS.filter((s) => fs.existsSync(path.join(PUBLIC_DIR, 'shots', s.file)));
   if (!have.length) return '';
   const lead = have.length > 1
-    ? 'Two screens do most of the work &mdash; the plan that sequences your day, and the consultant that tells you when not to spend.'
+    ? 'Two screens do most of the work &mdash; the plan that sequences your day, and your magical fairy that tells you when not to spend.'
     : 'The screen that does most of the work: the plan that sequences your day around the crowd curve.';
   const figures = have.map((s) => `<figure><img src="/shots/${s.file}" alt="${s.alt}" loading="lazy" width="430" height="932"><figcaption>${s.cap}</figcaption></figure>`).join('');
   return `<p class="sectionlead">${lead}</p><div class="shots">${figures}</div>`;
@@ -3603,7 +3603,7 @@ ${sections}
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
         // Throttle per verified pass, then verified account, then client IP.
         if (consultant.throttled(throttleIdentity(req).slice(0, 64))) {
-          return sendJson(res, 429, { error: "You've hit the consultant limit for now — try again in a few hours." });
+          return sendJson(res, 429, { error: "You've hit your magical fairy's limit for now — try again in a few hours." });
         }
         try {
           const waits = await getWaits(park);
@@ -3664,8 +3664,8 @@ ${sections}
               : status === 401 || status === 403 ? "Mila's key isn't being accepted right now — the operator has been told."
               : status === 429 ? 'Mila is at her limit for the moment — try again shortly.'
               : status === 400 && /credit|balance|quota/i.test(err.message || '') ? "Mila's account needs topping up — the operator has been told."
-              : status >= 500 ? 'The advisor service is having trouble — try again shortly.'
-              : 'The consultant is having a moment — try again shortly.';
+              : status >= 500 ? 'Your magical fairy is having trouble — try again shortly.'
+              : 'Your magical fairy is having a moment — try again shortly.';
             send('error', { error: friendly });
           }
           // Persist the conversation for logged-in users so it follows the
@@ -3685,7 +3685,7 @@ ${sections}
           return res.end();
         } catch (err) {
           console.log(`consultant error: ${err.message}`);
-          return sendJson(res, 502, { error: 'The consultant is having a moment — try again shortly.' });
+          return sendJson(res, 502, { error: 'Your magical fairy is having a moment — try again shortly.' });
         }
       }
 
