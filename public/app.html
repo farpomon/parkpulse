@@ -384,6 +384,16 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .sheet .switch { text-align: center; margin-top: .6rem; font-size: .88rem; color: var(--muted); }
   .sheet .switch a { color: var(--brand); cursor: pointer; }
+  /* The other way in used to be a sentence in fine print under the primary
+     button, so someone who already had an account read straight past it and
+     made a second one. It is a real control now: same width as the primary,
+     its own tap target, and an "or" rule that frames these as two routes
+     rather than one route and a footnote. */
+  .acct-alt { margin-top: 1rem; }
+  .acct-or { display: flex; align-items: center; gap: .65rem; margin: 0 0 .6rem;
+    color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .04em; }
+  .acct-or::before, .acct-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .acct-alt .btn { width: 100%; padding: .7rem 1rem; }
   .acct-status { font-size: .95rem; margin-bottom: 1rem; }
   .acct-status b { display: block; }
   .wait { font-weight: 800; border-radius: 10px; padding: .32rem .55rem; min-width: 3.9rem; text-align: center; font-size: .9rem; flex-shrink: 0; font-variant-numeric: tabular-nums; }
@@ -502,7 +512,10 @@
   #wiz h2 { margin: 0 0 1rem; font-size: 1.25rem; letter-spacing: -.01em; }
   .wiz-nav { display: flex; gap: .6rem; margin-top: 1.2rem; }
   .wiz-nav .btn { flex: 1; }
-  .wiz-nav .btn.ghost2 { background: var(--bg); color: var(--brand); border: 1.5px solid var(--brand); }
+  /* Was scoped to .wiz-nav, so the pass picker's "Maybe later" and the
+     account sheet's second route both rendered as filled primaries — two
+     equally loud buttons and no hint which one you wanted. */
+  .btn.ghost2 { background: var(--bg); color: var(--brand); border: 1.5px solid var(--brand); box-shadow: none; }
   .stepper { display: flex; align-items: center; gap: 1rem; justify-content: center; margin-bottom: 1.1rem; }
   .stepper button { width: 3rem; height: 3rem; border-radius: 50%; border: 1.5px solid var(--brand); background: var(--bg);
     color: var(--brand); font-size: 1.4rem; font-weight: 800; cursor: pointer; }
@@ -975,7 +988,10 @@
       <p class="err" id="acct-err" aria-live="polite"></p>
       <button class="btn wide" type="submit" id="acct-submit">Log in</button>
     </form>
-    <p class="switch" id="acct-switch">New here? <a id="acct-toggle">Create an account</a></p>
+    <div class="acct-alt" id="acct-switch">
+      <div class="acct-or"><span id="acct-or-lbl">or</span></div>
+      <button type="button" class="btn ghost2" id="acct-toggle">Create an account</button>
+    </div>
     <p class="switch"><a id="acct-forgot">Forgot password?</a></p>
     <div id="acct-verify" style="display:none">
       <h3 id="verify-title" style="margin:.2rem 0 .3rem">Check your inbox 📬</h3>
@@ -4742,8 +4758,10 @@
     $('acct-submit').textContent = login ? tr('Log in') : tr('Create account');
     $('acct-sub').textContent = login ? tr('Your pass follows your account onto any device.')
       : tr('Free to join — your plans, alerts and pass follow you onto any device.');
-    $('acct-switch').firstChild.textContent = (login ? tr('New here?') : tr('Already have an account?')) + ' ';
-    $('acct-toggle').textContent = login ? tr('Create an account') : tr('Log in');
+    // Say who the button is for, not just what it does. "Log in" under a
+    // "Create account" form is ambiguous; "I already have an account" is not.
+    $('acct-or-lbl').textContent = tr('or');
+    $('acct-toggle').textContent = login ? tr("I'm new — create an account") : tr('I already have an account');
     $('acct-pw').autocomplete = login ? 'current-password' : 'new-password';
     $('acct-name').style.display = login ? 'none' : '';
     $('acct-name-hint').style.display = login ? 'none' : '';
