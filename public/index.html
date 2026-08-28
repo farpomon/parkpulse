@@ -395,30 +395,49 @@
   .sprite{position:absolute;opacity:0;will-change:transform}
   .sprite.go{opacity:1}
   .sprite img{display:block;filter:drop-shadow(0 10px 18px rgba(20,12,48,.28))}
-  /* top is set per pass in JS: a fixed lane put her at exactly the hero
-     avatar's height, where she read as a second, duplicate Mila. */
-  .sp-mila{top:38vh;left:-170px;opacity:0}
+  /* Both of them travel the bottom of the screen now. Mid-page she competed
+     with the copy for attention and had nothing to say; down here she reads as
+     the same running gag as Pip -- someone getting on with your day at the edge
+     of the frame. She flies, so her path undulates where his is flat. */
+  .sp-mila{bottom:14px;left:-190px}
   .sp-mila img{width:92px;height:92px;border-radius:50%;animation:spBob 2.6s ease-in-out infinite}
-  .sprite.go.sp-mila{animation:milaFly 17s linear forwards}
-  @keyframes milaFly{from{transform:translate3d(0,0,0)}to{transform:translate3d(calc(100vw + 240px),7vh,0)}}
+  .sprite.go.sp-mila{animation:milaFly 19s linear forwards}
+  @keyframes milaFly{
+    from{transform:translate3d(0,0,0)}
+    25%{transform:translate3d(25vw,-30px,0)}
+    50%{transform:translate3d(50vw,2px,0)}
+    75%{transform:translate3d(75vw,-24px,0)}
+    to{transform:translate3d(calc(100vw + 260px),-4px,0)}
+  }
   @keyframes spBob{0%,100%{transform:translateY(-9px) rotate(-5deg)}50%{transform:translateY(9px) rotate(5deg)}}
   .sp-pip{bottom:10px;left:-150px}
   .sp-pip img{width:76px;height:76px;border-radius:50%;animation:spStep .66s ease-in-out infinite}
   .sprite.go.sp-pip{animation:pipWalk 32s linear forwards}
   @keyframes pipWalk{from{transform:translate3d(0,0,0)}to{transform:translate3d(calc(100vw + 220px),0,0)}}
   @keyframes spStep{0%,100%{transform:translateY(0) rotate(-3.5deg)}50%{transform:translateY(-7px) rotate(3.5deg)}}
-  .pip-think{position:absolute;bottom:74px;left:24px;white-space:nowrap;background:var(--card);
-    color:var(--ink);border:1px solid var(--border);border-radius:12px;padding:.3rem .6rem;
-    font-size:12.5px;font-weight:600;box-shadow:0 10px 24px -10px rgba(20,12,48,.5);
-    opacity:0;transition:opacity .5s}
-  .pip-think.on{opacity:1}
-  .pip-think::after{content:"";position:absolute;bottom:-5px;left:16px;width:9px;height:9px;
+  /* One bubble for both. Wraps rather than nowraps: Mila's lines are sentences,
+     not muttered arithmetic, and a nowrap sentence runs off a phone. */
+  .sp-say{position:absolute;left:24px;background:var(--card);
+    color:var(--ink);border:1px solid var(--border);border-radius:12px;padding:.35rem .65rem;
+    font-size:12.5px;font-weight:600;line-height:1.32;
+    /* The sprite is only as wide as its avatar, and an absolutely positioned
+       child shrink-to-fits inside THAT, not the viewport -- which squeezed a
+       sentence into a 60px column. max-content sizes to the text first; the
+       max-width then clamps it to something a phone can hold. */
+    width:max-content;max-width:min(62vw,268px);
+    box-shadow:0 10px 24px -10px rgba(20,12,48,.5);opacity:0;transition:opacity .5s}
+  .sp-say.on{opacity:1}
+  .sp-say::after{content:"";position:absolute;bottom:-5px;left:16px;width:9px;height:9px;
     background:var(--card);border-right:1px solid var(--border);border-bottom:1px solid var(--border);
     transform:rotate(45deg)}
+  .sp-pip .sp-say{bottom:74px}
+  .sp-mila .sp-say{bottom:92px}
   @media (max-width:700px){
     .sp-mila img{width:74px;height:74px}
     .sp-pip img{width:58px;height:58px}
-    .pip-think{bottom:56px;left:14px;font-size:11.5px}
+    .sp-say{left:14px;font-size:11.5px}
+    .sp-pip .sp-say{bottom:56px}
+    .sp-mila .sp-say{bottom:74px}
   }
   /* Motion is the entire feature, so reduced motion removes it outright
      rather than freezing two characters mid-stride on the page. */
@@ -919,9 +938,12 @@
      it the chat widget's T() falls back to identity and Mila greets a
      Portuguese reader in English. Must precede the widget. -->
 <div id="sprites" aria-hidden="true">
-  <div class="sprite sp-mila"><img src="/img/mila/mila-map-320.webp" alt="" width="104" height="104" loading="lazy"></div>
+  <div class="sprite sp-mila">
+    <div class="sp-say" id="mila-say"></div>
+    <img src="/img/mila/mila-map-320.webp" alt="" width="104" height="104" loading="lazy">
+  </div>
   <div class="sprite sp-pip">
-    <div class="pip-think" id="pip-think"></div>
+    <div class="sp-say" id="pip-say"></div>
     <img src="/img/pip/pip-thinking-160.webp" alt="" width="76" height="76" loading="lazy">
   </div>
 </div>
@@ -933,7 +955,8 @@
   if (!wrap) return;
   const mila = wrap.querySelector('.sp-mila');
   const pip = wrap.querySelector('.sp-pip');
-  const think = document.getElementById('pip-think');
+  // Pip mutters arithmetic; Mila makes an offer. The split is the whole joke —
+  // he is doing the sums and she is the one who talks to you.
   const THOUGHTS = [
     'Rope drop at 9:02…',
     'Carry the two…',
@@ -941,32 +964,48 @@
     'Crowd curve peaks at 13:00…',
     'Nobody mention the weather.',
   ];
+  const MILA_LINES = [
+    "One tap and I'll plan your whole day ✨",
+    "Ooh, I feel a perfect day coming on ✨",
+    "Your best park day is one tap away ✨",
+    "I know a shortcut past every line ✨",
+    "Wand's warmed up — shall we plan? ✨",
+    "Give me a park, I'll give you magic ✨",
+    "Every ride in the perfect order ✨",
+    "I plan it, you just bring the snacks ✨",
+    "Say the word and today starts sparkling ✨",
+    "Let's dodge every queue together ✨",
+  ];
   const T = (k) => (window.PP_T && window.PP_T(k)) || k;
-  const MILA_MS = 17000, PIP_MS = 32000;
+  const MILA_MS = 19000, PIP_MS = 32000;
   let turn = 0, t = null;
   // Restarting a CSS animation needs the class off, a reflow, then on again.
   const play = (el, ms) => {
     el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
     setTimeout(() => el.classList.remove('go'), ms);
   };
-  const walkPip = () => {
-    let i = Math.floor(Math.random() * THOUGHTS.length);
-    const say = () => { think.textContent = T(THOUGHTS[i % THOUGHTS.length]); think.classList.add('on'); i++; };
-    play(pip, PIP_MS);
-    setTimeout(say, 1200);
-    const swap = setInterval(() => { think.classList.remove('on'); setTimeout(say, 500); }, 9000);
-    setTimeout(() => { clearInterval(swap); think.classList.remove('on'); }, PIP_MS - 2500);
+  // One walker, one bubble, one rotation of lines. Both characters cross the
+  // bottom of the screen the same way, so they share the machinery.
+  const cross = (el, ms, lines) => {
+    const say = el.querySelector('.sp-say');
+    let i = Math.floor(Math.random() * lines.length);
+    // Glue the sparkle to the word before it. Left to itself the bubble wrapped
+    // a lone ✨ onto a second line, which reads as a typo rather than a flourish.
+    const speak = () => {
+      say.textContent = T(lines[i % lines.length]).replace(/ ✨/g, '\u00A0✨');
+      say.classList.add('on'); i++;
+    };
+    play(el, ms);
+    setTimeout(speak, 1200);
+    // Long enough to read a sentence, and it always clears before she exits so
+    // the bubble never gets sliced off by the layer's right edge.
+    const swap = setInterval(() => { say.classList.remove('on'); setTimeout(speak, 500); }, 9000);
+    setTimeout(() => { clearInterval(swap); say.classList.remove('on'); }, ms - 2500);
   };
   const tick = () => {
     if (document.hidden) { t = setTimeout(tick, 10000); return; }
-    if (turn % 2 === 0) {
-      // A different lane each time, kept clear of the hero avatar's band so she
-      // never looks like a duplicate of the Mila already on the page.
-      mila.style.top = (30 + Math.random() * 32).toFixed(1) + 'vh';
-      play(mila, MILA_MS);
-      t = setTimeout(tick, MILA_MS + 32000);
-    }
-    else { walkPip(); t = setTimeout(tick, PIP_MS + 38000); }
+    if (turn % 2 === 0) { cross(mila, MILA_MS, MILA_LINES); t = setTimeout(tick, MILA_MS + 32000); }
+    else { cross(pip, PIP_MS, THOUGHTS); t = setTimeout(tick, PIP_MS + 38000); }
     turn++;
   };
   t = setTimeout(tick, 7000);
