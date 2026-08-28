@@ -656,24 +656,72 @@ const PARKS = Object.fromEntries(REGISTRY.map((p) => [p.slug, p]));
 // Safe now that PARKS exists -- see the note beside refreshBaselines.
 refreshBaselines();
 
-async function resolveParkIds() {
+// This function is the only thing standing between 52 of the 65 parks and a
+// permanently empty board: they ship with `id: null` and get their queue-times
+// id matched by name here. Two ways that used to fail silently, both of which
+// cost a visitor the whole park:
+//
+//   * one failed fetch at boot meant no ids until the 24-hour interval came
+//     round again -- a network blip on deploy cost a full day;
+//   * a park whose tokens matched nothing was skipped without a word, and the
+//     log said "Park ids resolved" either way.
+//
+// So: retry with backoff, and say exactly which parks did not resolve. The
+// last result is kept for /qt-directory to render.
+let qtResolution = { at: null, ok: false, matched: 0, unresolved: [], ambiguous: [], error: null };
+
+async function resolveParkIds(attempt = 1) {
   try {
     const res = await fetch('https://queue-times.com/parks.json', { signal: AbortSignal.timeout(10000) });
     if (!res.ok) throw new Error(`upstream ${res.status}`);
     const companies = await res.json();
-    const all = companies.flatMap((c) => (c.parks || []).map((p) => ({ id: p.id, haystack: normName(`${c.name} ${p.name}`) })));
+    const all = companies.flatMap((c) => (c.parks || []).map((p) => ({
+      id: p.id, name: p.name, company: c.name, haystack: normName(`${c.name} ${p.name}`),
+    })));
+    const unresolved = [], ambiguous = [];
+    let matched = 0;
     for (const entry of REGISTRY) {
       const candidates = all.filter((p) =>
         entry.tokens.every((t) => p.haystack.includes(normName(t))) &&
         !(entry.exclude || []).some((t) => p.haystack.includes(normName(t)))
       );
-      if (candidates.length) {
-        entry.id = candidates.sort((a, b) => a.haystack.length - b.haystack.length)[0].id;
+      if (!candidates.length) { unresolved.push(entry); continue; }
+      // Shortest haystack wins: the least-qualified name is usually the park
+      // itself rather than a sibling water park in the same resort.
+      const pick = [...candidates].sort((a, b) => a.haystack.length - b.haystack.length)[0];
+      entry.id = pick.id;
+      matched += 1;
+      // More than one match means the tokens are not specific enough and the
+      // winner came down to name length. That is worth knowing before it picks
+      // the wrong park quietly.
+      if (candidates.length > 1) {
+        ambiguous.push({ slug: entry.slug, chose: pick.name,
+          over: candidates.filter((c) => c.id !== pick.id).map((c) => c.name) });
       }
     }
-    console.log('Park ids resolved from queue-times directory');
+    qtResolution = {
+      at: Date.now(), ok: true, matched, error: null,
+      unresolved: unresolved.map((e) => ({ slug: e.slug, name: e.name, tokens: e.tokens })),
+      ambiguous,
+    };
+    console.log(`Park ids: ${matched}/${REGISTRY.length} resolved from the queue-times directory`);
+    if (unresolved.length) {
+      console.log(`  UNRESOLVED (${unresolved.length}) — these parks will show an empty board: ${unresolved.map((e) => e.slug).join(', ')}`);
+    }
+    for (const a of ambiguous) {
+      console.log(`  ambiguous: ${a.slug} matched ${a.over.length + 1} parks, chose "${a.chose}" over ${a.over.map((n) => `"${n}"`).join(', ')}`);
+    }
   } catch (err) {
-    console.log(`Park id resolution skipped (${err.message}) — using static ids`);
+    qtResolution = { ...qtResolution, at: Date.now(), ok: false, error: err.message };
+    // 1, 2, 4, 8, then 15-minute ceiling: about 45 minutes of trying before it
+    // waits for the daily pass, instead of giving up on the first failure.
+    const delay = Math.min(60_000 * 2 ** (attempt - 1), 15 * 60_000);
+    const more = attempt < 6;
+    console.log(`Park id resolution failed (${err.message}) — attempt ${attempt}${more ? `, retrying in ${Math.round(delay / 1000)}s` : ', giving up until the daily pass'}`);
+    if (more) {
+      const t = setTimeout(() => resolveParkIds(attempt + 1), delay);
+      if (typeof t.unref === 'function') t.unref();
+    }
   }
 }
 resolveParkIds();
@@ -2133,6 +2181,28 @@ const HERO_PARKS = ['magic-kingdom', 'universal-studios-florida', 'busch-gardens
 // timezone with no parks near it falls back to the Florida trio.
 // Cached render of the Queue-Times directory page (/qt-directory).
 let qtDirCache = { at: 0, html: '' };
+// The answer to "why is this park empty?", rendered on the one page that can
+// actually reach queue-times. An unresolved park is a park whose tokens match
+// nothing in the directory below, so it never gets an id and never gets waits.
+function resolutionPanel() {
+  const r = qtResolution;
+  if (!r.at) return '<div class="warn"><b>Park ids have not been resolved yet.</b> The directory below is live, but the boot-time match has not run.</div>';
+  if (!r.ok) {
+    return `<div class="bad"><b>Park id resolution is failing.</b> Last attempt ${new Date(r.at).toISOString()} — <code>${esc(r.error || 'unknown')}</code>.
+      Every park that ships without a hardcoded id is showing an empty board until this succeeds. It retries with backoff, then daily.</div>`;
+  }
+  const parts = [`<div class="sum"><b>${r.matched}/${REGISTRY.length}</b> ParkPulse parks matched an id at ${new Date(r.at).toISOString()}.</div>`];
+  if (r.unresolved.length) {
+    parts.push(`<div class="bad"><b>${r.unresolved.length} park(s) matched nothing and will show an empty board.</b>
+      Find each one in the directory below, then widen its <code>tokens</code> in <code>data/parks.json</code> to match the name Queue-Times uses.
+      <ul>${r.unresolved.map((u) => `<li><b>${esc(u.name)}</b> <small><code>${esc(u.slug)}</code> · tokens: ${u.tokens.map((t) => `<code>${esc(t)}</code>`).join(' + ')}</small></li>`).join('')}</ul></div>`);
+  }
+  if (r.ambiguous.length) {
+    parts.push(`<div class="warn"><b>${r.ambiguous.length} park(s) matched more than one entry</b> — the shortest name won, which may be the wrong park.
+      <ul>${r.ambiguous.map((a) => `<li><code>${esc(a.slug)}</code> → chose <b>${esc(a.chose)}</b> over ${a.over.map((n) => esc(n)).join(', ')}</li>`).join('')}</ul></div>`);
+  }
+  return parts.join('\n');
+}
 
 const tzOffsetCache = new Map();
 function tzOffsetMin(tz) {
@@ -2680,9 +2750,14 @@ h1{font-size:1.5rem}h2{font-size:1.05rem;margin:1.6rem 0 .4rem}h2 small{color:#8
 ul{margin:0;padding:0;list-style:none;columns:2 320px;column-gap:2rem}
 li{padding:.15rem 0;break-inside:avoid}li small{color:#888}
 li.have{color:#1d7a4f}li.have::before{content:"✓ "}li.miss::before{content:"· ";color:#bbb}
-.sum{background:#f0edff;border-radius:10px;padding:.8rem 1rem;margin:1rem 0}</style></head><body>
+.sum{background:#f0edff;border-radius:10px;padding:.8rem 1rem;margin:1rem 0}
+.bad{background:#fdeaea;border:1px solid #f3c2c2;border-radius:10px;padding:.8rem 1rem;margin:1rem 0}
+.bad ul{columns:1;margin:.5rem 0 0}.bad li{padding:.2rem 0}.bad code{background:#fff;padding:.05rem .3rem;border-radius:4px}
+.warn{background:#fff6e5;border:1px solid #f0d9a8;border-radius:10px;padding:.8rem 1rem;margin:1rem 0}
+.warn ul{columns:1;margin:.5rem 0 0}</style></head><body>
 <h1>Queue-Times park directory</h1>
 <div class="sum"><b>${total} parks</b> in the Queue-Times feed &middot; <b>${covered} tracked by ParkPulse</b> (green) &middot; ${total - covered} not yet covered.</div>
+${resolutionPanel()}
 ${sections}
 <p>Data powered by <a href="https://queue-times.com" rel="nofollow">Queue-Times.com</a>. Snapshot cached for 1 hour.</p>
 </body></html>` };

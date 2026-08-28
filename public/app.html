@@ -1565,7 +1565,12 @@
       tagsCache[current] = r.ok ? (await r.json()).tags : null;
     } catch { tagsCache[current] = null; }
     syncFilterButton();
-    if (tagsCache[current]) renderRides();
+    // Tags land after load() has already painted the board, and re-rendering is
+    // how the height filter appears. But when the feed gave us nothing, load()
+    // wrote an explanation naming the park -- and renderRides() would replace
+    // it with the vaguer "No attractions are reporting right now", which is the
+    // message people were actually seeing. Nothing to re-render in that case.
+    if (tagsCache[current] && rides.length) renderRides();
   }
   // What "all filters" means, in one place. The search box counts: it narrows
   // the same list, it is the one people most often leave set by accident, and a
