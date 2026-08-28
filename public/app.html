@@ -1231,7 +1231,45 @@
     return sub;
   }
 
+  // --- Today, or a day you are planning ahead ------------------------------
+  // planDate is null for today and a YYYY-MM-DD otherwise (the Day picker's
+  // first option carries an empty value). Half this screen reports LIVE
+  // conditions -- the crowd line, the skip verdict, every ride's wait, the
+  // "go now" nudges -- and all of it is true of today and of no other day. So
+  // a plan for next Thursday reads as a lie: "Skip it today" over a Thursday
+  // plan, "15 min" next to a ride nobody will queue for this week.
+  //
+  // Rather than caveat each card, the board runs in two modes. These three
+  // helpers are the whole switch: is this today, which forecast day is it,
+  // and what will this ride's queue look like then.
+  const planningAhead = () => Boolean(planDate);
+  function plannedDay() {
+    if (!planDate) return null;
+    return (lastForecast?.days || []).find((d) => d.date === planDate) || null;
+  }
+  // A ride's expected queue on the planned day: its own typical wait, scaled
+  // by how busy that day runs. Null when the feed never gave us a typical --
+  // an honest blank beats a number we made up.
+  function projectedWait(r) {
+    if (r.typical == null) return null;
+    return Math.max(0, Math.round(r.typical * (plannedDay()?.factor || 1)));
+  }
+  // The board's own heading carries the day when it is describing one, so the
+  // waits below it are never read as "now" by someone who scrolled past the
+  // Day picker.
+  const daySuffix = () => (planningAhead() ? ' · ' + plannedDayName() : '');
+  const plannedDayName = () => (planDate
+    ? new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })
+    : '');
+
   function waitClass(r) {
+    if (planningAhead()) {
+      // Keep the colour and the text agreeing: waitCell() says "Closed" for a
+      // long-term closure, so the cell must not be styled as a short queue.
+      if (shutLongTerm(r)) return 'closed';
+      const w = projectedWait(r);
+      return w == null ? 'closed' : w >= 60 ? 'high' : w >= 30 ? 'mid' : 'low';
+    }
     if (!r.open) return 'closed';
     if (r.wait >= 60) return 'high';
     if (r.wait >= 30) return 'mid';
@@ -1239,6 +1277,10 @@
   }
 
   function deltaHtml(r) {
+    // "▼ 20 min below typical — go now" is a live call to action. On a future
+    // day there is nothing to go to, and the comparison is against a wait
+    // nobody is standing in yet.
+    if (planningAhead()) return '';
     if (!r.open || r.typical == null || lastData.source !== 'live') return '';
     const d = r.wait - r.typical;
     if (d <= -10) return `<div class="delta below">▼ ${-d} ${tr('min below typical — go now')}</div>`;
@@ -1396,6 +1438,27 @@
     const p = parks[current] || {};
     const hoursTxt = p.open != null ? `${tr('Typical hours')} ${hourLabel(p.open)}–${hourLabel(p.close)}` : '';
     const showTxt = p.show ? ` · 🎆 ${p.show.name} ~${hourLabel(p.show.hour)}` : '';
+    // Planning ahead: the hour-of-day curve describes right now, and right now
+    // is not the day being planned. Report what the forecast expects of THAT
+    // day instead -- and never that the park is shut, which is only true of
+    // this minute.
+    if (planningAhead()) {
+      const d = plannedDay();
+      if (!d) return `<b>${esc(plannedDayName())}</b> ${hoursTxt}${showTxt}`;
+      // Whole sentences per bucket rather than "{day} looks {label}" glued
+      // together -- a bare "looks" does not survive translation into languages
+      // that order the clause differently.
+      const expect = d.level >= 5 ? tr('Packed day expected')
+        : d.level === 4 ? tr('Busy day expected')
+        : d.level <= 2 ? tr('Light crowds expected')
+        : tr('Moderate crowds expected');
+      const advice = d.level >= 5 ? tr('rope drop and a tight order will make or break the day.')
+        : d.level === 4 ? tr('worth being at the gates for opening.')
+        : d.level <= 2 ? tr('a great day to have picked.')
+        : tr('pick your battles.');
+      const holiday = d.holiday ? ` · 🎉 ${esc(d.holiday)}` : '';
+      return `<b>${esc(plannedDayName())} · ${expect}</b> — ${advice} ${hoursTxt}${showTxt}${holiday}`;
+    }
     const h = parkNow().hour;
     const m = HOURLY[h];
     let crowd;
@@ -1405,6 +1468,21 @@
     else if (m >= 1.05) crowd = `<b>${tr('Peak crowds right now')}</b> — ${tr('good time for shows, food, or short lines.')}`;
     else crowd = `<b>${tr('Moderate crowds right now')}</b> — ${tr('pick your battles.')}`;
     return `${crowd} ${hoursTxt}${showTxt}`;
+  }
+
+  // Pulled out of load() so switching the Day picker can refresh the line
+  // without refetching the board: the copy depends on which day is selected,
+  // not on the feed.
+  function renderCrowdline() {
+    let html = crowdNow();
+    // "Today on your trip" is a statement about today. It has no business
+    // above a plan for another day.
+    if (!planningAhead() && tripToday && tripToday.park !== current) {
+      html = `🧳 ${tr('Today on your trip:')} <a href="#" id="trip-jump"><b>${esc(parks[tripToday.park].name)}</b></a> · ` + html;
+    }
+    $('crowdline').innerHTML = html;
+    const tj = document.getElementById('trip-jump');
+    if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); load(); });
   }
 
   // Options come from the crowd forecast so each future day advertises its
@@ -1624,11 +1702,24 @@
     const skip = parks[current]?.skip;
     if (!skip) { el.innerHTML = ''; return; }
     const open = (rides || []).filter((r) => r.open);
-    const live = lastData && lastData.source === 'live' && open.length >= 3;
-    const avg = open.length ? open.reduce((s, r) => s + r.wait, 0) / open.length : 0;
+    // Planning ahead, the verdict cannot come from the live board: those are
+    // this afternoon's queues, and the question is about next Thursday. Take
+    // each ride's typical wait instead and scale it by how busy that day runs.
+    const ahead = planningAhead();
+    const typicals = (rides || []).map(projectedWait).filter((w) => w != null);
+    const live = ahead
+      ? typicals.length >= 3
+      : lastData && lastData.source === 'live' && open.length >= 3;
+    const avg = ahead
+      ? (typicals.length ? typicals.reduce((s, w) => s + w, 0) / typicals.length : 0)
+      : (open.length ? open.reduce((s, r) => s + r.wait, 0) / open.length : 0);
     let verdict = '';
     if (skip.type === 'none') {
       verdict = `<span class="sk-verdict skip">🙌 ${tr("You don't need one here")}</span>`;
+    } else if (live && ahead) {
+      verdict = avg >= 38 ? `<span class="sk-verdict buy">🔥 ${tr('Usually worth it on a day like this')}</span>`
+        : avg >= 24 ? `<span class="sk-verdict mid">🤔 ${tr('Could go either way on a day like this')}</span>`
+        : `<span class="sk-verdict skip">💰 ${tr('Usually skippable on a day like this')}</span>`;
     } else if (live) {
       verdict = avg >= 38 ? `<span class="sk-verdict buy">🔥 ${tr('Worth it today — lines are heavy')}</span>`
         : avg >= 24 ? `<span class="sk-verdict mid">🤔 ${tr('Borderline today')}</span>`
@@ -1648,21 +1739,29 @@
     if (skip.type !== 'none' && live) {
       const lo = skip.low * party, hi = skip.high * party;
       const total = lo === hi ? `${skip.cur}${lo}` : `${skip.cur}${lo}–${skip.cur}${hi}`;
-      const head = `${party} × ${skip.cur}${skip.low}–${skip.cur}${skip.high} = <b>${total}</b> ${tr('today')}`;
+      const head = `${party} × ${skip.cur}${skip.low}–${skip.cur}${skip.high} = <b>${total}</b>${ahead ? '' : ' ' + tr('today')}`;
+      // Same three readings, but "right now" becomes "typically" — the number
+      // is a projection for the planned day, not a live measurement.
+      const lead = ahead ? tr('The typical line on a day like this is') : tr('The average line right now is');
       const read = avg >= 38
-        ? `${tr('The average line right now is')} ${Math.round(avg)} ${tr('min — that is a real queue to buy past')}`
+        ? `${lead} ${Math.round(avg)} ${tr('min — that is a real queue to buy past')}`
         : avg >= 24
-        ? `${tr('The average line right now is')} ${Math.round(avg)} ${tr('min — it pays off on a busy afternoon and not much else')}`
-        : `${tr('The average line right now is')} ${Math.round(avg)} ${tr('min — you would be buying past queues that are not there')}`;
+        ? `${lead} ${Math.round(avg)} ${tr('min — it pays off on a busy afternoon and not much else')}`
+        : `${lead} ${Math.round(avg)} ${tr('min — you would be buying past queues that are not there')}`;
       pipMoney = `<div class="sk-pip"><img src="/img/pip/pip-ledger-160.webp" alt="" width="20" height="20" loading="lazy"><span>${head}. ${read}.</span></div>`;
     }
     el.innerHTML = `<div class="skipcard"><div class="sk-main">${title}<div class="sk-note">${tr(skip.note)}</div>${pipMoney}${tripAdvice}</div>${verdict}${askable ? `<button id="sk-ask">${tr('Ask your magical fairy →')}</button>` : ''}</div>`;
     const b = document.getElementById('sk-ask');
     if (b) b.addEventListener('click', () => {
       if (!isPro) { showUpsell(); return; }
+      // The question has to name the day, or Mila answers about today while
+      // the card above her is about next Thursday.
+      const when = ahead ? plannedDayName() : tr('today');
+      // One whole question, then the specifics as context. Gluing "Is" and
+      // "worth it at" around a name only reads as a sentence in English.
       ParkPulseChat.ask(skip.type === 'none'
-        ? `What's the best free line strategy at ${parks[current].name} today?`
-        : `Is ${skip.name} worth it at ${parks[current].name} today?`);
+        ? `${tr("What's the best free line strategy here?")} ${parks[current].name} · ${when}`
+        : `${tr('Is this skip-pass worth it?')} ${skip.name} · ${parks[current].name} · ${when}`);
     });
   }
 
@@ -1847,16 +1946,30 @@
     );
   }
 
+  // What the wait cell says. Today: the live number, or "Closed". Planning
+  // ahead: what that queue typically runs on a day like the one being planned
+  // -- a live "5 min" is about this minute and tells you nothing about next
+  // Thursday. A ride shut long-term stays "Closed" either way; one shut only
+  // right now is very likely open again by the planned day, so it is not
+  // reported as closed and its checkbox is not disabled.
+  const shutLongTerm = (r) => closureList.some((c) => c.name === r.name) && !r.open;
+  function waitCell(r) {
+    if (!planningAhead()) return r.open ? r.wait + ' ' + tr('min') : tr('Closed');
+    if (shutLongTerm(r)) return tr('Closed');
+    const w = projectedWait(r);
+    return w == null ? '—' : '~' + w + ' ' + tr('min');
+  }
   function rideRow(r) {
     const rode = doneOrder.includes(r.name);
+    const pickable = planningAhead() ? !shutLongTerm(r) : r.open;
     return `
       <div class="ride${rode ? ' isdone' : ''}">
-        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${r.open ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
+        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${pickable ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="${tr('Favorite:')} ${esc(r.name)}">★</button>
         <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}${heightChips(r)}</span>
         <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `${tr('Alert set:')} ${tr('under')} ${myAlerts[r.name]} ${tr('min')} (${tr('tap to remove')})` : tr('Alert me when the wait drops')}" aria-label="${tr('Wait alert for:')} ${esc(r.name)}">🔔</button>
-        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
+        <span class="wait ${waitClass(r)}">${waitCell(r)}</span>
         ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}${rideMetaLine(r)}</div>` : ''}
         ${srPromptHtml(r)}
       </div>`;
@@ -2144,6 +2257,21 @@
     "I'm keeping an eye on the plan. Anything you want to change?",
     "Not sure the plan still holds up? Let's check together.",
   ];
+  // The same check-in, for a day that has not happened yet. "Is the plan still
+  // good?" assumes the day is underway; ahead of time the honest questions are
+  // about the plan itself, so these ask those instead.
+  const AHEAD_ASK = [
+    'Ask me anything about this plan ✨',
+    'Happy with how this day is shaping up? Tap here.',
+    'Want to talk through the plan before the day comes? I\'m here.',
+    'Anything you\'d change about this day? Let me know.',
+    'Got questions about the plan? Ask away ✨',
+    'Shall we go over the day together?',
+    'Tap here if you want a second look at this plan.',
+    'Wondering if this order is right? Let\'s check it.',
+    'Not sure about part of the day? Ask me about it.',
+    'Tap here and we can fine-tune the plan ✨',
+  ];
   // Shown only once a plan exists (asking "is it still valid?" makes no
   // sense before there is one), and only while it does — mirrors the same
   // check syncPlanHero() already uses to know a plan is on screen.
@@ -2152,7 +2280,9 @@
     if (!el) return;
     const hasPlan = Boolean($('plan-out').innerHTML.trim());
     el.style.display = hasPlan ? '' : 'none';
-    if (hasPlan) $('ask-mila-txt').textContent = tr(TODAY_ASK[Math.floor(Math.random() * TODAY_ASK.length)]);
+    if (!hasPlan) return;
+    const lines = planningAhead() ? AHEAD_ASK : TODAY_ASK;
+    $('ask-mila-txt').textContent = tr(lines[Math.floor(Math.random() * lines.length)]);
   }
   // "Use the advisor's order" was the one place the app called Mila a system.
   // She has a name and a voice everywhere else; the button that takes her
@@ -3154,11 +3284,7 @@
       if (!res.ok) throw new Error(res.status);
       lastData = await res.json();
       rides = lastData.rides;
-      let crowdHtml = crowdNow();
-      if (tripToday && tripToday.park !== current) crowdHtml = `🧳 Today on your trip: <a href=\"#\" id=\"trip-jump\"><b>${parks[tripToday.park].name}</b></a> · ` + crowdHtml;
-      $('crowdline').innerHTML = crowdHtml;
-      const tj = document.getElementById('trip-jump');
-      if (tj) tj.addEventListener('click', (e) => { e.preventDefault(); current = tripToday.park; dest = parks[current].group; localStorage.setItem('pp-park', current); load(); });
+      renderCrowdline();
       renderSkip();
       loadTags();
       loadClosures().then(() => { if (closureList.length) renderRides(); });
@@ -3237,6 +3363,12 @@
     if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
     if (!planDate) $('start-hour').value = 'now';
     renderSkip();
+    // The rest of the board is written in the mode the Day picker just chose:
+    // the crowd line reports that day's forecast rather than this hour, and
+    // every ride's wait becomes a projection rather than a live number.
+    renderCrowdline();
+    renderRides();
+    syncAskMila();
     // A plan on screen is for the day it was built. Changing the day used to
     // leave it standing under the new selection — "I clicked Today and it
     // still shows Thursday". Rebuild it for the chosen day: local math only,
@@ -3355,7 +3487,7 @@
     $('dest-star').title = tr('Track this destination in My parks');
     $('ontrack-lbl').textContent = '✨ ' + tr('Still on track?');
     // read the DOM, not viewMode — this can run before that binding exists
-    $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions');
+    $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions') + daySuffix();
     // Same race as everything else here: renderGroupChip() runs at load,
     // before the dictionary is necessarily in. Re-run once it lands so the
     // chip's aria-label and the hint bubble aren't stuck in English.
@@ -3494,15 +3626,18 @@
     if (!left.length && !inPlan.length) return hide();
     // Open and quick first among the leftovers: this half of the card is for
     // "we have twenty minutes", not for browsing. Closed rides sink.
-    const spare = [...left].sort((a, b) => (b.open - a.open) || (a.wait - b.wait))
+    // Sort by whatever the rows are actually showing: live waits today, the
+    // projected ones when the card is describing a day yet to come.
+    const sortWait = (r) => (planningAhead() ? (projectedWait(r) ?? 999) : r.wait);
+    const spare = [...left].sort((a, b) => (b.open - a.open) || (sortWait(a) - sortWait(b)))
       .slice(0, Math.max(3, MORE_ROWS - Math.min(inPlan.length, 4)));
     // A planned row is a statement, not a switch: untick it here and the plan
     // above would still list it, so the card would contradict the plan. Removing
     // a ride belongs on the step itself.
-    const row = (r, locked) => `<button type="button" class="mo-row${locked ? ' on locked' : pickedNames.has(r.name) ? ' on' : ''}" data-name="${encodeURIComponent(r.name)}"${locked ? ' data-locked="1"' : r.open ? '' : ' disabled'} aria-pressed="${locked || pickedNames.has(r.name)}">
+    const row = (r, locked) => `<button type="button" class="mo-row${locked ? ' on locked' : pickedNames.has(r.name) ? ' on' : ''}" data-name="${encodeURIComponent(r.name)}"${locked ? ' data-locked="1"' : (planningAhead() ? !shutLongTerm(r) : r.open) ? '' : ' disabled'} aria-pressed="${locked || pickedNames.has(r.name)}">
         <span class="mo-add" aria-hidden="true">${locked || pickedNames.has(r.name) ? '✓' : '＋'}</span>
         <span class="mo-mid"><span class="mo-name">${esc(r.name)}</span>${r.land ? `<span class="mo-land">${esc(r.land)}</span>` : ''}</span>
-        <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
+        <span class="wait ${waitClass(r)}">${waitCell(r)}</span>
       </button>`;
     el.style.display = '';
     el.innerHTML = `
@@ -3902,7 +4037,7 @@
 
   function setViewMode(mode) {
     viewMode = mode;
-    $('listhead-title').textContent = mode === 'rides' ? '🎢 ' + tr('Park attractions') : mode === 'dining' ? '🍽 ' + tr('Dining') : '🗺 ' + tr('Park map');
+    $('listhead-title').textContent = mode === 'rides' ? '🎢 ' + tr('Park attractions') + daySuffix() : mode === 'dining' ? '🍽 ' + tr('Dining') : '🗺 ' + tr('Park map');
     $('rides').style.display = mode === 'rides' ? '' : 'none';
     $('dining').style.display = mode === 'dining' ? '' : 'none';
     $('mapwrap').style.display = mode === 'map' ? '' : 'none';
@@ -3965,8 +4100,13 @@
   }
   $('ontrack').addEventListener('click', checkOnTrack);
   $('ask-mila').addEventListener('click', () => {
-    if (window.ParkPulseChat) ParkPulseChat.ask(`${tr('Take another look at my plan for today at')} ${parks[current].name}${planDate ? ' (' + planDate + ')' : ''} — ${tr('is it still the right call, or has anything changed?')}`);
-    else toast(tr("Mila isn't available right now."));
+    // Name the day the plan is actually for. Saying "today" while the plan on
+    // screen is for next Thursday got Mila answering the wrong question.
+    if (window.ParkPulseChat) {
+      ParkPulseChat.ask(planningAhead()
+        ? `${tr('Take another look at my plan for this day:')} ${plannedDayName()} · ${parks[current].name} — ${tr('is it still the right call, or would you change anything?')}`
+        : `${tr('Take another look at my plan for today at')} ${parks[current].name} — ${tr('is it still the right call, or has anything changed?')}`);
+    } else toast(tr("Mila isn't available right now."));
   });
   $('tabbar').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-tab]');
