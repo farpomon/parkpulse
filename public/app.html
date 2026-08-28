@@ -1120,9 +1120,43 @@
   }
   // Which parks have a plan on screen this session, and for which day —
   // enough to rebuild it for free when the user hops back.
+  // Which days have been planned this session, per park. It used to hold one
+  // date per park, so planning Wednesday and then Saturday forgot Wednesday --
+  // move the picker back and the plan was gone, and rebuilding it looked to the
+  // user like the app had thrown their day away. Every planned day is kept; the
+  // running order recomputes locally and Mila's read replays from her cache, so
+  // returning to a day you already planned costs nothing.
   let planStash = {};
   try { planStash = JSON.parse(sessionStorage.getItem('pp-planstash') || '{}'); } catch {}
+  // The old shape was { planDate }. Migrate rather than drop it: a tab open
+  // across the deploy should not lose the plan it is showing.
+  let stashMigrated = false;
+  for (const [park, v] of Object.entries(planStash)) {
+    if (v && !Array.isArray(v.days)) { planStash[park] = { last: v.planDate || null, days: [v.planDate || null] }; stashMigrated = true; }
+  }
   const savePlanStash = () => { try { sessionStorage.setItem('pp-planstash', JSON.stringify(planStash)); } catch {} };
+  // Write the new shape back once, or every load re-migrates the old one.
+  if (stashMigrated) savePlanStash();
+  // null means today, and today is a real key like any other.
+  const dayKey = (d) => d || '';
+  const plannedDays = (park) => (planStash[park] && planStash[park].days) || [];
+  const hasPlanFor = (park, d) => plannedDays(park).some((x) => dayKey(x) === dayKey(d));
+  function rememberPlanDay(park, d) {
+    const st = planStash[park] || (planStash[park] = { last: null, days: [] });
+    if (!hasPlanFor(park, d)) st.days.push(d || null);
+    // A visitor replanning all week does not need last month's Tuesdays.
+    if (st.days.length > 14) st.days = st.days.slice(-14);
+    st.last = d || null;
+    savePlanStash();
+  }
+  function forgetPlanDay(park, d) {
+    const st = planStash[park];
+    if (!st) return;
+    st.days = st.days.filter((x) => dayKey(x) !== dayKey(d));
+    if (dayKey(st.last) === dayKey(d)) st.last = st.days.length ? st.days[st.days.length - 1] : null;
+    if (!st.days.length) delete planStash[park];
+    savePlanStash();
+  }
 
   const $ = (id) => document.getElementById(id);
 
@@ -1338,7 +1372,11 @@
     sel.innerHTML = days.map((d, i) => {
       const label = i === 0 ? tr('Today') : i === 1 ? tr('Tomorrow')
         : new Date(d.date + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
-      return `<option value="${i === 0 ? '' : d.date}"${(planDate || '') === (i === 0 ? '' : d.date) ? ' selected' : ''}>${label} · ${tr(d.label)}</option>`;
+      // A tick on the days already planned. The memory is worth nothing if
+      // nobody can see which days have something waiting behind them.
+      const val = i === 0 ? '' : d.date;
+      const done = hasPlanFor(current, val || null) ? ' ✓' : '';
+      return `<option value="${val}"${(planDate || '') === val ? ' selected' : ''}>${label} · ${tr(d.label)}${done}</option>`;
     }).join('');
     $('lab-day').style.display = days.length > 1 ? '' : 'none';
   }
@@ -2855,8 +2893,8 @@
     // The advisor now runs on every plan rather than waiting to be asked.
     refinePlanWithAI(steps, opts.quiet ? { cachedOnly: true } : undefined);
     syncPlanHero();
-    planStash[current] = { planDate: planDate || null };
-    savePlanStash();
+    rememberPlanDay(current, planDate);
+    renderDayOptions();
     // Logged in: the plan follows the account. This is what the My-plans
     // library lists, the trip itinerary checks off, and the night-before
     // email replays — one write, three features.
@@ -2927,7 +2965,9 @@
     });
     $('plan-clear').addEventListener('click', () => {
       $('plan-out').innerHTML = ''; hidePlanNote(); planOrder = []; syncPlanHero();
-      delete planStash[current]; savePlanStash();
+      // Dismissing the plan forgets THIS day, not every day for the park.
+      forgetPlanDay(current, planDate);
+      renderDayOptions();
       if (localStorage.getItem('pp-email')) {
         api('/api/plans/delete', { method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ park: current, date: planDate || parkDay() }) }).catch(() => {});
@@ -2993,9 +3033,7 @@
       // cache — when the user returns. The board itself always shows the park
       // just chosen, so a switch made from the Plan pane lands on attractions.
       savePicks(plannerPark);
-      if ($('plan-out').querySelector('.plan')) planStash[plannerPark] = { planDate: planDate || null };
-      else delete planStash[plannerPark];
-      savePlanStash();
+      if ($('plan-out').querySelector('.plan')) rememberPlanDay(plannerPark, planDate);
       $('plan-out').innerHTML = '';
       planOrder = []; planStops = [];
       planDate = null;
@@ -3070,7 +3108,7 @@
       if (planStash[current] && rides.length && !$('plan-out').innerHTML.trim()) {
         // A tab left open overnight stashes "Thursday" and then Thursday
         // arrives: a stashed date at or before today collapses to Today.
-        const stashed = planStash[current].planDate || null;
+        const stashed = planStash[current].last || null;
         planDate = stashed && stashed > parkDay() ? stashed : null;
         renderDayOptions();
         buildPlan({ quiet: true });
@@ -3112,7 +3150,12 @@
     // leave it standing under the new selection — "I clicked Today and it
     // still shows Thursday". Rebuild it for the chosen day: local math only,
     // Mila's read from cache if she has said something about this day.
-    if ($('plan-out').querySelector('.plan')) buildPlan({ quiet: true });
+    //
+    // And with nothing on screen, landing on a day you already planned brings
+    // that plan straight back rather than making you ask for it again. Both
+    // paths are free: the order is local arithmetic and Mila replays from cache.
+    if ($('plan-out').querySelector('.plan') || hasPlanFor(current, planDate)) buildPlan({ quiet: true });
+    renderDayOptions();
   });
 
   $('pick-all').addEventListener('click', () => {
