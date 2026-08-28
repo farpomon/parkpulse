@@ -678,35 +678,73 @@ async function resolveParkIds(attempt = 1) {
     const all = companies.flatMap((c) => (c.parks || []).map((p) => ({
       id: p.id, name: p.name, company: c.name, haystack: normName(`${c.name} ${p.name}`),
     })));
-    const unresolved = [], ambiguous = [];
-    let matched = 0;
+    const allowed = (entry, p) => !(entry.exclude || []).some((t) => p.haystack.includes(normName(t)));
+    const ambiguous = [], relaxed = [];
+    let leftover = [], matched = 0;
+
+    // Pass 1, strict: every token must appear.
     for (const entry of REGISTRY) {
       const candidates = all.filter((p) =>
-        entry.tokens.every((t) => p.haystack.includes(normName(t))) &&
-        !(entry.exclude || []).some((t) => p.haystack.includes(normName(t)))
-      );
-      if (!candidates.length) { unresolved.push(entry); continue; }
+        entry.tokens.every((t) => p.haystack.includes(normName(t))) && allowed(entry, p));
+      if (!candidates.length) { leftover.push(entry); continue; }
       // Shortest haystack wins: the least-qualified name is usually the park
       // itself rather than a sibling water park in the same resort.
       const pick = [...candidates].sort((a, b) => a.haystack.length - b.haystack.length)[0];
       entry.id = pick.id;
       matched += 1;
       // More than one match means the tokens are not specific enough and the
-      // winner came down to name length. That is worth knowing before it picks
-      // the wrong park quietly.
+      // winner came down to name length. Worth knowing before it quietly picks
+      // the wrong park.
       if (candidates.length > 1) {
         ambiguous.push({ slug: entry.slug, chose: pick.name,
           over: candidates.filter((c) => c.id !== pick.id).map((c) => c.name) });
       }
     }
+
+    // Every id now spoken for, including the static ones that pass 1 confirmed.
+    // Two parks must never resolve to the same feed, and pass 2 leans on this.
+    const claimed = new Set(REGISTRY.map((e) => e.id).filter((id) => id != null));
+
+    // Pass 2, relaxed: a park listed WITHOUT the qualifier we search on --
+    // "SeaWorld" where the registry says seaworld + orlando -- matches nothing
+    // strictly and goes dark forever. So drop one token and try again, but only
+    // accept when exactly one candidate survives AND no other park has claimed
+    // it. Both conditions matter: the siblings ("SeaWorld San Diego") are
+    // already claimed by their own entries, so the bare listing is the only one
+    // left, and one unclaimed candidate cannot be a coin toss between parks.
+    // Single-token entries are skipped -- dropping their only token matches the
+    // entire directory.
+    for (const entry of leftover) {
+      if (entry.id != null || entry.tokens.length < 2) continue;
+      const hits = new Map();
+      for (let drop = 0; drop < entry.tokens.length; drop++) {
+        const subset = entry.tokens.filter((_, i) => i !== drop);
+        for (const p of all) {
+          if (claimed.has(p.id)) continue;
+          if (!allowed(entry, p)) continue;
+          if (subset.every((t) => p.haystack.includes(normName(t)))) hits.set(p.id, p);
+        }
+      }
+      if (hits.size !== 1) continue;
+      const pick = [...hits.values()][0];
+      entry.id = pick.id;
+      claimed.add(pick.id);
+      matched += 1;
+      relaxed.push({ slug: entry.slug, chose: pick.name, company: pick.company, tokens: entry.tokens });
+    }
+    const unresolved = leftover.filter((e) => e.id == null);
+
     qtResolution = {
       at: Date.now(), ok: true, matched, error: null,
       unresolved: unresolved.map((e) => ({ slug: e.slug, name: e.name, tokens: e.tokens })),
-      ambiguous,
+      ambiguous, relaxed,
     };
     console.log(`Park ids: ${matched}/${REGISTRY.length} resolved from the queue-times directory`);
     if (unresolved.length) {
       console.log(`  UNRESOLVED (${unresolved.length}) — these parks will show an empty board: ${unresolved.map((e) => e.slug).join(', ')}`);
+    }
+    for (const r of relaxed) {
+      console.log(`  relaxed match: ${r.slug} (${r.tokens.join(' + ')}) -> "${r.chose}" under "${r.company}" — verify this is the right park`);
     }
     for (const a of ambiguous) {
       console.log(`  ambiguous: ${a.slug} matched ${a.over.length + 1} parks, chose "${a.chose}" over ${a.over.map((n) => `"${n}"`).join(', ')}`);
@@ -2196,6 +2234,11 @@ function resolutionPanel() {
     parts.push(`<div class="bad"><b>${r.unresolved.length} park(s) matched nothing and will show an empty board.</b>
       Find each one in the directory below, then widen its <code>tokens</code> in <code>data/parks.json</code> to match the name Queue-Times uses.
       <ul>${r.unresolved.map((u) => `<li><b>${esc(u.name)}</b> <small><code>${esc(u.slug)}</code> · tokens: ${u.tokens.map((t) => `<code>${esc(t)}</code>`).join(' + ')}</small></li>`).join('')}</ul></div>`);
+  }
+  if ((r.relaxed || []).length) {
+    parts.push(`<div class="warn"><b>${r.relaxed.length} park(s) matched only after dropping a token</b> — each was the single unclaimed candidate, but confirm it is the right park.
+      To make one permanent, edit its <code>tokens</code> in <code>data/parks.json</code> to match the name below.
+      <ul>${r.relaxed.map((m) => `<li><code>${esc(m.slug)}</code> <small>(${m.tokens.map((t) => esc(t)).join(' + ')})</small> → <b>${esc(m.chose)}</b> <small>under ${esc(m.company)}</small></li>`).join('')}</ul></div>`);
   }
   if (r.ambiguous.length) {
     parts.push(`<div class="warn"><b>${r.ambiguous.length} park(s) matched more than one entry</b> — the shortest name won, which may be the wrong park.
