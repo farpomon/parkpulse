@@ -239,6 +239,10 @@
     box-shadow: var(--shadow, 0 4px 16px rgba(20,12,48,.07)); }
   .morecard .mo-h { font-size: 1rem; font-weight: 800; display: block; }
   .morecard .mo-sub { display: block; color: var(--muted); font-size: .82rem; line-height: 1.35; margin: .12rem 0 .55rem; }
+  /* The second heading needs air above it, and a rule, or the two halves of
+     the card read as one undifferentiated list. */
+  .morecard .mo-sub2 { margin-top: .8rem; padding-top: .7rem; border-top: 1px solid var(--border); }
+  .morecard .mo-more { display: block; color: var(--muted); font-size: .78rem; padding: .3rem .1rem 0; }
   .morecard .mo-row { display: flex; align-items: center; gap: .6rem; width: 100%;
     background: none; border: none; border-top: 1px solid var(--border); font: inherit; color: var(--ink);
     padding: .55rem .1rem; text-align: left; cursor: pointer; }
@@ -250,6 +254,9 @@
     display: grid; place-items: center; font-size: .9rem; font-weight: 800; line-height: 1; }
   .morecard .mo-row.on .mo-add { background: var(--brand); color: #fff; }
   .morecard .mo-row[disabled] .mo-add { border-color: var(--border); color: var(--muted); }
+  /* Already in the plan: reads as settled, not as disabled. */
+  .morecard .mo-row.locked { cursor: default; }
+  .morecard .mo-row.locked:active { opacity: 1; }
   .morecard .mo-mid { flex: 1 1 auto; min-width: 0; }
   .morecard .mo-name { display: block; font-weight: 700; font-size: .92rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -277,6 +284,13 @@
   .planask .pa-btns button { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
     border-radius: 999px; font: inherit; font-weight: 700; font-size: .8rem; padding: .35rem .7rem; cursor: pointer; }
   .planask .pa-btns button:active { transform: scale(.97); }
+  /* Rope drop. The plan that starts at 09:00 quietly assumes you are already
+     standing at the rope at 09:00 — nobody is, and the gap is the whole
+     advantage the plan is built on. */
+  .ropedrop { background: var(--green-soft, #e8f7f0); border: 1px solid var(--green, #2e9e6b);
+    border-radius: 12px; padding: .6rem .75rem; margin: 0 0 .8rem; font-size: .88rem; line-height: 1.45; }
+  .ropedrop b { color: var(--green, #2e9e6b); }
+  .ropedrop .rd-why { display: block; color: var(--muted); font-size: .82rem; margin-top: .25rem; }
   .planai-done { font-size: .82rem; font-weight: 700; color: var(--green, #2e9e6b); }
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
@@ -1879,6 +1893,24 @@
     return { risks, wetHours, hotHours };
   }
 
+  // Only when the plan genuinely opens the park. The advice is worthless at
+  // 11:00 and it is the most valuable line on the page at 09:00, so it earns
+  // its place by being conditional and by showing its working: the gap between
+  // what the first ride costs at open and what it costs for the rest of the day.
+  function arrivalNote(steps, p) {
+    const first = steps.find((s) => s.ride);
+    if (!first || !Number.isFinite(p.open)) return '';
+    if (first.time > p.open + 0.34) return '';   // not a rope-drop plan
+    const gate = p.open - 0.5;
+    const atOpen = first.predicted;
+    const usual = Math.round((first.ride.typical || 0) / 5) * 5;
+    const worth = usual >= atOpen + 15
+      ? `${esc(first.ride.name)} ${tr('is about')} ${atOpen} ${tr('min at open and')} ${usual} ${tr('min for most of the day')}`
+      : tr('the first hour is the emptiest the park will be all day');
+    return `<div class="ropedrop">🏁 <b>${tr('Be at the gate by')} ${hourLabel(gate)}</b> — ${worth}.
+      <span class="rd-why">${tr('Bag check, the walk in and the queue at the turnstile eat about half an hour, so arriving at opening time means starting your day thirty minutes late.')}</span></div>`;
+  }
+
   function riskBanner(r) {
     if (!r.risks.length) return '';
     return `<div class="riskbox"><b>⚠️ ${tr('Heads up for this day')}</b>${r.risks.map((t) => `<div class="riskrow">${t}</div>`).join('')}</div>`;
@@ -2707,6 +2739,7 @@
       </div>
       ${riskBanner(risk)}
       ${eventNotice(dayEvents, closer)}
+      ${arrivalNote(steps, p)}
       ${filled ? `<p class="fillnote">${tr('We filled the rest of your day to make the most of your time here —')} <b>${filled}</b> ${tr('extra attraction(s) added.')} ${tr('Want it different? Ask Mila below, or tick rides off in')} <a href="#rides" id="to-rides">${tr('Park attractions')}</a> ${tr('and plan again.')}</p>` : ''}
       ${encores ? `<p class="fillnote">✨ ${tr("You'll have seen everything! Mila tucked in an early dinner and")} <b>${encores}</b> ${tr('victory lap(s) on your favorites to close out the night.')}</p>` : ''}
       <!-- The advisor's read is the headline. The computed running order below
@@ -3272,27 +3305,40 @@
     // filter hides is the heartbreak those filters exist to prevent.
     const pool = rides.filter(passesFilter);
     const left = pool.filter((r) => !planned.has(r.name) && !done.has(r.name));
-    if (!left.length) return hide();
-    // Open and quick first: this card is for "we have twenty minutes", not
-    // for browsing. Closed rides sink and stay unpickable.
-    const list = [...left].sort((a, b) => (b.open - a.open) || (a.wait - b.wait)).slice(0, MORE_ROWS);
-    el.style.display = '';
-    el.innerHTML = `
-      <b class="mo-h">🎢 ${hasPlan ? tr('More at') : tr("What's on at")} ${esc(parks[current].name)}</b>
-      <span class="mo-sub">${hasPlan
-        ? tr("Not in today's plan — tap to add one, then plan again.")
-        : tr('The shortest waits right now — tap the ones your crew wants.')}</span>
-      ${list.map((r) => `<button type="button" class="mo-row${pickedNames.has(r.name) ? ' on' : ''}" data-name="${encodeURIComponent(r.name)}"${r.open ? '' : ' disabled'} aria-pressed="${pickedNames.has(r.name)}">
-        <span class="mo-add" aria-hidden="true">${pickedNames.has(r.name) ? '✓' : '＋'}</span>
+    // Hiding the planned rides made the card a list of leftovers, and left the
+    // work Pip and Mila just did invisible here. Show what they picked, ticked,
+    // at the top -- then what is still going spare underneath. The card is the
+    // park at a glance, not the park minus the plan.
+    const inPlan = pool.filter((r) => planned.has(r.name));
+    if (!left.length && !inPlan.length) return hide();
+    // Open and quick first among the leftovers: this half of the card is for
+    // "we have twenty minutes", not for browsing. Closed rides sink.
+    const spare = [...left].sort((a, b) => (b.open - a.open) || (a.wait - b.wait))
+      .slice(0, Math.max(3, MORE_ROWS - Math.min(inPlan.length, 4)));
+    // A planned row is a statement, not a switch: untick it here and the plan
+    // above would still list it, so the card would contradict the plan. Removing
+    // a ride belongs on the step itself.
+    const row = (r, locked) => `<button type="button" class="mo-row${locked ? ' on locked' : pickedNames.has(r.name) ? ' on' : ''}" data-name="${encodeURIComponent(r.name)}"${locked ? ' data-locked="1"' : r.open ? '' : ' disabled'} aria-pressed="${locked || pickedNames.has(r.name)}">
+        <span class="mo-add" aria-hidden="true">${locked || pickedNames.has(r.name) ? '✓' : '＋'}</span>
         <span class="mo-mid"><span class="mo-name">${esc(r.name)}</span>${r.land ? `<span class="mo-land">${esc(r.land)}</span>` : ''}</span>
         <span class="wait ${waitClass(r)}">${r.open ? r.wait + ' ' + tr('min') : tr('Closed')}</span>
-      </button>`).join('')}
+      </button>`;
+    el.style.display = '';
+    el.innerHTML = `
+      <b class="mo-h">🎢 ${esc(parks[current].name)}</b>
+      ${inPlan.length ? `<span class="mo-sub">${tr('Already ticked into your plan by Pip and Mila:')}</span>
+        ${inPlan.slice(0, 4).map((r) => row(r, true)).join('')}
+        ${inPlan.length > 4 ? `<span class="mo-more">+${inPlan.length - 4} ${tr('more in the plan')}</span>` : ''}` : ''}
+      ${spare.length ? `<span class="mo-sub${inPlan.length ? ' mo-sub2' : ''}">${inPlan.length
+        ? tr('Also here — tap to add, then plan again:')
+        : tr('The shortest waits right now — tap the ones your crew wants.')}</span>
+        ${spare.map((r) => row(r, false)).join('')}` : ''}
       <button type="button" class="mo-all" id="mo-all">${tr('See all attractions')} (${pool.length}) →</button>`;
   }
   document.getElementById('more-card').addEventListener('click', (e) => {
     if (e.target.closest('#mo-all')) return goToBoard();
     const row = e.target.closest('.mo-row');
-    if (!row) return;
+    if (!row || row.dataset.locked) return;
     const name = decodeURIComponent(row.dataset.name);
     if (pickedNames.has(name)) pickedNames.delete(name); else pickedNames.add(name);
     savePicks(current);
