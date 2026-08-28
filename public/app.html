@@ -284,6 +284,15 @@
   .planask .pa-btns button { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
     border-radius: 999px; font: inherit; font-weight: 700; font-size: .8rem; padding: .35rem .7rem; cursor: pointer; }
   .planask .pa-btns button:active { transform: scale(.97); }
+  /* Same card language as .planask, but the whole thing is the tap target --
+     there is only one thing to do here (open the chat), not a choice of two. */
+  .askmila { display: flex; gap: .7rem; align-items: center; width: 100%;
+    background: var(--brand-soft, #f2effe); border: 1px solid var(--border); border-radius: 14px;
+    padding: .7rem .8rem; margin: 0 0 .8rem; font: inherit; text-align: left; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; }
+  .askmila img { border-radius: 50%; flex: 0 0 auto; }
+  .askmila .am-t { flex: 1 1 auto; min-width: 0; font-size: .88rem; line-height: 1.4; color: var(--ink); font-weight: 700; }
+  .askmila:active { transform: scale(.98); }
   /* Rope drop. The plan that starts at 09:00 quietly assumes you are already
      standing at the rope at 09:00 — nobody is, and the gap is the whole
      advantage the plan is built on. */
@@ -671,10 +680,15 @@
      every offset below is expressed against it. */
   :root { --navh: calc(4.35rem + env(safe-area-inset-bottom)); }
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
-    display: flex; justify-content: space-around; align-items: stretch;
+    display: flex; align-items: stretch;
     background: var(--card); border-top: 1px solid var(--border);
     padding: .3rem .25rem calc(.3rem + env(safe-area-inset-bottom));
     box-shadow: 0 -4px 20px rgba(20, 12, 48, .10); }
+  /* Two equal halves either side of Mila. Splitting the bar 50/50 like this,
+     rather than sizing every tab the same, is what puts the seam between the
+     halves exactly on the bar's centre line no matter that one side carries
+     two tabs and the other three -- and that seam is where Mila floats. */
+  .tabbar-side { display: flex; flex: 1 1 0; min-width: 0; }
   .tabbar button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: flex-end; gap: .15rem; padding: .35rem .1rem .2rem;
     background: none; border: 0; border-radius: 12px; color: var(--muted);
@@ -712,11 +726,18 @@
   .tabbar button.on { color: var(--brand); }
   .tabbar button:active { transform: scale(.93); }
   /* Mila is the action button, so she sits proud of the bar the way a camera
-     or record button does -- it is the one tap we most want people to find. */
+     or record button does -- it is the one tap we most want people to find.
+     She floats outside the flex flow entirely and centers by position, on the
+     seam between the two .tabbar-side halves. */
+  .tabbar button.mila { position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: calc(.3rem + env(safe-area-inset-bottom)); flex: 0 0 auto; width: 4.4rem; z-index: 1; }
   .tabbar button.mila .ti { width: 2.6rem; height: 2.6rem; margin-top: -1.15rem; border-radius: 50%;
     border: 2.5px solid var(--brand); background: var(--card); overflow: hidden;
     box-shadow: 0 4px 14px rgba(20, 12, 48, .22); }
   .tabbar button.mila .ti img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* At this width the label would run into "Dining"'s; the circle art already
+     reads as Mila without it, and the name stays in the accessible name. */
+  .tabbar button.mila .tl { display: none; }
   /* The bar owns the bottom of the screen, so everything else that used to
      live there stacks on top of it instead of underneath. */
   .planbar { bottom: var(--navh); }
@@ -761,6 +782,7 @@
 
     body.pane-plan #crowdline,
     body.pane-plan #weatherline,
+    body.pane-plan #ask-mila,
     body.pane-plan .searchrow,
     body.pane-plan .sectionhead,
     body.pane-plan #rides,
@@ -826,6 +848,13 @@
   <div class="rail">
   <p class="crowdline" id="crowdline"></p>
   <div id="weatherline" class="wxline" style="display:none"></div>
+  <!-- The Today board is where people actually are once a plan exists --
+       .planask only ever shows on the Plan pane, so without this the
+       check-in never reaches anyone browsing attractions instead. -->
+  <button type="button" class="askmila" id="ask-mila" style="display:none">
+    <img src="/img/mila/mila-wink-160.webp" alt="" width="38" height="38" loading="lazy">
+    <span class="am-t" id="ask-mila-txt"></span>
+  </button>
   <div id="skipcard"></div>
   <div id="forecast"></div>
   </div>
@@ -883,12 +912,16 @@
 </div>
 
 <nav class="tabbar" id="tabbar" aria-label="Main">
-  <button type="button" data-tab="today" class="on"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h4M7 13h7M7 17h5"/><circle cx="16.5" cy="9" r="1.4"/></svg><span class="tl" id="tab-today">Today</span></button>
-  <button type="button" data-tab="plan"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg><span class="tl" id="tab-plan">Plan</span></button>
-  <button type="button" data-tab="mila" class="mila"><span class="ti"><img src="/img/mila/mila-wink-160.webp" alt=""></span><span class="tl" id="tab-mila">Mila</span></button>
-  <button type="button" data-tab="dining"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v7.5M4.5 3v4a2.5 2.5 0 0 0 5 0V3M7 13v8"/><path d="M16.5 3c-1.7 1.2-2.5 3.4-2.5 5.5 0 2 1 3 2.5 3V21M16.5 3v8.5"/></svg><span class="tl" id="tab-dining">Dining</span></button>
-  <button type="button" data-tab="map"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5 3.5 6v14.5L9 18l6 2.5 5.5-2.5V3.5L15 6z"/><path d="M9 3.5V18M15 6v14.5"/></svg><span class="tl" id="tab-map">Map</span></button>
-  <button type="button" data-tab="you"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><span class="tl" id="tab-you">You</span></button>
+  <div class="tabbar-side">
+    <button type="button" data-tab="today" class="on"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h4M7 13h7M7 17h5"/><circle cx="16.5" cy="9" r="1.4"/></svg><span class="tl" id="tab-today">Attractions</span></button>
+    <button type="button" data-tab="plan"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 14.5l2 2 4-4"/></svg><span class="tl" id="tab-plan">Plan</span></button>
+  </div>
+  <button type="button" data-tab="mila" class="mila" aria-label="Mila"><span class="ti"><img src="/img/mila/mila-wink-160.webp" alt=""></span><span class="tl" id="tab-mila">Mila</span></button>
+  <div class="tabbar-side">
+    <button type="button" data-tab="dining"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v7.5M4.5 3v4a2.5 2.5 0 0 0 5 0V3M7 13v8"/><path d="M16.5 3c-1.7 1.2-2.5 3.4-2.5 5.5 0 2 1 3 2.5 3V21M16.5 3v8.5"/></svg><span class="tl" id="tab-dining">Dining</span></button>
+    <button type="button" data-tab="map"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5 3.5 6v14.5L9 18l6 2.5 5.5-2.5V3.5L15 6z"/><path d="M9 3.5V18M15 6v14.5"/></svg><span class="tl" id="tab-map">Map</span></button>
+    <button type="button" data-tab="you"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><span class="tl" id="tab-you">You</span></button>
+  </div>
 </nav>
 
 <div class="sheet" id="filter-sheet">
@@ -2083,6 +2116,31 @@
     "This is my best read of that day. Want me to try another one? ✨",
   ];
   const planAskLine = () => tr(PLAN_ASK[Math.floor(Math.random() * PLAN_ASK.length)]);
+  // Ten voices for the Today-board check-in: same idea as .planask (Mila
+  // asking after the plan), but for whoever is browsing attractions instead
+  // of looking at the plan itself, where .planask never shows.
+  const TODAY_ASK = [
+    "Ask me anything about today's plan ✨",
+    "Still happy with the plan? Tap here and let's talk it through.",
+    'Is the plan still good, or has something changed? Ask me.',
+    "Got a question about today's plan? I'm right here.",
+    "Weather shifted, a ride closed, someone's tired — tap here and I'll adjust it.",
+    'Want a second opinion on the plan? Just ask ✨',
+    'Checking in — does the plan still work for you?',
+    'Tap here if anything about the plan needs a rethink.',
+    "I'm keeping an eye on the plan. Anything you want to change?",
+    "Not sure the plan still holds up? Let's check together.",
+  ];
+  // Shown only once a plan exists (asking "is it still valid?" makes no
+  // sense before there is one), and only while it does — mirrors the same
+  // check syncPlanHero() already uses to know a plan is on screen.
+  function syncAskMila() {
+    const el = $('ask-mila');
+    if (!el) return;
+    const hasPlan = Boolean($('plan-out').innerHTML.trim());
+    el.style.display = hasPlan ? '' : 'none';
+    if (hasPlan) $('ask-mila-txt').textContent = tr(TODAY_ASK[Math.floor(Math.random() * TODAY_ASK.length)]);
+  }
   // "Use the advisor's order" was the one place the app called Mila a system.
   // She has a name and a voice everywhere else; the button that takes her
   // advice should sound like taking her advice.
@@ -3229,7 +3287,7 @@
     }
     $('wiz').setAttribute('aria-label', tr('Your group'));
     $('acct-btn').title = tr('Account');
-    for (const [id, k] of [['tab-today','Today'],['tab-plan','Plan'],['tab-dining','Dining'],['tab-map','Map'],['tab-you','You']]) {
+    for (const [id, k] of [['tab-today','Attractions'],['tab-plan','Plan'],['tab-dining','Dining'],['tab-map','Map'],['tab-you','You']]) {
       const el = document.getElementById(id); if (el) el.textContent = tr(k);
     }
     $('sheet-sub').textContent = tr('Get a push alert when the wait drops under:');
@@ -3378,6 +3436,7 @@
     c.style.display = n ? '' : 'none';
     if (n) c.textContent = '✓ ' + n + ' ' + (n === 1 ? tr('ride picked so far') : tr('rides picked so far'));
     renderMoreCard();
+    syncAskMila();
   };
   $('pick-card-btn').addEventListener('click', () => {
     setPane('today', { scroll: false });
@@ -3888,6 +3947,10 @@
     }
   }
   $('ontrack').addEventListener('click', checkOnTrack);
+  $('ask-mila').addEventListener('click', () => {
+    if (window.ParkPulseChat) ParkPulseChat.ask(`${tr('Take another look at my plan for today at')} ${parks[current].name}${planDate ? ' (' + planDate + ')' : ''} — ${tr('is it still the right call, or has anything changed?')}`);
+    else toast(tr("Mila isn't available right now."));
+  });
   $('tabbar').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-tab]');
     if (b) goTab(b.dataset.tab);

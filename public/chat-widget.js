@@ -127,7 +127,7 @@
     root.id = 'ppc-root';
     root.innerHTML = `
       <button id="ppc-fab" title="Ask Mila, your park advisor" aria-label="Ask Mila, your park advisor"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
-      <div id="ppc-panel" role="dialog" aria-label="Park consultant chat">
+      <div id="ppc-panel" role="dialog" aria-label="Chat with your magical fairy">
         <div id="ppc-head"><div><b>${T()('Mila — your park fairy')}</b><span id="ppc-sub"></span></div>
           <button id="ppc-close" aria-label="Close chat">✕</button></div>
         <div id="ppc-scrollwrap">
