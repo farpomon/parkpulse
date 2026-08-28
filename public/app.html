@@ -570,6 +570,19 @@
   .wiz-note { color: var(--muted); font-size: .85rem; margin: .8rem 0 0; }
   .groupchip { display: inline-flex; align-items: center; gap: .35rem; background: var(--brand-soft); color: var(--brand);
     border: none; border-radius: 999px; padding: .35rem .85rem; font-size: .82rem; font-weight: 800; cursor: pointer; margin: .1rem 0 .45rem; }
+  /* First-run coachmark, not a permanent label: the pencil glyph alone was
+     too easy to miss (screenshot feedback), but a returning visitor who has
+     already opened this once does not need to be told every time. Dismissed
+     for good the first time they tap the chip or the close button. In normal
+     flow (not absolutely positioned) so it pushes the park tabs down instead
+     of floating over them and blocking a tap. */
+  .grouphint { display: flex; align-items: center; gap: .4rem; max-width: fit-content;
+    background: var(--ink); color: var(--card); border-radius: 10px; padding: .5rem .6rem .5rem .7rem;
+    font-size: .78rem; font-weight: 700; line-height: 1.3; margin: -.15rem 0 .5rem; }
+  .grouphint span { flex: 1 1 auto; }
+  .grouphint button { flex: 0 0 auto; background: none; border: 0; color: inherit; opacity: .75;
+    font-size: 1rem; line-height: 1; cursor: pointer; padding: .1rem; }
+  .grouphint button:active { opacity: 1; }
   .onboard h2 { margin: 0 0 .2rem; font-size: 1.35rem; }
   .onboard .sub { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
   .ob-step { display: flex; gap: .75rem; align-items: flex-start; margin: .85rem 0; font-size: .92rem; line-height: 1.45; }
@@ -3343,6 +3356,10 @@
     $('ontrack-lbl').textContent = '✨ ' + tr('Still on track?');
     // read the DOM, not viewMode — this can run before that binding exists
     $('listhead-title').textContent = $('dining').style.display !== 'none' ? '🍽 ' + tr('Dining') : '🎢 ' + tr('Park attractions');
+    // Same race as everything else here: renderGroupChip() runs at load,
+    // before the dictionary is necessarily in. Re-run once it lands so the
+    // chip's aria-label and the hint bubble aren't stuck in English.
+    renderGroupChip();
   }
   // One-tap day plan from the top of the page: uses the rides you've checked;
   // with nothing checked it starts from your starred favorites, or the park's
@@ -4678,13 +4695,23 @@
     if (profile.strict) fAge = youngestCap();
     if (profile.vibes.length === 1) fVibe = profile.vibes[0];
   }
+  function dismissGroupHint() {
+    try { localStorage.setItem('pp-grouphint-seen', '1'); } catch {}
+    const hint = $('group-hint');
+    if (hint) hint.remove();
+  }
   function renderGroupChip() {
     const el = $('group-chip');
     if (!profile) { el.innerHTML = ''; return; }
     const ageIcons = AGE_BANDS.filter(([v]) => profile.ages.includes(v)).map(([, e]) => e).join('');
     const vibeIcons = VIBE_OPTS.filter(([v]) => profile.vibes.includes(v)).map(([, e]) => e).join('');
-    el.innerHTML = `<button class="groupchip" id="group-chip-btn" aria-label="${tr('Your group')}">👥 ${profile.party}${ageIcons ? ' · ' + ageIcons : ''}${vibeIcons ? ' · ' + vibeIcons : ''} ✎</button>`;
-    document.getElementById('group-chip-btn').addEventListener('click', openWizard);
+    let seen = false;
+    try { seen = Boolean(localStorage.getItem('pp-grouphint-seen')); } catch {}
+    el.innerHTML = `<button class="groupchip" id="group-chip-btn" aria-label="${tr('Your group')}">👥 ${profile.party}${ageIcons ? ' · ' + ageIcons : ''}${vibeIcons ? ' · ' + vibeIcons : ''} ✎</button>` +
+      (seen ? '' : `<div class="grouphint" id="group-hint"><span>${tr('Tap here anytime to update your group')}</span><button type="button" id="group-hint-x" aria-label="${tr('Dismiss')}">✕</button></div>`);
+    document.getElementById('group-chip-btn').addEventListener('click', () => { dismissGroupHint(); openWizard(); });
+    const x = document.getElementById('group-hint-x');
+    if (x) x.addEventListener('click', (e) => { e.stopPropagation(); dismissGroupHint(); });
   }
   applyProfileDefaults();
   renderGroupChip();
