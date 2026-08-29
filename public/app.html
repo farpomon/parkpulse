@@ -119,6 +119,27 @@
   .destrow { margin-bottom: .5rem; display: flex; gap: .45rem; }
   .destrow select { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 12px; padding: .5rem .8rem; font-size: .95rem; font-weight: 600; }
   #dest-star.on { color: var(--star); border-color: var(--star); }
+  /* Sixty-five parks is more than a dropdown can be scrolled through with a
+     thumb. The list overlays rather than pushing the board down, so an
+     abandoned search costs nothing but the row the field sits in. */
+  .parkfind { position: relative; margin-bottom: .5rem; }
+  .parkfind .pf-icon { position: absolute; left: .6rem; top: 50%; transform: translateY(-50%); font-size: .82rem; opacity: .75; pointer-events: none; }
+  #parkq { width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--card);
+    color: var(--ink); border-radius: 12px; padding: .46rem 2rem .46rem 2rem; font-size: .9rem; font-family: inherit; }
+  #parkq::placeholder { color: var(--muted); }
+  #parkq:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .pf-x { position: absolute; right: .35rem; top: 50%; transform: translateY(-50%); border: 0; background: none;
+    color: var(--muted); font-size: .85rem; cursor: pointer; padding: .3rem .4rem; line-height: 1; }
+  .pf-list { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + .25rem); max-height: 17rem; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.16); }
+  .pf-row { display: block; width: 100%; text-align: start; border: 0; background: none; cursor: pointer;
+    padding: .5rem .7rem; font: inherit; color: var(--ink); border-bottom: 1px solid var(--border); }
+  .pf-row:last-child { border-bottom: 0; }
+  .pf-row[aria-selected="true"], .pf-row:hover { background: var(--brand-soft); }
+  .pf-row b { font-size: .92rem; font-weight: 700; }
+  .pf-row mark { background: none; color: var(--brand); font-weight: 800; }
+  .pf-row span { display: block; font-size: .74rem; color: var(--muted); }
+  .pf-none { padding: .6rem .7rem; font-size: .84rem; color: var(--muted); }
   .tabs { display: flex; gap: .45rem; overflow-x: auto; padding-bottom: .4rem; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tabs button { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: .45rem 1rem; font-size: .9rem; font-weight: 700; cursor: pointer; color: var(--ink); transition: background .15s, color .15s, border-color .15s; }
@@ -917,6 +938,14 @@
     <div class="destrow">
       <select id="dest" aria-label="Choose park"></select>
       <button class="iconbtn" id="dest-star" title="Track this destination in My parks" aria-label="Track this destination">☆</button>
+    </div>
+    <div class="parkfind">
+      <span class="pf-icon" aria-hidden="true">🔍</span>
+      <input id="parkq" type="text" name="parkq" autocomplete="off" autocorrect="off" spellcheck="false"
+        role="combobox" aria-expanded="false" aria-controls="parkq-list" aria-autocomplete="list"
+        placeholder="Search parks" aria-label="Search parks">
+      <button class="pf-x" id="parkq-x" type="button" hidden aria-label="Clear">✕</button>
+      <div class="pf-list" id="parkq-list" role="listbox" hidden></div>
     </div>
     <div id="group-chip"></div>
     <div class="tabs" id="tabs" role="tablist"></div>
@@ -3819,6 +3848,9 @@
     $('lab-arrive').childNodes[0].nodeValue = tr('Arrive') + ' ';
     $('lab-leave').childNodes[0].nodeValue = tr('Leave') + ' ';
     $('search').placeholder = tr('Search rides…');
+    const pq = $('parkq');
+    if (pq) { pq.placeholder = tr('Search parks'); pq.setAttribute('aria-label', tr('Search parks')); }
+    $('parkq-x').setAttribute('aria-label', tr('Clear'));
     // title AND aria-label: only the tooltip was being translated, so a
     // screen reader in Portuguese still announced these two in English.
     for (const [id, k] of [['locate', 'Find my park'], ['refresh', 'Refresh waits']]) {
@@ -5836,6 +5868,132 @@
     closeAcct();
     location.reload(); // re-resolve access from a clean slate
   });
+  // --- Park search ----------------------------------------------------------
+  // Sixty-five parks behind one <select> means knowing which resort EPCOT
+  // belongs to before you can reach it. This finds a park by anything the
+  // visitor is likely to have in mind -- its name, its resort, its region, or
+  // the abbreviation they would type to a friend.
+  //
+  // Accents and punctuation are stripped from both sides, so "epcot" finds
+  // EPCOT, "disneysea" finds Tokyo DisneySea, and a Portuguese keyboard's
+  // "orlando" still lands on the Florida gates through their resort name.
+  const pfNorm = (v) => String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+  // What people type instead of the official name. Deliberately short: every
+  // entry here is a guess about someone's habits, and a wrong guess sends them
+  // to the wrong park. Resort-level keys apply to every gate in that resort.
+  const PF_ALIAS_GROUP = {
+    'Walt Disney World': 'wdw disney world orlando florida',
+    'Disneyland (California)': 'dlr disneyland resort anaheim socal california',
+    'Universal Orlando': 'uor universal orlando florida',
+    'Universal Hollywood': 'ush universal hollywood los angeles california',
+    'Disneyland Paris': 'dlp paris france eurodisney',
+    'Tokyo Disney Resort': 'tdr tokyo japan',
+  };
+  const PF_ALIAS_PARK = {
+    'magic-kingdom': 'mk', epcot: 'ec future world', 'hollywood-studios': 'dhs hs mgm studios',
+    'animal-kingdom': 'ak dak', disneyland: 'dl', 'california-adventure': 'dca',
+    'islands-of-adventure': 'ioa islands', 'universal-studios-florida': 'usf studios',
+    'epic-universe': 'epic', 'tokyo-disneysea': 'tds disneysea', 'tokyo-disneyland': 'tdl',
+  };
+  const pfHaystack = (slug) => {
+    const p = parks[slug];
+    return pfNorm([p.name, p.group, p.region || '', PF_ALIAS_GROUP[p.group] || '', PF_ALIAS_PARK[slug] || ''].join(' '));
+  };
+  let pfIndex = null;   // rebuilt whenever the park list changes
+  const pfBuild = () => { pfIndex = Object.keys(parks).map((slug) => ({ slug, hay: pfHaystack(slug), name: pfNorm(parks[slug].name) })); };
+
+  function pfSearch(q) {
+    const n = pfNorm(q);
+    if (!n) return [];
+    if (!pfIndex) pfBuild();
+    const words = n.split(' ');
+    const scored = [];
+    for (const e of pfIndex) {
+      // Every word has to appear somewhere, so "tokyo sea" finds DisneySea
+      // and "tokyo paris" finds nothing rather than both.
+      if (!words.every((w) => e.hay.includes(w))) continue;
+      // Rank by how directly the name itself was hit: the whole query at the
+      // front of the name beats a word in the middle beats a resort match.
+      const score = e.name.startsWith(n) ? 0
+        : e.name.includes(' ' + n) ? 1
+          : e.name.includes(n) ? 2 : 3;
+      scored.push({ slug: e.slug, score });
+    }
+    return scored.sort((a, b) => a.score - b.score || parks[a.slug].name.localeCompare(parks[b.slug].name)).slice(0, 8);
+  }
+
+  let pfActive = -1;
+  function pfClose() {
+    const list = $('parkq-list');
+    list.hidden = true;
+    list.innerHTML = '';
+    pfActive = -1;
+    $('parkq').setAttribute('aria-expanded', 'false');
+  }
+  function pfRender(q) {
+    const list = $('parkq-list');
+    const hits = pfSearch(q);
+    $('parkq-x').hidden = !q;
+    if (!q) return pfClose();
+    if (!hits.length) {
+      list.innerHTML = `<div class="pf-none">${esc(trf('Nothing matches {q}', { q }))}</div>`;
+      list.hidden = false;
+      $('parkq').setAttribute('aria-expanded', 'true');
+      return;
+    }
+    // Highlight what they typed inside the name so the match is visible.
+    const mark = (name) => {
+      const i = pfNorm(name).indexOf(pfNorm(q));
+      if (i < 0 || !pfNorm(q)) return esc(name);
+      return `${esc(name.slice(0, i))}<mark>${esc(name.slice(i, i + q.trim().length))}</mark>${esc(name.slice(i + q.trim().length))}`;
+    };
+    list.innerHTML = hits.map(({ slug }, i) => {
+      const p = parks[slug];
+      const locked = !isPro && slug !== FREE_PARK ? ' 🔒' : '';
+      return `<button type="button" class="pf-row" role="option" data-slug="${slug}" aria-selected="${i === 0}">
+        <b>${mark(p.name)}${locked}</b><span>${esc(p.group)}${p.region ? ' · ' + esc(p.region) : ''}</span></button>`;
+    }).join('');
+    pfActive = 0;
+    list.hidden = false;
+    $('parkq').setAttribute('aria-expanded', 'true');
+    list.querySelectorAll('.pf-row').forEach((b) => b.addEventListener('click', () => pfPick(b.dataset.slug)));
+  }
+  function pfPick(slug) {
+    if (!parks[slug]) return;
+    $('parkq').value = '';
+    $('parkq-x').hidden = true;
+    pfClose();
+    $('parkq').blur();
+    if (slug === current) return;
+    current = slug;
+    dest = parks[slug].group;
+    localStorage.setItem('pp-park', current);
+    load();
+  }
+  function pfMove(by) {
+    const rows = [...$('parkq-list').querySelectorAll('.pf-row')];
+    if (!rows.length) return;
+    pfActive = (pfActive + by + rows.length) % rows.length;
+    rows.forEach((r, i) => r.setAttribute('aria-selected', i === pfActive));
+    rows[pfActive].scrollIntoView({ block: 'nearest' });
+  }
+  $('parkq').addEventListener('input', (e) => pfRender(e.target.value));
+  $('parkq').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); pfMove(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); pfMove(-1); }
+    else if (e.key === 'Enter') {
+      const row = $('parkq-list').querySelectorAll('.pf-row')[pfActive];
+      if (row) { e.preventDefault(); pfPick(row.dataset.slug); }
+    } else if (e.key === 'Escape') { $('parkq').value = ''; pfClose(); $('parkq-x').hidden = true; }
+  });
+  $('parkq-x').addEventListener('click', () => { $('parkq').value = ''; pfClose(); $('parkq-x').hidden = true; $('parkq').focus(); });
+  // A tap anywhere else is a dismissal, but a tap inside the list must land on
+  // the row rather than closing it out from under the finger.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.parkfind')) pfClose();
+  });
+
   $('dest').addEventListener('change', (e) => {
     const slug = e.target.value;
     if (!parks[slug]) return;
@@ -5852,6 +6010,7 @@
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;
       popularParks = Array.isArray(c.popular) ? c.popular : [];
+      pfIndex = null;   // parks may have arrived or changed; re-index on next search
       pushKey = c.pushKey || '';
       consultantOn = Boolean(c.consultant);
       whatsappOn = Boolean(c.whatsapp);

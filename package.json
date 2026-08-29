@@ -8,7 +8,8 @@
     "test:cache": "node test/prompt-cache.cjs",
     "test:card": "node test/plan-card.cjs",
     "test:i18n": "node test/i18n-audit.mjs",
-    "test:ll": "node test/lightning-lane.mjs"
+    "test:ll": "node test/lightning-lane.mjs",
+    "test:parksearch": "node test/park-search.mjs"
   },
   "engines": {
     "node": ">=22.5"
