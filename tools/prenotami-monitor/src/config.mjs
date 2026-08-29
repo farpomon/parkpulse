@@ -122,6 +122,9 @@ export function loadConfig(env = process.env) {
     quietHoursStart: num(env, 'PRENOTAMI_QUIET_START', -1),
     quietHoursEnd: num(env, 'PRENOTAMI_QUIET_END', -1),
 
+    // Hours between all-quiet messages. 0 disables them.
+    heartbeatHours: num(env, 'PRENOTAMI_HEARTBEAT_HOURS', 24),
+
     headless: bool(env, 'PRENOTAMI_HEADLESS', true),
     screenshots: bool(env, 'PRENOTAMI_SCREENSHOTS', true),
 

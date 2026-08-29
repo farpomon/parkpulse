@@ -5,7 +5,13 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const EMPTY = { lastOutcome: null, lastNotifiedAt: null, lastNotifiedOutcome: null, checks: 0 };
+const EMPTY = {
+  lastOutcome: null,
+  lastNotifiedAt: null,
+  lastNotifiedOutcome: null,
+  lastHeartbeatAt: null,
+  checks: 0,
+};
 
 export function loadState(dataDir) {
   const path = join(dataDir, 'state.json');
@@ -58,5 +64,19 @@ export function recordCheck(state, outcome, { notified, now = Date.now() } = {})
     state.lastNotifiedAt = new Date(now).toISOString();
     state.lastNotifiedOutcome = outcome;
   }
+  return state;
+}
+
+// Running unattended, "no alerts" and "the process died three weeks ago" look
+// identical from the outside. A periodic all-quiet message tells them apart, so
+// a monitor that silently stopped is noticed in a day rather than a month.
+export function shouldHeartbeat(state, intervalHours, now = Date.now()) {
+  if (!intervalHours || intervalHours <= 0) return false;
+  if (!state.lastHeartbeatAt) return true;
+  return now - new Date(state.lastHeartbeatAt).getTime() >= intervalHours * 3600 * 1000;
+}
+
+export function recordHeartbeat(state, now = Date.now()) {
+  state.lastHeartbeatAt = new Date(now).toISOString();
   return state;
 }

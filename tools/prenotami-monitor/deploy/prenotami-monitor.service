@@ -1,0 +1,32 @@
+# systemd user unit — keeps the monitor running across crashes and reboots.
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/prenotami-monitor.service ~/.config/systemd/user/
+#   # edit WorkingDirectory below to wherever you cloned this
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now prenotami-monitor
+#   loginctl enable-linger $USER     # so it runs when you are not logged in
+#
+# Watch it:  journalctl --user -u prenotami-monitor -f
+# Stop it:   systemctl --user disable --now prenotami-monitor
+
+[Unit]
+Description=prenotami appointment monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/parkpulse/tools/prenotami-monitor
+ExecStart=/usr/bin/env node bin/prenotami-monitor.mjs watch
+Restart=always
+RestartSec=60
+# Give up for a while if it is crash-looping, rather than hammering the site.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

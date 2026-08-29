@@ -4,7 +4,14 @@
 import { Session } from './session.mjs';
 import { runCheck } from './check.mjs';
 import { notifyAll, buildMessage } from './notify.mjs';
-import { loadState, saveState, shouldNotify, recordCheck } from './state.mjs';
+import {
+  loadState,
+  saveState,
+  shouldNotify,
+  recordCheck,
+  shouldHeartbeat,
+  recordHeartbeat,
+} from './state.mjs';
 import { inQuietHours, nextDelaySeconds } from './pacing.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,6 +35,20 @@ export async function checkOnce(config, logger, session) {
     if (notify) await notifyAll(config, logger, buildMessage(config, result));
 
     recordCheck(state, result.outcome, { notified: notify });
+
+    // Prove the monitor is still alive even when it has nothing to report.
+    if (!notify && shouldHeartbeat(state, config.heartbeatHours)) {
+      await notifyAll(config, logger, {
+        priority: 'normal',
+        title: 'prenotami monitor: still watching',
+        body:
+          `${state.checks} checks so far. Latest: ${result.outcome}. ` +
+          'No slots yet — you will hear from me the moment there are.',
+        url: `${config.baseUrl}/Services`,
+      });
+      recordHeartbeat(state);
+    }
+
     saveState(state);
     return result;
   } finally {

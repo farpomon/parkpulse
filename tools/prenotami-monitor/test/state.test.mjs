@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldNotify, recordCheck } from '../src/state.mjs';
+import { shouldNotify, recordCheck, shouldHeartbeat, recordHeartbeat } from '../src/state.mjs';
 
 const fresh = () => ({ path: '/dev/null', lastNotifiedAt: null, lastNotifiedOutcome: null });
 
@@ -45,4 +45,19 @@ test('a persistent error nags once, not every cycle', () => {
   const state = recordCheck(fresh(), 'error', { notified: true, now });
   assert.equal(shouldNotify(state, 'error', now + 60 * 60_000), false);
   assert.equal(shouldNotify(state, 'error', now + 7 * 60 * 60_000), true);
+});
+
+test('the first run sends an all-quiet heartbeat', () => {
+  assert.equal(shouldHeartbeat(fresh(), 24), true);
+});
+
+test('heartbeats respect their interval', () => {
+  const now = Date.now();
+  const state = recordHeartbeat(fresh(), now);
+  assert.equal(shouldHeartbeat(state, 24, now + 23 * 3600_000), false);
+  assert.equal(shouldHeartbeat(state, 24, now + 25 * 3600_000), true);
+});
+
+test('heartbeats can be turned off', () => {
+  assert.equal(shouldHeartbeat(fresh(), 0), false);
 });

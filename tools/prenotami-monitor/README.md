@@ -56,9 +56,35 @@ and alerts you when the booking page stops saying "no dates available". Ctrl-C
 to stop. Leave it running on a machine that stays awake — a laptop that sleeps
 is not monitoring anything.
 
-To keep it running across reboots, use whatever your OS already has: `systemd`
-on Linux, `launchd` on macOS, or just `tmux`/`screen` if you are only watching
-for a few days.
+### Running it unattended
+
+`deploy/` has a service definition for each platform, so the monitor starts on
+boot and restarts if it crashes:
+
+| Platform | File | Install |
+|---|---|---|
+| Linux | `deploy/prenotami-monitor.service` | `systemctl --user enable --now prenotami-monitor` |
+| macOS | `deploy/com.prenotami.monitor.plist` | `launchctl load -w ~/Library/LaunchAgents/...` |
+
+Each file has its exact install steps in a comment at the top, including the one
+path you need to edit. On Linux, run `loginctl enable-linger $USER` too, or the
+monitor stops when you log out.
+
+Both restart on failure with a 60-second delay and give up for a while if the
+monitor is crash-looping, so a broken config cannot turn into a burst of traffic
+at the consulate.
+
+**A sleeping laptop is not monitoring anything.** Run this somewhere that stays
+awake — a desktop, a Raspberry Pi, a cheap VPS. On macOS, `caffeinate -s`
+alongside it.
+
+### Knowing it is still alive
+
+Left alone, "no alerts" and "the process died three weeks ago" look identical.
+So every `PRENOTAMI_HEARTBEAT_HOURS` (24 by default) the monitor sends an
+all-quiet message through your alert channels. If those stop arriving, the
+monitor stopped — check `journalctl --user -u prenotami-monitor` or the launchd
+log. Set it to `0` if you find it noisy, but then silence tells you nothing.
 
 ## Alert channels
 
@@ -162,4 +188,5 @@ src/pacing.mjs              intervals, jitter, backoff, quiet hours (pure)
 src/state.mjs               alert deduplication (pure)
 src/notify.mjs              Telegram / ntfy / webhook / desktop
 src/monitor.mjs             the watch loop
+deploy/                     systemd unit and launchd agent
 ```
