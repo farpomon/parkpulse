@@ -11,7 +11,8 @@
     "test:ll": "node test/lightning-lane.mjs",
     "test:parksearch": "node test/park-search.mjs",
     "test:party": "node test/party-change.mjs",
-    "test:emaillinks": "node test/email-links.cjs"
+    "test:emaillinks": "node test/email-links.cjs",
+    "test:grouplabel": "node test/group-label.mjs"
   },
   "engines": {
     "node": ">=22.5"
