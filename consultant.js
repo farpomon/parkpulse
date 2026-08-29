@@ -12,12 +12,25 @@ let client = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 const enabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 const MODEL = 'claude-opus-5';
-// Bulk mechanical work rides the cheap tier: ride blurbs (one cold call per
-// ride per language, then cached forever) and feed<->map name matching are
-// high-volume and low-stakes. Anything needing real park knowledge or read
-// as advice — the consultant, plan briefings, ride tags with their height
-// minimums, map pin placement — stays on the smart tier.
+// Three tiers, chosen by what a wrong answer costs and how often the call
+// repeats.
+//
+// LIGHT — bulk mechanical work: ride blurbs (one cold call per ride per
+// language, then cached forever) and feed<->map name matching. High volume,
+// low stakes.
+//
+// CATALOG — written once per park (per language for dining), cached in SQLite
+// and never charged again: the dining guide and the ride-tag classification.
+// These are long, structured JSON jobs against a strict schema, which is the
+// shape a mid tier handles well, and the volume is bounded by the number of
+// parks rather than by the number of visitors.
+//
+// MODEL — anything a visitor reads as advice, and anything that runs on every
+// visit: the consultant and the plan-email briefing. This is the only tier
+// whose cost scales with users, so it is the only one worth paying top rate
+// for.
 const LIGHT_MODEL = process.env.AI_LIGHT_MODEL || 'claude-haiku-4-5';
+const CATALOG_MODEL = process.env.AI_CATALOG_MODEL || 'claude-sonnet-5';
 const MAX_TURNS = 6;
 
 // Injected by server.js at boot (registry, live-waits fetcher, alert writer).
@@ -562,7 +575,7 @@ function parseJsonArray(raw) {
 
 async function diningGuide(parkName, group, lang) {
   const msg = await client.beta.messages.create({
-    model: MODEL,
+    model: CATALOG_MODEL,
     max_tokens: 1500,
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
@@ -706,7 +719,7 @@ Write the note in ${lang || 'English'}.` }],
 
 async function rideTags(parkName, rideNames) {
   const msg = await client.beta.messages.create({
-    model: MODEL,
+    model: CATALOG_MODEL,
     max_tokens: 4000,
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],

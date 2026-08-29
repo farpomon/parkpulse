@@ -1568,10 +1568,45 @@ function recordUsage(feature, model, usage) {
 const usd = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
 const usd4 = (n) => "$" + n.toFixed(n < 1 ? 4 : 2);
 
+// Features whose output is cached in SQLite and never paid for twice: the
+// catalogue jobs, written once per park (per language where it varies) and
+// bounded by the number of parks rather than the number of visitors. Dividing
+// these by active accounts would be meaningless -- while the catalogue is
+// still filling in they would swamp the figure, and once it is full they stop
+// costing anything at all. Everything else is charged per visit.
+//
+// Anything not listed here counts as running cost. That is the deliberate
+// direction to be wrong in: a new feature nobody remembered to classify shows
+// up in the number that matters instead of hiding in the one that doesn't.
+const CACHED_FEATURES = new Set(["ride-info", "dining", "park-flavor", "ride-tags", "geo-match", "geo-estimate"]);
+
+// Midnight Eastern on a YYYY-MM-DD, as an instant. The spend windows are
+// Eastern calendar days, so the active-account count has to start at the same
+// moment or the two halves of "cost per account" would cover different spans.
+// ET runs at UTC-5 or UTC-4, so the offset is probed for that specific date
+// rather than assumed -- otherwise the boundary slips by an hour twice a year.
+function etMidnight(dateStr) {
+  const guess = new Date(dateStr + "T05:00:00Z"); // midnight if ET is on standard time
+  const off = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/New_York", hour: "2-digit", hour12: false }).format(guess)) % 24;
+  return new Date(guess.getTime() - off * 3600000).toISOString();
+}
+
 // Day / week / month spend, week and month being trailing 7 and 30 days
-// ending on the report day, so the numbers are comparable run to run.
+// ending on the report day, so the numbers are comparable run to run. Each
+// window carries the split between running and catalogue cost, and the number
+// of accounts seen in that same window, because the useful question is not
+// what the month cost but what one more visitor costs.
 function aiCostReport(day) {
-  const win = (n) => db.aiusage.totals(addDays(day, -(n - 1)), day);
+  const win = (n) => {
+    const from = addDays(day, -(n - 1));
+    const t = db.aiusage.totals(from, day);
+    const cached = db.aiusage.byFeature(from, day)
+      .filter((f) => CACHED_FEATURES.has(f.feature))
+      .reduce((sum, f) => sum + f.cost_usd, 0);
+    const accounts = db.admin.activeAccountsSince(etMidnight(from), [...ADMIN_EMAILS]);
+    const running = t.cost_usd - cached;
+    return { ...t, cached_usd: cached, running_usd: running, accounts, per_account: accounts ? running / accounts : null };
+  };
   return {
     day, today: win(1), week: win(7), month: win(30),
     features: db.aiusage.byFeature(addDays(day, -29), day),
@@ -1580,11 +1615,18 @@ function aiCostReport(day) {
 }
 
 function aiCostEmailHtml(r) {
-  const row = (label, t) => `<tr><td style="padding:6px 12px 6px 0"><b>${label}</b></td>
-    <td style="padding:6px 12px 6px 0;font-size:20px"><b>${usd(t.cost_usd)}</b></td>
-    <td style="padding:6px 0;color:#666">${t.calls} calls · ${(t.input_tokens + t.cache_read + t.cache_write).toLocaleString()} in / ${t.output_tokens.toLocaleString()} out</td></tr>`;
+  // The headline number answers "what did I spend"; the one next to it answers
+  // "what does one more visitor cost me", which is the one that decides whether
+  // a pass price works. Only running cost is divided -- see CACHED_FEATURES.
+  const perAcct = (t) => (t.per_account == null
+    ? `<span style="color:#999">no accounts active</span>`
+    : `<b style="font-size:16px">${usd4(t.per_account)}</b> per active account <span style="color:#888">(${t.accounts})</span>`);
+  const row = (label, t) => `<tr><td style="padding:8px 12px 8px 0;vertical-align:top"><b>${label}</b></td>
+    <td style="padding:8px 12px 8px 0;font-size:20px;vertical-align:top"><b>${usd(t.cost_usd)}</b></td>
+    <td style="padding:8px 0;color:#444;vertical-align:top">${perAcct(t)}<br>
+      <span style="color:#888;font-size:12px">${t.calls} calls · ${(t.input_tokens + t.cache_read + t.cache_write).toLocaleString()} in / ${t.output_tokens.toLocaleString()} out${t.cached_usd > 0.00005 ? ` · ${usd4(t.cached_usd)} of it one-off catalogue` : ""}</span></td></tr>`;
   const feats = r.features.length
-    ? r.features.map((f) => `<tr><td style="padding:3px 12px 3px 0">${f.feature}</td><td style="padding:3px 0">${usd4(f.cost_usd)} <span style="color:#888">(${f.calls})</span></td></tr>`).join("")
+    ? r.features.map((f) => `<tr><td style="padding:3px 12px 3px 0">${f.feature}${CACHED_FEATURES.has(f.feature) ? ` <span style="color:#888;font-size:12px">· cached, one-off</span>` : ""}</td><td style="padding:3px 0">${usd4(f.cost_usd)} <span style="color:#888">(${f.calls})</span></td></tr>`).join("")
     : `<tr><td colspan="2" style="color:#888">No AI calls in the last 30 days.</td></tr>`;
   const peak = Math.max(...r.days.map((d) => d.cost_usd), 0.0001);
   const spark = r.days.map((d) => `<td style="vertical-align:bottom;padding:0 2px">
@@ -1600,15 +1642,19 @@ function aiCostEmailHtml(r) {
     <table style="border-collapse:collapse;margin-bottom:22px">${feats}</table>
     ${r.days.length ? `<p style="margin:0 0 6px"><b>Daily spend</b> <span style="color:#888">· last 14 days, peak ${usd4(peak)}</span></p>
     <table style="border-collapse:collapse"><tr>${spark}</tr></table>` : ""}
-    <p style="margin:22px 0 0;font-size:12px;color:#888">Estimated from token counts at Anthropic list prices — your invoice is the source of truth.</p>
+    <p style="margin:22px 0 0;font-size:12px;color:#888">Per-account cost counts only the work that repeats — the advisor and the plan-email briefing. The catalogue jobs marked <i>cached</i> above are written once per park, stored in SQLite and never charged again, so they are left out of it. An active account is one seen in that same window.</p>
+    <p style="margin:8px 0 0;font-size:12px;color:#888">Estimated from token counts at Anthropic list prices — your invoice is the source of truth.</p>
   </div>`;
 }
 
 async function sendAiCostEmail(day) {
   if (!AI_REPORT_TO) return { sent: false, reason: "no recipient configured" };
   const r = aiCostReport(day);
-  return sendEmail(AI_REPORT_TO, `ParkPulse AI spend ${day}: ${usd(r.today.cost_usd)} today · ${usd(r.week.cost_usd)} this week`,
-    aiCostEmailHtml(r), `AI spend ${day}: today ${usd(r.today.cost_usd)}, week ${usd(r.week.cost_usd)}, month ${usd(r.month.cost_usd)}`);
+  // The subject carries the trailing-week per-account figure rather than
+  // today's: a single quiet or busy day swings it too far to glance at.
+  const per = r.week.per_account == null ? "" : ` · ${usd4(r.week.per_account)}/account`;
+  return sendEmail(AI_REPORT_TO, `ParkPulse AI spend ${day}: ${usd(r.today.cost_usd)} today · ${usd(r.week.cost_usd)} this week${per}`,
+    aiCostEmailHtml(r), `AI spend ${day}: today ${usd(r.today.cost_usd)}, week ${usd(r.week.cost_usd)}, month ${usd(r.month.cost_usd)}${per}`);
 }
 
 // Fires once per day at AI_REPORT_HOUR Eastern, from the shared interval.

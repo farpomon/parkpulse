@@ -540,6 +540,17 @@ const admin = {
   signupsByDay: (days) => db.prepare('SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM users WHERE created_at >= ? GROUP BY day ORDER BY day').all(daysAgoIso(days)),
   recentUsers: (limit) => db.prepare('SELECT email, created_at, verified, plan, plan_exp FROM users ORDER BY created_at DESC LIMIT ?').all(limit),
   activeAccounts: (days) => db.prepare('SELECT COUNT(DISTINCT email) AS n FROM sessions WHERE last_seen >= ?').get(daysAgoIso(days)).n,
+  // Same count against an explicit instant, so a caller working in calendar
+  // days (the AI spend report, which runs on Eastern midnights) can line the
+  // window up with its own rather than with a rolling 24 hours. `exclude`
+  // drops named accounts from the count -- reading the operator dashboard
+  // touches the operator's own session, so without this the person checking
+  // the numbers would always appear in them.
+  activeAccountsSince: (iso, exclude = []) => {
+    const holes = exclude.map(() => '?').join(',');
+    return db.prepare(`SELECT COUNT(DISTINCT email) AS n FROM sessions WHERE last_seen >= ?${exclude.length ? ` AND email NOT IN (${holes})` : ''}`)
+      .get(iso, ...exclude).n;
+  },
   liveSessions: () => db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n,
   counts: () => Object.fromEntries(['alerts', 'leads', 'passes', 'trips', 'advisor_chats', 'advisor_feedback'].map(
     (t) => [t, db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n],
