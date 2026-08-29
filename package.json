@@ -7,7 +7,8 @@
     "start": "node server.js",
     "test:cache": "node test/prompt-cache.cjs",
     "test:card": "node test/plan-card.cjs",
-    "test:i18n": "node test/i18n-audit.mjs"
+    "test:i18n": "node test/i18n-audit.mjs",
+    "test:ll": "node test/lightning-lane.mjs"
   },
   "engines": {
     "node": ">=22.5"

@@ -444,14 +444,23 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name }) {
+function userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name, lanePasses }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const nope = Array.isArray(excluded) ? excluded.filter((f) => typeof f === 'string').slice(0, 40) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const rode = Array.isArray(done) ? done.filter((f) => typeof f === 'string').slice(0, 40) : [];
+  const onPass = Array.isArray(lanePasses) ? lanePasses.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const lines = [];
   if (name) lines.push(`The visitor's first name is ${name}. Greet and address them by it naturally — warm, not in every sentence.`);
   if (rode.length) lines.push(`Already ridden today (ticked off in the app): ${rode.join(', ')}. Don't schedule these again unless they ask for a re-ride.`);
+  // Money already spent. Without this she keeps recommending a pass the
+  // visitor is holding, and keeps costing a walk-on as a ninety-minute queue.
+  if (onPass.length) {
+    lines.push(`ALREADY BOUGHT: the visitor has applied their paid skip pass to these attractions: ${onPass.join(', ')}. `
+      + 'Treat those as near walk-ons (about 10 minutes) whatever the standby number says, and plan the rest of the day around the time that frees up. '
+      + 'Never advise buying a pass for one of these again, and never open by asking whether a pass is worth it — that decision is made. '
+      + 'If they ask whether it was worth it, answer honestly from the numbers, including "not really" when that is the truth.');
+  }
   if (profile && (profile.party || profile.ages.length || profile.vibes.length || profile.onsite !== null)) {
     const bits = [];
     if (profile.party) bits.push(`party of ${profile.party}`);
@@ -499,7 +508,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send, name, cardExpected = true }) {
+async function consult({ park, waits, messages, favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send, name, lanePasses, cardExpected = true }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -538,7 +547,7 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
         // which is the point: it is the largest thing in the request and it
         // was being bought again for each of them.
         { type: 'text', text: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>`, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: `<user_context>\n${userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name })}\n</user_context>` },
+        { type: 'text', text: `<user_context>\n${userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name, lanePasses })}\n</user_context>` },
       ],
     },
     { role: 'user', content: last.content },

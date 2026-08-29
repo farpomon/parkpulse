@@ -1004,7 +1004,7 @@ function planAdviceSig(parts) {
     parts.prompt, // retires every cached review when the advisor's instructions change
     parts.park, parts.day, parts.lang, parts.question,
     parts.profile || null, parts.name || null,
-    list(parts.favorites), list(parts.excluded), list(parts.planPicks), list(parts.done),
+    list(parts.favorites), list(parts.excluded), list(parts.planPicks), list(parts.done), list(parts.lanePasses),
     parts.arrive, parts.leave,
     parts.memory || null, parts.trip || null,
   ]);
@@ -3607,6 +3607,7 @@ ${sections}
           // suggesting something the family has already said no to is worse
           // than suggesting nothing.
           excluded: strList(d.excluded, 40),
+    lanePasses: strList(d.lanePasses, 30),
           // Whitelisted like everything else: a plain date or nothing.
           planDate: typeof d.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.planDate) ? d.planDate : null,
         });
@@ -3967,6 +3968,7 @@ ${sections}
           freeWish = { key: fkey, day: etNow().date, spent: db.kv.get(fkey) === etNow().date };
         }
         const { park, messages, favorites, excluded, planPicks, subscription } = parsed;
+        const lanePasses = strList(parsed.lanePasses, 30);
         // Set by the plan panel, never by the chat widget. Two things hang off
         // it: these are the only turns worth caching (one self-contained
         // question, no conversation behind it), and they must stay out of the
@@ -4000,7 +4002,7 @@ ${sections}
         const adviceSig = planReview ? planAdviceSig({
           prompt: consultant.promptFingerprint(),
           park, day: planDay, lang, question: messages[0] && messages[0].content,
-          profile, name: firstName, favorites, excluded, planPicks, done, arrive, leave, memory, trip,
+          profile, name: firstName, favorites, excluded, planPicks, done, arrive, leave, memory, trip, lanePasses,
         }) : null;
         if (adviceSig) {
           const hit = db.planadvice.get(adviceSig, planDay === parkToday ? ADVICE_TTL_TODAY : ADVICE_TTL_FUTURE);
@@ -4059,7 +4061,7 @@ ${sections}
           let failed = false;
           try {
             await consultant.consult({
-              park: PARKS[park], waits, name: firstName, messages, favorites, excluded, planPicks, profile, done,
+              park: PARKS[park], waits, name: firstName, messages, favorites, excluded, planPicks, profile, done, lanePasses,
               // The plan panel is a critique of an order that already exists;
               // the chat is where she offers one, and where a promise with no
               // card behind it leaves the reader nothing to press.

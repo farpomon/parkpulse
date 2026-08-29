@@ -557,6 +557,15 @@
   .ll-row { display: flex; align-items: center; gap: .55rem; padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .95rem; }
   .ll-row input { width: 1.15rem; height: 1.15rem; accent-color: var(--brand); }
   #ll-cost { font-weight: 800; color: var(--brand); margin: .7rem 0 .2rem; }
+  /* Money already spent, stated plainly and undoable. Green rather than the
+     brand purple: this is a confirmation, not another thing to buy. */
+  .llon { margin-top: .6rem; padding: .6rem .7rem; border: 1.5px solid var(--green);
+    background: var(--green-soft); border-radius: 12px; }
+  .llon-t { font-size: .92rem; color: var(--ink); }
+  .llon-s { font-size: .78rem; color: var(--muted); margin-top: .15rem; }
+  .llon-x { margin-top: .45rem; background: none; border: 0; padding: 0; cursor: pointer;
+    font: inherit; font-size: .8rem; font-weight: 700; color: var(--green);
+    text-decoration: underline; text-underline-offset: 2px; }
   .planrow { display: flex; gap: .55rem; align-items: center; margin-top: .6rem; flex-wrap: wrap; }
   .planrow .planday { flex: 1 1 11rem; padding: .7rem 1rem; font-size: .95rem; margin: 0; }
   .planrow label { display: flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); font-weight: 600; }
@@ -2522,13 +2531,43 @@
   ];
   const planApplyLabel = () => tr(PLAN_APPLY[Math.floor(Math.random() * PLAN_APPLY.length)]);
   let planIntroHtml = '';
+  let planNewsHtml = '';   // an opener worth keeping even when the panel is otherwise replaced
+  // Buying the pass is the biggest decision a visitor makes inside the app,
+  // and it changes the shape of the day. She says so, once, on the plan it
+  // produced -- rather than carrying on as though nothing had happened.
+  const MILA_LL_LINES = [
+    "Great idea — {pass} applied. Let's go! ✨",
+    'Done! {pass} is on those, and your day just got shorter.',
+    'Smart buy. {pass} applied — those lines have stopped mattering.',
+    "{pass} applied ✨ I've rewritten the day around it.",
+    'Lovely. With {pass} on those, we can afford to be greedy with the afternoon.',
+    '{pass} applied! Those walk-ons change the whole shape of the day.',
+    "Good call — {pass} is in. Watch what it does to the running order.",
+    '{pass} applied. Now the plan reads the way I wanted it to ✨',
+    "That's the one. {pass} applied, and the queues just lost their grip.",
+    "Sorted — {pass} is on, and I've moved the day around to use it properly.",
+  ];
+  let llJustApplied = false;
+
   function pickPlanIntro() {
     const line = MILA_PLAN_OPENERS[Math.floor(Math.random() * MILA_PLAN_OPENERS.length)];
     let uname = '';
     try { uname = localStorage.getItem('pp-name') || ''; } catch {}
     const greet = uname && Math.random() < 0.5 ? `${esc(uname)}! ` : '';
     const role = MILA_ROLE_LINES[Math.floor(Math.random() * MILA_ROLE_LINES.length)];
-    planIntroHtml = `<p class="planai-open">${greet}${esc(tr(line))}</p>`
+    // A pass just bought outranks the usual opener: it is the news.
+    const news = llJustApplied;
+    const opener = news
+      ? trf(MILA_LL_LINES[Math.floor(Math.random() * MILA_LL_LINES.length)],
+        { pass: parks[current].skip?.name || tr('Skip pass') })
+      : tr(line);
+    llJustApplied = false;
+    // Held separately because it has to survive the re-check gate below: a
+    // rebuild normally replaces the whole panel with "want my read on this?",
+    // and a pass the visitor just paid for should not be swallowed by that.
+    // The generic opener is not news and stays swallowed.
+    planNewsHtml = news ? `<p class="planai-open">${greet}${esc(opener)}</p>` : '';
+    planIntroHtml = `<p class="planai-open">${greet}${esc(opener)}</p>`
       + `<p class="planai-role"><img src="/img/pip/pip-ledger-160.webp" alt="" width="18" height="18" loading="lazy">${esc(tr(role))}</p>`;
   }
 
@@ -2605,7 +2644,8 @@
       aiPlanText = '';
       box.style.display = '';
       $('planai-state').textContent = '';
-      $('planai-body').innerHTML = `<p class="planai-recheck"><img class="mila-mini" src="/img/mila/mila-thinking-160.webp" alt="">${esc(tr('Pip has redrafted your day. Want my read on this order?'))}</p>`;
+      $('planai-body').innerHTML = planNewsHtml
+        + `<p class="planai-recheck"><img class="mila-mini" src="/img/mila/mila-thinking-160.webp" alt="">${esc(tr('Pip has redrafted your day. Want my read on this order?'))}</p>`;
       $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-recheck">${esc(tr('Ask Mila to check it'))}</button>`;
       $('planbase-h').style.display = 'none';
       setPlanCredit(false, false);
@@ -2680,6 +2720,10 @@
           kind: 'plan-review',
           messages: [{ role: 'user', content: question }],
           favorites: [...favs], excluded: [...skips], planPicks: [...pickedNames], done: planDate ? [] : [...doneOrder],
+          // Money already spent. Without it her advice keeps telling a visitor
+          // to buy a pass they are holding, and keeps calling a walk-on a
+          // ninety-minute queue.
+          lanePasses: [...llSet],
           arrive: $('start-hour') ? $('start-hour').value : null,
           leave: $('end-hour') ? $('end-hour').value : null,
           profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
@@ -3363,6 +3407,12 @@
         <button class="btn" id="fin-enc" style="margin:.5rem .4rem 0 0">✨ ${tr('Encore rides')}</button>
         <button class="btn" id="fin-chill" style="margin:.5rem 0 0">🌇 ${tr('Wind down')}</button></div>` : ''}
       ${remaining.length ? `<p class="why" style="color:var(--muted)">${tr("Didn't fit:")} ${esc(remaining.map((r) => r.name).join(', '))}</p>${parks[current].skip && parks[current].skip.type !== 'none' ? `<button class="btn" id="ll-fit" style="margin-top:.2rem">🎟 ${tr('Fit them with')} ${parks[current].skip.name}</button>` : `<p class="why" style="color:var(--muted)">${tr('extend your hours or grab Lightning Lane for these.')}</p>`}` : ''}
+      ${llSet.size ? `<div class="llon">
+        <div class="llon-t">🎟 <b>${esc(trf(llSet.size === 1 ? '{pass} applied to 1 attraction' : '{pass} applied to {n} attractions',
+          { pass: parks[current].skip?.name || tr('Skip pass'), n: llSet.size }))}</b></div>
+        <div class="llon-s">${esc(tr('Their waits now count as walk-ons in the running order above.'))}</div>
+        <button class="llon-x" id="ll-off">${esc(tr('Remove it'))}</button>
+      </div>` : ''}
       <button class="btn replan" id="replan" style="display:none">📍 ${tr('Replan from here')}</button>
       <div class="mailcard">
         <img src="/img/mila/mila-celebrate-160.webp" alt="" width="44" height="44">
@@ -3458,6 +3508,15 @@
     }
     const llFit = document.getElementById('ll-fit');
     if (llFit) llFit.addEventListener('click', () => openLlSheet(remaining.map((r) => r.name)));
+    const llOff = document.getElementById('ll-off');
+    // Taking the pass back off leaves the attractions picked. They are still
+    // rides this visitor wants; they just go back to queueing for them.
+    if (llOff) llOff.addEventListener('click', () => {
+      llSet.clear();
+      saveLl();
+      buildPlan();
+      toast(tr('Pass removed — those waits are back to standby.'));
+    });
     updatePlanNote();
     $('plan-out').querySelectorAll('.stepdone').forEach((b) => b.addEventListener('click', () => {
       // A toggle, not a one-way gate: the button used to disable itself after
@@ -3565,7 +3624,7 @@
     try { if (parks[current]?.tz) localStorage.setItem('pp-tz', parks[current].tz); } catch {}
     loadDone();
     if (plannerPark !== null && plannerPark !== current) {
-      llSet.clear(); hidePlanNote(); openDesc.clear(); closureList = [];
+      loadLl(); hidePlanNote(); openDesc.clear(); closureList = [];
       if (viewMode === 'dining') renderDining();
       // A chat transcript is advice about one park. Carrying it into another
       // reads as nonsense and, worse, gets sent back as context.
@@ -3581,7 +3640,7 @@
       planDate = null;
       if (document.body.classList.contains('pane-plan')) setViewMode('rides');
     }
-    if (plannerPark !== current) { setupPlanner(); restorePicks(current); plannerPark = current; }
+    if (plannerPark !== current) { setupPlanner(); restorePicks(current); loadLl(); plannerPark = current; }
     if (!opts.silent) {
       $('rides').classList.add('skeleton');
       $('rides').innerHTML = '<div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>';
@@ -4067,7 +4126,22 @@
   // with per-ride or per-day cost estimates, then rebuild the plan with
   // walk-on waits for the covered rides. Purely advisory — buying happens
   // in the official park app.
+  // A pass bought for one park on one day. Unlike picks, which are a working
+  // set, this is money already spent: it survives a reload, and it is the
+  // thing Mila most needs to remember about a visitor's day.
   let llSet = new Set();
+  const llKey = () => `pp-ll-${current}-${planDate || parkDay()}`;
+  function loadLl() {
+    llSet = new Set();
+    try { for (const n of JSON.parse(localStorage.getItem(llKey()) || '[]')) llSet.add(n); } catch {}
+  }
+  function saveLl() {
+    try {
+      if (llSet.size) localStorage.setItem(llKey(), JSON.stringify([...llSet]));
+      else localStorage.removeItem(llKey());
+    } catch {}
+    scheduleSync();
+  }
 
   function llCostText(n) {
     const skip = parks[current].skip;
@@ -4104,6 +4178,9 @@
   $('ll-apply').addEventListener('click', () => {
     const chosen = [...$('ll-list').querySelectorAll('input:checked')].map((cb) => decodeURIComponent(cb.dataset.name));
     chosen.forEach((n) => { llSet.add(n); pickedNames.add(n); });
+    saveLl();
+    savePicks(current);
+    llJustApplied = true;   // consumed by the next plan intro
     closeLl();
     buildPlan();
   });
