@@ -4060,6 +4060,10 @@ ${sections}
           try {
             await consultant.consult({
               park: PARKS[park], waits, name: firstName, messages, favorites, excluded, planPicks, profile, done,
+              // The plan panel is a critique of an order that already exists;
+              // the chat is where she offers one, and where a promise with no
+              // card behind it leaves the reader nothing to press.
+              cardExpected: !planReview,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory, trip,

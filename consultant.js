@@ -344,6 +344,20 @@ function resolveRideNames(names, rideList) {
   return { matched, unmatched };
 }
 
+// Did this reply lay out a running order? Ride names are proper nouns and
+// survive translation, so counting how many of the park's own attractions the
+// answer names works the same in every language the app speaks -- which
+// scanning her prose for the word "apply" would not.
+function ridesNamedIn(text, rideList) {
+  const hay = rideKey(text);
+  const hit = new Set();
+  for (const r of rideList || []) {
+    const k = rideKey(r.name);
+    if (k.length >= 6 && hay.includes(k)) hit.add(r.name);
+  }
+  return hit.size;
+}
+
 async function runTool(block, ctx) {
   const input = block.input || {};
   try {
@@ -485,7 +499,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send, name }) {
+async function consult({ park, waits, messages, favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send, name, cardExpected = true }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -531,9 +545,17 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
   ];
   // Actions are emitted the moment their side effect happens, so a later
   // turn failing (or the client disconnecting) can't orphan a created alert.
-  const ctx = { subscription, email: email || null, park, channel: channel || 'app', send };
+  let planned = false; // a plan card actually reached the screen
+  const watched = (event, data) => {
+    if (event === 'action' && data && data.type === 'plan') planned = true;
+    send(event, data);
+  };
+  const ctx = { subscription, email: email || null, park, channel: channel || 'app', send: watched };
   let emittedText = false;
   let turnEmitted = false;
+  let replyText = '';
+  let repairs = 0;
+  let silent = false; // swallow output during a repair turn — the answer is already on screen
 
   let continuations = 0;
   let continuing = false; // true while resuming a max_tokens cut — no separator
@@ -552,9 +574,11 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
     turnEmitted = false;
     for await (const ev of stream) {
       if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta' && ev.delta.text) {
+        if (silent) continue; // repair turn: we want its tool call, not more prose
         if (!turnEmitted && emittedText && !continuing) send('delta', { text: '\n\n' }); // separate pre-tool preamble from post-tool answer
         turnEmitted = true;
         emittedText = true;
+        replyText += ev.delta.text;
         send('delta', { text: ev.delta.text });
       }
     }
@@ -586,6 +610,34 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
       continuations++;
       continuing = true;
       convo.push({ role: 'user', content: 'Your answer was cut off by the output limit. Continue exactly where it stopped — mid-sentence if needed, same language — without repeating anything or adding a preamble.' });
+      continue;
+    }
+
+    // She laid out a running order and no card reached the screen -- either
+    // propose_plan was never called, or the names missed the feed and she gave
+    // up after the tool said so. The reader is left with an order they have no
+    // way to take, and on the old wording, an invitation to press a button
+    // that was never rendered.
+    //
+    // One corrective turn, once, and she decides: her own reply is the
+    // evidence, so this reads the same in every language, and SKIP costs a
+    // few tokens when the answer was never a plan (talking about four rides
+    // is not the same as proposing an order). Her prose is already on screen,
+    // so this turn's text is swallowed -- what we want from it is the tool
+    // call she skipped.
+    // Not on the plan panel: there she is reviewing an order that already
+    // exists, and leaving it alone is a perfectly good answer, so a repair
+    // turn would be bought on every review that agreed with Pip.
+    if (cardExpected && !planned && repairs < 1 && ridesNamedIn(replyText, waits.rides) >= 3) {
+      repairs += 1;
+      silent = true;
+      convo.push({
+        role: 'user',
+        content: 'System check, not from the user: your reply above named several attractions but no plan card was sent, so the reader cannot act on it. '
+          + 'If that reply gave them a running order — or referred at all to loading, applying or taking the order — call propose_plan NOW with exactly that order, using ride names copied character for character from the live data above. '
+          + 'If it was not an order (a comparison, a single recommendation, an answer about passes), reply with exactly: SKIP. '
+          + 'Either way write nothing else: your answer has already been shown to them.',
+      });
       continue;
     }
     break; // end_turn

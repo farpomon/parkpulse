@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test:cache": "node test/prompt-cache.cjs"
+    "test:cache": "node test/prompt-cache.cjs",
+    "test:card": "node test/plan-card.cjs"
   },
   "engines": {
     "node": ">=22.5"
