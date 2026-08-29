@@ -232,6 +232,30 @@
   .pnote{text-align:center;color:var(--muted);font-size:14px;margin:22px 0 0}
 
   /* Email capture */
+  /* The languages the app speaks, each written in itself -- someone scanning
+     for their own language is looking for the word they actually use, not the
+     English name for it. Sized so the longest entry (Bahasa Indonesia) fits on
+     one line at the narrowest column. */
+  /* grid-auto-rows:1fr sizes every row to the tallest, so the one card that
+     wraps (Bahasa Indonesia at tablet widths) does not leave its row standing
+     proud of the other three, and scripts with taller line boxes -- Devanagari,
+     Tamil -- do not shuffle the rows by a pixel or two either. */
+  .langs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(146px,100%),1fr));
+    grid-auto-rows:1fr;gap:10px;margin-top:34px}
+  /* Twenty is 4 x 5 exactly, so once there is room the grid is pinned to five
+     columns rather than left to auto-fill into a ragged last row. */
+  @media (min-width:1000px){ .langs{grid-template-columns:repeat(5,1fr)} }
+  .lang{background:var(--card);border:1px solid var(--border);border-radius:14px;
+    padding:13px 12px;box-shadow:var(--shadow);text-align:center;
+    /* Bahasa Indonesia is the one name that wraps; centring inside a common
+       min-height keeps its row the same height as the other three. */
+    display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:72px}
+  .lang b{display:block;font-size:16.5px;font-weight:650;letter-spacing:-.3px;line-height:1.35;color:var(--ink)}
+  .lang span{display:block;margin-top:3px;font-size:11.5px;font-weight:600;color:var(--muted)}
+  /* Arabic and Urdu are set right-to-left inside their own card, without
+     flipping the grid the other eighteen sit in. */
+  .lang[dir=rtl] b{font-size:18px}
+  @media (max-width:520px){ .langs{gap:8px} .lang{padding:11px 8px} .lang b{font-size:15px} }
   .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:22px;margin-top:34px}
   .wcard{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px 24px;box-shadow:var(--shadow)}
   .wcard .wk{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:-.3px;margin-bottom:10px;color:var(--ink)}
@@ -468,6 +492,7 @@
     <div class="spacer"></div>
     <div class="navlinks">
       <a href="#how" class="hide-sm">How it works</a>
+      <a href="#languages" class="hide-sm">Languages</a>
       <a href="#parks" class="hide-sm">Parks</a>
       <a href="#pricing" class="hide-xs">Pricing</a>
       <a href="/app#account" class="navlogin">Sign in</a>
@@ -493,6 +518,7 @@
       <div class="facts">
         <span>65 parks worldwide</span>
         <span>Disney &middot; Universal &middot; Six Flags &amp; more</span>
+        <span>In 20 languages</span>
         <span>No app install</span>
       </div>
       <script>
@@ -610,6 +636,13 @@
   </div>
 </section>
 
+<section class="sec" id="languages">
+  <h2>The whole day, in your language</h2>
+  <p class="lead">Twenty languages &mdash; and not just the buttons. Mila plans, answers your questions and writes your evening plan email in the language you choose.</p>
+  <div class="langs"><!--LANGUAGES--></div>
+  <p class="note" style="max-width:64ch;margin:26px auto 0;text-align:center">Set it once, top of any screen in the app. Every ride name, every wait, every word Mila says follows you into it &mdash; including right-to-left for Arabic and Urdu.</p>
+</section>
+
 <section class="sec">
   <h2>See it before you buy</h2>
   <!--SHOTS-->
@@ -633,6 +666,7 @@
         <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Pass strategy</b> &mdash; <span class="t">Lightning Lane, Express, Fast Lane, Flash Pass &mdash; a verdict every day</span></span></li>
         <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Dining strategy</b> &mdash; <span class="t">what&rsquo;s worth booking, and exactly when the windows open</span></span></li>
         <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>Plan B, instantly</b> &mdash; <span class="t">ride down or kids melting? Replan from where you stand</span></span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span><b>In your language</b> &mdash; <span class="t">the whole app and every word Mila says, in twenty languages</span></span></li>
       </ul>
     </div>
   </div>
@@ -662,7 +696,7 @@
 
 <section class="sec" id="pricing">
   <h2>Pay for the trip, not a subscription</h2>
-  <p class="lead">Every pass includes all 65 parks, the plan builder, your magical fairy and wait-drop alerts, on every device in your family. One Lightning Lane costs $15&ndash;$45 <i>per person, per day</i>.</p>
+  <p class="lead">Every pass includes all 65 parks in twenty languages, the plan builder, your magical fairy and wait-drop alerts, on every device in your family. One Lightning Lane costs $15&ndash;$45 <i>per person, per day</i>.</p>
   <div class="plans" id="price-grid"></div>
   <p class="pnote" id="plan-note">Passes are one-time, not subscriptions. Nothing auto-renews.</p>
   <p class="pnote">🧚 <b>Mila&rsquo;s pixie promise:</b> full refund within 14 days if the magic hasn&rsquo;t been used &mdash; and if something breaks on our side, we make it right. <a href="/terms">Terms &amp; Refunds</a></p>

@@ -498,6 +498,21 @@ const T = (lang) => {
   const dict = I18N[lang] || null;
   return (key) => (dict && dict[key]) || key;
 };
+
+// Each language named in its own language, for the landing page's list. A
+// visitor scanning for their own is looking for the word they use, not the
+// English name for it.
+const LANG_NATIVE = {
+  en: 'English', zh: '\u4e2d\u6587', hi: '\u0939\u093f\u0928\u094d\u0926\u0940', es: 'Espa\u00f1ol', fr: 'Fran\u00e7ais',
+  ar: '\u0627\u0644\u0639\u0631\u0628\u064a\u0629', bn: '\u09ac\u09be\u0982\u09b2\u09be', de: 'Deutsch', id: 'Bahasa Indonesia', it: 'Italiano',
+  ja: '\u65e5\u672c\u8a9e', ko: '\ud55c\uad6d\uc5b4', mr: '\u092e\u0930\u093e\u0920\u0940', pt: 'Portugu\u00eas', ru: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439',
+  ta: '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd', te: '\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41', tr: 'T\u00fcrk\u00e7e', ur: '\u0627\u0631\u062f\u0648', vi: 'Ti\u1ebfng Vi\u1ec7t',
+};
+const RTL_LANGS = new Set(['ar', 'ur']);
+// Sourced from the dictionaries that actually loaded, so the page cannot
+// advertise a language the app no longer ships -- and a new one appears the
+// day its file lands. English has no dictionary; it is the keys.
+const APP_LANGS = Object.keys(LANG_NATIVE).filter((c) => c === 'en' || I18N[c]);
 // Whole sentences with named holes, rather than clauses glued around a value.
 // "{ride} is {n} min right now" survives translation into a language that puts
 // the number first; `tr('is') + n + tr('min right now')` does not.
@@ -1911,6 +1926,13 @@ function translateMarkup(html, dict) {
   }).join('');
 }
 
+// The language list on the landing page. Native name first, English name
+// underneath so a reader who knows only the English name can still find it.
+function languageCards() {
+  return APP_LANGS.map((c) => `<div class="lang"${RTL_LANGS.has(c) ? ' dir="rtl"' : ''}>`
+    + `<b>${esc(LANG_NATIVE[c])}</b><span dir="ltr">${esc(LANG_NAMES[c])}</span></div>`).join('');
+}
+
 function landingAlternates() {
   return LANDING_LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="https://www.parkpulse.fun${l === 'en' ? '/' : '/' + l}">`).join('\n')
     + '\n<link rel="alternate" hreflang="x-default" href="https://www.parkpulse.fun/">';
@@ -3012,6 +3034,7 @@ const server = http.createServer(async (req, res) => {
       .replace('<!--PHOTO_BAND-->', () => photoBand())
       .replace('<!--CAPTURE_BG-->', () => captureStyle())
       .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
+      .replace('<!--LANGUAGES-->', () => languageCards())
       .replace('<!--SHOTS-->', () => productShots());
     html = localizeLanding(html, landingLang);
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
