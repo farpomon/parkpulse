@@ -1989,7 +1989,12 @@ function translateScriptStrings(html, dict) {
         const plain = body.replace(new RegExp('\\\\' + q, 'g'), q);
         const to = dict[plain];
         if (!to) return lit;
-        return q + to.replace(/\\/g, '\\\\').split(q).join('\\' + q) + q;
+        // Entities are right for markup and wrong here: this string is headed
+        // for textContent, where &rsquo; is five characters a reader sees.
+        // Pip was muttering "L&rsquo;affluence culmine a 13h00" on the French
+        // page because the same dictionary serves both.
+        const text = decodeEnt(to);
+        return q + text.replace(/\\/g, '\\\\').split(q).join('\\' + q) + q;
       });
     }
     return out;

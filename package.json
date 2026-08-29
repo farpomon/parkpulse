@@ -16,7 +16,8 @@
     "test:picker": "node test/park-picker.mjs",
     "test:datelink": "node test/plan-date-link.mjs",
     "test:langs": "node test/landing-languages.mjs",
-    "test:staledict": "node test/stale-dictionary.mjs"
+    "test:staledict": "node test/stale-dictionary.mjs",
+    "test:langpromo": "node test/language-promo.mjs"
   },
   "engines": {
     "node": ">=22.5"

@@ -653,6 +653,25 @@
      leaves the arrow pointing at nothing. It keeps its place beside the chip
      and wraps its own text instead. */
   .grouphint { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: .76rem; font-weight: 700; line-height: 1.25; }
+  /* Mila, pointing at the globe. Twenty languages are no use to someone who
+     never finds the switch, so she says so once -- to visitors who are still
+     on whatever the browser guessed, and never again once they have chosen or
+     waved her off. Right-aligned with a caret under the picker it points at. */
+  .langhint { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 0 auto;
+    max-width: 27rem; padding: .5rem .6rem; border-radius: .8rem; position: relative;
+    background: var(--brand-soft, rgba(91,61,245,.09)); border: 1px solid var(--border); }
+  /* --lh-caret is measured against the picker itself, because the header's
+     icon row changes width with the clock, the language code and the
+     viewport -- a fixed offset pointed at the pin button on a narrow phone. */
+  .langhint::after { content: ""; position: absolute; top: -5px; left: var(--lh-caret, 70%);
+    width: 9px; height: 9px; background: var(--brand-soft, rgba(91,61,245,.09));
+    border-inline-start: 1px solid var(--border); border-block-start: 1px solid var(--border);
+    transform: rotate(45deg); }
+  .langhint img { flex: 0 0 auto; border-radius: 99px; }
+  .langhint .lh-txt { flex: 1 1 auto; min-width: 0; font-size: .76rem; font-weight: 650;
+    line-height: 1.3; color: var(--ink); }
+  .langhint .lh-x { flex: 0 0 auto; background: none; border: 0; cursor: pointer;
+    color: var(--muted); font-size: .8rem; line-height: 1; padding: .25rem; }
   .grouphint .gh-arrow { margin-inline-end: .2rem; }
   .onboard h2 { margin: 0 0 .2rem; font-size: 1.35rem; }
   .onboard .sub { margin: 0 0 1rem; color: var(--muted); font-size: .92rem; }
@@ -935,6 +954,11 @@
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
       </span>
+    </div>
+    <div class="langhint" id="lang-hint" hidden>
+      <img src="/img/mila/mila-wink-160.webp" alt="" width="30" height="30" loading="lazy">
+      <span class="lh-txt" id="lang-hint-txt"></span>
+      <button class="lh-x" id="lang-hint-x" type="button" aria-label="Dismiss">✕</button>
     </div>
     <div class="destrow">
       <select id="dest" aria-label="Choose park"></select>
@@ -3935,6 +3959,52 @@
       el.value = window.PP_LANG || 'en';
       el.addEventListener('change', () => window.PP_SET_LANG(el.value));
     }
+    // Mila points at the globe -- once, and only for people who have not
+    // chosen. pp-lang is written only by an explicit choice (the picker here,
+    // or arriving on a translated landing page), so its absence means the
+    // language on screen is a guess from the browser, and the person it was
+    // guessed for is exactly who needs telling that there are twenty.
+    (function langHint() {
+      const box = $('lang-hint');
+      if (!box) return;
+      let chosen = true, waved = true;
+      try {
+        chosen = Boolean(localStorage.getItem('pp-lang'));
+        waved = localStorage.getItem('pp-langhint-seen') === '1';
+      } catch {}
+      const hide = (remember) => {
+        box.hidden = true;
+        if (remember) { try { localStorage.setItem('pp-langhint-seen', '1'); } catch {} }
+      };
+      if (chosen || waved) return hide(false);
+      $('lang-hint-txt').textContent = trf('I speak {n} languages ✨ Tap the globe to pick yours.',
+        { n: Object.keys(window.PP_LANGS || { en: 1 }).length });
+      $('lang-hint-x').setAttribute('aria-label', tr('Dismiss'));
+      box.hidden = false;
+      // Point the caret at the middle of the globe, wherever it has ended up.
+      const aim = () => {
+        const pick = $('langpick');
+        if (!pick || box.hidden) return;
+        const a = pick.getBoundingClientRect(), b = box.getBoundingClientRect();
+        if (!b.width) return;
+        const x = a.left + a.width / 2 - b.left - 4.5;
+        box.style.setProperty('--lh-caret', `${Math.max(8, Math.min(b.width - 17, x))}px`);
+      };
+      // The picker slides sideways after first paint: the park clock and the
+      // "updated" stamp fill in beside it, and both are wider in some
+      // languages than others. Re-aim whenever the row's contents change,
+      // rather than measuring once against a header that is not finished.
+      requestAnimationFrame(aim);
+      addEventListener('resize', aim);
+      const row = box.previousElementSibling;
+      if (row && 'MutationObserver' in window) {
+        new MutationObserver(aim).observe(row, { childList: true, characterData: true, subtree: true });
+      }
+      $('lang-hint-x').addEventListener('click', () => hide(true));
+      // Using the picker answers the question the hint was asking.
+      const sel = $('lang-top');
+      if (sel) sel.addEventListener('change', () => hide(true), { once: true });
+    })();
     // The pill shows the code, not the name -- "Português" would push the
     // header's icon row off a narrow phone.
     const face = $('lp-code');
@@ -3975,6 +4045,15 @@
     $('search').placeholder = tr('Search rides…');
     const pq = $('parkq');
     if (pq) { pq.placeholder = tr('Search parks'); pq.setAttribute('aria-label', tr('Search parks')); }
+    // Retexted whether or not the hint is on screen: the dismiss button lives
+    // in the markup either way, and an aria-label left in English is still an
+    // aria-label in English.
+    const lh = $('lang-hint-txt');
+    if (lh) {
+      lh.textContent = trf('I speak {n} languages ✨ Tap the globe to pick yours.',
+        { n: Object.keys(window.PP_LANGS || { en: 1 }).length });
+      $('lang-hint-x').setAttribute('aria-label', tr('Dismiss'));
+    }
     $('parkq-x').setAttribute('aria-label', tr('Clear'));
     // title AND aria-label: only the tooltip was being translated, so a
     // screen reader in Portuguese still announced these two in English.

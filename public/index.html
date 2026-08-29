@@ -638,7 +638,7 @@
 
 <section class="sec" id="languages">
   <h2>The whole day, in your language</h2>
-  <p class="lead">Twenty languages &mdash; and not just the buttons. Mila plans, answers your questions and writes your evening plan email in the language you choose.</p>
+  <p class="lead">Twenty languages &mdash; and not just the buttons. Mila and Pip switch with you: she plans your day, answers your questions and writes your evening plan email in the language you choose, and he mutters his arithmetic in it too.</p>
   <div class="langs"><!--LANGUAGES--></div>
   <p class="note" style="max-width:64ch;margin:26px auto 0;text-align:center">Set it once, top of any screen in the app. Every ride name, every wait, every word Mila says follows you into it &mdash; including right-to-left for Arabic and Urdu.</p>
 </section>
@@ -811,15 +811,24 @@
     { id: 'half-year-pass', usd: '129.99', label: '6-Month Pass', per: '6 months' },
     { id: 'year-pass', usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
   ];
-  const PLAN_NOTES = {
-    free: 'Live waits for one park, the full strategy guide, trip-countdown tips.',
-    'day-pass': 'The price of one person’s Lightning Lane — and it tells the whole family whether to buy any.',
-    'week-pass': 'One full trip, covered — about $7 a day for the family.',
-    'month-pass': 'Long trips or split stays, fully covered.',
-    'half-year-pass': 'A whole season of park days.',
-    'year-pass': 'For locals and passholders — under 55¢ a day.',
+  // Every word on a pass card, keyed by the pass id rather than by its English
+  // name. The id is what the server sends and what the code matches on, so it
+  // must stay English; the values are landing copy, translated server-side
+  // before this script reaches the browser. Keying on the label instead would
+  // have translated the lookup key along with the text and matched nothing.
+  const PLAN_COPY = {
+    free: { label: 'Free', per: 'forever', note: 'Live waits for one park, the full strategy guide, trip-countdown tips.' },
+    'day-pass': { label: 'Day Pass', per: '1 day', note: 'The price of one person’s Lightning Lane — and it tells the whole family whether to buy any.' },
+    'week-pass': { label: 'Week Pass', per: '7 days', note: 'One full trip, covered — about $7 a day for the family.' },
+    'month-pass': { label: 'Month Pass', per: '30 days', note: 'Long trips or split stays, fully covered.' },
+    'half-year-pass': { label: '6-Month Pass', per: '6 months', note: 'A whole season of park days.' },
+    'year-pass': { label: 'Annual Pass', per: '12 months', note: 'For locals and passholders — under 55¢ a day.' },
   };
+  // The badge arrives from the server in English and is matched on below, so
+  // the value it carries is never translated -- only what gets printed is.
+  const BADGE_TEXT = { 'MOST POPULAR': 'Most popular', 'BEST VALUE': 'Best value' };
   const DEFAULT_NOTE = 'Passes are one-time, not subscriptions. Nothing auto-renews.';
+  const copyFor = (p) => PLAN_COPY[p.id] || {};
 
   function renderPlans(plans) {
     const grid = document.getElementById('price-grid');
@@ -829,11 +838,14 @@
       const div = document.createElement('div');
       div.className = 'plan' + (p.badge === 'MOST POPULAR' ? ' hi' : '');
       div.dataset.planCard = p.id;
-      const cta = p.free ? 'Start free' : (checkoutEnabled ? 'Get ' + p.label : 'Lock in this price');
-      div.innerHTML = `${p.badge ? `<span class="pbadge">${p.badge}</span>` : ''}
-        <div class="pl">${p.label}</div>
-        <div class="pp">$${p.usd}</div><div class="pper">${p.per}</div>
-        <p class="pn">${PLAN_NOTES[p.id] || 'Everything included.'}</p>
+      // "Get Week Pass" glued a translated verb to an English noun and read as
+      // neither language; the button says the same thing without the splice.
+      const cta = p.free ? 'Start free' : (checkoutEnabled ? 'Get this pass' : 'Lock in this price');
+      const c = copyFor(p);
+      div.innerHTML = `${p.badge ? `<span class="pbadge">${BADGE_TEXT[p.badge] || p.badge}</span>` : ''}
+        <div class="pl">${c.label || p.label}</div>
+        <div class="pp">$${p.usd}</div><div class="pper">${c.per || p.per}</div>
+        <p class="pn">${c.note || 'Everything included.'}</p>
         <button class="pbtn" data-plan="${p.id}" type="button">${cta}</button>`;
       grid.appendChild(div);
       div.querySelector('button[data-plan]').addEventListener('click', p.free ? () => { location.href = '/app'; } : buyHandler);
@@ -868,8 +880,11 @@
       if (on) { btn.dataset.label = btn.dataset.label || btn.textContent; btn.textContent = 'Selected ✓'; }
       else if (btn.dataset.label) { btn.textContent = btn.dataset.label; }
     });
+    // One sentence with a named hole rather than a name glued to a clause:
+    // the pass goes first in English and last in plenty of other languages.
     document.getElementById('plan-note').textContent =
-      `${label} selected — checkout opens in the app. Refunds within 24h if the park is closed.`;
+      '{plan} selected — checkout opens in the app. Refunds within 24h if the park is closed.'
+        .replace('{plan}', (PLAN_COPY[planId] || {}).label || label);
   }
 
   function capture(email, plan) {
