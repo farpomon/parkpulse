@@ -33,6 +33,24 @@ const LIGHT_MODEL = process.env.AI_LIGHT_MODEL || 'claude-haiku-4-5';
 const CATALOG_MODEL = process.env.AI_CATALOG_MODEL || 'claude-sonnet-5';
 const MAX_TURNS = 6;
 
+// Fingerprint of this file, mixed into the plan-advice cache key by the caller.
+// Cached advice was written under a particular set of instructions; once those
+// change, replaying the old wording is worse than paying for a fresh read --
+// which is exactly how a fix to what Mila is told to say could otherwise sit
+// behind twelve hours of advice that predates it. Hashing the whole source
+// over-invalidates a little (a comment edit counts), which is the right way
+// round for a cache that never holds more than a day.
+let SOURCE_FINGERPRINT = null;
+function promptFingerprint() {
+  if (!SOURCE_FINGERPRINT) {
+    try {
+      SOURCE_FINGERPRINT = require('node:crypto').createHash('sha256')
+        .update(require('node:fs').readFileSync(__filename)).digest('hex').slice(0, 12);
+    } catch { SOURCE_FINGERPRINT = 'unreadable'; }
+  }
+  return SOURCE_FINGERPRINT;
+}
+
 // Injected by server.js at boot (registry, live-waits fetcher, alert writer).
 let deps = null;
 function init(d) { deps = d; }
@@ -108,13 +126,13 @@ ${directory}
 YOUR TOOLS:
 - get_waits: live waits, hours, show, and local time for any covered park. Use it whenever the user asks about a park other than the one in their live data, or wants a comparison. Never guess another park's waits.
 - set_alert: creates a real wait-drop push alert on the user's device. Use it when they ask to be told when a ride's wait drops. If it fails because notifications are off, tell them to tap the bell icon on the ride instead.
-- propose_plan: puts a ride plan with a one-tap Apply button right in this chat. Call it whenever you give the user a plan, itinerary, or ride order for the park they're viewing, so the button is available — it changes nothing until they choose to tap it. Build the ride list from their saved notes, starred favorites, and the live wait data supplied (which ranks relative popularity even when the visit is a future day); ride names must exactly match the wait data. In your summary, offer it as an option: "tap Apply if you'd like this loaded into your plan builder."
+- propose_plan: puts a ride plan into the app, with a one-tap button directly under your reply that loads it into their plan builder. Call it whenever you give the user a plan, itinerary, or ride order for the park they're viewing, so the option is there — it changes nothing until they choose it. Build the ride list from their saved notes, starred favorites, and the live wait data supplied (which ranks relative popularity even when the visit is a future day); ride names must exactly match the wait data. NEVER name, quote or translate that button: its wording is chosen by the app, changes between visits, and is not the word "Apply". Offer the ORDER, not the control — "it's yours if you want it", never "tap X".
 - remember: saves durable notes about this traveler (trip dates, party size and ages, hotel, budget, must-dos, constraints) so future conversations start already informed. Works only for logged-in users. Use it quietly whenever a lasting trip fact comes up — no need to announce it beyond a brief aside.
 
 ADVICE STYLE:
 - You are a continuing advisor, not a one-off chatbot. If saved traveler notes are provided, use them — greet returning context naturally ("since you're going with two kids under 8…") instead of re-asking. When the user shares new durable facts, update your notes with remember.
-- Any request for a plan or itinerary for the current park = a propose_plan call alongside your reply, every time, so the Apply button is right there in the chat. Applying is the user's option, never automatic — invite it, don't announce it as done. Personalize the ride list: skip rides their kids can't ride, lead with their favorites and saved must-dos.
-- NEVER mention the Apply button unless your propose_plan call succeeded in this same turn. If the tool errored, fix the input and call it again before answering; if you didn't call it, don't reference a button that isn't there.
+- Any request for a plan or itinerary for the current park = a propose_plan call alongside your reply, every time, so the option is right there. Taking it is the user's choice, never automatic — offer the order, don't announce it as done. Personalize the ride list: skip rides their kids can't ride, lead with their favorites and saved must-dos.
+- NEVER hint that the order can be loaded unless your propose_plan call succeeded in this same turn — and even then, describe what it does, never what it is called. If the tool errored, fix the input and call it again before answering; if you didn't call it, don't reference an option that isn't there.
 - Use the live data provided or fetched. If waits are short, say so and tell them to keep their money. Recommending "don't buy" builds trust.
 - WHICH DAY: if the context opens with a "THE USER IS PLANNING ..." block, that date is the visit — answer every question about it, including whether a skip-the-line pass is worth buying, and never say "today", "right now" or "this afternoon". Today's live waits are there to rank rides against each other, not to quote as that day's queue. Judge pass value from the crowd level forecast for the visit day. With no such block, the user is at the park today and live numbers are the answer.
 - Be concrete: name rides, name times, name dollar amounts and the per-person math for their party size. Ask party size if it matters and they haven't said.
@@ -187,7 +205,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'propose_plan',
-    description: "Send a concrete ride plan to the ParkPulse app; the user sees an Apply button that loads it into the plan builder. Only for the park the user is currently viewing. Ride names must exactly match names from that park's wait data.",
+    description: "Send a concrete ride plan to the ParkPulse app; a one-tap button under your reply lets the user load it into the plan builder. Never name that button in your reply — the app picks its wording. Only for the park the user is currently viewing. Ride names must exactly match names from that park's wait data.",
     input_schema: {
       type: 'object',
       properties: {
@@ -299,7 +317,7 @@ function resolvePark(ref, ctx) {
 // "Tiki Room", "Casey Jr." -- while the wait feed spells them out in full. Both
 // tools that take a ride name matched the feed's spelling exactly, so most of a
 // proposed plan was silently discarded and the app rebuilt the day itself. The
-// user sees an Apply button that appears to do nothing. Resolve generously here,
+// user sees a load-this-plan button that appears to do nothing. Resolve generously here,
 // where the authoritative list lives, and hand the model back the real names.
 const rideKey = (s) => String(s).toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
 
@@ -363,7 +381,7 @@ async function runTool(block, ctx) {
       if (!park || !asked.length) return { text: 'Invalid plan (need a valid park slug and at least one ride name).', isError: true };
       const feed = await deps.getWaits(park.slug);
       const { matched: rides, unmatched } = resolveRideNames(asked, feed.rides || []);
-      // Emitting a plan that resolved to nothing gives the user an Apply button
+      // Emitting a plan that resolved to nothing gives the user a button
       // that rebuilds the same day it already had -- worse than no button.
       if (!rides.length) {
         return {
@@ -373,9 +391,9 @@ async function runTool(block, ctx) {
       }
       ctx.send('action', { type: 'plan', park: park.slug, rides });
       if (ctx.channel === 'whatsapp') {
-        return { text: 'Noted — but this conversation is over WhatsApp, where there is NO Apply button. Do not mention any button; instead write the plan as a clear numbered ride order they can follow, and mention they can also build it in the ParkPulse app.' };
+        return { text: 'Noted — but this conversation is over WhatsApp, where there is no button at all. Do not mention any button; instead write the plan as a clear numbered ride order they can follow, and mention they can also build it in the ParkPulse app.' };
       }
-      return { text: `Plan delivered to the chat — the user now sees an OPTIONAL Apply button. Briefly summarize the plan and invite them to tap Apply if they want it loaded into their plan builder; do not say it was applied.${
+      return { text: `Plan delivered — an optional one-tap button now sits directly under your reply. Briefly summarize the plan and make clear the order is theirs to take or leave; do not say it was applied. Do NOT name, quote or translate the button: its wording is chosen by the app, differs between visits, and is never the word "Apply". Describe the outcome ("if you want it in your plan, it's one tap away"), not the label.${
         unmatched.length ? ` NOTE: these names matched nothing in the wait data and were left out of the plan: ${unmatched.join(', ')}. If any of them matter, call propose_plan again with their exact names from the live data; otherwise do not mention them.` : ''
       }` };
     }
@@ -754,4 +772,4 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

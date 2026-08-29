@@ -1001,6 +1001,7 @@ function planMailBlocked(email) {
 function planAdviceSig(parts) {
   const list = (v) => (Array.isArray(v) ? [...v].map(String).sort() : []);
   const canonical = JSON.stringify([
+    parts.prompt, // retires every cached review when the advisor's instructions change
     parts.park, parts.day, parts.lang, parts.question,
     parts.profile || null, parts.name || null,
     list(parts.favorites), list(parts.excluded), list(parts.planPicks), list(parts.done),
@@ -3972,6 +3973,7 @@ ${sections}
         // the free wish is spent: nothing is being bought, so nothing should
         // be charged for it.
         const adviceSig = planReview ? planAdviceSig({
+          prompt: consultant.promptFingerprint(),
           park, day: planDay, lang, question: messages[0] && messages[0].content,
           profile, name: firstName, favorites, excluded, planPicks, done, arrive, leave, memory, trip,
         }) : null;
