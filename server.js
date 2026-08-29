@@ -1444,6 +1444,9 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
        reach it. -->
   <meta name="format-detection" content="date=no,telephone=no,address=no,email=no">
   <style>
+    /* Contrast note: the header used white at opacity .85, which Outlook's Word
+       engine ignores outright and other clients render at 4.86:1. The explicit
+       #ece9ff is 5.15:1 on this purple and behaves the same everywhere. */
     /* Apple Mail / iOS tags its detected links with this attribute. */
     a[x-apple-data-detectors] {
       color: inherit !important; text-decoration: none !important;
@@ -1451,8 +1454,15 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
       font-weight: inherit !important; line-height: inherit !important;
     }
     /* Outlook mobile and the rest: anything auto-linked inside the header keeps
-       the header's own colour. Real links there are set explicitly elsewhere. */
-    .pp-head a, .pp-head a span { color: #ffffff !important; text-decoration: none !important; }
+       the header's own colour. Real links there are set explicitly elsewhere.
+       The class rule alone was not enough -- Outlook reported the date as dark
+       green on the purple even with this present, so the date is now wrapped in
+       an anchor of our own with an INLINE colour. A detector skips text that is
+       already a link, and an inline style survives clients that drop <style>,
+       which is the failure this rule cannot cover. */
+    .pp-head a, .pp-head a span, .pp-head a font { color: #ffffff !important; text-decoration: none !important; }
+    /* Gmail wraps its detections in .aBn; Outlook.com in .ExternalClass. */
+    .pp-head .aBn, .pp-head .aBn span, .pp-head span[data-auto-link] { color: #ffffff !important; border-bottom: 0 !important; }
     u + #body a, #MessageViewBody a { color: inherit !important; text-decoration: none !important; }
   </style>
   <title>${f('Your {park} day plan', { park: esc(park.name) })}</title>
@@ -1465,9 +1475,9 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
          its background and printed white text on white. -->
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr>
      <td class="pp-head" style="padding:26px 0 20px 26px;color:#fff" valign="middle">
-      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · ${future ? t('advance plan') : t('live route')} · ${esc(park.name)}</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#ece9ff;text-transform:uppercase">ParkPulse · ${future ? t('advance plan') : t('live route')} · ${esc(park.name)}</div>
       <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">${pick(HEADLINES)}</div>
-      <div style="opacity:.85;font-size:14px;margin-top:4px"><span style="color:#fff;text-decoration:none">${day}</span> · ${future ? t("sequenced around that day's predicted crowds, park geography, and the rides you care about.") : t('sequenced around live waits, park geography, and the rides you care about.')}</div>
+      <div style="color:#ece9ff;font-size:14px;margin-top:4px"><a href="https://www.parkpulse.fun/app" style="color:#ffffff;font-weight:700;text-decoration:none">${day}</a> · ${future ? t("sequenced around that day's predicted crowds, park geography, and the rides you care about.") : t('sequenced around live waits, park geography, and the rides you care about.')}</div>
      </td>
      <td width="128" valign="middle" align="center" style="padding:20px 18px 14px 8px">
       <img src="${MILA('mila-welcome-160')}" width="104" height="104" alt="${t('Mila, your park fairy')}" style="border-radius:99px;display:block;border:3px solid rgba(255,255,255,.6)">
