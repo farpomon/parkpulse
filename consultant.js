@@ -399,8 +399,9 @@ function validateMessages(messages) {
   return clean;
 }
 
-function userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile, done, name }) {
+function userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name }) {
   const favs = Array.isArray(favorites) ? favorites.filter((f) => typeof f === 'string').slice(0, 30) : [];
+  const nope = Array.isArray(excluded) ? excluded.filter((f) => typeof f === 'string').slice(0, 40) : [];
   const picks = Array.isArray(planPicks) ? planPicks.filter((f) => typeof f === 'string').slice(0, 30) : [];
   const rode = Array.isArray(done) ? done.filter((f) => typeof f === 'string').slice(0, 40) : [];
   const lines = [];
@@ -423,7 +424,13 @@ function userContextBlock({ favorites, planPicks, subscription, email, memory, l
     try { plan = JSON.parse(trip.plan); } catch {}
     if (plan.length) lines.push(`Their saved trip plan (${trip.dest}, starting ${trip.start}, staying ${trip.onsite ? 'AT AN ON-SITE PARK HOTEL — apply on-site booking windows and hotel perks (e.g. WDW 7-day Lightning Lane window, free Express at Universal Orlando premier hotels, early entry)' : 'off-site — apply off-site rules (e.g. WDW 3-day Lightning Lane window, no hotel skip perks)'}): ${plan.map((p) => `${p.date}: ${p.park}`).join('; ')}. Anchor multi-day advice to this schedule.`);
   }
-  if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}`);
+  if (favs.length) lines.push(`Starred favorite rides: ${favs.join(', ')}. Lead with these and protect them when the day has to be cut.`);
+  // Knowing what they have ruled out is worth more than knowing what they like:
+  // re-suggesting a refused ride reads as not listening.
+  if (nope.length) lines.push(`Ruled out — the visitor has explicitly excluded these rides: ${nope.join(', ')}. Never put them in a plan or suggest them, and do not ask why.`);
+  // Favourites are the cheapest personalisation there is, and most people
+  // never find the star on their own.
+  if (!favs.length) lines.push('They have not starred any favourite rides yet. Once in a conversation, when it is natural and useful, ask which rides they would hate to miss — then use the answer for the rest of the chat. Do not badger them about it.');
   if (picks.length) lines.push(`Rides currently checked in their plan builder: ${picks.join(', ')}`);
   lines.push(`App language setting: ${lang || 'English'}. Reply in ${lang || 'English'} — even if earlier messages in this conversation are in a different language, the current setting wins.`);
   lines.push(`Logged in: ${email ? 'yes (remember will work)' : 'no (remember will fail)'}`);
@@ -447,7 +454,7 @@ function throttled(key) {
 // --- The agent loop ----------------------------------------------------------
 // `send(event, data)` emits an SSE event. Emits `delta` (streamed text),
 // `action` (client-side effects: applied plans / created alerts), and `done`.
-async function consult({ park, waits, messages, favorites, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send, name }) {
+async function consult({ park, waits, messages, favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, channel, send, name }) {
   const clean = validateMessages(messages);
   if (!clean) {
     const err = new Error('invalid messages');
@@ -459,7 +466,7 @@ async function consult({ park, waits, messages, favorites, planPicks, subscripti
     ...clean.slice(0, -1),
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, planPicks, subscription, email, memory, lang, trip, profile, done, name })}\n</user_context>\n\n${last.content}`,
+      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name })}\n</user_context>\n\n${last.content}`,
     },
   ];
   // Actions are emitted the moment their side effect happens, so a later

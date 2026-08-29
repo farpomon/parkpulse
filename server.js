@@ -248,6 +248,7 @@ async function waAgentReply(link, text) {
   await consultant.consult({
     park: PARKS[slug], waits, messages, name: db.users.get(link.email)?.name || null,
     favorites: strList(ds.favorites, 30),
+    excluded: strList(ds.excluded, 40),
     planPicks: strList(ds.picked, 30),
     done: strList(ds.done, 40),
     profile: sanitizeProfile(ds.profile),
@@ -1864,7 +1865,10 @@ function localizeLanding(html, lang) {
   const head = `\n<link rel="canonical" href="https://www.parkpulse.fun${lang === 'en' ? '/' : '/' + lang}">\n${landingAlternates()}\n${carry}\n`;
   out = out.replace('<title>', head + '<title>');
   // The picker sits with the nav links.
-  out = out.replace('<a href="/app#account" class="mut">', `${langPicker(lang)}<a href="/app#account" class="mut">`);
+  // Anchored on the sign-in link's exact markup: if that class changes and
+  // this does not, replace() silently matches nothing and the picker vanishes
+  // from every translated landing page.
+  out = out.replace('<a href="/app#account" class="navlogin">', `${langPicker(lang)}<a href="/app#account" class="navlogin">`);
   return out;
 }
 
@@ -3469,6 +3473,10 @@ ${sections}
           picked: strList(d.picked, 30),
           done: strList(d.done, 40),
           favorites: strList(d.favorites, 30),
+          // Rides ruled out. The agent needs these as much as the favourites:
+          // suggesting something the family has already said no to is worse
+          // than suggesting nothing.
+          excluded: strList(d.excluded, 40),
           // Whitelisted like everything else: a plain date or nothing.
           planDate: typeof d.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.planDate) ? d.planDate : null,
         });
@@ -3826,7 +3834,7 @@ ${sections}
           }
           db.kv.set(fkey, fday);
         }
-        const { park, messages, favorites, planPicks, subscription } = parsed;
+        const { park, messages, favorites, excluded, planPicks, subscription } = parsed;
         // Group profile from the setup wizard — whitelisted, never trusted raw.
         const profile = sanitizeProfile(parsed.profile);
         const done = strList(parsed.done, 40);
@@ -3882,7 +3890,7 @@ ${sections}
           let failed = false;
           try {
             await consultant.consult({
-              park: PARKS[park], waits, name: firstName, messages, favorites, planPicks, profile, done,
+              park: PARKS[park], waits, name: firstName, messages, favorites, excluded, planPicks, profile, done,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory: s ? db.advisor.getMemory(s.email) : null,

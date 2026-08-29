@@ -80,9 +80,10 @@
   @media (max-width:560px){
     .nav .row{padding:10px 16px;gap:10px}
     .navlinks{gap:10px;flex-wrap:nowrap}
-    /* Two links already step aside on small screens; the picker needs a third.
-       "Sign in" goes, because Open app lands on the account sheet anyway. */
-    .navlinks a.mut{display:none}
+    /* Sign in stays at every width -- a landing page with no visible way to
+       log in is the complaint that put it back. The text links step aside
+       instead. */
+    .navlogin{padding:8px 12px;font-size:13.5px}
     .langpick{max-width:6.4rem;min-width:0;font-size:12.5px;padding:.25rem 1.3rem .25rem .5rem;
       background-position:right .78rem center,right .52rem center}
     /* The CTA no longer gives up width, so the row has to find it elsewhere:
@@ -100,10 +101,25 @@
   @media (max-width:480px){
     .navlinks a.hide-xs{display:none}
   }
+  /* Below this the row carries a logo, a language picker, Sign in and the CTA,
+     and the CTA translations decide it -- "Abrir la app" overflowed 360px.
+     The wordmark is the one thing here that repeats: the icon says ParkPulse
+     and the hero says it again two lines down. */
+  @media (max-width:400px){
+    .nav .logo .logotext{display:none}
+    .navcta{padding:9px 12px}
+    .navlogin{padding:8px 10px}
+    .nav .row{gap:6px}
+    .navlinks{gap:6px}
+  }
   /* An inline <a> in a nowrap flex row still shrinks below its own label, and
      when "Open app" broke across two lines the pill's text sat left-aligned
      against the padding. inline-flex centres both axes, nowrap stops the
      break, and flex:0 0 auto makes the neighbours give way instead. */
+  .navlogin{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;flex:0 0 auto;
+    border:1px solid var(--border);border-radius:999px;padding:9px 15px;
+    color:var(--ink);font-weight:700;font-size:14.5px;text-decoration:none}
+  .navlogin:hover{border-color:var(--brand);color:var(--brand)}
   .navcta{display:inline-flex;align-items:center;justify-content:center;text-align:center;
     white-space:nowrap;flex:0 0 auto;
     padding:10px 20px;border-radius:999px;background:var(--brand);color:#fff!important;font-weight:600;font-size:14.5px;box-shadow:0 8px 20px -10px rgba(79,58,201,.8)}
@@ -448,13 +464,13 @@
 
 <div class="nav">
   <div class="row">
-    <a class="logo" href="/"><img src="/icon.svg" alt="" width="26" height="26">ParkPulse</a>
+    <a class="logo" href="/"><img src="/icon.svg" alt="" width="26" height="26"><span class="logotext">ParkPulse</span></a>
     <div class="spacer"></div>
     <div class="navlinks">
       <a href="#how" class="hide-sm">How it works</a>
       <a href="#parks" class="hide-sm">Parks</a>
       <a href="#pricing" class="hide-xs">Pricing</a>
-      <a href="/app#account" class="mut">Sign in</a>
+      <a href="/app#account" class="navlogin">Sign in</a>
       <a class="navcta" href="/app">Open app</a>
     </div>
   </div>

@@ -146,6 +146,15 @@
   .sr-set { color: var(--muted); cursor: pointer; }
   .sr-set b.on { color: var(--green); }
   .ride input[type=checkbox] { width: 1.2rem; height: 1.2rem; accent-color: var(--brand); flex-shrink: 0; }
+  /* Ruled out: still readable, plainly out of the running, one tap from back
+     in. Dimming beats hiding -- a row that disappears cannot be undone. */
+  .ride .skip { background: none; border: 0; padding: 0 .1rem; font-size: 1rem; line-height: 1;
+    cursor: pointer; opacity: .3; filter: grayscale(1); flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent; transition: opacity .12s ease; }
+  .ride .skip:active { transform: scale(.9); }
+  .ride .skip.on { opacity: 1; filter: none; }
+  .ride.isskip { opacity: .55; }
+  .ride.isskip .name { text-decoration: line-through; text-decoration-thickness: 1px; }
   .ride .mid { flex: 1; min-width: 0; }
   .ride .name { font-weight: 600; font-size: .95rem; line-height: 1.3; }
   .delta { font-size: .75rem; font-weight: 700; margin-top: .1rem; }
@@ -333,8 +342,11 @@
   .planai-h { display: flex; align-items: center; gap: .4rem; font-size: .95rem; color: var(--ink); margin-bottom: .35rem; }
   .mila-av { border-radius: 50%; border: 2px solid var(--brand); flex: 0 0 auto; }
   .pip-av { border-radius: 50%; border: 1.5px solid var(--border); flex: 0 0 auto; }
-  .planby { display: flex; align-items: center; gap: .35rem; font-size: .76rem; color: var(--muted);
+  /* The row holds the avatar; the span holds only text, so the credit can be
+     retexted with textContent without wiping the image out of it. */
+  .planby-row { display: flex; align-items: center; gap: .35rem; font-size: .76rem; color: var(--muted);
     margin: -.15rem 0 .5rem; }
+  .planby { min-width: 0; }
   /* Free-preview gate: half the board as a teaser, nothing interactive. */
   /* Two tiers of gate. gated = free user: the free park's board is usable —
      one park, today, one plan — with paid features locking individually.
@@ -1200,6 +1212,11 @@
     },
   });
   const favs = new Set(JSON.parse(localStorage.getItem('pp-favs') || '[]'));
+  // Rides the visitor has ruled out. Distinct from simply not picking one:
+  // the planner fills spare time with anything unpicked, so "no thanks" had
+  // no way to be said. Excluded rides stay visible on the board -- greyed and
+  // sorted last -- because a ride that vanishes is a ride you cannot get back.
+  const skips = new Set(JSON.parse(localStorage.getItem('pp-skip') || '[]'));
   const myAlerts = JSON.parse(localStorage.getItem('pp-alerts') || '{}'); // rideName -> threshold
   const pickedNames = new Set();
   // Picks are per park, per day. Flipping between parks to compare options
@@ -1261,6 +1278,7 @@
   const $ = (id) => document.getElementById(id);
 
   function saveFavs() { localStorage.setItem('pp-favs', JSON.stringify([...favs])); scheduleSync(); }
+  function saveSkips() { localStorage.setItem('pp-skip', JSON.stringify([...skips])); scheduleSync(); }
   function saveAlerts() { localStorage.setItem('pp-alerts', JSON.stringify(myAlerts)); }
 
   const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -1744,7 +1762,7 @@
           profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
           picked: [...pickedNames],
           done: [...doneOrder],
-          favorites: [...favs],
+          favorites: [...favs], excluded: [...skips],
           // Carried so the WhatsApp assistant answers about the same day the
           // app is showing, rather than about today.
           planDate,
@@ -2001,6 +2019,7 @@
     list = list.filter(passesFilter);
     const done = new Set(doneOrder);
     return [...list].sort((a, b) =>
+      (skips.has(a.name) - skips.has(b.name)) ||
       (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)
     );
   }
@@ -2022,11 +2041,12 @@
     const rode = doneOrder.includes(r.name);
     const pickable = planningAhead() ? !shutLongTerm(r) : r.open;
     return `
-      <div class="ride${rode ? ' isdone' : ''}">
-        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${pickable ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
+      <div class="ride${rode ? ' isdone' : ''}${skips.has(r.name) ? ' isskip' : ''}">
+        <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${pickable && !skips.has(r.name) ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
         <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="${tr('Favorite:')} ${esc(r.name)}">★</button>
         <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}${heightChips(r)}</span>
         <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
+        <button class="skip ${skips.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${skips.has(r.name) ? tr('Left out — tap to put it back') : tr("Not for us — keep it out of the plan")}" aria-label="${skips.has(r.name) ? tr('Left out — tap to put it back') : tr("Not for us — keep it out of the plan")}: ${esc(r.name)}">🚫</button>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `${tr('Alert set:')} ${tr('under')} ${myAlerts[r.name]} ${tr('min')} (${tr('tap to remove')})` : tr('Alert me when the wait drops')}" aria-label="${tr('Wait alert for:')} ${esc(r.name)}">🔔</button>
         <span class="wait ${waitClass(r)}">${waitCell(r)}</span>
         ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}${rideMetaLine(r)}</div>` : ''}
@@ -2090,7 +2110,7 @@
       const done = new Set(doneOrder);
       $('rides').innerHTML = closureNote() + [...lands.entries()].map(([land, list]) =>
         `<div class="landhead">${esc(land)}</div>` +
-        [...list].sort((a, b) => (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
+        [...list].sort((a, b) => (skips.has(a.name) - skips.has(b.name)) || (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
       ).join('') + heightHiddenNote();
     }
     $('rides').querySelectorAll('input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
@@ -2121,6 +2141,22 @@
       // Ticking a ride off is the one moment we know exactly what someone just
       // queued for, and the only moment the number is still in their head.
       if (nowDone) askActualWait(name, btn);
+    }));
+    $('rides').querySelectorAll('.ride .skip').forEach((btn) => btn.addEventListener('click', () => {
+      const name = decodeURIComponent(btn.dataset.name);
+      const out = !skips.has(name);
+      if (out) {
+        skips.add(name);
+        // Ruling a ride out and leaving it ticked into the plan are the same
+        // contradiction; the exclusion wins, and the plan bar has to agree.
+        if (pickedNames.delete(name)) { savePicks(current); updatePlanbar(); }
+        favs.delete(name); saveFavs();
+      } else skips.delete(name);
+      saveSkips();
+      toast(out ? tr('Left out of your plans') : tr('Back in the running'));
+      renderRides();
+      const rp = document.getElementById('replan');
+      if (rp && $('plan-out').innerHTML.trim()) rp.style.display = 'inline-block';
     }));
     $('rides').querySelectorAll('.bell').forEach((btn) => btn.addEventListener('click', () => bellTap(decodeURIComponent(btn.dataset.name))));
     $('rides').querySelectorAll('.sr-ask button').forEach((btn) => btn.addEventListener('click', (e) => {
@@ -2282,6 +2318,10 @@
   // just proposed -- and each answer grew a new Apply button, so every tap
   // burned tokens in a loop. Applying adopts the advice; it never re-asks.
   let adoptAdvice = false;
+  // Sticky for the plan on screen, where adoptAdvice is a one-shot: it is what
+  // the credit lines read to decide whose order the list below actually is.
+  // streamAdvice runs outside refinePlanWithAI, so it cannot be a local.
+  let planAdopted = false;
 
   // Fifteen sparkly ways for Mila to greet a freshly planned day. The tactical
   // read follows — but the FIRST thing anyone sees is "we're making magic",
@@ -2399,9 +2439,26 @@
     planIntroHtml = `<p class="planai-open">${greet}${esc(tr(line))}</p>`;
   }
 
+  // Who made the list you are looking at. Pip always computes the running
+  // order; Mila reads it and may propose a different one. Once hers is
+  // adopted the list below IS her order -- calling it "the running order it
+  // started from" at that point describes the thing it replaced.
+  function setPlanCredit(adopted) {
+    const base = $('planbase-h');
+    if (base) base.textContent = adopted
+      ? tr('Your running order, as Mila arranged it')
+      : tr('The running order Pip drafted');
+    const by = $('planby');
+    if (by) by.textContent = adopted
+      ? tr('Pip ran the numbers · Mila chose this order')
+      : tr('Pip ran the numbers · Mila read them back');
+  }
+
   function refinePlanWithAI(steps, opts = {}) {
     const adopting = adoptAdvice;
     adoptAdvice = false;
+    // Any rebuild that is not an adoption puts Pip's order back on screen.
+    planAdopted = adopting;
     const box = $('plan-ai');
     if (!box) return;
     const ride = steps.filter((x) => x.ride);
@@ -2418,6 +2475,7 @@
       $('planai-body').innerHTML = planIntroHtml + mdLite(aiPlanText);
       $('planai-act').innerHTML = `<span class="planai-done">✓ ${tr("Using Mila's magic order")}</span>`;
       $('planbase-h').style.display = '';
+      setPlanCredit(true);
       return;
     }
 
@@ -2430,6 +2488,7 @@
       $('planai-state').textContent = '';
       $('planai-body').innerHTML = planIntroHtml + mdLite(said);
       $('planbase-h').style.display = '';
+      setPlanCredit(planAdopted);
       return;
     }
     // Restoring a stashed plan must never spend an AI call on its own. The
@@ -2492,7 +2551,7 @@
         body: JSON.stringify({
           park: current, planDate, lang: window.PP_LANG_NAME || 'English',
           messages: [{ role: 'user', content: question }],
-          favorites: [...favs], planPicks: [...pickedNames], done: planDate ? [] : [...doneOrder],
+          favorites: [...favs], excluded: [...skips], planPicks: [...pickedNames], done: planDate ? [] : [...doneOrder],
           arrive: $('start-hour') ? $('start-hour').value : null,
           leave: $('end-hour') ? $('end-hour').value : null,
           profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
@@ -2540,6 +2599,7 @@
       if (!aiPlanText.trim()) return fail(tr("Mila couldn't be reached — the plan below still stands."));
       cacheAdvice(aiPlanKey, aiPlanText);
       $('planbase-h').style.display = '';
+      setPlanCredit(planAdopted);
       const proposal = actions.find((a) => a.type === 'plan' && Array.isArray(a.rides) && a.rides.length);
       if (proposal) {
         $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-apply">${esc(planApplyLabel())}</button>`;
@@ -2879,7 +2939,7 @@
     // A LONG-TERM closure is different: it has been shut all day for days
     // running, and scheduling it for Saturday sends a family to a wall.
     const shutLong = new Set(closureList.map((c) => c.name));
-    const plannable = (r) => (r.open || futureDay || closedNow) && !(shutLong.has(r.name) && !r.open);
+    const plannable = (r) => (r.open || futureDay || closedNow) && !(shutLong.has(r.name) && !r.open) && !skips.has(r.name);
     const remaining = rides.filter((r) => pickedNames.has(r.name) && plannable(r) && !doneSet.has(r.name));
     // Nothing to route. This bare `return` is where every silent "Plan it for
     // me" failure ended: no stops, no message, an untouched pane, and a button
@@ -3154,12 +3214,12 @@
         <!-- Pip drafted the running order, Mila reviewed it. Saying so in the
              card is the same fix as the one in her voice: nobody should think
              they built this themselves and got it wrong. -->
-        <div class="planby"><img class="pip-av" src="/img/pip/pip-ledger-160.webp" alt="Pip" width="22" height="22" loading="lazy">${tr('Drafted by Pip, reviewed by Mila')}</div>
+        <div class="planby-row"><img class="pip-av" src="/img/pip/pip-ledger-160.webp" alt="Pip" width="22" height="22" loading="lazy"><span class="planby" id="planby">${tr('Pip ran the numbers · Mila read them back')}</span></div>
         <div id="planai-body" class="planai-b"></div>
         <div id="planai-act"></div>
       </div>
       ${saved > 0 ? `<div class="savings"><img class="mila-mini" src="/img/mila/mila-celebrate-160.webp" alt=""> 🎉 ${tr('This plan wins your family back')} ≈ ${savedLabel} ${tr('of line time —')} ${savedPerk}.</div>` : ''}
-      <div class="planbase-h" id="planbase-h" style="display:none">${tr('The running order it started from')}</div>
+      <div class="planbase-h" id="planbase-h" style="display:none">${tr('The running order Pip drafted')}</div>
       ${doneSet.size ? `<p class="why" style="color:var(--muted)">✓ ${tr('Already ridden today:')} ${doneSet.size}</p>` : ''}
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
@@ -5565,7 +5625,7 @@
         // Wednesday. `done` only means anything for today, so it is dropped
         // for a future day — the planner already ignores it there too.
         getContext: async () => ({
-          favorites: [...favs],
+          favorites: [...favs], excluded: [...skips],
           planPicks: [...pickedNames],
           done: planDate ? [] : [...doneOrder],
           planDate,
