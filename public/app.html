@@ -1039,18 +1039,18 @@
 </div>
 
 <div class="sheet" id="trip-sheet">
-  <h3>🧳 Plan a trip</h3>
-  <p>Pick your destination and dates — each day gets the park our forecast expects to be lightest.</p>
+  <h3 id="trip-title">🧳 Plan a trip</h3>
+  <p id="trip-sub">Pick your destination and dates — each day gets the park our forecast expects to be lightest.</p>
   <form id="trip-form">
     <select id="trip-dest" style="width:100%;margin-bottom:.6rem;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.6rem;font-size:1rem"></select>
     <div style="display:flex;gap:.5rem;margin-bottom:.6rem">
       <input type="date" id="trip-start" required style="flex:1;min-width:0;border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem">
       <select id="trip-days" style="border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.55rem;font-size:1rem"></select>
     </div>
-    <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;font-size:.92rem;cursor:pointer">
+    <label id="trip-onsite-lbl" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;font-size:.92rem;cursor:pointer">
       <input type="checkbox" id="trip-onsite" style="width:1.1rem;height:1.1rem;accent-color:var(--brand)"> 🏨 Staying at an on-site park hotel
     </label>
-    <button class="btn wide" type="submit">Build my trip</button>
+    <button class="btn wide" type="submit" id="trip-go">Build my trip</button>
   </form>
   <div id="trip-out"></div>
   <button class="cancel" id="trip-cancel">Close</button>
@@ -1884,7 +1884,7 @@
       el.innerHTML = `<div class="fcast">
         <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 ${tr('Trip')}</a> · ${tr('Lightest:')} ${tr(f.best)} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.slice(0, 7).map((d) => `
-          <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${d.label}${d.holiday ? ` — ${d.holiday}` : ''}">
+          <div class="fc-day ${d.dow === f.best ? 'best' : ''}" title="${esc(tr(d.label))}${d.holiday ? ` — ${esc(d.holiday)}` : ''}">
             ${tr(d.dow)}<i class="l${d.level}"></i><span class="lv">${tr(d.label)}</span>${d.holiday ? '<span class="hol">🎉</span>' : ''}
           </div>`).join('')}
         </div>
@@ -3788,6 +3788,14 @@
     $('ll-apply').textContent = tr('Update my plan');
     $('ll-ask').textContent = '💬 ' + tr('Ask Mila first');
     $('ll-cancel').textContent = tr('Close');
+    // The trip sheet and the two labels a screen reader reads out: static
+    // markup, so nothing was translating any of it.
+    $('trip-title').textContent = '🧳 ' + tr('Plan a trip');
+    $('trip-sub').textContent = tr('Pick your destination and dates — each day gets the park our forecast expects to be lightest.');
+    $('trip-onsite-lbl').lastChild.nodeValue = ' 🏨 ' + tr('Staying at an on-site park hotel');
+    $('trip-go').textContent = tr('Build my trip');
+    $('trip-cancel').textContent = tr('Close');
+    $('plan-note-x').setAttribute('aria-label', tr('Dismiss'));
     $('build').textContent = tr('Plan it');
     const lunchLabel = document.querySelector('.planbar label.lunch');
     if (lunchLabel) lunchLabel.lastChild.nodeValue = ' ' + tr('lunch');
@@ -4110,11 +4118,14 @@
   // Sticky note under the header: the plan reflects choices already made.
   function updatePlanNote() {
     const bits = [];
-    if (llSet.size) bits.push(`🎟 ${parks[current].skip?.name || 'Skip pass'} on ${llSet.size} ride${llSet.size === 1 ? '' : 's'}`);
+    if (llSet.size) {
+      bits.push('🎟 ' + trf(llSet.size === 1 ? '{pass} on 1 attraction' : '{pass} on {n} attractions',
+        { pass: parks[current].skip?.name || tr('Skip pass'), n: llSet.size }));
+    }
     const doneCount = new Set(doneOrder).size;
-    if (doneCount) bits.push(`✓ ${doneCount} completed`);
+    if (doneCount) bits.push('✓ ' + trf('{n} done', { n: doneCount }));
     if (!bits.length) { hidePlanNote(); return; }
-    $('plan-note-txt').textContent = `📌 Plan reflects your choices: ${bits.join(' · ')}`;
+    $('plan-note-txt').textContent = '📌 ' + trf('Your plan reflects: {what}', { what: bits.join(' · ') });
     $('plan-note').style.display = 'flex';
   }
   function hidePlanNote() { $('plan-note').style.display = 'none'; }
@@ -4369,13 +4380,13 @@
       }
     }
     const d = diningCache[key];
-    const TYPE = { table: 'Table service', quick: 'Quick service', character: 'Character dining' };
+    const TYPE = { table: tr('Table service'), quick: tr('Quick service'), character: tr('Character dining') };
     el.innerHTML = `
       <div class="dinehero">
         <h3>🍽 ${tr('Where to eat at')} ${parks[current].name}</h3>
         <p class="dh-sub">${d.list.length} ${tr('places worth your time, picked for this park')}</p>
         ${d.reserve && /^https?:\/\//i.test(d.reserve.url || '') ? `<a class="dh-cta" href="${esc(d.reserve.url)}" target="_blank" rel="noopener">${d.reserve.scoped ? `${tr('Book a table at')} ${esc(parks[current].name)}` : tr('Book a table')} →</a>` : ''}
-        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${esc(d.reserve.note)}</div></div>` : ''}
+        ${d.reserve ? `<div class="dh-row"><span>📅</span><div><b>${tr('Reservations')}</b>${esc(tr(d.reserve.note))}</div></div>` : ''}
         <div class="dh-row"><span>⏰</span><div><b>${tr('Beat the rush')}</b>${tr('Kitchens peak 12:00–1:30 and 6:00–7:30. Mobile-order 30 minutes ahead or eat either side of those windows.')}</div></div>
         <div class="dh-row"><span>ℹ️</span><div><b>${tr('No live waits')}</b>${tr("Parks don't publish restaurant wait times, so we won't invent them.")}</div></div>
       </div>
@@ -4383,7 +4394,7 @@
         <div class="ride">
           <span class="mid">
             <span class="name">${esc(r.name)}${r.mustBook ? ' 🔒' : ''}</span>
-            <div class="dine-tags">${TYPE[r.type] || esc(r.type)} · ${esc(r.price)}${r.mustBook ? ' · book early!' : ''}</div>
+            <div class="dine-tags">${TYPE[r.type] || esc(r.type)} · ${esc(r.price)}${r.mustBook ? ' · ' + esc(tr('book early!')) : ''}</div>
             <div class="dine-blurb">${esc(r.blurb)}</div>
           </span>
         </div>`).join('')}
@@ -4402,8 +4413,8 @@
     $('dining').style.display = mode === 'dining' ? '' : 'none';
     $('mapwrap').style.display = mode === 'map' ? '' : 'none';
     $('pick-all').style.display = mode === 'rides' ? '' : 'none';
-    $('view-toggle').textContent = mode === 'dining' ? '🎢 Rides' : '🍽 Dining';
-    $('map-toggle').textContent = mode === 'map' ? '🎢 Rides' : '🗺 ' + tr('Map');
+    $('view-toggle').textContent = mode === 'dining' ? '🎢 ' + tr('Rides') : '🍽 ' + tr('Dining');
+    $('map-toggle').textContent = mode === 'map' ? '🎢 ' + tr('Rides') : '🗺 ' + tr('Map');
     if (mode === 'dining') renderDining();
     if (mode === 'map') renderMap();
     // Reached from the toolbar links as well as the bar, so sync either way.

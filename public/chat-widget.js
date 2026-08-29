@@ -10,6 +10,10 @@
 (function () {
   const script = document.currentScript;
   const T = () => window.PP_T || ((k) => k); // resolved lazily so load order never matters
+  // Same, with placeholders: a sentence with a park name in the middle has to
+  // be translated whole, because the name does not sit in the same place in
+  // every language.
+  const F = () => (key, vals) => String(T()(key)).replace(/\{(\w+)\}/g, (m, k) => (vals[k] != null ? vals[k] : m));
   const state = { history: [], busy: false, opts: null, locked: false, park: null };
   try { state.park = sessionStorage.getItem('ppc-park'); } catch {}
   try { state.history = JSON.parse(sessionStorage.getItem('ppc-history') || '[]'); } catch {}
@@ -126,10 +130,10 @@
     root = document.createElement('div');
     root.id = 'ppc-root';
     root.innerHTML = `
-      <button id="ppc-fab" title="Ask Mila, your park advisor" aria-label="Ask Mila, your park advisor"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
-      <div id="ppc-panel" role="dialog" aria-label="Chat with your magical fairy">
+      <button id="ppc-fab" title="${T()('Ask Mila, your park fairy')}" aria-label="${T()('Ask Mila, your park fairy')}"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
+      <div id="ppc-panel" role="dialog" aria-label="${T()('Chat with your magical fairy')}">
         <div id="ppc-head"><div><b>${T()('Mila — your park fairy')}</b><span id="ppc-sub"></span></div>
-          <button id="ppc-close" aria-label="Close chat">✕</button></div>
+          <button id="ppc-close" aria-label="${T()('Close chat')}">✕</button></div>
         <div id="ppc-scrollwrap">
           <div id="ppc-msgs"></div>
           <button id="ppc-jump" type="button">↓ ${T()('Jump to latest')}</button>
@@ -182,12 +186,12 @@
     const div = document.createElement('div');
     div.className = 'ppc-bubble ppc-bot';
     const p1 = document.createElement('p');
-    p1.textContent = `Mila, your park fairy, reads today's live waits at ${parkName} and tells you whether the paid line-skipping pass is worth it, what to ride and in what order, and when to walk straight on instead of queueing — with a little magic in the telling.`;
+    p1.textContent = F()('Mila, your park fairy, reads today\'s live waits at {park} and tells you whether the paid line-skipping pass is worth it, what to ride and in what order, and when to walk straight on instead of queueing — with a little magic in the telling.', { park: parkName });
     const p2 = document.createElement('p');
-    p2.textContent = 'It comes with any pass. ';
+    p2.textContent = T()('It comes with any pass.') + ' ';
     const a = document.createElement('a');
     a.href = '/#pricing';
-    a.textContent = "See what's included";
+    a.textContent = T()("See what's included");
     p2.appendChild(a);
     div.append(p1, p2);
     msgs.appendChild(div);
