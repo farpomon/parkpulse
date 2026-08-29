@@ -989,6 +989,34 @@ function planMailBlocked(email) {
   return hits.length > 6;
 }
 
+// Fingerprint of everything that reaches Mila's prompt for one plan review.
+// Two requests that hash the same would have produced the same reply, so the
+// second can replay the first instead of buying it again.
+//
+// Live wait times are deliberately absent: they move every few minutes, and
+// keying on them would mean the cache never hit. Staleness is bounded by the
+// TTL the caller passes instead. List inputs are sorted -- the same set of
+// picks in a different order is the same information, and leaving the order in
+// would miss hits for nothing.
+function planAdviceSig(parts) {
+  const list = (v) => (Array.isArray(v) ? [...v].map(String).sort() : []);
+  const canonical = JSON.stringify([
+    parts.park, parts.day, parts.lang, parts.question,
+    parts.profile || null, parts.name || null,
+    list(parts.favorites), list(parts.excluded), list(parts.planPicks), list(parts.done),
+    parts.arrive, parts.leave,
+    parts.memory || null, parts.trip || null,
+  ]);
+  return crypto.createHash('sha256').update(canonical).digest('hex');
+}
+
+// How long a review stays good for. A plan for today is read against live
+// queues, so it goes stale within the quarter hour. A plan for a future date
+// has no live queues to be wrong about -- it is built on the forecast, which
+// barely moves inside a day.
+const ADVICE_TTL_TODAY = 15 * 60 * 1000;
+const ADVICE_TTL_FUTURE = 12 * 60 * 60 * 1000;
+
 // One sanitizer for every place a client hands us a plan: the email endpoint,
 // the saved-plans store, and (indirectly) the night-before mailer that replays
 // stored rows. Anything that renders into an email goes through here first.
@@ -1701,7 +1729,10 @@ function sweepDeletedAccounts() {
     }
   }
 }
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
+// Cached plan reviews outlive their longest TTL by a day and are then dead
+// weight -- a plan for a past date will never be asked for again.
+const sweepPlanAdvice = () => { try { db.planadvice.prune(36 * 60 * 60 * 1000); } catch {} };
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
 
 // --- Night-before plan emails ------------------------------------------------
 // Zero taps during the trip: the evening before a saved plan's date (18:00 to
@@ -3888,6 +3919,7 @@ ${sections}
 
       if (url.pathname === '/api/consultant') {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
+        let freeWish = null;
         // Free tier: exactly ONE consultant call per day — the review that
         // rides along with the single free "Plan my day" — and only for the
         // free park, only about today. The wish belongs to a VERIFIED
@@ -3900,14 +3932,21 @@ ${sections}
           if (!freePark || !today) return sendJson(res, 402, { error: 'pass required' });
           const s2 = sessionUser(req);
           if (!s2) return sendJson(res, 401, { error: 'Your free daily plan is waiting — log in (free) so Mila knows who she is planning for.' });
+          // Neither checked nor spent yet. Both wait until we know this is a
+          // genuinely new ask: a visitor refreshing the page, or coming back
+          // to a plan they have already been given, must get it back rather
+          // than be told their one wish is gone -- they already paid it for
+          // this very answer.
           const fkey = `freewish:${s2.email}`;
-          const fday = etNow().date;
-          if (db.kv.get(fkey) === fday) {
-            return sendJson(res, 402, { error: 'My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.' });
-          }
-          db.kv.set(fkey, fday);
+          freeWish = { key: fkey, day: etNow().date, spent: db.kv.get(fkey) === etNow().date };
         }
         const { park, messages, favorites, excluded, planPicks, subscription } = parsed;
+        // Set by the plan panel, never by the chat widget. Two things hang off
+        // it: these are the only turns worth caching (one self-contained
+        // question, no conversation behind it), and they must stay out of the
+        // saved chat history -- a plan review is not something the visitor
+        // said, and saving it overwrote the account's real conversation.
+        const planReview = parsed.kind === 'plan-review' && Array.isArray(messages) && messages.length === 1;
         // Group profile from the setup wizard — whitelisted, never trusted raw.
         const profile = sanitizeProfile(parsed.profile);
         const done = strList(parsed.done, 40);
@@ -3919,10 +3958,43 @@ ${sections}
         const leave = Number.isFinite(Number(parsed.leave)) ? Number(parsed.leave) : null;
         const lang = Object.values(LANG_NAMES).includes(parsed.lang) ? parsed.lang : 'English';
         if (!PARKS[park]) return sendJson(res, 400, { error: 'unknown park' });
+
+        const s = sessionUser(req);
+        const firstName = s ? (db.users.get(s.email)?.name || null) : null;
+        const memory = s ? db.advisor.getMemory(s.email) : null;
+        const trip = s ? db.trips.get(s.email) : null;
+        const parkToday = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[park].tz });
+        const planDay = planDateRaw || parkToday;
+
+        // A plan review the visitor has already been given -- after a refresh,
+        // on a second device, or coming back to a park they wandered away from
+        // -- replays from SQLite. This happens before the throttle and before
+        // the free wish is spent: nothing is being bought, so nothing should
+        // be charged for it.
+        const adviceSig = planReview ? planAdviceSig({
+          park, day: planDay, lang, question: messages[0] && messages[0].content,
+          profile, name: firstName, favorites, excluded, planPicks, done, arrive, leave, memory, trip,
+        }) : null;
+        if (adviceSig) {
+          const hit = db.planadvice.get(adviceSig, planDay === parkToday ? ADVICE_TTL_TODAY : ADVICE_TTL_FUTURE);
+          if (hit) {
+            res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+            const replay = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+            replay('delta', { text: hit.text });
+            for (const a of hit.actions) replay('action', a);
+            replay('done', {});
+            return res.end();
+          }
+        }
+
         // Throttle per verified pass, then verified account, then client IP.
         if (consultant.throttled(throttleIdentity(req).slice(0, 64))) {
           return sendJson(res, 429, { error: "You've hit your magical fairy's limit for now — try again in a few hours." });
         }
+        if (freeWish && freeWish.spent) {
+          return sendJson(res, 402, { error: 'My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.' });
+        }
+        if (freeWish) db.kv.set(freeWish.key, freeWish.day);
         try {
           const waits = await getWaits(park);
           const fc = (() => { try { return forecastFor(park, 120); } catch { return null; } })();
@@ -3931,26 +4003,23 @@ ${sections}
           // Attach the planned day itself — its crowd level, and its weather
           // where the forecast reaches that far. Everything downstream keys off
           // this rather than re-deriving "today".
-          const today = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[park].tz });
-          const planDay = planDateRaw && fc ? fc.days.find((d) => d.date === planDateRaw) : null;
-          if (planDay) {
+          const forecastDay = planDateRaw && fc ? fc.days.find((d) => d.date === planDateRaw) : null;
+          if (forecastDay) {
             waits.planDay = {
-              ...planDay,
-              isToday: planDay.date === today,
-              weather: (waits.weather?.days || []).find((w) => w.date === planDay.date) || null,
+              ...forecastDay,
+              isToday: forecastDay.date === parkToday,
+              weather: (waits.weather?.days || []).find((w) => w.date === forecastDay.date) || null,
               arrive, leave,
             };
           }
-          waits.today = today;
-          waits.events = eventsFor(park, planDay ? planDay.date : today);
+          waits.today = parkToday;
+          waits.events = eventsFor(park, forecastDay ? forecastDay.date : parkToday);
           // Shelter tags (indoor/covered/outdoor) from the cached classification
           // so weather routing names real air-conditioned rides. Cache only --
           // a consult must never wait on a classification call; without tags the
           // advisor falls back to its own knowledge, as before.
           try { waits.tags = JSON.parse(db.ridetags.get(park) || 'null') || undefined; } catch {}
           waits.closures = (CLOSURES[park]?.rides || []).filter((r) => r.current).slice(0, 12);
-          const s = sessionUser(req);
-          const firstName = s ? (db.users.get(s.email)?.name || null) : null;
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
           let replyText = '';
@@ -3966,8 +4035,7 @@ ${sections}
               park: PARKS[park], waits, name: firstName, messages, favorites, excluded, planPicks, profile, done,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
-              memory: s ? db.advisor.getMemory(s.email) : null,
-              trip: s ? db.trips.get(s.email) : null,
+              memory, trip,
               lang,
               send,
             });
@@ -3986,9 +4054,22 @@ ${sections}
               : 'Your magical fairy is having a moment — try again shortly.';
             send('error', { error: friendly });
           }
+          // Bank the review so the next identical ask is free. Only when every
+          // action was side-effect-free: a turn that created a wait alert must
+          // not be replayed later, or a visitor would be told an alert was set
+          // that nobody set.
+          if (adviceSig && !failed && replyText.trim()) {
+            const planOnly = turnActions.filter((a) => a.type === 'plan');
+            if (planOnly.length === turnActions.length) {
+              try { db.planadvice.set(adviceSig, park, planDay, replyText, planOnly); } catch {}
+            }
+          }
           // Persist the conversation for logged-in users so it follows the
           // account across devices (mirrors the client's own history rules).
-          if (s && !failed && replyText) {
+          // Plan reviews are excluded: the question is one the app asked, not
+          // the visitor, and because saveChat replaces the whole row, storing
+          // one wiped out the account's actual conversation.
+          if (s && !failed && replyText && !planReview) {
             try {
               const window = (Array.isArray(messages) ? messages : [])
                 .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())

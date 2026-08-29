@@ -187,6 +187,21 @@ db.exec(`
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (day, feature, model)
   );
+  -- Mila's read of a drafted running order, keyed on a hash of every input
+  -- that reaches her prompt. The same plan asked twice -- a refresh, a second
+  -- device, a visitor who left the tab and came back -- replays instead of
+  -- buying another Opus call. Live wait times deliberately do NOT feed the
+  -- key (they move every few minutes and would make it never hit); staleness
+  -- is bounded by the caller's TTL instead.
+  CREATE TABLE IF NOT EXISTS plan_advice (
+    sig TEXT PRIMARY KEY,
+    park TEXT NOT NULL,
+    day TEXT NOT NULL,
+    text TEXT NOT NULL,
+    actions TEXT NOT NULL DEFAULT '[]',
+    at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS plan_advice_at ON plan_advice (at);
   CREATE TABLE IF NOT EXISTS invites (
     token TEXT PRIMARY KEY,
     channel TEXT NOT NULL,
@@ -440,6 +455,25 @@ const ridetags = {
   set: (park, json) => db.prepare('INSERT OR REPLACE INTO ride_tags (park, json, at) VALUES (?, ?, ?)').run(park, json, new Date().toISOString()),
 };
 
+// Cached plan reviews. `get` enforces the freshness the caller asks for
+// rather than storing a TTL per row, because the same advice is worth a
+// quarter of an hour when the plan is for today and half a day when it is for
+// a date whose live waits do not exist yet.
+const planadvice = {
+  get: (sig, maxAgeMs) => {
+    const row = db.prepare('SELECT text, actions, at FROM plan_advice WHERE sig = ?').get(sig);
+    if (!row) return null;
+    if (Date.now() - new Date(row.at).getTime() > maxAgeMs) return null;
+    try { return { text: row.text, actions: JSON.parse(row.actions) }; } catch { return { text: row.text, actions: [] }; }
+  },
+  set: (sig, park, day, text, actions) =>
+    db.prepare('INSERT INTO plan_advice (sig, park, day, text, actions, at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(sig) DO UPDATE SET text = excluded.text, actions = excluded.actions, at = excluded.at')
+      .run(sig, park, day, text, JSON.stringify(actions || []), new Date().toISOString()),
+  // Nothing here is worth keeping once it is far past any TTL a caller uses.
+  prune: (olderThanMs) =>
+    db.prepare('DELETE FROM plan_advice WHERE at < ?').run(new Date(Date.now() - olderThanMs).toISOString()).changes,
+};
+
 // Multi-day trip plans, one per account (the current/next trip).
 const trips = {
   get: (email) => db.prepare('SELECT dest, start, days, plan, onsite FROM trips WHERE email = ?').get(email) ?? null,
@@ -641,4 +675,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

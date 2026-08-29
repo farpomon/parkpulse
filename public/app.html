@@ -423,6 +423,9 @@
   .planai-role img { border-radius: 50%; flex: 0 0 auto; margin-top: .12rem; }
   .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
   .planai-off { color: var(--muted); font-size: .92rem; margin: 0; }
+  /* Offering Mila rather than reporting a failure -- same size as the
+     unavailable message, but in body colour, because nothing is wrong. */
+  .planai-recheck { color: var(--ink); font-size: .92rem; margin: 0; }
   .planai-cta { margin-top: .7rem; padding: .5rem 1rem; font-size: .9rem; }
   .planai-sk { height: .8rem; border-radius: 6px; margin: .38rem 0;
     background: linear-gradient(90deg, var(--border), var(--card), var(--border)); background-size: 200% 100%;
@@ -2366,6 +2369,17 @@
   // Replaying a plan while park-hopping costs zero tokens.
   let aiPlanCache = {};
   try { aiPlanCache = JSON.parse(sessionStorage.getItem('pp-aiplan') || '{}'); } catch {}
+  // Park-days Mila has already read once. The first plan of a day still gets
+  // her verdict unasked -- that first moment is the point of the feature --
+  // but every rebuild after it offers her instead of spending on her. A
+  // visitor tuning their picks can redraft a dozen times, and paying for a
+  // fresh Opus read of each draft bought them nothing they asked for.
+  let aiPlanAsked = new Set();
+  try { aiPlanAsked = new Set(JSON.parse(sessionStorage.getItem('pp-aiplan-asked') || '[]')); } catch {}
+  function markPlanAsked(pd, asked) {
+    if (asked) aiPlanAsked.add(pd); else aiPlanAsked.delete(pd);
+    try { sessionStorage.setItem('pp-aiplan-asked', JSON.stringify([...aiPlanAsked])); } catch {}
+  }
   function cacheAdvice(key, text) {
     if (!key || !text) return;
     aiPlanCache[key] = text;
@@ -2522,7 +2536,10 @@
   // order; Mila reads it and may propose a different one. Once hers is
   // adopted the list below IS her order -- calling it "the running order it
   // started from" at that point describes the thing it replaced.
-  function setPlanCredit(adopted) {
+  // Three states, not two. "Mila read them back" is a claim about what
+  // happened, and it was being printed over orders she had never seen -- a
+  // draft still waiting to be checked, and any read that failed.
+  function setPlanCredit(adopted, reviewed = true) {
     const base = $('planbase-h');
     if (base) base.textContent = adopted
       ? tr('Your running order, as Mila arranged it')
@@ -2530,7 +2547,9 @@
     const by = $('planby');
     if (by) by.textContent = adopted
       ? tr('Pip ran the numbers · Mila chose this order')
-      : tr('Pip ran the numbers · Mila read them back');
+      : reviewed
+        ? tr('Pip ran the numbers · Mila read them back')
+        : tr("Pip ran the numbers · Mila hasn't read this order yet");
   }
 
   function refinePlanWithAI(steps, opts = {}) {
@@ -2573,6 +2592,27 @@
     // Restoring a stashed plan must never spend an AI call on its own. The
     // plan stands by itself; Mila's read returns the next time it is asked for.
     if (opts.cachedOnly) { box.style.display = 'none'; return; }
+
+    // Mila has already read this park-day once and this is a different order,
+    // so offer her rather than spending on her. One tap and she reads it; the
+    // plan below stands on its own in the meantime. Showing her previous read
+    // here would be worse than showing none: it names rides by name, and this
+    // draft may no longer contain them.
+    const planDayKey = `${current}|${planDate || 'today'}`;
+    if (aiPlanAsked.has(planDayKey) && !opts.force) {
+      if (aiPlanAbort) aiPlanAbort.abort();
+      aiPlanKey = null;
+      aiPlanText = '';
+      box.style.display = '';
+      $('planai-state').textContent = '';
+      $('planai-body').innerHTML = `<p class="planai-recheck"><img class="mila-mini" src="/img/mila/mila-thinking-160.webp" alt="">${esc(tr('Pip has redrafted your day. Want my read on this order?'))}</p>`;
+      $('planai-act').innerHTML = `<button class="btn planai-cta" id="planai-recheck">${esc(tr('Ask Mila to check it'))}</button>`;
+      $('planbase-h').style.display = 'none';
+      setPlanCredit(false, false);
+      document.getElementById('planai-recheck').addEventListener('click', () => refinePlanWithAI(steps, { force: true }));
+      return;
+    }
+    markPlanAsked(planDayKey, true);
     if (aiPlanAbort) aiPlanAbort.abort();
 
     box.style.display = '';
@@ -2596,7 +2636,7 @@
     aiPlanText = '';
     const ctrl = new AbortController();
     aiPlanAbort = ctrl;
-    streamAdvice(ask, ctrl.signal, box);
+    streamAdvice(ask, ctrl.signal, box, planDayKey);
   }
 
   // Minimal markdown: the advisor writes bold and paragraphs, nothing more.
@@ -2609,10 +2649,15 @@
       .replace(/^/, '<p>').replace(/$/, '</p>');
   }
 
-  async function streamAdvice(question, signal, box) {
+  async function streamAdvice(question, signal, box, planDayKey) {
     const state = $('planai-state');
     const body = $('planai-body');
     const fail = (msg, upsell) => {
+      // A read that never arrived was not a read. Hand the park-day back so
+      // the next plan tries again by itself, rather than leaving the visitor
+      // to discover a button they never saw work.
+      if (planDayKey) markPlanAsked(planDayKey, false);
+      setPlanCredit(planAdopted, false);
       // A failed refinement must never look like a failed plan.
       box.style.display = msg ? '' : 'none';
       $('planbase-h').style.display = 'none';
@@ -2629,6 +2674,10 @@
         headers: { 'content-type': 'application/json', ...authHeadersApp() },
         body: JSON.stringify({
           park: current, planDate, lang: window.PP_LANG_NAME || 'English',
+          // Marks this as the plan panel's own question rather than something
+          // the visitor typed: the server caches these and keeps them out of
+          // the saved chat history.
+          kind: 'plan-review',
           messages: [{ role: 'user', content: question }],
           favorites: [...favs], excluded: [...skips], planPicks: [...pickedNames], done: planDate ? [] : [...doneOrder],
           arrive: $('start-hour') ? $('start-hour').value : null,
