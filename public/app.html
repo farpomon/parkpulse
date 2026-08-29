@@ -2578,6 +2578,33 @@
   ];
   let llJustApplied = false;
 
+  // Everything that changes what she would say, folded into the cache key.
+  // It used to be the park, the day and the ride names alone -- so changing
+  // the party and rebuilding the same rides replayed a read that described a
+  // grandparent who was no longer coming. Not hashed: a collision here would
+  // silently reintroduce exactly that, and ten entries of a long key cost
+  // nothing.
+  function planCtxKey() {
+    const list = (v) => [...v].map(String).sort().join(',');
+    return JSON.stringify([
+      profile ? [profile.party, [...(profile.ages || [])].sort(), [...(profile.vibes || [])].sort(), profile.onsite] : null,
+      list(favs), list(skips), list(llSet), planDate ? '' : list(doneOrder),
+      $('start-hour') ? $('start-hour').value : '', $('end-hour') ? $('end-hour').value : '',
+      window.PP_LANG || 'en',
+    ]);
+  }
+
+  // Her earlier reads described a different group of people. Throw them all
+  // away rather than let one surface again.
+  function forgetPlanAdvice() {
+    aiPlanCache = {};
+    aiPlanKey = null;
+    aiPlanText = '';
+    try { sessionStorage.removeItem('pp-aiplan'); } catch {}
+    aiPlanAsked = new Set();
+    try { sessionStorage.removeItem('pp-aiplan-asked'); } catch {}
+  }
+
   function pickPlanIntro() {
     const line = MILA_PLAN_OPENERS[Math.floor(Math.random() * MILA_PLAN_OPENERS.length)];
     let uname = '';
@@ -2631,7 +2658,7 @@
     if (!ride.length) return;
     pickPlanIntro();
     const lines = ride.map((x) => `${hourLabel(x.time)} ${x.ride.name} (~${x.predicted} min)`).join('; ');
-    const key = `${current}|${planDate || 'today'}|${ride.map((x) => x.ride.name).join(';')}`;
+    const key = `${current}|${planDate || 'today'}|${ride.map((x) => x.ride.name).join(';')}|${planCtxKey()}`;
 
     if (adopting && aiPlanText) {
       aiPlanKey = key;   // pin the standing advice to the applied plan
@@ -3512,7 +3539,10 @@
     // selection, which is the one place the two views must never disagree.
     if (picksChanged) renderRides();
     // The advisor now runs on every plan rather than waiting to be asked.
-    refinePlanWithAI(steps, opts.quiet ? { cachedOnly: true } : undefined);
+    // `quiet` normally means "do not spend a call on this rebuild". A group
+    // change is the exception: the plan is being rebuilt precisely because
+    // the old read is wrong about who is here.
+    refinePlanWithAI(steps, opts.quiet && !opts.refresh ? { cachedOnly: true } : undefined);
     syncPlanHero();
     rememberPlanDay(current, planDate);
     renderDayOptions();
@@ -4989,6 +5019,12 @@
       renderRides();
       updatePlanbar();
       syncFilterButton();
+      // Who is coming drives the ride filters, the pace and the running order,
+      // so a plan built for the old group is wrong the moment this closes --
+      // and so is anything Mila said about it. Rebuild in place, without
+      // yanking the visitor to the Plan pane they did not ask for.
+      forgetPlanAdvice();
+      if ($('plan-out').querySelector('.plan')) buildPlan({ quiet: true, refresh: true });
     } else if (profile) {
       // Skipped the daily re-confirm: keep yesterday's answers for today.
       profile.day = parkDay();
