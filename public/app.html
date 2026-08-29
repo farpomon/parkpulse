@@ -651,6 +651,20 @@
   .blurcard span { color: var(--muted); font-size: .88rem; max-width: 22rem; line-height: 1.4; }
   .blurcard .btn { margin-top: .3rem; text-decoration: none; }
   .blurcard .cancel { width: auto; padding: .5rem .9rem; }
+  /* Louder than .riskbox on purpose: everything below it is timed on the
+     assumption that the party rides apart, which is not what a family reading
+     a schedule expects. */
+  .srbox { background: var(--amber-soft, #fff7e6); border: 2px solid #d97706; border-radius: 14px;
+    padding: .85rem 1rem; margin: 0 0 .9rem; font-size: .92rem; line-height: 1.45; }
+  .srbox > b { display: block; color: #92580a; font-size: 1.02rem; margin-bottom: .3rem; }
+  .srbox .sr-lead { color: var(--ink); }
+  .srbox .sr-pts { margin-top: .5rem; color: var(--muted); font-size: .87rem; }
+  .srbox .sr-pts > div { position: relative; padding-left: .85rem; margin-top: .3rem; }
+  .srbox .sr-pts > div::before { content: '•'; position: absolute; left: 0; color: #d97706; font-weight: 800; }
+  .srbox #sr-off { margin-top: .7rem; width: 100%; border: 1px solid #d97706; background: transparent;
+    color: #92580a; font: inherit; font-weight: 800; font-size: .88rem; border-radius: 10px;
+    padding: .55rem .8rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .srbox #sr-off:active { transform: scale(.98); }
   .riskbox { background: var(--amber-soft, #fff7e6); border: 1px solid #e8c98a; border-radius: 12px;
     padding: .7rem .9rem; margin: 0 0 .7rem; font-size: .86rem; color: var(--ink); }
   .riskbox b { display: block; margin-bottom: .25rem; }
@@ -1540,6 +1554,10 @@
   }
 
   const tr = window.PP_T || ((k) => k);
+  // Same {placeholder} contract the server's email templates use. Without it
+  // a sentence has to be glued together from fragments, and word order is not
+  // a constant across nineteen languages.
+  const trf = (key, vals) => String(tr(key)).replace(/\{(\w+)\}/g, (m, k) => (vals[k] != null ? vals[k] : m));
   let dest = null;
   let consultantOn = false;
   let whatsappOn = false;
@@ -2159,6 +2177,35 @@
       : tr('the first hour is the emptiest the park will be all day');
     return `<div class="ropedrop">🏁 <b>${tr('Be at the gate by')} ${hourLabel(gate)}</b> — ${worth}.
       <span class="rd-why">${tr('Bag check, the walk in and the queue at the turnstile eat about half an hour, so arriving at opening time means starting your day thirty minutes late.')}</span></div>`;
+  }
+
+  // The running order below is only achievable if the party actually splits up
+  // on these rides -- the predicted waits are roughly a third of standby. A
+  // family scanning a timed list has every reason to assume they ride
+  // together, so this says otherwise before they read a single row.
+  function srBanner(steps) {
+    // Riding alone is the whole point when you came alone -- single rider is
+    // even the default for a party of one. There is no group to split, so the
+    // warning would be nonsense.
+    if (profile && profile.party === 1) return '';
+    // Unique rides, not steps: a headliner the planner slots in twice (an
+    // encore or a victory lap) is still one attraction you ride alone, and
+    // counting the repeats told a family of four they were splitting up on
+    // eight rides when it was two.
+    const names = [...new Set(steps.filter((s) => s.ride && srOn(s.ride.name)).map((s) => s.ride.name))];
+    if (!names.length) return '';
+    const shown = names.slice(0, 4).map(esc).join(', ')
+      + (names.length > 4 ? ` ${trf('and {n} more', { n: names.length - 4 })}` : '');
+    return `<div class="srbox">
+      <b>${tr('This plan splits your group up')}</b>
+      <div class="sr-lead">${trf('The times below assume you use the single-rider line on <b>{n}</b> of the attractions ({rides}). On those you ride on your own — your party is split across different vehicles, and you will not be seated together.', { n: names.length, rides: shown })}</div>
+      <div class="sr-pts">
+        <div>${tr('A single-rider line can close at any moment, and it is never guaranteed to be quicker than standby.')}</div>
+        <div>${tr('Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.')}</div>
+        <div>${tr('Would you rather stay together? Turn single rider off on those attractions and plan again — the day runs slower, but you ride side by side.')}</div>
+      </div>
+      <button type="button" id="sr-off">${tr('Keep us together — turn single rider off')}</button>
+    </div>`;
   }
 
   function riskBanner(r) {
@@ -3030,8 +3077,13 @@
     planOrder = steps.filter((s) => s.ride).map((s) => s.ride.name);
     // Breaks travel too: an emailed day that silently jumps 11:50 to 1:00
     // reads like a bug, when it is actually lunch.
+    // sr travels with the stop. Whether a step is timed for the single-rider
+    // line is not decoration -- it is the difference between the party riding
+    // together and riding apart, and the emailed copy of the plan has to be
+    // able to say so. It also reaches the night-before mailer, which replays
+    // these saved rows.
     planStops = steps.map((s) => s.ride
-      ? { name: s.ride.name, time: hourLabel(s.time), wait: s.predicted }
+      ? { name: s.ride.name, time: hourLabel(s.time), wait: s.predicted, ...(srOn(s.ride.name) ? { sr: true } : {}) }
       : { break: s.break, time: hourLabel(s.time), why: s.why || '' });
     planLiveSnap = Object.fromEntries(rides.filter((r) => r.open && Number.isFinite(r.wait)).map((r) => [r.name, r.wait]));
     // The plan and the attractions list are the same thing seen twice. Anything
@@ -3061,6 +3113,7 @@
           </div>
         </div>
       </div>
+      ${srBanner(steps)}
       ${riskBanner(risk)}
       ${eventNotice(dayEvents, closer)}
       ${arrivalNote(steps, p)}
@@ -3126,6 +3179,16 @@
       const sel = $('plan-day-sel');
       sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => { try { sel.focus({ preventScroll: true }); } catch {} }, 420);
+    });
+    const srOff = $('plan-out').querySelector('#sr-off');
+    if (srOff) srOff.addEventListener('click', () => {
+      // Explicit false, not delete: undefined would let a solo profile default
+      // straight back to single rider and the banner would never clear.
+      for (const st of steps) if (st.ride && srOn(st.ride.name)) srChoice[st.ride.name] = false;
+      saveSr();
+      toast(tr('Single rider off — replanning so you ride together.'));
+      buildPlan();
+      renderRides();
     });
     const paTweak = $('plan-out').querySelector('#pa-tweak');
     if (paTweak) paTweak.addEventListener('click', () => {

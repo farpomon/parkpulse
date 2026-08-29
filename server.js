@@ -999,6 +999,8 @@ function sanitizeStops(raw) {
         name: st.name.slice(0, 120),
         time: typeof st.time === 'string' ? st.time.slice(0, 12) : '',
         wait: Number.isFinite(st.wait) ? Math.max(0, Math.round(st.wait)) : null,
+        // Only ever true: an absent flag must read as "riding together".
+        ...(st.sr === true ? { sr: true } : {}),
       }
       : {
         break: st.break.slice(0, 80),
@@ -1046,6 +1048,13 @@ async function planKpis(park, stops, profile) {
   const vibes = {};
   let youngestOk = 0;
   let singleRider = 0;
+  // Two different facts that must never be confused. singleRider counts what
+  // the park OFFERS; srUsed counts what this plan actually banks on -- the
+  // stops whose timings assume the party splits up. Only the second one is
+  // grounds for warning anybody.
+  // Unique rides, not stops -- an encore of the same headliner is one
+  // attraction you ride alone, not two.
+  const srRides = [...new Set(stops.filter((st) => st.name && st.sr === true).map((st) => st.name))];
   for (const n of rideNames) {
     const t = tags[n];
     if (!t) continue;
@@ -1094,6 +1103,8 @@ async function planKpis(park, stops, profile) {
     gentle: (vibes.gentle || 0) + (vibes.family || 0),
     toddlerFriendly: youngestOk,
     singleRider,
+    srRides,
+    srUsed: srRides.length,
     lands: lands.size,
     landNames: [...lands].slice(0, 8),
     landOf,
@@ -1264,6 +1275,35 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
       <div style="font-size:10.5px;font-weight:800;letter-spacing:.08em;color:${color}">${title}</div>
       <div style="font-size:13px;color:#3f3762;margin-top:2px;line-height:1.45">${body}</div>
     </div></td>`;
+  // When the plan actually banks on single-rider lines, that is not a nice-to-
+  // know tucked in a signal card -- the timings below only hold if the party
+  // genuinely splits up, and a family reading a running order has every reason
+  // to assume they are riding together. It goes above the running order it
+  // governs, in the warning colour, naming the attractions it applies to.
+  // Same exemption as the app: a party of one has nobody to be separated from,
+  // and single rider is the sensible default for them.
+  const soloVisitor = Number(profile?.party) === 1;
+  const srNames = soloVisitor ? [] : (Array.isArray(kpis.srRides) ? kpis.srRides.filter(Boolean) : []);
+  const srList = srNames.slice(0, 4).map(E).join(', ')
+    + (srNames.length > 4 ? ` ${f('and {n} more', { n: srNames.length - 4 })}` : '');
+  const srBand = srNames.length ? `<div style="padding:16px 26px 0">
+    <div style="background:#fff4e5;border:2px solid #d97706;border-radius:12px;padding:16px 18px">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+        <td width="42" valign="top">${badge('!', '#d97706', '#ffffff', 30)}</td>
+        <td valign="top">
+          <div style="font-size:12px;font-weight:800;letter-spacing:.07em;color:#92580a;text-transform:uppercase">${t('READ THIS BEFORE YOU GO')}</div>
+          <div style="font-size:16px;font-weight:800;color:#7c3d02;margin-top:3px;line-height:1.3">${t('This plan splits your group up')}</div>
+          <div style="font-size:14px;color:#5c3a12;margin-top:7px;line-height:1.5">
+            ${f('The times below assume you use the single-rider line on <b>{n}</b> of the attractions ({rides}). On those you ride on your own — your party is split across different vehicles, and you will not be seated together.', { n: srNames.length, rides: srList })}
+          </div>
+          <div style="font-size:13.5px;color:#5c3a12;margin-top:9px;line-height:1.55">
+            &bull; ${t('A single-rider line can close at any moment, and it is never guaranteed to be quicker than standby.')}<br>
+            &bull; ${t('Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.')}<br>
+            &bull; ${t('Would you rather stay together? Turn single rider off on those attractions and plan again — the day runs slower, but you ride side by side.')}
+          </div>
+        </td>
+      </tr></table>
+    </div></div>` : '';
   const longestQ = namedStopsPeek();
   const signalList = [
     longestQ && longestQ.wait >= 35 ? signalCard(t('ONE BIG QUEUE'), CAT.thrill[1], f('{ride} reaches about <b>{n} min</b> — the one wait to plan around. Snack first, then commit.', { ride: E(longestQ.name), n: longestQ.wait })) : '',
@@ -1273,7 +1313,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     kpis.lands ? signalCard(t('ONE DIRECTION'), CAT.map[1], kpis.landNames.length
       ? f('The route stays compact through {lands} instead of zig-zagging.', { lands: esc(kpis.landNames.slice(0, 4).join(', ')) })
       : t('The route stays compact instead of zig-zagging.')) : '',
-    kpis.singleRider ? signalCard(t('SPLIT-UP OPTION'), '#443b6b', f('Rides with a single-rider line, if the party is willing: <b>{n}</b>.', { n: kpis.singleRider })) : '',
+    kpis.singleRider && !srNames.length ? signalCard(t('SPLIT-UP OPTION'), '#443b6b', f('Rides with a single-rider line, if the party is willing: <b>{n}</b>.', { n: kpis.singleRider })) : '',
   ].filter(Boolean);
   const signalRows = [];
   for (let i = 0; i < signalList.length; i += 2) {
@@ -1446,6 +1486,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
         </tr></table>
       </div></div>` : ''}
     ${weatherCard}
+    ${srBand}
     <div style="padding:18px 26px 6px">
       <div style="font-weight:800;font-size:16px;margin-bottom:2px">${future ? f('Running order for {day}', { day: esc(String(day).split(',')[0]) }) : t("Today's running order")}</div>
       <div style="color:${MUTED};font-size:13px">${t('Follow the numbers — they match the pins on your map.')}</div>
