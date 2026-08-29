@@ -1573,7 +1573,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
 const AI_PRICES = {
   "claude-opus-5":    { in: 5.00,  out: 25.00 },
   "claude-fable-5":   { in: 10.00, out: 50.00 },
-  "claude-sonnet-5":  { in: 3.00,  out: 15.00 },
+  "claude-sonnet-5":  { in: 2.00,  out: 10.00 },
   "claude-haiku-4-5": { in: 1.00,  out: 5.00 },
 };
 const AI_REPORT_TO = process.env.AI_REPORT_TO || ADMIN_EMAILS.values().next().value || "";
@@ -1634,7 +1634,17 @@ function aiCostReport(day) {
       .reduce((sum, f) => sum + f.cost_usd, 0);
     const accounts = db.admin.activeAccountsSince(etMidnight(from), [...ADMIN_EMAILS]);
     const running = t.cost_usd - cached;
-    return { ...t, cached_usd: cached, running_usd: running, accounts, per_account: accounts ? running / accounts : null };
+    // What share of the prompt came back from cache instead of being paid for
+    // again. This is the only ground truth that prompt caching still works:
+    // when a change to prompt assembly breaks it nothing errors, requests keep
+    // succeeding, and the only symptom is a bigger bill.
+    const promptIn = t.input_tokens + t.cache_read + t.cache_write;
+    return {
+      ...t, cached_usd: cached, running_usd: running, accounts,
+      per_account: accounts ? running / accounts : null,
+      prompt_tokens: promptIn,
+      cache_share: promptIn ? t.cache_read / promptIn : null,
+    };
   };
   return {
     day, today: win(1), week: win(7), month: win(30),
@@ -1647,13 +1657,26 @@ function aiCostEmailHtml(r) {
   // The headline number answers "what did I spend"; the one next to it answers
   // "what does one more visitor cost me", which is the one that decides whether
   // a pass price works. Only running cost is divided -- see CACHED_FEATURES.
+  const pct = (n) => Math.round(n * 100) + "%";
+  // Prompt caching failing is silent -- no error, just a bigger bill -- and it
+  // fails by regression, months after it was set up, when something upstream
+  // starts rewriting the prefix. A week of real traffic reading almost nothing
+  // back is the signature, so the report says so rather than leaving it to be
+  // noticed in the total.
+  const w = r.week;
+  const cacheAlarm = w.calls >= 20 && w.cache_share != null && w.cache_share < 0.4
+    ? `<p style="margin:0 0 18px;padding:10px 12px;background:#fdf3d7;border-left:4px solid #a06f00;color:#5c4000;font-size:13px">
+        <b>Only ${pct(w.cache_share)} of the prompt came back from cache this week</b>, across ${w.calls} calls.
+        A healthy advisor prompt reads most of itself back. Something upstream is likely rewriting the prefix —
+        check whether prompt assembly changed since the last deploy.</p>`
+    : "";
   const perAcct = (t) => (t.per_account == null
     ? `<span style="color:#999">no accounts active</span>`
     : `<b style="font-size:16px">${usd4(t.per_account)}</b> per active account <span style="color:#888">(${t.accounts})</span>`);
   const row = (label, t) => `<tr><td style="padding:8px 12px 8px 0;vertical-align:top"><b>${label}</b></td>
     <td style="padding:8px 12px 8px 0;font-size:20px;vertical-align:top"><b>${usd(t.cost_usd)}</b></td>
     <td style="padding:8px 0;color:#444;vertical-align:top">${perAcct(t)}<br>
-      <span style="color:#888;font-size:12px">${t.calls} calls · ${(t.input_tokens + t.cache_read + t.cache_write).toLocaleString()} in / ${t.output_tokens.toLocaleString()} out${t.cached_usd > 0.00005 ? ` · ${usd4(t.cached_usd)} of it one-off catalogue` : ""}</span></td></tr>`;
+      <span style="color:#888;font-size:12px">${t.calls} calls · ${t.prompt_tokens.toLocaleString()} in / ${t.output_tokens.toLocaleString()} out${t.cache_share == null ? "" : ` · ${pct(t.cache_share)} of the prompt from cache`}${t.cached_usd > 0.00005 ? ` · ${usd4(t.cached_usd)} of it one-off catalogue` : ""}</span></td></tr>`;
   const feats = r.features.length
     ? r.features.map((f) => `<tr><td style="padding:3px 12px 3px 0">${f.feature}${CACHED_FEATURES.has(f.feature) ? ` <span style="color:#888;font-size:12px">· cached, one-off</span>` : ""}</td><td style="padding:3px 0">${usd4(f.cost_usd)} <span style="color:#888">(${f.calls})</span></td></tr>`).join("")
     : `<tr><td colspan="2" style="color:#888">No AI calls in the last 30 days.</td></tr>`;
@@ -1664,6 +1687,7 @@ function aiCostEmailHtml(r) {
   return `<div style="font:15px/1.6 -apple-system,Segoe UI,sans-serif;color:#251d3d;max-width:560px">
     <h2 style="margin:0 0 2px">ParkPulse AI spend</h2>
     <p style="margin:0 0 18px;color:#666">for ${r.day} (Eastern)</p>
+    ${cacheAlarm}
     <table style="border-collapse:collapse;margin-bottom:22px">
       ${row("Today", r.today)}${row("Last 7 days", r.week)}${row("Last 30 days", r.month)}
     </table>
@@ -1671,7 +1695,8 @@ function aiCostEmailHtml(r) {
     <table style="border-collapse:collapse;margin-bottom:22px">${feats}</table>
     ${r.days.length ? `<p style="margin:0 0 6px"><b>Daily spend</b> <span style="color:#888">· last 14 days, peak ${usd4(peak)}</span></p>
     <table style="border-collapse:collapse"><tr>${spark}</tr></table>` : ""}
-    <p style="margin:22px 0 0;font-size:12px;color:#888">Per-account cost counts only the work that repeats — the advisor and the plan-email briefing. The catalogue jobs marked <i>cached</i> above are written once per park, stored in SQLite and never charged again, so they are left out of it. An active account is one seen in that same window.</p>
+    <p style="margin:22px 0 0;font-size:12px;color:#888">"From cache" is the share of prompt tokens served from the prompt cache rather than paid for again. It should be high and steady; a drop after a deploy means prompt assembly changed and the cache broke, which reports itself nowhere else.</p>
+    <p style="margin:8px 0 0;font-size:12px;color:#888">Per-account cost counts only the work that repeats — the advisor and the plan-email briefing. The catalogue jobs marked <i>cached</i> above are written once per park, stored in SQLite and never charged again, so they are left out of it. An active account is one seen in that same window.</p>
     <p style="margin:8px 0 0;font-size:12px;color:#888">Estimated from token counts at Anthropic list prices — your invoice is the source of truth.</p>
   </div>`;
 }

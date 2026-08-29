@@ -4,7 +4,8 @@
   "description": "Live Disney World wait times and smart touring plans",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:cache": "node test/prompt-cache.cjs"
   },
   "engines": {
     "node": ">=22.5"

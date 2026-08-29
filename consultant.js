@@ -493,12 +493,41 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
     throw err;
   }
   const last = clean[clean.length - 1];
+  // Caching is a prefix match, so every byte before a breakpoint has to arrive
+  // identical turn after turn. The park snapshot used to be glued onto the
+  // front of the last user message, which meant the message the model saw as
+  // turn one was NOT the message it saw inside turn two's history: the prefix
+  // diverged at message zero and nothing in `messages` could ever be cached,
+  // however many markers were added.
+  //
+  // The snapshot is its own message now, sitting between the untouched history
+  // and the question. Consecutive user messages are merged into a single turn,
+  // so the model still reads park state, then user context, then the ask, in
+  // that order -- what changed is that the history above it never moves.
+  //
+  // Every history message is rendered as a block array whether or not it
+  // carries a marker, so the shape does not shift depending on which message
+  // happens to be last this turn.
+  const history = clean.slice(0, -1).map((m) => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
+  if (history.length) {
+    const tail = history[history.length - 1].content;
+    tail[tail.length - 1].cache_control = { type: 'ephemeral' }; // the conversation so far
+  }
   const convo = [
-    ...clean.slice(0, -1),
+    ...history,
     {
       role: 'user',
-      content: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>\n<user_context>\n${userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name })}\n</user_context>\n\n${last.content}`,
+      content: [
+        // Park-wide and identical for everyone standing in it right now. On a
+        // one-shot review there is no history above this, so the block is the
+        // whole prefix and every visitor to the park reads the same entry --
+        // which is the point: it is the largest thing in the request and it
+        // was being bought again for each of them.
+        { type: 'text', text: `<live_data>\n${waitsBlock(park, waits)}\n</live_data>`, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: `<user_context>\n${userContextBlock({ favorites, excluded, planPicks, subscription, email, memory, lang, trip, profile, done, name })}\n</user_context>` },
+      ],
     },
+    { role: 'user', content: last.content },
   ];
   // Actions are emitted the moment their side effect happens, so a later
   // turn failing (or the client disconnecting) can't orphan a created alert.
