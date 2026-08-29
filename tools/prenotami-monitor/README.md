@@ -4,8 +4,8 @@ Watches [prenotami.esteri.it](https://prenotami.esteri.it/Services) for an open
 **carta d'identità** appointment at the Italian Consulate in Vancouver and alerts
 you the moment one appears.
 
-**It does not book anything.** It tells you; you book. That is deliberate — see
-[Why it does not auto-book](#why-it-does-not-auto-book).
+By default it only alerts you. It can also book, but that is off until you turn
+it on and give it a date window — see [Auto-booking](#auto-booking).
 
 ---
 
@@ -107,7 +107,12 @@ if it is still open. A slot that closes and reopens alerts again immediately.
 
 | Outcome | Meaning |
 |---|---|
-| `available` | The booking page is offering dates. **Go book it.** |
+| `available` | Dates are open (auto-booking off). **Go book it.** |
+| `booked` | It took a slot in your window. Verify in your account. Monitor stops. |
+| `uncertain` | Submitted, but could not confirm. **Go look.** Monitor stops. |
+| `skipped` | Dates were open but all outside your window. Take one by hand if you want it. |
+| `needs-human` | A slot is open but the form needs you. Go now. |
+| `dry-run` | Would have booked; stopped before submitting. |
 | `unavailable` | The usual state. No alert. |
 | `blocked` | The site says your account cannot book — usually a pending appointment or a cooldown. Waiting will not clear this. |
 | `challenge` | Cloudflare or a CAPTCHA answered instead of the page. This check learned nothing. |
@@ -118,26 +123,60 @@ can see the page that triggered the alert rather than taking the tool's word for
 it. Every check appends a line to `data/checks.jsonl` — useful for spotting when
 Vancouver actually releases slots.
 
-## Why it does not auto-book
+## Auto-booking
 
-Three reasons, in order of how much they would cost you:
+Off by default. To turn it on, in `.env`:
 
-1. **A wrong booking is expensive.** Consulate appointments are tied to your
-   identity and to one service type. Grabbing the wrong service, or a date you
-   cannot travel to, burns a slot that is hard to get back — and some consulates
-   penalize no-shows.
-2. **Automated booking gets accounts suspended.** prenotami's terms prohibit
-   automated access, and booking bots are a known problem the site actively
-   defends against. A suspended account cannot book at all, which is strictly
-   worse than refreshing by hand.
-3. **The last step should be a human decision.** Reading a page every few
-   minutes is drudgery worth automating. Committing to a government appointment
-   is not.
+```bash
+PRENOTAMI_AUTOBOOK=true
+PRENOTAMI_BOOK_EARLIEST=2026-09-01    # required
+PRENOTAMI_BOOK_LATEST=2026-12-31      # required
+PRENOTAMI_BOOK_WEEKDAYS=              # optional: mon,tue,...
+```
 
-The monitor is paced accordingly: minimum 60s between checks (enforced — the
-config refuses to load below it), jitter on every interval, geometric backoff on
-errors, an hourly cap, and optional quiet hours. Do not tune these down. Being
-detectable as a bot is the failure mode that ends the whole enterprise.
+The two dates are not optional. The config refuses to load without them, because
+a booker with no window takes whatever the consulate offers first — including a
+date you cannot travel to. A slot outside your window gets you a **high-priority
+alert instead of a booking**, so you can still take it by hand.
+
+On success it books once, writes a flag to `data/state.json`, and stops. On
+restart it sees that flag and refuses to run — otherwise the service files,
+which restart on exit, would book you a second appointment.
+
+### What it will not do without you
+
+| Situation | What happens |
+|---|---|
+| A CAPTCHA or Cloudflare check appears | Stops. Does not attempt to answer or evade it. Alerts you. |
+| The form has a required field your profile did not fill | Stops and names the field. It will not invent a value on a government form. |
+| A date is offered outside your window | Alerts you, urgently, and books nothing. |
+| The submit button cannot be found | Stops and alerts, rather than clicking something hopeful. |
+
+Required consent checkboxes *are* ticked, and the exact text of every one is
+recorded in the log and repeated in the booking alert, so you can see what was
+agreed to in your name.
+
+### Before you arm it
+
+Run one cycle with `PRENOTAMI_BOOK_DRY_RUN=true`. It does everything up to the
+final submit — picks the date, fills the form, ticks the boxes — then stops and
+saves a screenshot to `data/`. Look at that screenshot. It is the difference
+between finding out the date logic works and finding out it does not by way of
+an appointment you cannot attend.
+
+None of the booking selectors have been verified against the live site; this
+project could not reach prenotami from where it was written. The dry run is how
+you verify them.
+
+### The risks, stated plainly
+
+- **prenotami's terms prohibit automated access.** Accounts doing this get
+  suspended, and a suspended account cannot book at all. The pacing defaults
+  exist to keep you unremarkable; do not tune them down.
+- **A booked appointment is tied to you and to one service.** A wrong one burns
+  a slot that is hard to get back, and some consulates penalize no-shows.
+- **`uncertain` is a real outcome.** If the tool submits but cannot confirm the
+  result, it says so and stops. Open your account and look rather than assuming.
 
 ## When the site changes
 
@@ -170,11 +209,24 @@ If you start getting `challenge` outcomes, run once with
 ## Tests
 
 ```bash
-npm test
+npm test            # 45 unit tests, no browser needed
+npm run test:browser   # drives the booking flow against a fake page
 ```
 
-Covers the logic worth being sure about without a browser: how page text is
-classified, how alerts are deduplicated, and how checks are paced.
+`npm test` covers what can be decided without a browser: how page text is
+classified, which offered date is acceptable, how alerts are deduplicated, and
+how checks are paced.
+
+`npm run test:browser` drives the real booking code against a local page shaped
+like prenotami's form, and asserts the things that would be expensive to get
+wrong — that it books the earliest date *in* the window, books nothing outside
+it, aborts rather than inventing a value for a required field, and does not
+submit during a dry run. Run it after any change to `src/booking.mjs` or
+`src/dates.mjs`. If it fails, do not arm auto-booking.
+
+The fixture is this project's best understanding of prenotami's markup, not a
+capture of it, so passing means the logic is sound — not that the selectors
+match the live site. Only a dry run against your own account tells you that.
 
 ## Layout
 
@@ -184,6 +236,8 @@ src/config.mjs              .env loading, validation, credential redaction
 src/session.mjs             browser, login, session reuse, selector cascades
 src/check.mjs               one check, read-only
 src/classify.mjs            what the booking page text means (pure)
+src/booking.mjs             taking a slot — the only module that writes
+src/dates.mjs               which offered date is acceptable (pure)
 src/pacing.mjs              intervals, jitter, backoff, quiet hours (pure)
 src/state.mjs               alert deduplication (pure)
 src/notify.mjs              Telegram / ntfy / webhook / desktop

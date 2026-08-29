@@ -6,6 +6,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { parseWeekdays } from './dates.mjs';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,6 +79,41 @@ const DEFAULT_BLOCKED = [
   'non è possibile prenotare',
 ];
 
+
+// Auto-booking. Off unless PRENOTAMI_AUTOBOOK is explicitly true, and even then
+// it refuses to load without a date window -- an unbounded booker would take
+// whatever the consulate offered first, including a date you cannot travel to.
+function bookingConfig(env) {
+  const enabled = bool(env, 'PRENOTAMI_AUTOBOOK', false);
+  const earliest = env.PRENOTAMI_BOOK_EARLIEST?.trim() || null;
+  const latest = env.PRENOTAMI_BOOK_LATEST?.trim() || null;
+
+  if (!enabled) return { enabled: false, dryRun: true, earliest, latest, weekdays: [] };
+
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (!iso.test(earliest || '') || !iso.test(latest || '')) {
+    throw new Error(
+      'PRENOTAMI_AUTOBOOK is on, so PRENOTAMI_BOOK_EARLIEST and ' +
+        'PRENOTAMI_BOOK_LATEST are both required, as YYYY-MM-DD. Booking ' +
+        'without a date window would take any date the consulate offered.'
+    );
+  }
+  if (earliest > latest) {
+    throw new Error(
+      `PRENOTAMI_BOOK_EARLIEST (${earliest}) is after PRENOTAMI_BOOK_LATEST (${latest}).`
+    );
+  }
+
+  return {
+    enabled: true,
+    // Stops before the final submit and screenshots what it would have taken.
+    dryRun: bool(env, 'PRENOTAMI_BOOK_DRY_RUN', false),
+    earliest,
+    latest,
+    weekdays: parseWeekdays(env.PRENOTAMI_BOOK_WEEKDAYS),
+  };
+}
+
 export function loadConfig(env = process.env) {
   const email = env.PRENOTAMI_EMAIL?.trim();
   const password = env.PRENOTAMI_PASSWORD;
@@ -130,6 +166,8 @@ export function loadConfig(env = process.env) {
 
     unavailablePhrases: list(env, 'PRENOTAMI_UNAVAILABLE_PHRASES', DEFAULT_UNAVAILABLE),
     blockedPhrases: list(env, 'PRENOTAMI_BLOCKED_PHRASES', DEFAULT_BLOCKED),
+
+    booking: bookingConfig(env),
 
     dataDir: env.PRENOTAMI_DATA_DIR || join(ROOT, 'data'),
 

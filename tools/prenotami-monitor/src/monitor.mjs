@@ -36,6 +36,18 @@ export async function checkOnce(config, logger, session) {
 
     recordCheck(state, result.outcome, { notified: notify });
 
+    // Latch the booking permanently. The service files restart this process on
+    // exit, so without a flag on disk a successful booking would be followed by
+    // a relaunch that books a second one.
+    if (result.outcome === 'booked' || result.outcome === 'uncertain') {
+      state.booked = {
+        at: new Date().toISOString(),
+        date: result.chosen || null,
+        timeSlot: result.timeSlot || null,
+        confirmed: result.outcome === 'booked',
+      };
+    }
+
     // Prove the monitor is still alive even when it has nothing to report.
     if (!notify && shouldHeartbeat(state, config.heartbeatHours)) {
       await notifyAll(config, logger, {
@@ -69,10 +81,30 @@ export async function watch(config, logger) {
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
 
+  const existing = loadState(config.dataDir);
+  if (existing.booked) {
+    // Refuse to start rather than exit quietly: under systemd a quiet exit is
+    // a restart loop, and every loop is another chance to book again.
+    logger.warn(
+      `Already booked ${existing.booked.date || '(unknown date)'} on ${existing.booked.at}. ` +
+        'Not watching. Delete the "booked" key in data/state.json if you cancelled it ' +
+        'and genuinely want to book another.'
+    );
+    return;
+  }
+
   logger.info(
     `Watching for "${config.serviceLabel}" every ~${Math.round(config.intervalSeconds / 60)} min ` +
       `(+ up to ${config.jitterSeconds}s jitter). Ctrl-C to stop.`
   );
+  if (config.booking.enabled) {
+    logger.warn(
+      config.booking.dryRun
+        ? `Auto-book: DRY RUN, window ${config.booking.earliest}..${config.booking.latest}`
+        : `Auto-book: ARMED, window ${config.booking.earliest}..${config.booking.latest}. ` +
+          'It will book the first date in that window and stop.'
+    );
+  }
 
   while (!stopping) {
     if (inQuietHours(config)) {
@@ -93,6 +125,11 @@ export async function watch(config, logger) {
 
     if (result.fatal) {
       logger.error('Stopping: this will not fix itself by retrying.');
+      break;
+    }
+
+    if (result.outcome === 'booked' || result.outcome === 'uncertain') {
+      logger.ok('Booking attempted — stopping so it cannot happen twice.');
       break;
     }
 

@@ -34,6 +34,10 @@ const REMIND_AFTER_MS = {
   blocked: 24 * 60 * 60 * 1000,
   error: 6 * 60 * 60 * 1000,
   challenge: 6 * 60 * 60 * 1000,
+  // A slot that is open but unbookable by this tool is the most time-critical
+  // thing it can say, so it repeats often until the situation changes.
+  'needs-human': 10 * 60 * 1000,
+  skipped: 30 * 60 * 1000,
 };
 
 // Alert when the situation changes, or when a still-true alarming condition has

@@ -37,3 +37,57 @@ test('logs never carry the password, token, or full email', () => {
   assert.ok(!line.includes('me@example.com'));
   assert.ok(line.includes('@example.com'), 'domain may stay, for recognizability');
 });
+
+test('auto-booking is off unless explicitly turned on', () => {
+  assert.equal(loadConfig(base).booking.enabled, false);
+});
+
+test('arming without a date window is refused', () => {
+  assert.throws(
+    () => loadConfig({ ...base, PRENOTAMI_AUTOBOOK: 'true' }),
+    /date window would take any date/
+  );
+  assert.throws(
+    () => loadConfig({ ...base, PRENOTAMI_AUTOBOOK: 'true', PRENOTAMI_BOOK_EARLIEST: '2026-09-01' }),
+    /both required/
+  );
+});
+
+test('a backwards date window is refused', () => {
+  assert.throws(
+    () =>
+      loadConfig({
+        ...base,
+        PRENOTAMI_AUTOBOOK: 'true',
+        PRENOTAMI_BOOK_EARLIEST: '2026-12-31',
+        PRENOTAMI_BOOK_LATEST: '2026-09-01',
+      }),
+    /is after/
+  );
+});
+
+test('a non-ISO date window is refused', () => {
+  assert.throws(
+    () =>
+      loadConfig({
+        ...base,
+        PRENOTAMI_AUTOBOOK: 'true',
+        PRENOTAMI_BOOK_EARLIEST: '01/09/2026',
+        PRENOTAMI_BOOK_LATEST: '31/12/2026',
+      }),
+    /YYYY-MM-DD/
+  );
+});
+
+test('a valid arming config comes through intact', () => {
+  const { booking } = loadConfig({
+    ...base,
+    PRENOTAMI_AUTOBOOK: 'true',
+    PRENOTAMI_BOOK_EARLIEST: '2026-09-01',
+    PRENOTAMI_BOOK_LATEST: '2026-12-31',
+    PRENOTAMI_BOOK_WEEKDAYS: 'mon,wed',
+  });
+  assert.equal(booking.enabled, true);
+  assert.equal(booking.dryRun, false);
+  assert.deepEqual(booking.weekdays, ['mon', 'wed']);
+});

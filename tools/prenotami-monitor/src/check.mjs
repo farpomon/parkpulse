@@ -1,12 +1,14 @@
 // One check: find the service row on the Services page, open its booking page,
 // and decide whether anything is actually bookable.
 //
-// This module reads. It never clicks a date, never submits a booking form, and
-// never confirms anything. Deciding to take an appointment is yours.
+// Reading is all this does unless PRENOTAMI_AUTOBOOK is explicitly on. When it
+// is, and only when a date falls inside your configured window, it hands off to
+// booking.mjs -- which is where every rule about what may be clicked lives.
 
 import { join } from 'node:path';
 import { firstMatch, looksLikeChallenge } from './session.mjs';
 import { classifyBookingPage } from './classify.mjs';
+import { attemptBooking } from './booking.mjs';
 
 // Finds the anchor for the service we care about and returns its booking URL.
 async function findServiceLink(page, config) {
@@ -85,6 +87,19 @@ export async function runCheck(session, config, logger) {
         ? `Site said: "${matched}"`
         : 'No "unavailable" notice on the booking page — it is offering dates.',
     };
+
+    // Slots get taken while you are reading the alert about them, so booking
+    // happens now, on the page we already have open, rather than on a later pass.
+    if (outcome === 'available' && config.booking.enabled) {
+      const attempt = await attemptBooking(page, config, logger);
+      return {
+        ...result,
+        ...attempt,
+        outcome: attempt.outcome === 'skipped' ? 'skipped' : attempt.outcome,
+        bookingUrl: service.url,
+        serviceName: service.serviceName,
+      };
+    }
 
     // A screenshot is the difference between "the tool thinks there is a slot"
     // and "here is the page that said so", which matters at 3am.

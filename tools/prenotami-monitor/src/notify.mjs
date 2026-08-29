@@ -124,6 +124,58 @@ export function buildMessage(config, result) {
         ].join(''),
         url: bookingUrl,
       };
+    case 'booked':
+      return {
+        priority: 'high',
+        title: `BOOKED — ${result.chosen}${result.timeSlot ? ` at ${result.timeSlot}` : ''}`,
+        body: [
+          `An appointment for "${config.serviceLabel}" has been booked in your name.`,
+          `\nDate: ${result.chosen}${result.timeSlot ? `\nTime: ${result.timeSlot}` : ''}`,
+          result.consents?.length
+            ? `\n\nAgreed to on your behalf:\n- ${result.consents.join('\n- ')}`
+            : '',
+          '\n\nCheck your email for the consulate confirmation, and verify it in your ' +
+            'account. The monitor has stopped.',
+        ].join(''),
+        url: bookingUrl,
+      };
+
+    case 'uncertain':
+      return {
+        priority: 'high',
+        title: 'prenotami: booking submitted, outcome unclear',
+        body:
+          `${result.detail}\n\nDo not assume either way — open your account and look. ` +
+          'The monitor has stopped so it cannot book a second one.',
+        url: bookingUrl,
+      };
+
+    case 'needs-human':
+      return {
+        priority: 'high',
+        title: `Slot open, but it needs you — ${result.chosen || config.serviceLabel}`,
+        body: `${result.detail}\n\nGo now; slots do not last.`,
+        url: bookingUrl,
+      };
+
+    case 'dry-run':
+      return {
+        priority: 'high',
+        title: `Dry run: would have booked ${result.chosen}`,
+        body: `${result.detail}\n\nNothing was submitted.`,
+        url: bookingUrl,
+      };
+
+    case 'skipped':
+      return {
+        priority: 'high',
+        title: 'Slot open, but outside your date window',
+        body:
+          `${result.detail}\n\nIt is open right now — take it manually if you want it, ` +
+          'or widen PRENOTAMI_BOOK_EARLIEST / PRENOTAMI_BOOK_LATEST.',
+        url: bookingUrl,
+      };
+
     case 'blocked':
       return {
         priority: 'normal',

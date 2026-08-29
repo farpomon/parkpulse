@@ -12,7 +12,8 @@
     "watch": "node bin/prenotami-monitor.mjs watch",
     "probe": "node bin/prenotami-monitor.mjs probe",
     "test-notify": "node bin/prenotami-monitor.mjs test-notify",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/booking.browser.mjs"
   },
   "engines": {
     "node": ">=20.6"
