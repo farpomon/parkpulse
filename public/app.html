@@ -415,6 +415,12 @@
   .planai-h span { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 600; font-style: italic; }
   .planai-b { font-size: .98rem; line-height: 1.62; color: var(--ink); }
   .planai-open { font-weight: 750; color: var(--brand); margin: 0 0 .45rem; font-size: 1.02rem; }
+  /* Quieter than the opener above it and the plan below it: this line explains
+     the cast, it is not part of the advice. */
+  .planai-role { display: flex; align-items: flex-start; gap: .4rem; margin: 0 0 .6rem;
+    padding-bottom: .55rem; border-bottom: 1px dashed var(--border);
+    color: var(--muted); font-size: .86rem; line-height: 1.5; }
+  .planai-role img { border-radius: 50%; flex: 0 0 auto; margin-top: .12rem; }
   .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
   .planai-off { color: var(--muted); font-size: .92rem; margin: 0; }
   .planai-cta { margin-top: .7rem; padding: .5rem 1rem; font-size: .9rem; }
@@ -2348,6 +2354,23 @@
   // read follows — but the FIRST thing anyone sees is "we're making magic",
   // not a ride list that feels pre-decided. Chosen once per advisor run so
   // the opener holds still while the text streams in beneath it.
+  // Who did what, in Mila's own voice, before she starts changing things. The
+  // card credits Pip in small print above, but a reader meeting both of them
+  // for the first time still has to work out why one plan has two authors --
+  // and why the fairy is about to contradict the bookkeeper.
+  const MILA_ROLE_LINES = [
+    "Pip drafts the day from your picks and a good hunch — I'm here to argue with the hunch.",
+    'Pip does the sums and takes his best guess; I read it back and fix what needs fixing.',
+    'The order below is Pip\'s, built from what you chose plus instinct. Catching what he missed is my job.',
+    'Pip lays the bones out from your list; I move the ribs that sit wrong.',
+    "Your picks go in, Pip's gut does the rest, and then I go through it line by line.",
+    "Pip wrote this from your choices and a feeling. I'm here to say where the feeling was off.",
+    'Pip sequences, I sanity-check. Between us you get a day that actually holds up.',
+    "The draft is Pip's — your picks plus his instincts. The fixes are mine ✨",
+    'Pip starts it from what you chose and what he reckons. I finish it.',
+    "Pip hands me a plan built on your list and his nose for a crowd; I tell you where he's wrong.",
+  ];
+
   const MILA_PLAN_OPENERS = [
     'Oh, this is going to be a GOOD one — let\'s make your day pure magic! ✨',
     'What a special day this is about to be! Wand up — here\'s my read:',
@@ -2457,7 +2480,9 @@
     let uname = '';
     try { uname = localStorage.getItem('pp-name') || ''; } catch {}
     const greet = uname && Math.random() < 0.5 ? `${esc(uname)}! ` : '';
-    planIntroHtml = `<p class="planai-open">${greet}${esc(tr(line))}</p>`;
+    const role = MILA_ROLE_LINES[Math.floor(Math.random() * MILA_ROLE_LINES.length)];
+    planIntroHtml = `<p class="planai-open">${greet}${esc(tr(line))}</p>`
+      + `<p class="planai-role"><img src="/img/pip/pip-ledger-160.webp" alt="" width="18" height="18" loading="lazy">${esc(tr(role))}</p>`;
   }
 
   // Who made the list you are looking at. Pip always computes the running
