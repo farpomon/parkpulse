@@ -474,7 +474,33 @@ function recordPass(entry) {
   try { db.passes.add(entry.plan, entry.session, entry.email); } catch {}
 }
 
+const LANG_NAMES = { en: 'English', zh: 'Chinese', hi: 'Hindi', es: 'Spanish', fr: 'French', ar: 'Arabic', bn: 'Bengali', de: 'German', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', mr: 'Marathi', pt: 'Portuguese', ru: 'Russian', ta: 'Tamil', te: 'Telugu', tr: 'Turkish', ur: 'Urdu', vi: 'Vietnamese' };
+
 const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json'), 'utf8'));
+
+// The same dictionaries the browser fetches from /i18n/<lang>.json, loaded here
+// so anything the server composes on the reader's behalf can speak their
+// language too. The plan email was the case that forced this: Mila's note
+// inside it was already written in the recipient's language by the model, and
+// every word around that note was hard-coded English.
+//
+// English keys, English fallback, exactly like the client's tr() -- a missing
+// key degrades to English rather than to a blank.
+const I18N = {};
+for (const code of Object.keys(LANG_NAMES)) {
+  if (code === 'en') continue;
+  try {
+    I18N[code] = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'i18n', `${code}.json`), 'utf8'));
+  } catch { /* a missing dictionary just means that language falls back to English */ }
+}
+const T = (lang) => {
+  const dict = I18N[lang] || null;
+  return (key) => (dict && dict[key]) || key;
+};
+// Whole sentences with named holes, rather than clauses glued around a value.
+// "{ride} is {n} min right now" survives translation into a language that puts
+// the number first; `tr('is') + n + tr('min right now')` does not.
+const fmt = (s, vals) => String(s).replace(/\{(\w+)\}/g, (m, k) => (vals[k] != null ? vals[k] : m));
 
 // Typical waits indexed by normalized ride name, so live rides can carry a
 // "vs typical" comparison even when queue-times names differ in punctuation.
@@ -1100,7 +1126,9 @@ async function planEmailFlavor(park, dateISO) {
   return flavor;
 }
 
-function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor = {} }) {
+function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor = {}, lang = 'en' }) {
+  const t = T(lang);
+  const f = (k, v) => fmt(t(k), v);
   const B = '#5b3df5';
   const INK = '#251d3d', MUTED = '#8b83a8', SOFT = '#f4f1ff';
   // The last one of these printed from Outlook came back with every astral
@@ -1120,26 +1148,16 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   // little differently, same as Mila does in the app.
   const HEADLINES = [
     'Cue the fireworks — your day is planned.',
-    'Today has main-character energy.',
     'One magical day, sequenced to the minute.',
-    'Less waiting. More wow. Let&#39;s go!',
     'Adventure called. Mila answered.',
-    'A whole day of magic, minus the boring bits.',
-    'Big day energy, zero second guesses.',
-    'Pixie dust: loaded. Queues: outsmarted.',
     'The best day ever, now boarding.',
-    'Follow the sparkle — the magic is mapped.',
-  ];
+  ].map(t);
   const SIGNOFFS = [
-    'Go make the kind of memories that don&#39;t fit in a camera roll.',
     'My wand is charged and so is your plan — see you at the gates!',
     'The queues never saw you coming.',
-    'Walk fast, snack often, and scream on the big one for me.',
-    'You bring the sunscreen, I&#39;ll bring the shortcuts.',
     'Somewhere in that park, your new favourite memory is already waiting.',
-    'Plans are magic you can hold. Yours is ready.',
     'Today is going to be one for the storybooks.',
-  ];
+  ].map(t);
   const badge = (txt, bg, fg, w) => `<span style="display:inline-block;min-width:${w || 26}px;height:26px;border-radius:99px;background:${bg};color:${fg};font-weight:800;font-size:${String(txt).length > 2 ? 10 : 12}px;text-align:center;line-height:26px;padding:0 ${String(txt).length > 2 ? 8 : 0}px">${txt}</span>`;
 
   const tile = (v, label, sub, pct) => `<td style="padding:0 6px" width="${pct || 25}%" valign="top">
@@ -1160,7 +1178,8 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     return h;
   };
   const bandOf = (h) => (h == null ? null : h < 12 ? 'MORNING' : h < 17 ? 'AFTERNOON' : 'EVENING');
-  const BAND_SUB = { MORNING: 'rope drop pace — the short-line hours', AFTERNOON: 'peak crowds — shows, meals, indoor rides', EVENING: 'lines fade as the crowd drifts to dinner' };
+  const BAND_LABEL = { MORNING: t('MORNING'), AFTERNOON: t('AFTERNOON'), EVENING: t('EVENING') };
+  const BAND_SUB = { MORNING: t('rope drop pace — the short-line hours'), AFTERNOON: t('peak crowds — shows, meals, indoor rides'), EVENING: t('lines fade as the crowd drifts to dinner') };
   let rideNo = 0;
   let lastBand = null;
   const rowPieces = [];
@@ -1170,7 +1189,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
       lastBand = band;
       rowPieces.push(`<tr><td colspan="3" style="padding:14px 0 6px">
         <div style="border-left:3px solid ${B};padding:2px 0 2px 10px">
-          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;color:${B}">${band}</span>
+          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;color:${B}">${BAND_LABEL[band]}</span>
           <span style="font-size:11px;color:${MUTED}"> · ${BAND_SUB[band]}</span>
         </div></td></tr>`);
     }
@@ -1192,7 +1211,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
       </td>
       <td width="86" valign="top" align="right" style="padding:7px 0;white-space:nowrap">
         <b style="color:${INK};font-size:13px">${E(st.time)}</b>
-        ${st.wait != null ? `<br><span style="color:${MUTED};font-size:12px">~${st.wait} min</span>` : ''}
+        ${st.wait != null ? `<br><span style="color:${MUTED};font-size:12px">~${st.wait} ${t('min')}</span>` : ''}
       </td></tr>`);
   }
   const rows = rowPieces.join('');
@@ -1216,12 +1235,14 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     </div></td>`;
   const longestQ = namedStopsPeek();
   const signalList = [
-    longestQ && longestQ.wait >= 35 ? signalCard('ONE BIG QUEUE', CAT.thrill[1], `${E(longestQ.name)} reaches about <b>${longestQ.wait} min</b> — the one wait to plan around. Snack first, then commit.`) : '',
-    kpis.shows ? signalCard(`${kpis.shows === 1 ? 'A' : kpis.shows} COOL-DOWN STOP${kpis.shows === 1 ? '' : 'S'}`, B, `${kpis.shows} show${kpis.shows === 1 ? '' : 's'} give${kpis.shows === 1 ? 's' : ''} you built-in places to sit and reset in the AC.`) : '',
-    kpis.water ? signalCard(`PACK FOR ${kpis.water === 1 ? 'ONE SPLASH' : kpis.water + ' SPLASHES'}`, CAT.water[1], `${kpis.water === 1 ? 'One ride' : kpis.water + ' rides'} can send you out wetter than you arrived. A compact poncho keeps the afternoon comfortable.`) : '',
-    kpis.skip ? signalCard('NO PASS PRESSURE', CAT.money[1], `Built to work without ${esc(kpis.skip.name)} — <b>${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high}</b> kept in your pocket${kpis.party > 1 ? ` for ${kpis.party}` : ''}. Buy only if live waits change the math.`) : '',
-    kpis.lands ? signalCard(`${kpis.lands} LAND${kpis.lands === 1 ? '' : 'S'}, ONE DIRECTION`, CAT.map[1], `The route stays compact${kpis.landNames.length ? ` through ${esc(kpis.landNames.slice(0, 4).join(', '))}` : ''} instead of zig-zagging.`) : '',
-    kpis.singleRider ? signalCard('SPLIT-UP OPTION', '#443b6b', `${kpis.singleRider} ride${kpis.singleRider === 1 ? '' : 's'} run${kpis.singleRider === 1 ? 's' : ''} a single-rider line if the party is willing.`) : '',
+    longestQ && longestQ.wait >= 35 ? signalCard(t('ONE BIG QUEUE'), CAT.thrill[1], f('{ride} reaches about <b>{n} min</b> — the one wait to plan around. Snack first, then commit.', { ride: E(longestQ.name), n: longestQ.wait })) : '',
+    kpis.shows ? signalCard(t('COOL-DOWN STOPS'), B, f('Shows on the plan: <b>{n}</b> — built-in places to sit and reset in the air conditioning.', { n: kpis.shows })) : '',
+    kpis.water ? signalCard(t('PACK FOR A SPLASH'), CAT.water[1], f('Water rides on the plan: <b>{n}</b>. A compact poncho keeps the afternoon comfortable.', { n: kpis.water })) : '',
+    kpis.skip ? signalCard(t('NO PASS PRESSURE'), CAT.money[1], f('Built to work without {pass} — <b>{price}</b> stays in your pocket. Buy one only if live waits change the maths.', { pass: esc(kpis.skip.name), price: `${kpis.skip.cur}${kpis.skip.low}–${kpis.skip.cur}${kpis.skip.high}` })) : '',
+    kpis.lands ? signalCard(t('ONE DIRECTION'), CAT.map[1], kpis.landNames.length
+      ? f('The route stays compact through {lands} instead of zig-zagging.', { lands: esc(kpis.landNames.slice(0, 4).join(', ')) })
+      : t('The route stays compact instead of zig-zagging.')) : '',
+    kpis.singleRider ? signalCard(t('SPLIT-UP OPTION'), '#443b6b', f('Rides with a single-rider line, if the party is willing: <b>{n}</b>.', { n: kpis.singleRider })) : '',
   ].filter(Boolean);
   const signalRows = [];
   for (let i = 0; i < signalList.length; i += 2) {
@@ -1251,19 +1272,23 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   const paceRides = hourOfFirst != null && hourOfLast != null && hourOfLast > hourOfFirst
     ? (namedStops.length / (hourOfLast - hourOfFirst)).toFixed(1).replace(/\.0$/, '') : null;
   const funFacts = [
-    dayLen ? fact(badge(dayHours, ...CAT.neutral, 34), `Your day, gate to gate: <b>${esc(dayLen)}</b> — longer than most flights you have complained about`) : '',
-    longest && longest.wait >= 40 ? fact(badge(`${longest.wait}m`, ...CAT.thrill, 34), `Longest single queue on the plan: <b>${longest.wait} min</b> at ${E(longest.name)}. Bring a snack and a grudge`) : '',
-    queueHours ? fact(badge(`${queueHours}h`, ...CAT.map, 34), `Line time dodged: <b>${queueHours} hours</b> — roughly ${Math.max(1, Math.round(savedMin / 22))} sitcom episode${Math.round(savedMin / 22) === 1 ? '' : 's'} you get to not watch in a queue`) : '',
-    kpis.water ? fact(badge(kpis.water, ...CAT.water), `Forecast dampness: <b>${kpis.water}</b> ride${kpis.water === 1 ? '' : 's'} that can return you visibly wetter than you arrived`) : '',
-    kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), `Stomach relocation${kpis.thrills === 1 ? '' : 's'} booked: <b>${kpis.thrills}</b>`) : '',
-    kpis.mapped && kpis.steps ? fact(badge('~', ...CAT.neutral), `About <b>${kpis.steps.toLocaleString()}</b> steps — your shoes knew what they signed up for`) : '',
-    totalQueue >= 30 ? fact(badge(totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h` : `${totalQueue}m`, ...CAT.money, 34), `Projected time in lines all day: <b>${totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h ${totalQueue % 60}m` : `${totalQueue} min`}</b> — already the fat-trimmed version`) : '',
-    hourOfFirst != null && hourOfFirst <= 9 && first ? fact(badge('AM', ...CAT.show, 34), `Rope-drop warrior: first ride at <b>${esc(first.time)}</b>, when queues are half their afternoon selves`) : '',
-    hourOfLast != null && hourOfLast >= 20 && last ? fact(badge('PM', ...CAT.show, 34), `Closing-time finisher: last stop at <b>${esc(last.time)}</b> — the park empties out, you don't`) : '',
-    paceRides && Number(paceRides) >= 1 ? fact(badge(paceRides, ...CAT.map, 34), `Pace: about <b>${paceRides} attraction${paceRides === '1' ? '' : 's'} per hour</b>, gate to gate — Olympic, by vacation standards`) : '',
-    kidsArr.length ? fact(badge(kidsArr.length, ...CAT.show), `Crew includes <b>${kidsArr.length} kid${kidsArr.length === 1 ? '' : 's'}</b>${youngest != null ? ` (youngest is ${youngest})` : ''} — ${kpis.toddlerFriendly ? `<b>${kpis.toddlerFriendly}</b> stop${kpis.toddlerFriendly === 1 ? ' is' : 's are'} certified little-legs friendly` : 'pacing tuned for shorter strides and longer wonder'}`) : '',
-    ages.includes('elderly') ? fact(badge(breakCount || '~', ...CAT.money), `Grand-tour pacing: ${breakCount ? `<b>${breakCount}</b> built-in sit-down break${breakCount === 1 ? '' : 's'}` : 'a gentler rhythm all day'} — park benches are the real thrones of a great day`) : '',
-    kpis.party >= 5 ? fact(badge(kpis.party, ...CAT.neutral), `Party of <b>${kpis.party}</b>, synchronised through ${kpis.attractions} attractions — NASA schedules launches with less coordination`) : '',
+    dayLen ? fact(badge(dayHours, ...CAT.neutral, 34), f('Your day, gate to gate: <b>{span}</b> — longer than most flights you have complained about', { span: esc(dayLen) })) : '',
+    longest && longest.wait >= 40 ? fact(badge(`${longest.wait}m`, ...CAT.thrill, 34), f('Longest single queue on the plan: <b>{n} min</b> at {ride}. Bring a snack and some patience', { n: longest.wait, ride: E(longest.name) })) : '',
+    queueHours ? fact(badge(`${queueHours}h`, ...CAT.map, 34), f('Line time dodged: <b>{h} hours</b> — time you get to spend anywhere but a queue', { h: queueHours })) : '',
+    kpis.water ? fact(badge(kpis.water, ...CAT.water), f('Forecast dampness: <b>{n}</b> — rides that can return you visibly wetter than you arrived', { n: kpis.water })) : '',
+    kpis.thrills ? fact(badge(kpis.thrills, ...CAT.thrill), f('Stomach relocations booked: <b>{n}</b>', { n: kpis.thrills })) : '',
+    kpis.mapped && kpis.steps ? fact(badge('~', ...CAT.neutral), f('About <b>{n}</b> steps — your shoes knew what they signed up for', { n: kpis.steps.toLocaleString() })) : '',
+    totalQueue >= 30 ? fact(badge(totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h` : `${totalQueue}m`, ...CAT.money, 34), f('Projected time in lines all day: <b>{span}</b> — already the trimmed-down version', { span: totalQueue >= 60 ? `${Math.floor(totalQueue / 60)}h ${totalQueue % 60}m` : `${totalQueue} min` })) : '',
+    hourOfFirst != null && hourOfFirst <= 9 && first ? fact(badge('AM', ...CAT.show, 34), f('Rope-drop warrior: first ride at <b>{time}</b>, when queues are half their afternoon selves', { time: esc(first.time) })) : '',
+    hourOfLast != null && hourOfLast >= 20 && last ? fact(badge('PM', ...CAT.show, 34), f('Closing-time finisher: last stop at <b>{time}</b> — the park empties out, you do not', { time: esc(last.time) })) : '',
+    paceRides && Number(paceRides) >= 1 ? fact(badge(paceRides, ...CAT.map, 34), f('Pace: about <b>{n} attractions per hour</b>, gate to gate — Olympic, by holiday standards', { n: paceRides })) : '',
+    kidsArr.length ? fact(badge(kidsArr.length, ...CAT.show), kpis.toddlerFriendly
+      ? f('Children in the crew: <b>{n}</b> — and <b>{k}</b> of these stops are certified little-legs friendly', { n: kidsArr.length, k: kpis.toddlerFriendly })
+      : f('Children in the crew: <b>{n}</b> — pacing tuned for shorter strides and longer wonder', { n: kidsArr.length })) : '',
+    ages.includes('elderly') ? fact(badge(breakCount || '~', ...CAT.money), breakCount
+      ? f('Grand-tour pacing: <b>{n}</b> built-in sit-down breaks — park benches are the real thrones of a great day', { n: breakCount })
+      : t('Grand-tour pacing: a gentler rhythm all day — park benches are the real thrones of a great day')) : '',
+    kpis.party >= 5 ? fact(badge(kpis.party, ...CAT.neutral), f('A party of <b>{n}</b>, synchronised through {a} attractions — that is real coordination', { n: kpis.party, a: kpis.attractions })) : '',
   ].filter(Boolean).join('');
 
   // Forecast for the planned day, told the way Mila would tell it. Every
@@ -1271,18 +1296,23 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   const wx = flavor.weather;
   const degF = (c) => Math.round(c * 9 / 5 + 32);
   const wxLines = wx ? [
-    Number.isFinite(wx.high) ? fact(badge(`${wx.high}°`, ...CAT.water, 34), `${E(wx.label || 'Forecast')}, <b>${wx.low}°–${wx.high}°C</b> (${degF(wx.low)}–${degF(wx.high)}°F) — ${wx.high >= 30 ? 'officially ice-cream weather; Mila prescribes two scoops, minimum' : wx.high <= 8 ? 'hot-chocolate weather — the magic works fine in mittens' : 'prime strolling conditions, zero excuses'}`) : '',
-    wx.rainChance >= 50 ? fact(badge(`${wx.rainChance}%`, ...CAT.water, 34), `Rain chance <b>${wx.rainChance}%</b> — pack the poncho and grin: queues shrink when the sky opens, and Mila calls that a feature`)
-      : wx.rainChance >= 20 ? fact(badge(`${wx.rainChance}%`, ...CAT.water, 34), `A <b>${wx.rainChance}%</b> whisper of rain — a sprinkle has never once cancelled the magic`) : '',
-    wx.uvMax >= 7 ? fact(badge('UV', ...CAT.thrill), `UV index peaks at <b>${wx.uvMax}</b> — sunscreen is the one queue you are not allowed to skip`) : '',
-    wx.sunset ? fact(badge('PM', ...CAT.show, 34), `Sunset at <b>${esc(wx.sunset)}</b> — golden-hour photos are included free of charge`) : '',
+    Number.isFinite(wx.high) ? fact(badge(`${wx.high}°`, ...CAT.water, 34), f('{label}, <b>{lo}°–{hi}°C</b> ({lof}–{hif}°F) — {note}', {
+      label: E(wx.label || t('Forecast')), lo: wx.low, hi: wx.high, lof: degF(wx.low), hif: degF(wx.high),
+      note: wx.high >= 30 ? t('officially ice-cream weather; Mila prescribes two scoops, minimum')
+        : wx.high <= 8 ? t('hot-chocolate weather — the magic works fine in mittens')
+        : t('prime strolling conditions, zero excuses'),
+    })) : '',
+    wx.rainChance >= 50 ? fact(badge(`${wx.rainChance}%`, ...CAT.water, 34), f('Rain chance <b>{n}%</b> — pack the poncho and grin: queues shrink when the sky opens, and Mila calls that a feature', { n: wx.rainChance }))
+      : wx.rainChance >= 20 ? fact(badge(`${wx.rainChance}%`, ...CAT.water, 34), f('A <b>{n}%</b> whisper of rain — a sprinkle has never once cancelled the magic', { n: wx.rainChance })) : '',
+    wx.uvMax >= 7 ? fact(badge('UV', ...CAT.thrill), f('UV index peaks at <b>{n}</b> — sunscreen is the one queue you are not allowed to skip', { n: wx.uvMax })) : '',
+    wx.sunset ? fact(badge('PM', ...CAT.show, 34), f('Sunset at <b>{time}</b> — golden-hour photos are included free of charge', { time: esc(wx.sunset) })) : '',
   ].filter(Boolean).join('') : '';
   const weatherCard = wxLines ? `<div style="padding:14px 26px 2px">
     <div style="background:#eef5ff;border-radius:14px;padding:13px 16px">
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
         <td width="56" valign="top" style="padding-top:2px">${milaImg('mila-cool-160', 44, '#fff')}</td>
         <td valign="top">
-          <div style="font-weight:800;font-size:15px;color:${INK}">Mila checked the skies over ${esc(park.name)}</div>
+          <div style="font-weight:800;font-size:15px;color:${INK}">${f('Mila checked the skies over {park}', { park: esc(park.name) })}</div>
           <table width="100%" cellpadding="0" cellspacing="0">${wxLines}</table>
         </td></tr></table>
     </div></div>` : '';
@@ -1299,18 +1329,18 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   const insider = (flavor.tip || flavor.fact) ? `<div style="padding:14px 26px 2px">
     <div style="border:2px dashed #d9d2f5;border-radius:14px;padding:10px 16px">
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-        ${flavor.tip ? insiderRow('mila-wink-160', 'MILA&#39;S LOCAL SECRET', B, E(flavor.tip)) : ''}
-        ${flavor.fact ? insiderRow('mila-map-160', 'PARK LORE, FREE OF CHARGE', '#0f7a45', E(flavor.fact)) : ''}
+        ${flavor.tip ? insiderRow('mila-wink-160', t('MILA&#39;S LOCAL SECRET'), B, E(flavor.tip)) : ''}
+        ${flavor.fact ? insiderRow('mila-map-160', t('PARK LORE, FREE OF CHARGE'), '#0f7a45', E(flavor.fact)) : ''}
       </table>
     </div></div>` : '';
 
   const tileRow = [
-    (w) => tile(kpis.attractions, 'Attractions', 'on the plan', w),
-    kpis.mapped ? (w) => tile(kpis.km + ' km', 'Walking', kpis.miles + ' mi', w) : null,
-    kpis.mapped ? (w) => tile(kpis.kcal, 'Calories', 'per adult', w) : null,
-    savedMin > 0 ? (w) => tile(savedMin >= 60 ? Math.round(savedMin / 60) + ' hr' : savedMin + ' min', 'Line time saved', 'vs. winging it', w) : null,
-    !kpis.mapped && kpis.lands ? (w) => tile(kpis.lands, 'Lands', 'on the route', w) : null,
-    !kpis.mapped && kpis.thrills ? (w) => tile(kpis.thrills, 'Thrill rides', 'on the list', w) : null,
+    (w) => tile(kpis.attractions, t('Attractions'), t('on the plan'), w),
+    kpis.mapped ? (w) => tile(kpis.km + ' km', t('Walking'), kpis.miles + ' mi', w) : null,
+    kpis.mapped ? (w) => tile(kpis.kcal, t('Calories'), t('per adult'), w) : null,
+    savedMin > 0 ? (w) => tile(savedMin >= 60 ? Math.round(savedMin / 60) + ' ' + t('hr') : savedMin + ' ' + t('min'), t('Line time saved'), t('vs. winging it'), w) : null,
+    !kpis.mapped && kpis.lands ? (w) => tile(kpis.lands, t('Lands'), t('on the route'), w) : null,
+    !kpis.mapped && kpis.thrills ? (w) => tile(kpis.thrills, t('Thrill rides'), t('on the list'), w) : null,
   ].filter(Boolean).slice(0, 4);
   const tiles = tileRow.map((fn) => fn(Math.round(100 / tileRow.length))).join('');
 
@@ -1320,13 +1350,13 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td width="52" valign="top">${milaImg('mila-thumbs-160', 40, '#fff')}</td>
           <td valign="top">
-            <span style="font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#0f7a45">TODAY'S ADVANTAGE</span><br>
-            ${E(kpis.dodged.name)} is ${kpis.dodged.standby} min right now — your slot lands about <b>${kpis.dodged.minutes} min shorter</b>. Mila approves.
+            <span style="font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#0f7a45">${t("TODAY'S ADVANTAGE")}</span><br>
+            ${f('{ride} is {n} min right now — your slot lands about <b>{saved} min shorter</b>. Mila approves.', { ride: E(kpis.dodged.name), n: kpis.dodged.standby, saved: kpis.dodged.minutes })}
           </td></tr></table>
       </td></tr></table></div>`
     : '';
-  const preheader = `${kpis.attractions} stops mapped for ${esc(park.name)}${kpis.dodged ? `, dodging the ${kpis.dodged.standby}-minute line at ${E(kpis.dodged.name)}` : ''}.`;
-  return `<!doctype html><html lang="en"><head>
+  const preheader = f('{n} stops mapped for {park}.', { n: kpis.attractions, park: esc(park.name) });
+  return `<!doctype html><html lang="${esc(lang)}"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
@@ -1353,7 +1383,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     .pp-head a, .pp-head a span { color: #ffffff !important; text-decoration: none !important; }
     u + #body a, #MessageViewBody a { color: inherit !important; text-decoration: none !important; }
   </style>
-  <title>Your ${esc(park.name)} day plan</title>
+  <title>${f('Your {park} day plan', { park: esc(park.name) })}</title>
   </head><body style="margin:0;padding:0;background:#f7f5ff">
   <div style="display:none;font-size:1px;color:#f7f5ff;max-height:0;overflow:hidden;mso-hide:all">${preheader}</div>
   <div style="background:#f7f5ff;padding:24px 12px;font:15px/1.6 -apple-system,'Segoe UI',sans-serif;color:${INK}">
@@ -1363,15 +1393,15 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
          its background and printed white text on white. -->
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="${B}" style="background:${B};background:linear-gradient(135deg,${B},#8b5cf6)"><tr>
      <td class="pp-head" style="padding:26px 0 20px 26px;color:#fff" valign="middle">
-      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · ${future ? 'advance plan' : 'live route'} · ${esc(park.name)}</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.85;text-transform:uppercase">ParkPulse · ${future ? t('advance plan') : t('live route')} · ${esc(park.name)}</div>
       <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">${pick(HEADLINES)}</div>
-      <div style="opacity:.85;font-size:14px;margin-top:4px"><span style="color:#fff;text-decoration:none">${day}</span> · sequenced around ${future ? "that day's predicted crowds" : 'live waits'}, park geography, and the rides you care about.</div>
+      <div style="opacity:.85;font-size:14px;margin-top:4px"><span style="color:#fff;text-decoration:none">${day}</span> · ${future ? t("sequenced around that day's predicted crowds, park geography, and the rides you care about.") : t('sequenced around live waits, park geography, and the rides you care about.')}</div>
      </td>
      <td width="128" valign="middle" align="center" style="padding:20px 18px 14px 8px">
-      <img src="${MILA('mila-welcome-160')}" width="104" height="104" alt="Mila, your park fairy" style="border-radius:99px;display:block;border:3px solid rgba(255,255,255,.6)">
+      <img src="${MILA('mila-welcome-160')}" width="104" height="104" alt="${t('Mila, your park fairy')}" style="border-radius:99px;display:block;border:3px solid rgba(255,255,255,.6)">
      </td>
     </tr>${flavor.magic ? `<tr><td colspan="2" style="padding:0 26px 20px">
-      <div style="background:rgba(255,255,255,.16);border-radius:12px;padding:9px 14px;color:#fff;font-size:13.5px;line-height:1.5"><b>Mila says:</b> &ldquo;${E(flavor.magic)}&rdquo;</div>
+      <div style="background:rgba(255,255,255,.16);border-radius:12px;padding:9px 14px;color:#fff;font-size:13.5px;line-height:1.5"><b>${t('Mila says:')}</b> &ldquo;${E(flavor.magic)}&rdquo;</div>
     </td></tr>` : ''}</table>
     <div style="padding:22px 20px 6px">
       <table width="100%" cellpadding="0" cellspacing="0"><tr>${tiles}</tr></table>
@@ -1381,46 +1411,46 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
       <div style="background:#fffaf0;border-left:4px solid #f0b429;border-radius:10px;padding:14px 16px;font-size:14.5px">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td width="48" valign="top">${milaImg('mila-thinking-160', 38)}</td>
-          <td valign="top"><b>Mila's read${firstName ? ` for ${E(firstName)}` : ''} on the day</b><br>${E(briefing).replace(/\n/g, '<br>')}</td>
+          <td valign="top"><b>${firstName ? f("Mila's read for {name} on the day", { name: E(firstName) }) : t("Mila's read on the day")}</b><br>${E(briefing).replace(/\n/g, '<br>')}</td>
         </tr></table>
       </div></div>` : ''}
     ${weatherCard}
     <div style="padding:18px 26px 6px">
-      <div style="font-weight:800;font-size:16px;margin-bottom:2px">${future ? `${esc(String(day).split(',')[0])}'s running order` : "Today's running order"}</div>
-      <div style="color:${MUTED};font-size:13px">Follow the numbers — they match the pins on your map.</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:2px">${future ? f('Running order for {day}', { day: esc(String(day).split(',')[0]) }) : t("Today's running order")}</div>
+      <div style="color:${MUTED};font-size:13px">${t('Follow the numbers — they match the pins on your map.')}</div>
       <table width="100%" cellpadding="0" cellspacing="0">${rows}</table>
     </div>
     ${insider}
     ${facts ? `<div style="padding:14px 21px 2px">
-      <div style="font-weight:800;font-size:16px;margin-bottom:4px;padding:0 5px">Plan signals worth knowing</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:4px;padding:0 5px">${t('Plan signals worth knowing')}</div>
       <table width="100%" cellpadding="0" cellspacing="0">${facts}</table></div>` : ''}
     ${funFacts ? `<div style="padding:14px 26px 2px">
-      <div style="font-weight:800;font-size:16px;margin-bottom:2px">The stats nobody asked for</div>
-      <div style="color:${MUTED};font-size:12.5px;margin-bottom:6px">All real, all from this plan.</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:2px">${t('The stats nobody asked for')}</div>
+      <div style="color:${MUTED};font-size:12.5px;margin-bottom:6px">${t('All real, all from this plan.')}</div>
       <table width="100%" cellpadding="0" cellspacing="0">${funFacts}</table></div>` : ''}
     <div style="padding:18px 26px 8px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#2c2154,#443b6b);background-color:#2c2154" bgcolor="#2c2154">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td width="76" valign="middle" style="padding:18px 0 18px 16px">${milaImg('mila-celebrate-160', 56, 'rgba(255,255,255,.45)')}</td>
           <td valign="middle" style="padding:18px 20px 18px 12px;color:#fff">
-            <div style="font-size:10.5px;font-weight:800;letter-spacing:.1em;opacity:.8">KEEP THE DAY MOVING</div>
-            <div style="font-size:17px;font-weight:800;margin-top:4px;line-height:1.35">The plan is your starting point. Live waits make it smarter as you go.</div>
-            <div style="font-size:13px;opacity:.85;margin-top:4px">A delay, a hungry kid, or a wait swing doesn't undo the day — reopen your plan and take the next better move.</div>
+            <div style="font-size:10.5px;font-weight:800;letter-spacing:.1em;opacity:.8">${t('KEEP THE DAY MOVING')}</div>
+            <div style="font-size:17px;font-weight:800;margin-top:4px;line-height:1.35">${t('The plan is your starting point. Live waits make it smarter as you go.')}</div>
+            <div style="font-size:13px;opacity:.85;margin-top:4px">${t("A delay, a hungry kid, or a wait swing doesn't undo the day — reopen your plan and take the next better move.")}</div>
           </td>
         </tr></table>
       </td></tr></table>
     </div>
     <div style="padding:4px 26px 26px">
       <div style="font-size:14.5px;font-weight:700;color:${B};margin:2px 0 12px;line-height:1.5">&ldquo;${pick(SIGNOFFS)}&rdquo; <span style="color:${MUTED};font-weight:800">— Mila</span></div>
-      <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open live waits →</a>
-      <div style="color:#a49cc0;font-size:12px;margin-top:6px">Your route, ready to adapt.</div>
+      <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">${t('Open live waits →')}</a>
+      <div style="color:#a49cc0;font-size:12px;margin-top:6px">${t('Your route, ready to adapt.')}</div>
       ${kpis.mapped ? `<div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
-        Walking distance is measured along your planned route plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.
+        ${t('Walking distance is measured along your planned route plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.')}
       </div>` : ''}
     </div>
    </div>
    <div style="max-width:600px;margin:12px auto 0;text-align:center;color:#a49cc0;font-size:11.5px">
-     ParkPulse · unofficial fan tool, not affiliated with any park operator.
+     ParkPulse · ${t('Unofficial fan tool — not affiliated with any park operator.')}
    </div>
   </div></body></html>`;
 }
@@ -1758,7 +1788,6 @@ function localizeLanding(html, lang) {
   return out;
 }
 
-const LANG_NAMES = { en: 'English', zh: 'Chinese', hi: 'Hindi', es: 'Spanish', fr: 'French', ar: 'Arabic', bn: 'Bengali', de: 'German', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', mr: 'Marathi', pt: 'Portuguese', ru: 'Russian', ta: 'Tamil', te: 'Telugu', tr: 'Turkish', ur: 'Urdu', vi: 'Vietnamese' };
 
 // In-flight dining-guide generations, one per park+language.
 const diningJobs = new Map();
@@ -3292,12 +3321,13 @@ ${sections}
         const kpis = await planKpis(park, stops, profileForKpi);
         const savedMin = Number.isFinite(parsed.savedMin) ? Math.max(0, Math.round(parsed.savedMin)) : 0;
         const profile = profileForKpi;
-        const lang = LANG_NAMES[typeof parsed.lang === 'string' ? parsed.lang : 'en'] || 'English';
+        const langCode = LANG_NAMES[parsed.lang] ? parsed.lang : 'en';
+        const lang = LANG_NAMES[langCode];
         // Date the email for the day being planned, not the day it is sent.
         // A plan built for Wednesday and headed "Monday" is wrong twice over:
         // in the header the reader sees, and in the note the model writes.
         const planDateRaw = typeof parsed.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.planDate) ? parsed.planDate : null;
-        const dayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: planDateRaw ? 'UTC' : park.tz });
+        const dayFmt = new Intl.DateTimeFormat(langCode, { weekday: 'long', month: 'long', day: 'numeric', timeZone: planDateRaw ? 'UTC' : park.tz });
         const day = dayFmt.format(planDateRaw ? new Date(`${planDateRaw}T12:00:00Z`) : new Date());
         // A plan for a future day must not speak in the present tense: the
         // "advantage" card compares against queues live at SEND time, which
@@ -3315,13 +3345,16 @@ ${sections}
         }
         const firstName = db.users.get(sess.email)?.name || null;
         const flavor = await planEmailFlavor(park, planDateRaw || todayAtPark);
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor });
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor, lang: langCode });
         try {
           // "18 attractions, 0 km" went out to a real inbox: the km figure is
           // only real when the route was actually measured. Lead with the two
           // numbers that always are.
           const firstRide = stops.find((st) => st.name && st.time);
-          const subject = `Your ${park.name} plan${future ? ` for ${day.split(',')[0]}` : ''} — ${kpis.attractions} attractions${kpis.mapped ? `, ${kpis.km} km` : firstRide ? `, first ride ${firstRide.time}` : ''}`;
+          const ts = T(langCode);
+          const subject = future
+            ? fmt(ts('Your {park} plan for {day} — {n} attractions'), { park: park.name, day: String(day).split(',')[0], n: kpis.attractions })
+            : fmt(ts('Your {park} plan — {n} attractions'), { park: park.name, n: kpis.attractions });
           const r = await sendEmail(sess.email, subject, html,
             `Plan email for ${sess.email}: ${park.name}, ${kpis.attractions} stops`);
           return sendJson(res, 200, r.sent ? { sent: true, to: sess.email, kpis } : { sent: false, reason: r.reason, kpis });
