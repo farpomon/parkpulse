@@ -482,6 +482,8 @@
   .wait.mid { background: var(--gold-soft); color: var(--gold); }
   .wait.high { background: var(--red-soft); color: var(--red); }
   .wait.closed { background: var(--skeleton); color: var(--muted); font-weight: 600; }
+  /* Paused reads as a warning, not a dead end: it is coming back. */
+  .wait.paused { background: var(--amber-soft, #fff7e6); color: var(--gold, #a06a00); font-weight: 700; }
   .skeleton .sk { height: 3.4rem; border-radius: 14px; background: linear-gradient(90deg, var(--skeleton) 25%, var(--card) 50%, var(--skeleton) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; margin: .5rem 0; }
   @keyframes shimmer { to { background-position: -200% 0; } }
   .state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
@@ -1347,7 +1349,15 @@
       const w = projectedWait(r);
       return w == null ? 'closed' : w >= 60 ? 'high' : w >= 30 ? 'mid' : 'low';
     }
-    if (!r.open) return 'closed';
+    const st = rideState(r);
+    if (st === 'shut') return 'closed';
+    if (st === 'paused') return 'paused';
+    if (st === 'early') {
+      // Colour the typical wait the same way a live one would be, so the board
+      // still reads at a glance before the gates open.
+      const w = projectedWait(r);
+      return w == null ? 'closed' : w >= 60 ? 'high' : w >= 30 ? 'mid' : 'low';
+    }
     if (r.wait >= 60) return 'high';
     if (r.wait >= 30) return 'mid';
     return 'low';
@@ -2051,15 +2061,38 @@
   // right now is very likely open again by the planned day, so it is not
   // reported as closed and its checkbox is not disabled.
   const shutLongTerm = (r) => closureList.some((c) => c.name === r.name) && !r.open;
+  // Three different things were all rendering as "Closed", and the worst of
+  // them was the park simply not being open yet: before opening every ride in
+  // the park reported closed, so the whole board greyed out and nothing could
+  // be ticked. A visitor planning their day over breakfast was locked out of
+  // the app entirely.
+  //   shut   -- detected shut for days running. Genuinely closed.
+  //   paused -- park is open, this ride is not. Usually back within the hour.
+  //   early  -- park has not opened (or has closed for the night). Says nothing
+  //             about any individual ride.
+  function rideState(r) {
+    if (shutLongTerm(r)) return 'shut';
+    if (r.open) return 'open';
+    return parkClosedNow() ? 'early' : 'paused';
+  }
   function waitCell(r) {
-    if (!planningAhead()) return r.open ? r.wait + ' ' + tr('min') : tr('Closed');
-    if (shutLongTerm(r)) return tr('Closed');
+    if (planningAhead()) {
+      if (shutLongTerm(r)) return tr('Closed');
+      const w = projectedWait(r);
+      return w == null ? '—' : '~' + w + ' ' + tr('min');
+    }
+    const st = rideState(r);
+    if (st === 'open') return r.wait + ' ' + tr('min');
+    if (st === 'shut') return tr('Closed');
+    if (st === 'paused') return tr('Paused');
+    // Before opening there is no live number, but the typical wait is known and
+    // is the thing that helps you choose.
     const w = projectedWait(r);
     return w == null ? '—' : '~' + w + ' ' + tr('min');
   }
   function rideRow(r) {
     const rode = doneOrder.includes(r.name);
-    const pickable = planningAhead() ? !shutLongTerm(r) : r.open;
+    const pickable = !shutLongTerm(r);
     return `
       <div class="ride${rode ? ' isdone' : ''}${skips.has(r.name) ? ' isskip' : ''}">
         <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${pickable && !skips.has(r.name) ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
@@ -2940,7 +2973,6 @@
     if (!isPro && opts.quiet && current !== FREE_PARK) return;
     const p = parks[current] || { open: 9, close: 21 };
     const futureDay = Boolean(planDate);
-    const closedNow = !futureDay && parkClosedNow();
     // Planning a future day: use THAT day's expected crowds, and drop the
     // live-wait anchor — today's queues say nothing about next Saturday.
     const planDay = planDate ? (lastForecast?.days || []).find((d) => d.date === planDate) : (lastForecast?.days || [])[0];
@@ -2985,7 +3017,13 @@
     // A LONG-TERM closure is different: it has been shut all day for days
     // running, and scheduling it for Saturday sends a family to a wall.
     const shutLong = new Set(closureList.map((c) => c.name));
-    const plannable = (r) => (r.open || futureDay || closedNow) && !(shutLong.has(r.name) && !r.open) && !skips.has(r.name);
+    // Matches what the board now lets you tick: anything not shut for good and
+    // not ruled out. The old gate also required the ride to be open right now
+    // unless the park was shut, which meant a ride paused for twenty minutes
+    // silently dropped out of the day. baseWait() already falls back to the
+    // typical wait when there is no live number, so a paused ride schedules on
+    // the same footing as one the park has not opened yet.
+    const plannable = (r) => !(shutLong.has(r.name) && !r.open) && !skips.has(r.name);
     const remaining = rides.filter((r) => pickedNames.has(r.name) && plannable(r) && !doneSet.has(r.name));
     // Nothing to route. This bare `return` is where every silent "Plan it for
     // me" failure ended: no stops, no message, an untouched pane, and a button
@@ -3052,7 +3090,7 @@
           if (encorePool === null) {
             // Favorites first, then the biggest hits of the day.
             const ridden = new Set([...steps.filter((s) => s.ride).map((s) => s.ride.name), ...doneSet]);
-            encorePool = rides.filter((r) => (r.open || futureDay || closedNow) && ridden.has(r.name))
+            encorePool = rides.filter((r) => plannable(r) && ridden.has(r.name))
               .sort((a, b) => ((favs.has(b.name) ? 1 : 0) - (favs.has(a.name) ? 1 : 0)) || ((b.typical || b.wait || 0) - (a.typical || a.wait || 0)))
               .slice(0, 8);
           }
