@@ -1611,21 +1611,29 @@ async function sweepEveningPlanMail() {
       // Mark BEFORE sending: a crash after send must not re-mail tomorrow.
       db.plans.markMailed(row.email, row.park, row.date);
       try {
-        const profile = (db.daystate.get(row.email) || {}).profile || null;
+        const ds = db.daystate.get(row.email) || {};
+        const profile = ds.profile || null;
+        // This mailer runs from a timer, so there is no request to read the
+        // reader's language off. Day state is where the app persists it, and
+        // it is what the WhatsApp bridge already trusts for the same purpose.
+        const langCode = LANG_NAMES[ds.lang] ? ds.lang : 'en';
         const kpis = await planKpis(park, stops, profile);
         kpis.dodged = null; // future day: no live-now comparison
-        const day = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
+        const day = new Intl.DateTimeFormat(langCode, { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
           .format(new Date(`${row.date}T12:00:00Z`));
         let briefing = '';
         if (consultant.enabled()) {
           try {
-            briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, future: true, stops, kpis, profile, savedMin: row.saved_min || 0, lang: 'English' });
+            briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, future: true, stops, kpis, profile, savedMin: row.saved_min || 0, lang: LANG_NAMES[langCode] });
           } catch (err) { console.log(`evening briefing failed: ${err.message}`); }
         }
         const flavor = await planEmailFlavor(park, row.date);
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true, flavor });
+        const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true, flavor, lang: langCode });
         const firstRide = stops.find((st) => st.name && st.time);
-        await sendEmail(row.email, `Tomorrow at ${park.name} — your plan is ready${firstRide ? ` (first ride ${firstRide.time})` : ''}`, html);
+        const ts = T(langCode);
+        const subject = fmt(ts('Tomorrow at {park} — your plan is ready'), { park: park.name })
+          + (firstRide ? ` (${fmt(ts('first ride {time}'), { time: firstRide.time })})` : '');
+        await sendEmail(row.email, subject, html);
         sent += 1;
         console.log(`evening plan email: ${park.slug} ${row.date} -> ${row.email}`);
       } catch (err) {
