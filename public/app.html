@@ -296,18 +296,17 @@
   /* Rope drop. The plan that starts at 09:00 quietly assumes you are already
      standing at the rope at 09:00 — nobody is, and the gap is the whole
      advantage the plan is built on. */
-  /* Pip's working, folded away. Open by choice: the plan reads clean for
-     someone who just wants the order, and shows its arithmetic to someone who
-     wants to argue with it. */
+  /* Pip's working, always on show. It used to be a <details> folded shut, so
+     the arithmetic that justifies each slot was one tap away and, in practice,
+     never seen -- a row read "Pip's numbers" with nothing under it. */
   .sk-pip { display: flex; gap: .45rem; align-items: flex-start; margin-top: .45rem;
     font-size: .8rem; line-height: 1.4; color: var(--muted); }
   .sk-pip img { border-radius: 50%; flex: 0 0 auto; margin-top: .05rem; }
   .sk-pip b { color: var(--ink); }
-  .pipwhy { margin-top: .25rem; }
-  .pipwhy > summary { display: flex; align-items: center; gap: .3rem; cursor: pointer; list-style: none;
+  .pipwhy { display: block; margin-top: .25rem; }
+  .pipwhy > b { display: flex; align-items: center; gap: .3rem;
     color: var(--brand); font-size: .74rem; font-weight: 700; width: fit-content; }
-  .pipwhy > summary::-webkit-details-marker { display: none; }
-  .pipwhy > summary img { border-radius: 50%; }
+  .pipwhy > b img { border-radius: 50%; }
   .pipwhy > span { display: block; color: var(--muted); font-size: .78rem; line-height: 1.4; margin-top: .2rem; }
   .ropedrop { background: var(--green-soft, #e8f7f0); border: 1px solid var(--green, #2e9e6b);
     border-radius: 12px; padding: .6rem .75rem; margin: 0 0 .8rem; font-size: .88rem; line-height: 1.45; }
@@ -2988,7 +2987,14 @@
       // to take on faith, and the arithmetic is the reason to trust it.
       const pipBits = [];
       const typ = Math.round((ride.typical || 0) / 5) * 5;
-      if (typ && Math.abs(typ - predicted) >= 10) pipBits.push(`${tr('usually')} ${typ} ${tr('min')} · ~${predicted} ${tr('min at')} ${hourLabel(t)}`);
+      // The projected wait for this slot is the one figure that is always true
+      // and always the point, so it leads every time. The typical wait joins it
+      // only when the gap between them is what makes the slot worth taking --
+      // otherwise it is noise. Without this a quiet ride in mid-crowd hours
+      // could produce no bits at all and Pip had nothing to say.
+      pipBits.push(typ && Math.abs(typ - predicted) >= 10
+        ? `${tr('usually')} ${typ} ${tr('min')} · ~${predicted} ${tr('min at')} ${hourLabel(t)}`
+        : `~${predicted} ${tr('min at')} ${hourLabel(t)}`);
       if (mult <= 0.6) pipBits.push(tr('crowd curve at its lowest'));
       else if (mult >= 1.05) pipBits.push(tr('peak hour — this is the short one'));
       if (stayed) pipBits.push(tr('same land, no walk'));
@@ -3079,7 +3085,7 @@
       ${steps.map((s) => s.break
         ? `<div class="step"><span class="time">${hourLabel(s.time)}</span><span class="what">${s.break}<br><span class="why">${s.why}</span></span></div>`
         : `<div class="step${s.suggested || s.encore ? ' sugg' : ''}"><span class="time">${hourLabel(s.time)}</span><span class="what"><b>${esc(s.ride.name)}</b>${s.ll ? ' 🎟' : ''}${stepBadges(s)}${s.suggested ? ` <span class="why">✦ ${tr('suggested')}</span>` : ''}${s.encore ? ` <span class="why">✨ ${tr('encore')}</span>` : ''}${s.ride.land ? ` · ${esc(s.ride.land)}` : ''} · ~${s.predicted} ${tr('min')}<br>
-           <span class="why">${s.why}</span>${s.pip ? `<details class="pipwhy"><summary><img src="/img/pip/pip-ledger-160.webp" alt="" width="16" height="16" loading="lazy">${tr("Pip's numbers")}</summary><span>${esc(s.pip)}</span></details>` : ''}</span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="${tr('Just rode it — mark done')}" aria-label="${tr('Mark as ridden:')} ${esc(s.ride.name)}">✓</button></div>`
+           <span class="why">${s.why}</span>${s.pip ? `<span class="pipwhy"><b><img src="/img/pip/pip-ledger-160.webp" alt="" width="16" height="16" loading="lazy">${tr("Pip's numbers")}</b><span>${esc(s.pip)}</span></span>` : ''}</span><button class="stepdone" data-name="${encodeURIComponent(s.ride.name)}" title="${tr('Just rode it — mark done')}" aria-label="${tr('Mark as ridden:')} ${esc(s.ride.name)}">✓</button></div>`
       ).join('')}
       ${finaleAsk ? `<div class="fillnote" id="fin-ask">✨ ${tr("Everything's done with time to spare — how should the night go?")}<br>
         <button class="btn" id="fin-enc" style="margin:.5rem .4rem 0 0">✨ ${tr('Encore rides')}</button>
