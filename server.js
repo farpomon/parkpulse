@@ -2503,9 +2503,25 @@ try {
   PARK_MAGIC = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-magic.json'), 'utf8'));
 } catch (err) { console.log(`park magic lines unavailable: ${err.message}`); }
 
+// The landing page's editorial "Most popular" cards, and the parks its regional
+// columns therefore leave out. Deliberately eight and deliberately unchanged --
+// this row is a layout as much as a list.
 const POPULAR_PARKS = [
   'magic-kingdom', 'disneyland', 'epic-universe', 'universal-studios-florida',
   'islands-of-adventure', 'epcot', 'tokyo-disneyland', 'disneyland-paris',
+];
+
+// What the app's park picker floats above the regional groups, roughly by
+// attendance. Separate from the row above because the two have different jobs:
+// that one is eight cards in a grid, this one is the head of a 65-item list
+// that has to put something first. Every WDW and Universal Orlando gate earns
+// a place here since those are the resorts whose parks were previously only
+// reachable by picking the resort and then a chip.
+const PICKER_TOP = [
+  'magic-kingdom', 'disneyland', 'tokyo-disneyland', 'tokyo-disneysea',
+  'universal-studios-japan', 'epcot', 'animal-kingdom', 'hollywood-studios',
+  'universal-studios-florida', 'islands-of-adventure', 'epic-universe',
+  'disneyland-paris', 'universal-studios-hollywood', 'california-adventure',
 ];
 
 function parkGuides(registry) {
@@ -2681,6 +2697,7 @@ const server = http.createServer(async (req, res) => {
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng, tz: p.tz }])),
+      popular: PICKER_TOP.filter((slug) => PARKS[slug]),
     });
   }
 

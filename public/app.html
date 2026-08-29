@@ -895,7 +895,7 @@
       </span>
     </div>
     <div class="destrow">
-      <select id="dest" aria-label="Choose destination"></select>
+      <select id="dest" aria-label="Choose park"></select>
       <button class="iconbtn" id="dest-star" title="Track this destination in My parks" aria-label="Track this destination">☆</button>
     </div>
     <div id="group-chip"></div>
@@ -1193,6 +1193,9 @@
   const RIDE_MINUTES = 15;
 
   let parks = {};
+  // Ordering for the head of the park picker, served by /api/config so the app
+  // and the site cannot disagree about which parks are the busy ones.
+  let popularParks = [];
   let pushKey = '';
   let current = FREE_PARK;
   let rides = [];
@@ -1875,18 +1878,29 @@
   function renderTabs() {
     const groups = [...new Set(Object.values(parks).map((p) => p.group))];
     if (!dest || !groups.includes(dest)) dest = parks[current]?.group || groups[0];
-    // Destinations grouped by region so a long park list stays navigable;
-    // starred ("My parks") destinations float to the top.
-    const regionOf = {};
-    for (const p of Object.values(parks)) if (!(p.group in regionOf)) regionOf[p.group] = p.region || 'More parks';
-    const regions = [...new Set(Object.values(regionOf))];
-    const optFor = (g) => `<option ${g === dest ? 'selected' : ''}>${g}</option>`;
-    const starred = groups.filter((g) => myDests.has(g));
+    // Every park, not every resort. Listing destinations meant the four Walt
+    // Disney World gates, both Tokyo parks and the three at Universal Orlando
+    // could only be reached by choosing the resort and then a chip -- you had
+    // to already know which resort EPCOT belongs to. 65 entries need an order,
+    // so the busiest gates sit above the regional groups, and starred parks
+    // above those.
+    const optFor = (slug) => `<option value="${slug}" ${slug === current ? 'selected' : ''}>${esc(parks[slug].name)}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</option>`;
+    const all = Object.keys(parks);
+    const starred = all.filter((slug) => myDests.has(parks[slug].group));
+    const top = (popularParks.length ? popularParks : []).filter((slug) => parks[slug] && !myDests.has(parks[slug].group));
+    const placed = new Set([...starred, ...top]);
+    // Fixed order, matching the site's park directory. Insertion order put
+    // "US & Canada" -- the biggest group by far -- last, behind Asia's four.
+    const REGION_ORDER = ['Florida', 'California', 'US & Canada', 'Europe', 'Asia'];
+    const seen = [...new Set(all.map((slug) => parks[slug].region || 'More parks'))];
+    const regions = [...REGION_ORDER.filter((r) => seen.includes(r)),
+      ...seen.filter((r) => !REGION_ORDER.includes(r))];
     $('dest').innerHTML =
       (starred.length ? `<optgroup label="${tr('★ My parks')}">${starred.map(optFor).join('')}</optgroup>` : '') +
+      (top.length ? `<optgroup label="${tr('Most popular')}">${top.map(optFor).join('')}</optgroup>` : '') +
       regions.map((reg) => {
-        const gs = groups.filter((g) => regionOf[g] === reg && !myDests.has(g));
-        return gs.length ? `<optgroup label="${reg}">${gs.map(optFor).join('')}</optgroup>` : '';
+        const ps = all.filter((slug) => (parks[slug].region || 'More parks') === reg && !placed.has(slug));
+        return ps.length ? `<optgroup label="${reg}">${ps.map(optFor).join('')}</optgroup>` : '';
       }).join('');
     $('dest-star').textContent = myDests.has(dest) ? '★' : '☆';
     $('dest-star').classList.toggle('on', myDests.has(dest));
@@ -3630,6 +3644,7 @@
     }
     $('wiz').setAttribute('aria-label', tr('Your group'));
     $('acct-btn').title = tr('Account');
+    $('dest').setAttribute('aria-label', tr('Choose park'));
     // The sheet's row label was never retexted, so it read "Language" in every
     // language. Both ways in now say it in the reader's own.
     const langLbl = $('lang-lbl');
@@ -5595,12 +5610,12 @@
     location.reload(); // re-resolve access from a clean slate
   });
   $('dest').addEventListener('change', (e) => {
-    dest = e.target.value;
-    const first = Object.entries(parks).find(([, p]) => p.group === dest);
-    if (!first) return;
-    current = first[0];
+    const slug = e.target.value;
+    if (!parks[slug]) return;
+    current = slug;
+    dest = parks[slug].group;
     localStorage.setItem('pp-park', current);
-        load();
+    load();
   });
 
   // Boot: resolve access (launch preview or a valid pass), restore park, load.
@@ -5609,6 +5624,7 @@
     try {
       const c = await (await fetch('/api/config')).json();
       parks = c.parks;
+      popularParks = Array.isArray(c.popular) ? c.popular : [];
       pushKey = c.pushKey || '';
       consultantOn = Boolean(c.consultant);
       whatsappOn = Boolean(c.whatsapp);
