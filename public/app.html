@@ -695,7 +695,7 @@
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
     display: flex; align-items: stretch;
     background: var(--card); border-top: 1px solid var(--border);
-    padding: .3rem .25rem calc(.3rem + env(safe-area-inset-bottom));
+    padding: .3rem .12rem calc(.3rem + env(safe-area-inset-bottom));
     box-shadow: 0 -4px 20px rgba(20, 12, 48, .10); }
   /* Two equal halves either side of Mila. Splitting the bar 50/50 like this,
      rather than sizing every tab the same, is what puts the seam between the
@@ -708,12 +708,16 @@
      "Dining" mostly cleared her, "Restaurantes" did not. Reserving her half-
      width plus a little air on each inner edge keeps every label in the clear
      whatever it says. */
-  .tabbar-side:first-of-type { padding-right: 1.95rem; }
-  .tabbar-side:last-of-type  { padding-left: 1.95rem; }
+  /* Logical, not physical: Arabic and Urdu render the document dir="rtl", which
+     puts the DOM-first half on the RIGHT. With padding-right/left both reserves
+     landed on the bar's outer edges, leaving Mila's seat unprotected -- "الخطة"
+     and "المطاعم" ran straight under her. Inline-start/end follow the flip. */
+  .tabbar-side:first-of-type { padding-inline-end: 1.72rem; }
+  .tabbar-side:last-of-type  { padding-inline-start: 1.72rem; }
   .tabbar button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: flex-end; gap: .15rem; padding: .35rem .1rem .2rem;
     background: none; border: 0; border-radius: 12px; color: var(--muted);
-    font: inherit; font-size: .66rem; font-weight: 800; line-height: 1.1; cursor: pointer;
+    font: inherit; font-size: clamp(.5rem, 2.4vw, .66rem); font-weight: 800; line-height: 1.1; cursor: pointer;
     -webkit-tap-highlight-color: transparent; transition: color .15s, transform .1s; }
   .tabbar button .ti { width: 1.55rem; height: 1.55rem; display: block; }
   .ontrack-wrap { position: fixed; right: .9rem; bottom: calc(var(--navh) + .8rem); z-index: 21;
@@ -743,7 +747,6 @@
   .acct-set select { border: 1px solid var(--border); background: var(--bg); color: var(--ink);
     border-radius: 10px; padding: .45rem .6rem; font: inherit; font-size: .92rem; max-width: 60%; }
   .tabbar button .tl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  @media (max-width: 374px) { .tabbar button { font-size: .6rem; } }
   .tabbar button.on { color: var(--brand); }
   .tabbar button:active { transform: scale(.93); }
   /* Mila is the action button, so she sits proud of the bar the way a camera
