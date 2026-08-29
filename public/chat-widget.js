@@ -130,23 +130,24 @@
     root = document.createElement('div');
     root.id = 'ppc-root';
     root.innerHTML = `
-      <button id="ppc-fab" title="${T()('Ask Mila, your park fairy')}" aria-label="${T()('Ask Mila, your park fairy')}"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
-      <div id="ppc-panel" role="dialog" aria-label="${T()('Chat with your magical fairy')}">
-        <div id="ppc-head"><div><b>${T()('Mila — your park fairy')}</b><span id="ppc-sub"></span></div>
-          <button id="ppc-close" aria-label="${T()('Close chat')}">✕</button></div>
+      <button id="ppc-fab"><img src="/img/mila/mila-wink-160.webp" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></button>
+      <div id="ppc-panel" role="dialog">
+        <div id="ppc-head"><div><b id="ppc-title"></b><span id="ppc-sub"></span></div>
+          <button id="ppc-close">✕</button></div>
         <div id="ppc-scrollwrap">
           <div id="ppc-msgs"></div>
-          <button id="ppc-jump" type="button">↓ ${T()('Jump to latest')}</button>
+          <button id="ppc-jump" type="button"></button>
         </div>
         <div id="ppc-chips">
-          <button data-q="Is it worth buying line-skipping passes here today?">${T()('Worth buying today?')}</button>
-          <button data-q="What's the smartest plan for the rest of my day here?">${T()('Plan my day')}</button>
-          <button data-q="How do I do this park well without paying for any passes?">${T()('Do it free')}</button>
+          <button data-q="Is it worth buying line-skipping passes here today?"></button>
+          <button data-q="What's the smartest plan for the rest of my day here?"></button>
+          <button data-q="How do I do this park well without paying for any passes?"></button>
         </div>
-        <form id="ppc-form"><input id="ppc-input" placeholder="${T()('Ask about passes, plans, strategy…')}" autocomplete="off" maxlength="500">
-          <button id="ppc-send" type="submit">${T()('Send')}</button></form>
+        <form id="ppc-form"><input id="ppc-input" autocomplete="off" maxlength="500">
+          <button id="ppc-send" type="submit"></button></form>
       </div>`;
     document.body.appendChild(root);
+    retextChrome();
     msgs = $id('ppc-msgs');
 
     msgs.addEventListener('scroll', () => { stick = atBottom(); syncJump(); }, { passive: true });
@@ -217,6 +218,29 @@
   // The starter chips are written into the panel at mount, long before a day is
   // chosen -- so "Worth buying today?" would still be asking about today after
   // the visitor moved to next Thursday. Rewrite them each time the panel opens.
+  // Every label on the panel's chrome, in one place. The chrome is written
+  // once at mount, from whichever dictionary was in hand -- and a returning
+  // visitor mounts from the localStorage mirror, which is one release behind.
+  // Called again when the real dictionary lands, so a string added since the
+  // last visit does not sit in English until the visitor reloads twice.
+  function retextChrome() {
+    if (!root) return;
+    const t = T();
+    const set = (id, fn) => { const el = $id(id); if (el) fn(el); };
+    set('ppc-fab', (el) => {
+      el.title = t('Ask Mila, your park fairy');
+      el.setAttribute('aria-label', t('Ask Mila, your park fairy'));
+    });
+    set('ppc-panel', (el) => el.setAttribute('aria-label', t('Chat with your magical fairy')));
+    set('ppc-title', (el) => { el.textContent = t('Mila — your park fairy'); });
+    set('ppc-close', (el) => el.setAttribute('aria-label', t('Close chat')));
+    set('ppc-jump', (el) => { el.textContent = '↓ ' + t('Jump to latest'); });
+    set('ppc-input', (el) => { el.placeholder = t('Ask about passes, plans, strategy…'); });
+    set('ppc-send', (el) => { el.textContent = t('Send'); });
+    syncChips();
+  }
+  try { document.addEventListener('pp-dict', retextChrome); } catch {}
+
   function syncChips() {
     const box = $id('ppc-chips');
     if (!box) return;

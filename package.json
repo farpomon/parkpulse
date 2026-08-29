@@ -15,7 +15,8 @@
     "test:grouplabel": "node test/group-label.mjs",
     "test:picker": "node test/park-picker.mjs",
     "test:datelink": "node test/plan-date-link.mjs",
-    "test:langs": "node test/landing-languages.mjs"
+    "test:langs": "node test/landing-languages.mjs",
+    "test:staledict": "node test/stale-dictionary.mjs"
   },
   "engines": {
     "node": ">=22.5"

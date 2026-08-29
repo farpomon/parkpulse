@@ -49,17 +49,29 @@
       const cached = localStorage.getItem(cacheKey);
       if (cached) dict = JSON.parse(cached) || {};
     } catch {}
+    // Whether the first paint will be drawn from the mirror rather than from
+    // the network -- which is the case that needs telling about below.
+    const fromCache = Object.keys(dict).length > 0;
+    const before = fromCache ? JSON.stringify(dict) : null;
     const fetched = fetch('/i18n/' + lang + '.json')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d && typeof d === 'object') {
-          dict = d;
-          try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch {}
+        if (!d || typeof d !== 'object') return;
+        dict = d;
+        try { localStorage.setItem(cacheKey, JSON.stringify(d)); } catch {}
+        // The mirror is always one release behind: it is written by the
+        // PREVIOUS visit, so every string added since renders in English
+        // while the copy that has it is still in flight. The page has already
+        // painted by now, so tell it to retext rather than leaving a returning
+        // visitor to find the new features in a language they did not choose.
+        if (fromCache && JSON.stringify(d) !== before) {
+          window.PP_DICT_REFRESHED = true;
+          try { document.dispatchEvent(new CustomEvent('pp-dict')); } catch {}
         }
       })
       .catch(() => {});
     // A cached copy is good enough to render immediately; otherwise wait for it.
-    ready = Object.keys(dict).length ? Promise.resolve() : fetched;
+    ready = fromCache ? Promise.resolve() : fetched;
   }
 
   // Right-to-left scripts need the whole document flipped, not just the words.

@@ -1,7 +1,7 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v114';
+const CACHE = 'parkpulse-v115';
 const TILES = 'pp-tiles-v1'; // OSM map tiles, capped, survives app-cache bumps
 const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json', '/chat-widget.js', '/i18n.js', '/vendor/leaflet.js', '/vendor/leaflet.css'];
 
@@ -70,6 +70,25 @@ self.addEventListener('fetch', (e) => {
   }
 
   if (url.pathname.startsWith('/api/')) return; // config/subscribe always live
+
+  // Dictionaries are network-first for the same reason HTML is: they are
+  // versioned by deploy, not by URL, so the stale-while-revalidate branch
+  // below hands back the previous release's copy and the strings added since
+  // stay English for one more visit. The page mirrors the dictionary in
+  // localStorage for its instant first paint, so nothing is waiting on this
+  // fetch -- it only decides whether the page retexts now or next time.
+  if (url.pathname.startsWith('/i18n/')) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
 
   // HTML is network-first. It used to fall through to the stale-while-
   // revalidate branch below, which answers from cache and only refreshes

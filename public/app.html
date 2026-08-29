@@ -3949,6 +3949,19 @@
     (window.PP_READY || Promise.resolve()).then(applyStaticText);
   })();
 
+  // A returning visitor paints from the dictionary mirrored in localStorage,
+  // which was written by their previous visit -- so every string added since
+  // is English on screen even though the fetched copy, seconds behind, has it.
+  // That is how "Search parks" and "Tap to change your group" stayed English
+  // in a French session while the rest of the page was French. i18n.js says
+  // when the real dictionary has landed and differs; everything written once
+  // and never rewritten gets written again here.
+  document.addEventListener('pp-dict', () => {
+    for (const again of [applyStaticText, renderGroupChip, renderTabs]) {
+      try { again(); } catch {}
+    }
+  });
+
   function applyStaticText() {
     $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
     $('ph-title').textContent = '🗓️ ' + tr('Plan my day');
