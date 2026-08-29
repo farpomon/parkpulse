@@ -10,7 +10,8 @@
     "test:i18n": "node test/i18n-audit.mjs",
     "test:ll": "node test/lightning-lane.mjs",
     "test:parksearch": "node test/park-search.mjs",
-    "test:party": "node test/party-change.mjs"
+    "test:party": "node test/party-change.mjs",
+    "test:emaillinks": "node test/email-links.cjs"
   },
   "engines": {
     "node": ">=22.5"

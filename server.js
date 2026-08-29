@@ -1209,6 +1209,11 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   // built from tables and text, and astral characters are stripped from any
   // client-supplied string before it is interpolated.
   const noAstral = (v) => String(v ?? '').replace(/[\u{10000}-\u{10FFFF}]/gu, '').replace(/️/g, '').trim();
+  // Every link back into the app names the park this plan is for. Bare /app
+  // opens whichever park the device happened to be on last, which for anyone
+  // planning more than one park is the wrong one -- a plan for Liseberg
+  // landing on Magic Kingdom because that is where they were browsing.
+  const APP = `https://www.parkpulse.fun/app${park.slug ? `?park=${encodeURIComponent(park.slug)}` : ''}`;
   const E = (v) => esc(noAstral(v));
   // PNG, never webp: Outlook desktop renders webp as a broken-image icon, and
   // this email's whole cast is Mila. Absolute URLs — email clients have no
@@ -1506,7 +1511,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
      <td class="pp-head" style="padding:26px 0 20px 26px;color:#fff" valign="middle">
       <div style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#ece9ff;text-transform:uppercase">ParkPulse · ${future ? t('advance plan') : t('live route')} · ${esc(park.name)}</div>
       <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.2">${pick(HEADLINES)}</div>
-      <div style="color:#ece9ff;font-size:14px;margin-top:4px"><a href="https://www.parkpulse.fun/app" style="color:#ffffff;font-weight:700;text-decoration:none">${day}</a> · ${future ? t("sequenced around that day's predicted crowds, park geography, and the rides you care about.") : t('sequenced around live waits, park geography, and the rides you care about.')}</div>
+      <div style="color:#ece9ff;font-size:14px;margin-top:4px"><a href="${APP}" style="color:#ffffff;font-weight:700;text-decoration:none">${day}</a> · ${future ? t("sequenced around that day's predicted crowds, park geography, and the rides you care about.") : t('sequenced around live waits, park geography, and the rides you care about.')}</div>
      </td>
      <td width="128" valign="middle" align="center" style="padding:20px 18px 14px 8px">
       <img src="${MILA('mila-welcome-160')}" width="104" height="104" alt="${t('Mila, your park fairy')}" style="border-radius:99px;display:block;border:3px solid rgba(255,255,255,.6)">
@@ -1554,7 +1559,7 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
     </div>
     <div style="padding:4px 26px 26px">
       <div style="font-size:14.5px;font-weight:700;color:${B};margin:2px 0 12px;line-height:1.5">&ldquo;${pick(SIGNOFFS)}&rdquo; <span style="color:${MUTED};font-weight:800">— Mila</span></div>
-      <a href="https://www.parkpulse.fun/app" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">${t('Open live waits →')}</a>
+      <a href="${APP}" style="display:inline-block;background:${B};color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">${t('Open live waits →')}</a>
       <div style="color:#a49cc0;font-size:12px;margin-top:6px">${t('Your route, ready to adapt.')}</div>
       ${kpis.mapped ? `<div style="color:#a49cc0;font-size:11.5px;margin-top:16px;line-height:1.5">
         ${t('Walking distance is measured along your planned route plus the walk in and out, with a 35% allowance for real-world wandering. Calories assume a 70 kg adult at a casual pace — a rough guide, not a fitness tracker.')}
