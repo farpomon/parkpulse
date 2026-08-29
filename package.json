@@ -12,7 +12,8 @@
     "test:parksearch": "node test/park-search.mjs",
     "test:party": "node test/party-change.mjs",
     "test:emaillinks": "node test/email-links.cjs",
-    "test:grouplabel": "node test/group-label.mjs"
+    "test:grouplabel": "node test/group-label.mjs",
+    "test:picker": "node test/park-picker.mjs"
   },
   "engines": {
     "node": ">=22.5"

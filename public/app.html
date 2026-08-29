@@ -1933,6 +1933,51 @@
     } catch { el.innerHTML = ''; }
   }
 
+  // --- Where the visitor is ---------------------------------------------------
+  // Two signals, neither of which asks for anything. Coordinates only exist if
+  // they already tapped 📍 (or opened the map with permission standing), and
+  // are stored rounded to about eleven kilometres -- enough to rank parks,
+  // nothing like the fix that produced them. Failing that, the browser's own
+  // timezone: it costs nothing, needs no permission, and reliably separates a
+  // visitor in Europe from one in California.
+  const GEO_KEY = 'pp-geo';
+  const GEO_MAX_AGE = 30 * 86400000;   // people rarely change continent in a month
+  function rememberCoords(lat, lng) {
+    try {
+      localStorage.setItem(GEO_KEY, JSON.stringify({ lat: Math.round(lat * 10) / 10, lng: Math.round(lng * 10) / 10, at: Date.now() }));
+    } catch {}
+  }
+  function nearbyCoords() {
+    try {
+      const g = JSON.parse(localStorage.getItem(GEO_KEY) || 'null');
+      if (g && Number.isFinite(g.lat) && Date.now() - (g.at || 0) < GEO_MAX_AGE) return g;
+    } catch {}
+    return null;
+  }
+  const browserTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } };
+
+  // The popular row, ordered by how close each park plausibly is. The editorial
+  // order survives inside each tier, because a stable sort leaves equals alone.
+  function popularForUser() {
+    const top = (popularParks.length ? popularParks : []).filter((slug) => parks[slug]);
+    const here = nearbyCoords();
+    if (here) {
+      // A park with no coordinates sorts last rather than to a NaN, which
+      // would scatter it anywhere the comparator happened to land.
+      const km = (slug) => (parks[slug].lat == null ? Infinity
+        : haversineKm(here.lat, here.lng, parks[slug].lat, parks[slug].lng));
+      return [...top].sort((a, b) => km(a) - km(b));
+    }
+    const tz = browserTz();
+    if (!tz) return top;
+    const area = tz.split('/')[0];
+    // Same timezone is a strong hint; same part of the world is a weak one.
+    // A visitor in São Paulo lands in the Americas tier, which is right --
+    // ParkPulse covers no Brazilian park, and Orlando is where they go.
+    const rank = (slug) => (parks[slug].tz === tz ? 0 : String(parks[slug].tz || '').split('/')[0] === area ? 1 : 2);
+    return [...top].sort((a, b) => rank(a) - rank(b));
+  }
+
   function renderTabs() {
     const groups = [...new Set(Object.values(parks).map((p) => p.group))];
     if (!dest || !groups.includes(dest)) dest = parks[current]?.group || groups[0];
@@ -1942,11 +1987,22 @@
     // to already know which resort EPCOT belongs to. 65 entries need an order,
     // so the busiest gates sit above the regional groups, and starred parks
     // above those.
-    const optFor = (slug) => `<option value="${slug}" ${slug === current ? 'selected' : ''}>${esc(parks[slug].name)}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</option>`;
+    // A park listed at the top is still a park in Florida. Excluding it from
+    // its own region meant someone browsing by region simply could not find
+    // EPCOT there -- the shortcut had taken it away. Every park appears under
+    // its region now, and again in whichever shortcut applies. Only the first
+    // occurrence carries `selected`, or the browser picks the last one.
+    let marked = false;
+    const optFor = (slug) => {
+      const sel = !marked && slug === current;
+      if (sel) marked = true;
+      return `<option value="${slug}"${sel ? ' selected' : ''}>${esc(parks[slug].name)}${!isPro && slug !== FREE_PARK ? ' 🔒' : ''}</option>`;
+    };
     const all = Object.keys(parks);
     const starred = all.filter((slug) => myDests.has(parks[slug].group));
-    const top = (popularParks.length ? popularParks : []).filter((slug) => parks[slug] && !myDests.has(parks[slug].group));
-    const placed = new Set([...starred, ...top]);
+    // The two shortcuts still do not repeat each other -- a starred park at
+    // the very top does not need to appear again three rows down.
+    const top = popularForUser().filter((slug) => !myDests.has(parks[slug].group));
     // Fixed order, matching the site's park directory. Insertion order put
     // "US & Canada" -- the biggest group by far -- last, behind Asia's four.
     const REGION_ORDER = ['Florida', 'California', 'US & Canada', 'Europe', 'Asia'];
@@ -1955,9 +2011,9 @@
       ...seen.filter((r) => !REGION_ORDER.includes(r))];
     $('dest').innerHTML =
       (starred.length ? `<optgroup label="${tr('★ My parks')}">${starred.map(optFor).join('')}</optgroup>` : '') +
-      (top.length ? `<optgroup label="${tr('Most popular')}">${top.map(optFor).join('')}</optgroup>` : '') +
+      (top.length ? `<optgroup label="${nearbyCoords() ? tr('Nearest to you') : tr('Most popular')}">${top.map(optFor).join('')}</optgroup>` : '') +
       regions.map((reg) => {
-        const ps = all.filter((slug) => (parks[slug].region || 'More parks') === reg && !placed.has(slug));
+        const ps = all.filter((slug) => (parks[slug].region || 'More parks') === reg);
         return ps.length ? `<optgroup label="${reg}">${ps.map(optFor).join('')}</optgroup>` : '';
       }).join('');
     $('dest-star').textContent = myDests.has(dest) ? '★' : '☆';
@@ -4691,6 +4747,7 @@
       }).addTo(mapObj);
       // You-are-here: silent if permission was already granted for Find-my-park.
       navigator.geolocation?.getCurrentPosition((pos) => {
+        rememberCoords(pos.coords.latitude, pos.coords.longitude);
         if (!mapObj) return;
         L.circleMarker([pos.coords.latitude, pos.coords.longitude],
           { radius: 8, color: '#fff', weight: 2.5, fillColor: '#2a7fff', fillOpacity: 1 }).addTo(mapObj);
@@ -5374,6 +5431,8 @@
   $('locate').addEventListener('click', () => {
     if (!navigator.geolocation) { alert('Location is not available on this device.'); return; }
     navigator.geolocation.getCurrentPosition((pos) => {
+      rememberCoords(pos.coords.latitude, pos.coords.longitude);
+      renderTabs();   // the popular row can now be ordered by distance
       let best = null, bestKm = Infinity;
       for (const [slug, p] of Object.entries(parks)) {
         if (p.lat == null) continue;
