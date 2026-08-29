@@ -580,6 +580,36 @@ async function diningGuide(parkName, group, lang) {
   })).filter((r) => r.name);
 }
 
+// The plan email's three authored flavour lines, moved into another language.
+// These are TRANSLATED rather than regenerated on purpose: the fact line makes
+// a factual claim about a real park and the secret is hand-checked advice, so
+// asking for a fresh one per language would multiply the chances of inventing
+// something. Strict JSON so a stray sentence cannot become body copy.
+async function translateFlavor(parkName, lang, parts) {
+  const msg = await client.beta.messages.create({
+    model: LIGHT_MODEL,
+    max_tokens: 700,
+    system: 'You translate short marketing copy for a theme-park app into another language, as STRICT JSON — no markdown, no code fences, no commentary. Input is a JSON object with some of the keys "magic", "tip", "fact". Return an object with exactly the same keys, each value translated. Preserve meaning and every factual claim exactly — never add, drop or embellish a fact. Keep the warm, playful voice of a friendly park fairy. Keep proper nouns (park, land and attraction names) in their official form, untranslated. Keep any numbers and times as they are.',
+    messages: [{ role: 'user', content: `Park: ${parkName}. Target language: ${lang}.\n${JSON.stringify(parts)}` }],
+  }, { timeout: 60000, maxRetries: 1 });
+  noteUsage('park-flavor', msg);
+  if (msg.stop_reason === 'refusal') return null;
+  const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    .replace(/^```json?\s*/i, '').replace(/```\s*$/, '');
+  let out;
+  try { out = JSON.parse(raw); } catch {
+    const a = raw.indexOf('{'); const b = raw.lastIndexOf('}');
+    if (a === -1 || b <= a) return null;
+    try { out = JSON.parse(raw.slice(a, b + 1)); } catch { return null; }
+  }
+  if (!out || typeof out !== 'object') return null;
+  const clean = {};
+  for (const k of ['magic', 'tip', 'fact']) {
+    if (parts[k] && typeof out[k] === 'string' && out[k].trim()) clean[k] = out[k].trim().slice(0, 400);
+  }
+  return Object.keys(clean).length ? clean : null;
+}
+
 // One-shot ride classification for a park: vibe + minimum enjoyment age,
 // strict JSON, generated once per park and cached by the caller.
 // Reconcile wait-feed ride names with OpenStreetMap attraction names when
@@ -704,4 +734,4 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

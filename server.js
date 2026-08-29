@@ -1112,13 +1112,44 @@ async function planKpis(park, stops, profile) {
 // one-liner, the local tip, a bit of lore, and the forecast for the day being
 // planned. Each piece degrades to an empty string rather than to an error, so
 // a park with no seo entry or a day beyond the forecast still gets its email.
-async function planEmailFlavor(park, dateISO) {
+// The three flavour lines are authored in English in data/. The email chrome
+// around them is translated from the dictionaries, so on a Portuguese plan
+// they were the only English left on the page -- Mila greeting the reader in
+// their language and then quoting herself in someone else's.
+//
+// They are translated once per park per language and kept, the same way the
+// dining guide is: a handful of small calls that never repeat, rather than
+// 195 hand-written strings times eighteen languages. English is always the
+// fallback -- a missing translation must cost a reader the flavour, never the
+// email.
+async function planEmailFlavor(park, dateISO, langCode = 'en') {
   const flavor = {
     magic: PARK_MAGIC[park.slug] || '',
     tip: PARK_TIPS[park.slug] || '',
     fact: PARK_FACTS[park.slug] || '',
     weather: null,
   };
+  if (langCode && langCode !== 'en' && LANG_NAMES[langCode]) {
+    const src = {};
+    for (const k of ['magic', 'tip', 'fact']) if (flavor[k]) src[k] = flavor[k];
+    if (Object.keys(src).length) {
+      let hit = null;
+      try { hit = JSON.parse(db.parkflavor.get(park.slug, langCode) || 'null'); } catch {}
+      // A cache entry written before a data/ edit would quietly serve the old
+      // line for ever, so it only counts while it covers the same keys.
+      const covers = hit && Object.keys(src).every((k) => typeof hit[k] === 'string' && hit[k]);
+      if (covers) Object.assign(flavor, hit);
+      else if (consultant.enabled()) {
+        try {
+          const out = await consultant.translateFlavor(park.name, LANG_NAMES[langCode], src);
+          if (out) {
+            db.parkflavor.set(park.slug, langCode, JSON.stringify(out));
+            Object.assign(flavor, out);
+          }
+        } catch (err) { console.log(`flavor translate failed (${park.slug}/${langCode}): ${err.message}`); }
+      }
+    }
+  }
   try {
     const w = await getWeather(park);
     flavor.weather = (w.days || []).find((d) => d.date === dateISO) || null;
@@ -1627,7 +1658,7 @@ async function sweepEveningPlanMail() {
             briefing = await consultant.dayBriefing({ parkName: park.name, group: park.group, day, future: true, stops, kpis, profile, savedMin: row.saved_min || 0, lang: LANG_NAMES[langCode] });
           } catch (err) { console.log(`evening briefing failed: ${err.message}`); }
         }
-        const flavor = await planEmailFlavor(park, row.date);
+        const flavor = await planEmailFlavor(park, row.date, langCode);
         const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true, flavor, lang: langCode });
         const firstRide = stops.find((st) => st.name && st.time);
         const ts = T(langCode);
@@ -3352,7 +3383,7 @@ ${sections}
           } catch (err) { console.log(`day briefing failed: ${err.message}`); }
         }
         const firstName = db.users.get(sess.email)?.name || null;
-        const flavor = await planEmailFlavor(park, planDateRaw || todayAtPark);
+        const flavor = await planEmailFlavor(park, planDateRaw || todayAtPark, langCode);
         const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor, lang: langCode });
         try {
           // "18 attractions, 0 km" went out to a real inbox: the km figure is

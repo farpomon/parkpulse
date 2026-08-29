@@ -88,6 +88,13 @@ db.exec(`
     at TEXT NOT NULL,
     PRIMARY KEY (park, lang)
   );
+  CREATE TABLE IF NOT EXISTS park_flavor (
+    park TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    json TEXT NOT NULL,
+    at TEXT NOT NULL,
+    PRIMARY KEY (park, lang)
+  );
   CREATE TABLE IF NOT EXISTS ride_tags (
     park TEXT PRIMARY KEY,
     json TEXT NOT NULL,
@@ -402,6 +409,15 @@ const dining = {
     db.prepare('INSERT OR REPLACE INTO dining (park, lang, json, at) VALUES (?, ?, ?, ?)').run(park, lang, json, new Date().toISOString()),
 };
 
+// The plan email's three authored flavour lines -- Mila's opening word, her
+// local secret and the park fact -- translated once per park per language and
+// kept. The English originals live in data/ and stay the source of truth.
+const parkflavor = {
+  get: (park, lang) => db.prepare('SELECT json FROM park_flavor WHERE park = ? AND lang = ?').get(park, lang)?.json ?? null,
+  set: (park, lang, json) =>
+    db.prepare('INSERT OR REPLACE INTO park_flavor (park, lang, json, at) VALUES (?, ?, ?, ?)').run(park, lang, json, new Date().toISOString()),
+};
+
 // AI-classified ride tags (vibe + age band) per park, cached.
 const waitreports = {
   // Upsert: a repeat report for the same ride on the same day replaces the
@@ -614,4 +630,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
