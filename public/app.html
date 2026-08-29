@@ -1392,12 +1392,43 @@
     if (!planDate) return null;
     return (lastForecast?.days || []).find((d) => d.date === planDate) || null;
   }
-  // A ride's expected queue on the planned day: its own typical wait, scaled
-  // by how busy that day runs. Null when the feed never gave us a typical --
-  // an honest blank beats a number we made up.
+  // Rough all-day queue by ride class, the same figures the server uses to
+  // rank premade plans. Coarse on purpose: it is the last resort, for a ride
+  // that is shut and in a park with no history behind it.
+  const VIBE_TYPICAL = { thrill: 40, water: 30, family: 25, gentle: 15, show: 12 };
+  const vibeOf = (r) => ((tagsCache[current] || {})[r.name] || {}).vibe;
+  // Where a projection comes from, in descending order of how much it is worth
+  // believing. Measured history only exists for parks we have been watching
+  // for a while, which for most of the 65 is not yet -- and a board of dashes
+  // is not more honest than an estimate, it just hides that the planner was
+  // making one anyway. So: this ride's own measured baseline; failing that
+  // today's posted wait taken back off the hour-of-day curve, which is one
+  // real observation of this queue; failing that its class.
+  function projectionBasis(r) {
+    if (r.typical != null) return 'measured';
+    if (r.open && r.wait > 0 && (HOURLY[parkNow().hour] || 0) > 0) return 'live';
+    if (VIBE_TYPICAL[vibeOf(r)] != null) return 'class';
+    return null;
+  }
+  function typicalBaseline(r) {
+    switch (projectionBasis(r)) {
+      case 'measured': return r.typical;
+      // 40 min at 5pm and 40 min at noon are not the same queue: dividing the
+      // posted wait by the shape of the day turns one reading into a day-long
+      // average the crowd factor can then be applied to.
+      case 'live': return r.wait / HOURLY[parkNow().hour];
+      case 'class': return VIBE_TYPICAL[vibeOf(r)];
+      default: return null;
+    }
+  }
+  // A ride's expected queue on the planned day: its typical wait, scaled by how
+  // busy that day runs. Estimates round to the nearest five, so they do not
+  // wear the false precision of a measured figure.
   function projectedWait(r) {
-    if (r.typical == null) return null;
-    return Math.max(0, Math.round(r.typical * (plannedDay()?.factor || 1)));
+    const base = typicalBaseline(r);
+    if (base == null) return null;
+    const w = base * (plannedDay()?.factor || 1);
+    return r.typical != null ? Math.max(0, Math.round(w)) : Math.max(5, Math.round(w / 5) * 5);
   }
   // The board's own heading carries the day when it is describing one, so the
   // waits below it are never read as "now" by someone who scrolled past the
@@ -1674,12 +1705,12 @@
     if (want <= parkDay()) return;                // the day has already been
     const offered = (lastForecast?.days || []).slice(0, planHorizonDays()).map((d) => d.date);
     if (!offered.includes(want)) return;
-    planDate = want;
+    switchPlanDay(want);
     renderDayOptions();
-    // Same handoff as the itinerary makes: "now" means nothing on a day that
-    // has not started, so a future day opens at the gates.
-    if ($('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
-    buildPlan({ quiet: true });
+    // buildPlan only runs inside switchPlanDay when a plan is already on screen
+    // or saved; an emailed link is usually neither, and the whole point of it
+    // is to arrive at the plan it was written about.
+    if (!$('plan-out').querySelector('.plan')) buildPlan({ quiet: true });
   }
 
   function setupPlanner() {
@@ -2269,6 +2300,22 @@
     return `<div class="clnote">🚧 <b>${tr('Closed long-term:')}</b> ${names}${more}. <span class="cl-sub">${tr('Detected from the feed — these have been shut all day for several days running.')}</span></div>`;
   }
 
+  // Says out loud where the numbers above came from, whenever they are not
+  // this park's own measured history. Estimates are better than dashes, but
+  // only if nobody mistakes them for measurements.
+  function projectionNote() {
+    if (!planningAhead() && !parkClosedNow()) return '';
+    const shown = rides.filter(passesFilter).filter((r) => !shutLongTerm(r));
+    if (!shown.length) return '';
+    const bases = new Set(shown.map(projectionBasis));
+    bases.delete(null);
+    if (!bases.size || (bases.size === 1 && bases.has('measured'))) return '';
+    const line = bases.has('live')
+      ? tr("Projected from today's posted waits and the crowd forecast — this park's own history is still building.")
+      : tr("Projected from each attraction's type — we haven't watched this park long enough for its own numbers yet.");
+    return `<div class="clnote"><span class="cl-sub">📈 ${line}</span></div>`;
+  }
+
   function heightHiddenNote() {
     if (fHeight <= 0) return '';
     const tags = tagsCache[current] || {};
@@ -2293,7 +2340,7 @@
         if (re) re.addEventListener('click', () => load());
         return;
       }
-      $('rides').innerHTML = closureNote() + list.map(rideRow).join('') + heightHiddenNote();
+      $('rides').innerHTML = closureNote() + projectionNote() + list.map(rideRow).join('') + heightHiddenNote();
     } else {
       // Group by land, in feed order (queue-times lists lands geographically),
       // so "what's short near me" reads at a glance.
@@ -2304,7 +2351,7 @@
         lands.get(key).push(r);
       }
       const done = new Set(doneOrder);
-      $('rides').innerHTML = closureNote() + [...lands.entries()].map(([land, list]) =>
+      $('rides').innerHTML = closureNote() + projectionNote() + [...lands.entries()].map(([land, list]) =>
         `<div class="landhead">${esc(land)}</div>` +
         [...list].sort((a, b) => (skips.has(a.name) - skips.has(b.name)) || (done.has(a.name) - done.has(b.name)) || (favs.has(b.name) - favs.has(a.name)) || (b.open - a.open) || (b.wait - a.wait)).map(rideRow).join('')
       ).join('') + heightHiddenNote();
@@ -3901,16 +3948,22 @@
     syncFilterButton();
     renderRides();
   });
-  $('plan-day-sel').addEventListener('change', (e) => {
-    planDate = e.target.value || null;
+  // Everything that has to move when the day being planned changes. Three
+  // callers reach it -- the Day picker, the itinerary, and an emailed link
+  // carrying ?date= -- and they used to move different subsets: the deep link
+  // switched the planner and left the attractions board, the weather and the
+  // skip card describing today, so the plan and the board disagreed about
+  // which day the reader was looking at.
+  function switchPlanDay(date) {
+    planDate = date || null;
     renderWeather(); // the card follows the day being planned
     // A future day has no "now" — start at opening unless they choose otherwise.
     if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
     if (!planDate) $('start-hour').value = 'now';
     renderSkip();
-    // The rest of the board is written in the mode the Day picker just chose:
-    // the crowd line reports that day's forecast rather than this hour, and
-    // every ride's wait becomes a projection rather than a live number.
+    // The rest of the board is written in the mode just chosen: the crowd line
+    // reports that day's forecast rather than this hour, and every ride's wait
+    // becomes a projection rather than a live number.
     renderCrowdline();
     renderRides();
     syncAskMila();
@@ -3923,7 +3976,8 @@
     // that plan straight back rather than making you ask for it again. Both
     // paths are free: the order is local arithmetic and Mila replays from cache.
     if ($('plan-out').querySelector('.plan') || hasPlanFor(current, planDate)) buildPlan({ quiet: true });
-  });
+  }
+  $('plan-day-sel').addEventListener('change', (e) => switchPlanDay(e.target.value || null));
 
   $('pick-all').addEventListener('click', () => {
     const open = rides.filter((r) => r.open && passesFilter(r));
@@ -4533,10 +4587,8 @@
       localStorage.setItem('pp-park', park);
       await load();
     }
-    planDate = date > parkDay() ? date : null;
+    switchPlanDay(date > parkDay() ? date : null);
     renderDayOptions();
-    if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
-    if (!planDate) $('start-hour').value = 'now';
     if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan'); syncTabs('plan'); }
     $('plan-hero-btn').focus({ preventScroll: true });
   }
