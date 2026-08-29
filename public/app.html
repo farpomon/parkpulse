@@ -702,6 +702,14 @@
      halves exactly on the bar's centre line no matter that one side carries
      two tabs and the other three -- and that seam is where Mila floats. */
   .tabbar-side { display: flex; flex: 1 1 0; min-width: 0; }
+  /* Mila floats over the seam, so the tabs either side of it have to get out
+     of the way -- she is 4.4rem wide, and without this the neighbouring label
+     runs underneath her. It shows up first in the languages with long words:
+     "Dining" mostly cleared her, "Restaurantes" did not. Reserving her half-
+     width plus a little air on each inner edge keeps every label in the clear
+     whatever it says. */
+  .tabbar-side:first-of-type { padding-right: 1.95rem; }
+  .tabbar-side:last-of-type  { padding-left: 1.95rem; }
   .tabbar button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: flex-end; gap: .15rem; padding: .35rem .1rem .2rem;
     background: none; border: 0; border-radius: 12px; color: var(--muted);
@@ -742,8 +750,12 @@
      or record button does -- it is the one tap we most want people to find.
      She floats outside the flex flow entirely and centers by position, on the
      seam between the two .tabbar-side halves. */
+  /* Sized to the circle she actually shows, not the slot she used to occupy in
+     the flex flow. The extra width was invisible but still swallowed taps, so
+     it had to be reserved -- and reserving it cost the neighbouring label its
+     last few characters. */
   .tabbar button.mila { position: absolute; left: 50%; transform: translateX(-50%);
-    bottom: calc(.3rem + env(safe-area-inset-bottom)); flex: 0 0 auto; width: 4.4rem; z-index: 1; }
+    bottom: calc(.3rem + env(safe-area-inset-bottom)); flex: 0 0 auto; width: 3.2rem; z-index: 1; }
   .tabbar button.mila .ti { width: 2.6rem; height: 2.6rem; margin-top: -1.15rem; border-radius: 50%;
     border: 2.5px solid var(--brand); background: var(--card); overflow: hidden;
     box-shadow: 0 4px 14px rgba(20, 12, 48, .22); }
