@@ -1032,9 +1032,9 @@
   <p id="ll-info"></p>
   <div id="ll-list"></div>
   <div id="ll-cost"></div>
-  <p class="why" style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .7rem">Prices float daily — confirm the exact price in the official park app before buying.</p>
+  <p class="why" id="ll-price-note" style="color:var(--muted);font-size:.78rem;margin:.2rem 0 .7rem">Prices float daily — confirm the exact price in the official park app before buying.</p>
   <button class="btn wide" id="ll-apply">Update my plan</button>
-  <button class="btn wide" id="ll-ask" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">💬 Ask the AI first</button>
+  <button class="btn wide" id="ll-ask" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">💬 Ask Mila first</button>
   <button class="cancel" id="ll-cancel">Close</button>
 </div>
 
@@ -3782,6 +3782,12 @@
       const el = document.getElementById(id); if (el) el.textContent = tr(k);
     }
     $('sheet-sub').textContent = tr('Get a push alert when the wait drops under:');
+    // The skip-pass sheet: every word of it was static markup, so tapping
+    // "buy a pass" dropped a fully English panel on top of a translated app.
+    $('ll-price-note').textContent = tr('Prices float daily — confirm the exact price in the official park app before buying.');
+    $('ll-apply').textContent = tr('Update my plan');
+    $('ll-ask').textContent = '💬 ' + tr('Ask Mila first');
+    $('ll-cancel').textContent = tr('Close');
     $('build').textContent = tr('Plan it');
     const lunchLabel = document.querySelector('.planbar label.lunch');
     if (lunchLabel) lunchLabel.lastChild.nodeValue = ' ' + tr('lunch');
@@ -4058,17 +4064,25 @@
   function llCostText(n) {
     const skip = parks[current].skip;
     if (!skip || skip.type === 'none' || !n) return '';
+    const band = (a, b) => `${skip.cur}${a}–${skip.cur}${b}`;
+    // Whole sentences rather than glued fragments: "one pass covers all 3"
+    // does not survive being assembled around a number in most languages.
     return skip.type === 'ride'
-      ? `≈ ${skip.cur}${skip.low * n}–${skip.cur}${skip.high * n} per person (${n} × ${skip.cur}${skip.low}–${skip.cur}${skip.high})`
-      : `≈ ${skip.cur}${skip.low}–${skip.cur}${skip.high} per person for the day — one pass covers all ${n}`;
+      ? trf('≈ {total} per person ({n} × {each})', { total: band(skip.low * n, skip.high * n), n, each: band(skip.low, skip.high) })
+      : trf('≈ {price} per person for the day — one pass covers all {n}', { price: band(skip.low, skip.high), n });
   }
 
   function openLlSheet(names) {
     const skip = parks[current].skip;
     if (!skip || skip.type === 'none') return;
+    // The pass keeps its official name -- "Lightning Lane Multi Pass" is what
+    // is printed on the thing they are being asked to buy.
     $('ll-title').textContent = `🎟 ${skip.name}`;
-    const unit = skip.note && skip.note.startsWith('per') ? '' : (skip.type === 'ride' ? ' per ride, per person' : ' per person, per day');
-    $('ll-info').textContent = `${skip.cur}${skip.low}–${skip.cur}${skip.high}${unit} · ${skip.note}`;
+    // Test the ENGLISH note for the "per ..." prefix: it is asking whether the
+    // note already states the unit, and once translated it no longer starts
+    // with "per" in any language but this one.
+    const unit = skip.note && skip.note.startsWith('per') ? '' : (skip.type === 'ride' ? ' ' + tr('per ride, per person') : ' ' + tr('per person, per day'));
+    $('ll-info').textContent = `${skip.cur}${skip.low}–${skip.cur}${skip.high}${unit} · ${tr(skip.note)}`;
     $('ll-list').innerHTML = names.map((n) => `<label class="ll-row"><input type="checkbox" checked data-name="${encodeURIComponent(n)}"> ${n}</label>`).join('');
     const update = () => { $('ll-cost').textContent = llCostText($('ll-list').querySelectorAll('input:checked').length); };
     $('ll-list').querySelectorAll('input').forEach((cb) => cb.addEventListener('change', update));
@@ -4373,7 +4387,7 @@
             <div class="dine-blurb">${esc(r.blurb)}</div>
           </span>
         </div>`).join('')}
-      <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 Ask the AI for a dining plan for today</a></p>`;
+      <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 ${esc(tr('Ask Mila for a dining plan for today'))}</a></p>`;
     const ask = document.getElementById('dine-ask');
     if (ask) ask.addEventListener('click', (e) => {
       e.preventDefault();
