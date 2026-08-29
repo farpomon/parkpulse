@@ -88,6 +88,23 @@
   /* Native language names vary hugely in width; cap the picker so the
      header never overflows, and let the whole row wrap on tiny screens. */
   #lang { max-width: 8.5rem; }
+  .langpick { position: relative; display: inline-flex; flex: 0 0 auto; }
+  .langpick .lp-face { display: inline-flex; align-items: center; gap: .22rem;
+    border: 1px solid var(--border); background: var(--card); color: var(--ink);
+    border-radius: 10px; padding: .4rem .55rem; font-size: .92rem; line-height: 1;
+    white-space: nowrap; }
+  .langpick .lp-face b { font-size: .78rem; font-weight: 800; letter-spacing: .02em; }
+  /* The select carries the interaction; the pill is only its face. opacity:0
+     rather than display:none so it stays focusable and screen-reader visible. */
+  .langpick select { position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; border: 0; cursor: pointer; -webkit-appearance: none; appearance: none; }
+  .langpick:focus-within .lp-face { outline: 2px solid var(--brand); outline-offset: 1px; }
+  /* On the narrowest phones the globe is the part that can go: the code alone
+     still reads as a language, and the park clock needs those pixels more. */
+  @media (max-width: 340px) {
+    .langpick .lp-globe { display: none; }
+    .langpick .lp-face { padding: .4rem .42rem; }
+  }
   .topline { flex-wrap: wrap; row-gap: .35rem; }
   /* The right side stays one row and drops below the logo as a block. It used
      to wrap item by item, which stacked the two icon buttons vertically once
@@ -485,6 +502,7 @@
   .wpin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px;
     border: 2px solid #fff; color: #fff; font-weight: 800; font-size: .76rem; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
   .parkclock { background: var(--brand-soft); color: var(--brand); border-radius: 999px; padding: .1rem .5rem; margin-inline-start: .35rem; white-space: nowrap; }
+  @media (max-width: 460px) { .parkclock .pc-lbl { display: none; } }
   .wxline { font-size: .88rem; color: var(--muted); margin: .1rem 0 .5rem; line-height: 1.5; }
   .wxline b { color: var(--ink); }
   .wpin.step { background: #5b3df5; box-shadow: 0 0 0 3px rgba(91,61,245,.28), 0 2px 8px rgba(0,0,0,.35); }
@@ -855,6 +873,10 @@
       <span class="right">
         <span class="updated" id="updated"></span>
         <span class="updated parkclock" id="parkclock" style="display:none"></span>
+        <span class="langpick" id="langpick">
+          <span class="lp-face" id="lp-face" aria-hidden="true"><span class="lp-globe">🌐</span><b id="lp-code">EN</b></span>
+          <select id="lang-top" title="Language" aria-label="Language"></select>
+        </span>
         <button class="iconbtn" id="locate" title="Find my park" aria-label="Find my park">📍</button>
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
@@ -2701,7 +2723,11 @@
     const sign = off > 0 ? '+' : '−';
     const hrs = Math.round(Math.abs(off) / 60 * 10) / 10;
     el.style.display = '';
-    el.innerHTML = `🕘 ${tr('Park time')} <b>${hourLabel(n.hour + (n.minute >= 30 ? 0.5 : 0))}</b> <span style="opacity:.7">(${sign}${hrs}h)</span>`;
+    // The label is the long half of this pill and the clock face already says
+    // "time"; on a phone it is dropped so the figure that matters survives
+    // rather than the whole thing ellipsising to "Hora do pa...". The title
+    // still spells it out for anyone who hovers or uses a screen reader.
+    el.innerHTML = `🕘 <span class="pc-lbl">${tr('Park time')}</span> <b>${hourLabel(n.hour + (n.minute >= 30 ? 0.5 : 0))}</b> <span style="opacity:.7">(${sign}${hrs}h)</span>`;
     el.title = tr('Your plan is built on park local time.');
   }
 
@@ -3487,15 +3513,31 @@
   // setting on first visit. Non-English retexts the static chrome here
   // (dynamic strings go through tr() at render time).
   (function initLang() {
-    const sel = $('lang');
     const entries = Object.entries(window.PP_LANGS || { en: 'EN' });
     const opt = ([c, n]) => `<option value="${c}" ${c === window.PP_LANG ? 'selected' : ''}>${n}</option>`;
     // The five most-spoken sit in their own group at the top of the list.
-    sel.innerHTML = entries.length > 6
+    const markup = entries.length > 6
       ? `<optgroup label="${tr('Most spoken')}">${entries.slice(0, 5).map(opt).join('')}</optgroup>` +
         `<optgroup label="${tr('More languages')}">${entries.slice(5).map(opt).join('')}</optgroup>`
       : entries.map(opt).join('');
-    sel.addEventListener('change', () => window.PP_SET_LANG(sel.value));
+    // Two ways in, one list: the permanent pill in the header and the row in
+    // the account sheet, which people who already know it still reach for.
+    for (const id of ['lang', 'lang-top']) {
+      const el = $(id);
+      if (!el) continue;
+      el.innerHTML = markup;
+      el.value = window.PP_LANG || 'en';
+      el.addEventListener('change', () => window.PP_SET_LANG(el.value));
+    }
+    // The pill shows the code, not the name -- "Português" would push the
+    // header's icon row off a narrow phone.
+    const face = $('lp-code');
+    if (face) face.textContent = (window.PP_LANG || 'en').slice(0, 2).toUpperCase();
+    const pick = $('langpick');
+    if (pick) {
+      const native = (window.PP_LANGS || {})[window.PP_LANG] || 'English';
+      pick.title = `${tr('Language')}: ${native}`;
+    }
     if (!window.PP_LANG || window.PP_LANG === 'en') return;
     // The dictionary may still be in flight on a first visit; retext once it lands.
     (window.PP_READY || Promise.resolve()).then(applyStaticText);
@@ -3521,6 +3563,14 @@
     }
     $('wiz').setAttribute('aria-label', tr('Your group'));
     $('acct-btn').title = tr('Account');
+    // The sheet's row label was never retexted, so it read "Language" in every
+    // language. Both ways in now say it in the reader's own.
+    const langLbl = $('lang-lbl');
+    if (langLbl) langLbl.textContent = tr('Language');
+    for (const id of ['lang', 'lang-top']) {
+      const el = $(id);
+      if (el) { el.title = tr('Language'); el.setAttribute('aria-label', tr('Language')); }
+    }
     for (const [id, k] of [['tab-today','Attractions'],['tab-plan','Plan'],['tab-dining','Dining'],['tab-map','Map'],['tab-you','You']]) {
       const el = document.getElementById(id); if (el) el.textContent = tr(k);
     }
