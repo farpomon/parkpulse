@@ -2888,7 +2888,7 @@
       }
       const pool = remaining.length ? remaining : (extras.length ? extras : encorePool);
       if (!lunchDone && t >= 12) {
-        steps.push({ time: t, break: '🍔 ' + tr('Lunch break'), why: 'Peak-crowd hour — perfect time to be out of line' });
+        steps.push({ time: t, break: '🍔 ' + tr('Lunch break'), why: tr('Peak-crowd hour — perfect time to be out of line') });
         t += 0.75;
         lunchDone = true;
         continue;
@@ -2900,7 +2900,7 @@
         continue;
       }
       if (!showDone && t >= show.hour - 0.25) {
-        steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: 'Grab a spot a few minutes early' });
+        steps.push({ time: Math.max(t, show.hour), break: `🎆 ${show.name}`, why: tr('Grab a spot a few minutes early') });
         t = show.hour + show.duration;
         showDone = true;
         continue;
