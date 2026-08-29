@@ -2230,10 +2230,17 @@
     const gate = p.open - 0.5;
     const atOpen = first.predicted;
     const usual = Math.round((first.ride.typical || 0) / 5) * 5;
+    // Whole sentences, and the subject is named. This was glued together from
+    // "is about" + a number + "min at open and", which left translators
+    // guessing: Portuguese rendered the bare "is about" as "fica em", so
+    // "Jungle Cruise fica em cerca de 30 min" read as thirty minutes AWAY
+    // rather than thirty minutes of QUEUE. Say "the line for X" and the
+    // number can only mean one thing.
     const worth = usual >= atOpen + 15
-      ? `${esc(first.ride.name)} ${tr('is about')} ${atOpen} ${tr('min at open and')} ${usual} ${tr('min for most of the day')}`
-      : tr('the first hour is the emptiest the park will be all day');
-    return `<div class="ropedrop">🏁 <b>${tr('Be at the gate by')} ${hourLabel(gate)}</b> — ${worth}.
+      ? trf('The line for {ride} is about {open} min when the park opens, against {usual} min for the rest of the day.',
+        { ride: esc(first.ride.name), open: atOpen, usual })
+      : tr('The first hour is the emptiest the park will be all day.');
+    return `<div class="ropedrop">🏁 <b>${trf('Be at the gate by {time}', { time: hourLabel(gate) })}</b><br>${worth}
       <span class="rd-why">${tr('Bag check, the walk in and the queue at the turnstile eat about half an hour, so arriving at opening time means starting your day thirty minutes late.')}</span></div>`;
   }
 
