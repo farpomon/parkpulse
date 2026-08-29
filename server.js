@@ -2482,7 +2482,13 @@ const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const host = String(req.headers.host || '').toLowerCase();
-  if (CANONICAL_HOST && host && host !== CANONICAL_HOST && !host.startsWith('localhost') && !host.startsWith('127.')
+  // The platform health probe arrives on an internal hostname, which is by
+  // definition not the canonical one -- so the redirect below answered it with
+  // a 301. A health check counts anything outside 2xx as a failure, and enough
+  // failures take the whole deployment down. It must never be redirected.
+  const isHealthProbe = url.pathname === '/api/config' || url.pathname === '/healthz';
+  if (CANONICAL_HOST && host && host !== CANONICAL_HOST && !isHealthProbe
+      && !host.startsWith('localhost') && !host.startsWith('127.')
       && (req.method === 'GET' || req.method === 'HEAD')) {
     res.writeHead(301, { location: `https://${CANONICAL_HOST}${req.url}`, 'cache-control': 'public, max-age=3600' });
     return res.end();
