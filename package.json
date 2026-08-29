@@ -13,7 +13,8 @@
     "test:party": "node test/party-change.mjs",
     "test:emaillinks": "node test/email-links.cjs",
     "test:grouplabel": "node test/group-label.mjs",
-    "test:picker": "node test/park-picker.mjs"
+    "test:picker": "node test/park-picker.mjs",
+    "test:datelink": "node test/plan-date-link.mjs"
   },
   "engines": {
     "node": ">=22.5"

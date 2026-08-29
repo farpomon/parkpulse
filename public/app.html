@@ -1638,6 +1638,26 @@
     $('lab-day').style.display = days.length > 1 ? '' : 'none';
   }
 
+  // The day carried in from an emailed plan link. Deferred to here because
+  // only the forecast knows which days this pass can still reach: a link
+  // mailed for next Friday, opened by someone whose Week Pass lapsed, has to
+  // fall back to today rather than plan a day they cannot buy.
+  function applyPendingPlanDate() {
+    const want = pendingPlanDate;
+    if (!want) return;
+    pendingPlanDate = null;                       // one shot, whatever happens
+    if (!isPro) return;                           // free tier plans today only
+    if (want <= parkDay()) return;                // the day has already been
+    const offered = (lastForecast?.days || []).slice(0, planHorizonDays()).map((d) => d.date);
+    if (!offered.includes(want)) return;
+    planDate = want;
+    renderDayOptions();
+    // Same handoff as the itinerary makes: "now" means nothing on a day that
+    // has not started, so a future day opens at the gates.
+    if ($('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
+    buildPlan({ quiet: true });
+  }
+
   function setupPlanner() {
     const p = parks[current] || { open: 9, close: 21 };
     const hours = [];
@@ -1920,6 +1940,7 @@
       const f = await res.json();
       lastForecast = f;
       renderDayOptions();
+      applyPendingPlanDate();
       el.innerHTML = `<div class="fcast">
         <div class="fc-head"><b>${tr('Next 7 days')}</b><span><a href="#" id="trip-link" style="font-weight:800">🧳 ${tr('Trip')}</a> · ${tr('Lightest:')} ${tr(f.best)} · ${f.measuredDays ? f.measuredDays + ' ' + tr('days of measured data') : tr('typical patterns (data accruing)')}</span></div>
         <div class="fc-days">${f.days.slice(0, 7).map((d) => `
@@ -3696,6 +3717,10 @@
 
   let plannerPark = null;
   let pendingPremade = null;
+  // A day carried in from an emailed plan link (/app?park=X&date=Y). Held
+  // until the crowd forecast lands, because that is what says whether the
+  // day is still inside this pass's planning horizon.
+  let pendingPlanDate = null;
 
   // A locked park for a free visitor: the board renders from the park's
   // public premade plan (typical waits — the same numbers the SEO pages
@@ -3818,7 +3843,7 @@
       // A park planned earlier this session gets its plan back for free: the
       // running order recomputes locally and Mila's read replays from cache —
       // no AI call, no jump to the Plan pane.
-      if (planStash[current] && rides.length && !$('plan-out').innerHTML.trim()) {
+      if (planStash[current] && rides.length && !$('plan-out').innerHTML.trim() && !pendingPlanDate) {
         // A tab left open overnight stashes "Thursday" and then Thursday
         // arrives: a stashed date at or before today collapses to Today.
         const stashed = planStash[current].last || null;
@@ -5964,7 +5989,14 @@
   // Accents and punctuation are stripped from both sides, so "epcot" finds
   // EPCOT, "disneysea" finds Tokyo DisneySea, and a Portuguese keyboard's
   // "orlando" still lands on the Florida gates through their resort name.
-  const pfNorm = (v) => String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  //
+  // Letters of every script survive: the old [^a-z0-9] class deleted Japanese,
+  // Korean, Chinese, Arabic and Indic input outright, so a Tokyo visitor
+  // typing the only spelling on their keyboard searched for the empty string.
+  // Marks are kept as well as letters -- NFD splits the dakuten off ド and the
+  // vowel sign off री, and dropping those turned ロンドン into two fragments that
+  // matched トロント. Latin accents are gone by then, one replace earlier.
+  const pfNorm = (v) => String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}\p{M}]+/gu, ' ').trim();
 
   // What people type instead of the official name. Deliberately short: every
   // entry here is a guess about someone's habits, and a wrong guess sends them
@@ -5983,9 +6015,110 @@
     'islands-of-adventure': 'ioa islands', 'universal-studios-florida': 'usf studios',
     'epic-universe': 'epic', 'tokyo-disneysea': 'tds disneysea', 'tokyo-disneyland': 'tdl',
   };
+
+  // Where the parks actually are, said the way the reader would say it. A
+  // Brazilian planning a trip types "Toquio", a Korean types "도쿄", a
+  // Spaniard types "Paris" for the same two gates outside Madrid's timezone.
+  // pfNorm has already stripped the accents, so only spellings that genuinely
+  // differ from the English one need to appear here.
+  const PF_PLACE = {
+    usa: 'usa united states estados unidos eua eeuu etats unis stati uniti vereinigte staaten verenigde staten amerika amerika serikat hoa ky amerika birlesik devletleri アメリカ 米国 미국 美国 США أمريكا الولايات المتحدة अमेरिका আমেরিকা امریکہ அமெரிக்கா అమెరికా',
+    florida: 'florida floride フロリダ 플로리다 佛罗里达 佛州 Флорида فلوريدا फ्लोरिडा ফ্লোরিডা فلوریڈا புளோரிடா ఫ్లోరిడా',
+    california: 'california californie kalifornien kalifornia カリフォルニア 캘리포니아 加州 加利福尼亚 Калифорния كاليفورنيا कैलिफोर्निया ক্যালিফোর্নিয়া کیلیفورنیا கலிபோர்னியா కాలిఫోర్నియా',
+    orlando: 'orlando オーランド 올랜도 奥兰多 Орландо أورلاندو ऑरलैंडो',
+    tampa: 'tampa タンパ 탬파 坦帕 Тампа',
+    anaheim: 'anaheim アナハイム 애너하임 阿纳海姆 Анахайм',
+    losangeles: 'los angeles hollywood ロサンゼルス ハリウッド 로스앤젤레스 할리우드 洛杉矶 好莱坞 Лос Анджелес Голливуд لوس أنجلوس',
+    sandiego: 'san diego サンディエゴ 샌디에이고 圣地亚哥 Сан Диего',
+    sanantonio: 'san antonio サンアントニオ 샌안토니오 圣安东尼奥',
+    canada: 'canada kanada カナダ 캐나다 加拿大 Канада كندا कनाडा',
+    toronto: 'toronto トロント 토론토 多伦多 Торонто',
+    europe: 'europe europa avrupa eropa chau au ヨーロッパ 欧州 유럽 欧洲 Европа أوروبا यूरोप',
+    asia: 'asia asie asien azie asya chau a アジア 아시아 亚洲 Азия آسيا एशिया',
+    france: 'france francia franca frankreich frankrijk fransa prancis phap フランス 프랑스 法国 Франция فرنسا फ्रांस ফ্রান্স فرانس',
+    paris: 'paris parigi parijs パリ 파리 巴黎 Париж باريس पेरिस প্যারিস پیرس',
+    japan: 'japan japao japon giappone jepang nhat ban japonya 日本 일본 Япония اليابان जापान জাপান جاپان',
+    tokyo: 'tokyo tokio toquio 東京 도쿄 东京 Токио طوكيو टोक्यो টোকিও ٹوکیو',
+    osaka: 'osaka 大阪 오사카 Осака أوساكا',
+    korea: 'korea coreia corea coree kore han quoc 韓国 한국 대한민국 韩国 Корея كوريا कोरिया',
+    seoul: 'seoul seul ソウル 서울 首尔 Сеул سيول',
+    china: 'china chine cina cin tiongkok trung quoc 中国 중국 中國 Китай الصين चीन',
+    hongkong: 'hong kong hongkong 香港 홍콩 Гонконг هونغ كونغ हांगकांग',
+    shanghai: 'shanghai xangai changai 上海 상하이 Шанхай شنغهاي शंघाई',
+    uk: 'uk england britain great britain inglaterra angleterre inghilterra engeland ingiltere reino unido royaume uni regno unito vereinigtes konigreich grossbritannien anh イギリス 英国 영국 Англия Великобритания بريطانيا इंग्लैंड',
+    london: 'london londres londra londen ロンドン 런던 伦敦 Лондон لندن लंदन',
+    germany: 'germany alemanha alemania allemagne germania deutschland duitsland almanya jerman duc ドイツ 독일 德国 Германия ألمانيا जर्मनी',
+    netherlands: 'netherlands holland holanda hollande pays bas paesi bassi olanda nederland niederlande hollanda belanda ha lan オランダ 네덜란드 荷兰 Нидерланды Голландия هولندا नीदरलैंड',
+    spain: 'spain espana espanha espagne spagna spanien spanje ispanya spanyol tay ban nha スペイン 스페인 西班牙 Испания إسبانيا स्पेन',
+    barcelona: 'barcelona barcelone barcellona バルセロナ 바르셀로나 巴塞罗那 Барселона',
+    italy: 'italy italia italie italien italya itali ltalia イタリア 이탈리아 意大利 Италия إيطاليا इटली',
+    sweden: 'sweden suecia suede svezia schweden zweden isvec swedia thuy dien スウェーデン 스웨덴 瑞典 Швеция',
+    gothenburg: 'gothenburg goteborg gotemburgo ヨーテボリ 예테보리 哥德堡',
+  };
+
+  // Which of those a park sits in. Resorts carry their city; the region column
+  // carries the country, so every park inherits at least one.
+  const PF_GROUP_PLACES = {
+    'Walt Disney World': ['orlando'],
+    'Universal Orlando': ['orlando'],
+    'SeaWorld Orlando': ['orlando'],
+    'LEGOLAND Florida': ['orlando'],
+    'Busch Gardens Tampa': ['tampa'],
+    'Disneyland (California)': ['anaheim', 'losangeles'],
+    'Universal Hollywood': ['losangeles'],
+    'Six Flags Magic Mountain': ['losangeles'],
+    "Knott's Berry Farm": ['anaheim', 'losangeles'],
+    'SeaWorld San Diego': ['sandiego'],
+    'LEGOLAND California': ['sandiego'],
+    'SeaWorld San Antonio': ['sanantonio'],
+    'Six Flags Fiesta Texas': ['sanantonio'],
+    "Canada's Wonderland": ['canada', 'toronto'],
+    'Disneyland Paris': ['france', 'paris'],
+    'Parc Astérix': ['france', 'paris'],
+    'Futuroscope': ['france'],
+    'Tokyo Disney Resort': ['japan', 'tokyo'],
+    'Universal Studios Japan': ['japan', 'osaka'],
+    'Everland': ['korea', 'seoul'],
+    'Lotte World': ['korea', 'seoul'],
+    'Hong Kong Disneyland': ['china', 'hongkong'],
+    'Shanghai Disneyland': ['china', 'shanghai'],
+    'Europa-Park': ['germany'],
+    'Phantasialand': ['germany'],
+    'Heide Park': ['germany'],
+    'Efteling': ['netherlands'],
+    'Toverland': ['netherlands'],
+    'Alton Towers': ['uk'],
+    'Thorpe Park': ['uk', 'london'],
+    'LEGOLAND Windsor': ['uk', 'london'],
+    'Chessington': ['uk', 'london'],
+    'PortAventura': ['spain', 'barcelona'],
+    'Gardaland': ['italy'],
+    'Liseberg': ['sweden', 'gothenburg'],
+  };
+  const PF_REGION_PLACES = {
+    Florida: ['florida', 'usa'],
+    California: ['california', 'usa'],
+    'US & Canada': ['usa', 'canada'],
+    Europe: ['europe'],
+    Asia: ['asia'],
+  };
+
+  // The chains, in the scripts their visitors read them in. Someone in Seoul
+  // types 디즈니 and means all six Disney resorts, not none of them.
+  const PF_BRAND = [
+    [/disney/i, 'disney ディズニー ディズニーランド ディズニーシー 디즈니 디즈니랜드 迪士尼 迪士尼乐园 Дисней Диснейленд ديزني डिज्नी ডিজনি'],
+    [/universal/i, 'universal universal studios ユニバーサル ユニバ 유니버설 环球影城 环球 Юниверсал يونيفرسال यूनिवर्सल'],
+    [/legoland/i, 'lego legoland レゴランド 레고랜드 乐高乐园 Леголенд ليجولاند'],
+    [/seaworld/i, 'seaworld sea world シーワールド 씨월드 海洋世界 Сиуорлд'],
+    [/six flags/i, 'six flags シックスフラッグス 식스 플래그 六旗'],
+    [/busch gardens/i, 'busch gardens ブッシュガーデン 부시가든'],
+  ];
   const pfHaystack = (slug) => {
     const p = parks[slug];
-    return pfNorm([p.name, p.group, p.region || '', PF_ALIAS_GROUP[p.group] || '', PF_ALIAS_PARK[slug] || ''].join(' '));
+    const places = [...(PF_GROUP_PLACES[p.group] || []), ...(PF_REGION_PLACES[p.region] || [])]
+      .map((k) => PF_PLACE[k] || '');
+    const brands = PF_BRAND.filter(([re]) => re.test(p.name) || re.test(p.group)).map(([, a]) => a);
+    return pfNorm([p.name, p.group, p.region || '', PF_ALIAS_GROUP[p.group] || '', PF_ALIAS_PARK[slug] || '', ...places, ...brands].join(' '));
   };
   let pfIndex = null;   // rebuilt whenever the park list changes
   const pfBuild = () => { pfIndex = Object.keys(parks).map((slug) => ({ slug, hay: pfHaystack(slug), name: pfNorm(parks[slug].name) })); };
@@ -6176,7 +6309,7 @@
       // that park with the persona's picks staged and the plan built locally.
       // Params are consumed once, then cleaned off the address bar.
       const qs = new URLSearchParams(location.search);
-      const qPark = qs.get('park'), qPremade = qs.get('premade');
+      const qPark = qs.get('park'), qPremade = qs.get('premade'), qDate = qs.get('date');
       // ?join=pass: hovering Mila on the public pages sent them here to get
       // a pass. Remember the intent — the picker opens once they're signed
       // in (or right away if they already are).
@@ -6186,8 +6319,14 @@
         dest = parks[qPark].group;
         localStorage.setItem('pp-park', qPark);
       }
-      if (qPark || qPremade || qs.get('join')) history.replaceState(null, '', '/app');
+      if (qPark || qPremade || qDate || qs.get('join')) history.replaceState(null, '', '/app');
       if (qPremade && (isPro || current === FREE_PARK)) pendingPremade = qPremade;
+      // The plan email is written for one particular day, so its link has to
+      // restore that day too -- landing on today with tomorrow's running
+      // order in the other tab is worse than not linking at all. Only the
+      // shape is checked here; whether the day is still reachable is the
+      // forecast's business.
+      if (qDate && /^\d{4}-\d{2}-\d{2}$/.test(qDate)) pendingPlanDate = qDate;
       applyGate();
     } catch {
       parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } };

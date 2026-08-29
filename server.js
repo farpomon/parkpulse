@@ -1198,7 +1198,7 @@ async function planEmailFlavor(park, dateISO, langCode = 'en') {
   return flavor;
 }
 
-function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor = {}, lang = 'en' }) {
+function planEmailHtml({ park, day, dateIso = null, stops, kpis, savedMin, briefing, profile, firstName, future, flavor = {}, lang = 'en' }) {
   const t = T(lang);
   const f = (k, v) => fmt(t(k), v);
   const B = '#5b3df5';
@@ -1213,7 +1213,11 @@ function planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, fi
   // opens whichever park the device happened to be on last, which for anyone
   // planning more than one park is the wrong one -- a plan for Liseberg
   // landing on Magic Kingdom because that is where they were browsing.
-  const APP = `https://www.parkpulse.fun/app${park.slug ? `?park=${encodeURIComponent(park.slug)}` : ''}`;
+  // ...and, for a plan built for a day that has not arrived yet, which day.
+  // Without it the link restores the park and then quietly drops the reader
+  // on today, so the plan they are reading and the plan on screen disagree.
+  const APP = `https://www.parkpulse.fun/app${park.slug ? `?park=${encodeURIComponent(park.slug)}` : ''}`
+    + (park.slug && future && /^\d{4}-\d{2}-\d{2}$/.test(String(dateIso || '')) ? `&amp;date=${dateIso}` : '');
   const E = (v) => esc(noAstral(v));
   // PNG, never webp: Outlook desktop renders webp as a broken-image icon, and
   // this email's whole cast is Mila. Absolute URLs — email clients have no
@@ -1819,7 +1823,7 @@ async function sweepEveningPlanMail() {
           } catch (err) { console.log(`evening briefing failed: ${err.message}`); }
         }
         const flavor = await planEmailFlavor(park, row.date, langCode);
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true, flavor, lang: langCode });
+        const html = planEmailHtml({ park, day, dateIso: row.date, stops, kpis, savedMin: row.saved_min || 0, briefing, profile, firstName: user.name || null, future: true, flavor, lang: langCode });
         const firstRide = stops.find((st) => st.name && st.time);
         const ts = T(langCode);
         const subject = fmt(ts('Tomorrow at {park} — your plan is ready'), { park: park.name })
@@ -3564,7 +3568,7 @@ ${sections}
         }
         const firstName = db.users.get(sess.email)?.name || null;
         const flavor = await planEmailFlavor(park, planDateRaw || todayAtPark, langCode);
-        const html = planEmailHtml({ park, day, stops, kpis, savedMin, briefing, profile, firstName, future, flavor, lang: langCode });
+        const html = planEmailHtml({ park, day, dateIso: planDateRaw, stops, kpis, savedMin, briefing, profile, firstName, future, flavor, lang: langCode });
         try {
           // "18 attractions, 0 km" went out to a real inbox: the km figure is
           // only real when the route was actually measured. Lead with the two

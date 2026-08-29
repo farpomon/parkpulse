@@ -83,6 +83,36 @@ for (const [q, want] of [['orlando', 'Walt Disney World'], ['paris', 'Disneyland
   if (want) check(`  and they are ${want}`, r.rows.some((x) => x.sub.includes(want)), r.rows.map((x) => x.sub).join(' | '));
 }
 
+console.log('\n[searching in your own language]');
+// The field used to strip every character that was not a-z: typing the only
+// spelling on a Japanese, Korean, Chinese, Arabic or Indic keyboard searched
+// for the empty string and found nothing at all.
+const langCases = [
+  ['Tóquio', ['tokyo-disneyland', 'tokyo-disneysea'], 'Portuguese for Tokyo'],
+  ['東京', ['tokyo-disneyland', 'tokyo-disneysea'], 'Japanese for Tokyo'],
+  ['도쿄', ['tokyo-disneyland', 'tokyo-disneysea'], 'Korean for Tokyo'],
+  ['Токио', ['tokyo-disneyland', 'tokyo-disneysea'], 'Russian for Tokyo'],
+  ['टोक्यो', ['tokyo-disneyland', 'tokyo-disneysea'], 'Hindi for Tokyo'],
+  ['Xangai', ['shanghai-disneyland'], 'Portuguese for Shanghai'],
+  ['巴黎', ['disneyland-paris', 'walt-disney-studios-paris', 'parc-asterix'], 'Chinese for Paris'],
+  ['서울', ['everland', 'lotte-world'], 'Korean for Seoul'],
+  ['Alemanha', ['europa-park', 'heide-park', 'phantasialand'], 'Portuguese for Germany'],
+  ['ロンドン', ['thorpe-park', 'legoland-windsor', 'chessington'], 'Japanese for London'],
+];
+for (const [q, want, why] of langCases) {
+  const r = await type(page, q);
+  const got = r.rows.map((x) => x.slug);
+  check(`"${q}" finds parks (${why})`, got.length > 0, 'nothing came back');
+  check(`  and only the right ones`, got.length > 0 && got.every((g) => want.includes(g)), got.join(', '));
+}
+{
+  // The nearest false friend in the set: London decomposes to the same
+  // fragments as Toronto once the dakuten is split off, so a sloppy fix
+  // returns Canada's Wonderland for a London search.
+  const r = await type(page, 'ロンドン');
+  check('Toronto is not London', !r.rows.some((x) => x.slug === 'canadas-wonderland'), r.rows.map((x) => x.slug).join(', '));
+}
+
 console.log('\n[when there is nothing]');
 {
   const r = await type(page, 'zzzznotapark');

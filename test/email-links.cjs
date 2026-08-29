@@ -78,13 +78,40 @@ const EMAIL = 'planner@test.dev';
   check('and every one names the park', links.every((l) => l.includes(`?park=${SLUG}`)), links.filter((l) => !l.includes(`?park=${SLUG}`)).join(', '));
   check('none of them is a bare /app', !links.some((l) => /\/app$/.test(l)), links.join(', '));
   check('the park is the one the plan was for', !/park=magic-kingdom/.test(html));
+  check("a plan for today carries no day, because today is where the link lands anyway", !links.some((l) => l.includes('date=')), links.join(', '));
+
+  // A plan built for a day that has not arrived yet is the case that breaks:
+  // the reader opens the link, the park is restored, and the planner quietly
+  // shows today -- a different running order from the one they are reading.
+  const FUTURE = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  sentMail = null;
+  const res2 = await fetch('http://127.0.0.1:9698/api/plan/email', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-session': token },
+    body: JSON.stringify({
+      park: SLUG, date: FUTURE, planDate: FUTURE,
+      stops: [{ name: 'Balder', time: '10:00', predicted: 25 }, { name: 'Helix', time: '11:00', predicted: 30 }],
+      savedMin: 40, profile: { party: 2, ages: ['adult'], vibes: ['thrill'] },
+    }),
+  });
+  console.log(`\n[sending a plan for ${FUTURE}]`);
+  check('the route accepted it', res2.status === 200, `${res2.status}`);
+  check('an email went out', Boolean(sentMail));
+  const links2 = sentMail ? [...sentMail.html.matchAll(/href="(https:\/\/www\.parkpulse\.fun\/app[^"]*)"/g)].map((m) => m[1]) : [];
+  links2.forEach((l) => console.log(`      link: ${l}`));
+  check('every link still names the park', links2.length >= 2 && links2.every((l) => l.includes(`?park=${SLUG}`)), links2.join(', '));
+  // &amp; in an href, because it is HTML: the parser hands the browser a bare &.
+  check('and now also names the day it was planned for', links2.every((l) => l.includes(`&amp;date=${FUTURE}`)), links2.join(', '));
 
   console.log('\n[the app honours it]');
   // The email is only as good as the deep link it relies on.
   const appHtml = await (await fetch('http://127.0.0.1:9698/app')).text();
   check("the app reads ?park= on boot", /qs\.get\('park'\)/.test(appHtml), 'the deep-link handler is missing');
   check('and stores it as the current park', /localStorage\.setItem\('pp-park', qPark\)/.test(appHtml));
+  check('it reads ?date= too', /qs\.get\('date'\)/.test(appHtml), 'the day half of the deep link is missing');
+  check('holds it until the forecast says the day is still reachable', /applyPendingPlanDate/.test(appHtml));
+  check('and cleans both params off the address bar', /qPark \|\| qPremade \|\| qDate/.test(appHtml));
 
-  console.log(fail ? `\n=== ${fail} failures ===` : '\n=== the email lands on its own park ===');
+  console.log(fail ? `\n=== ${fail} failures ===` : '\n=== the email lands on its own park, on its own day ===');
   process.exit(fail ? 1 : 0);
 })();
