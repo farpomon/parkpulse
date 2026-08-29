@@ -3287,6 +3287,19 @@
       sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => { try { sel.focus({ preventScroll: true }); } catch {} }, 420);
     });
+    // "tick rides off in Park attractions" was a bare href="#rides" with no
+    // handler behind it. #rides lives in another pane, so the hash scrolled to
+    // a hidden element and the link did nothing at all -- the one anchor in the
+    // app without a click handler. Switch pane first, then land on the board.
+    const toRides = $('plan-out').querySelector('#to-rides');
+    if (toRides) toRides.addEventListener('click', (e) => {
+      e.preventDefault();
+      goTab('today');
+      requestAnimationFrame(() => {
+        const el = $('rides');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
     const srOff = $('plan-out').querySelector('#sr-off');
     if (srOff) srOff.addEventListener('click', () => {
       // Explicit false, not delete: undefined would let a solo profile default
