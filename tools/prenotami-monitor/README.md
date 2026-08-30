@@ -56,6 +56,36 @@ and alerts you when the booking page stops saying "no dates available". Ctrl-C
 to stop. Leave it running on a machine that stays awake — a laptop that sleeps
 is not monitoring anything.
 
+### Watching only on certain days
+
+By default it watches continuously. To watch only when your consulate actually
+releases slots:
+
+```bash
+PRENOTAMI_SCHEDULE_DAYS=mon,tue
+PRENOTAMI_SCHEDULE_TIME=15:00
+PRENOTAMI_SCHEDULE_WINDOW_MINUTES=30
+```
+
+The process still runs all week; it sleeps between windows and wakes at the
+appointed time. Nothing else to install — no cron entry, no timer unit.
+
+**A scheduled run is a window, not an instant.** At 15:00 it starts polling at
+your normal interval and keeps going for `WINDOW_MINUTES`, then sleeps until the
+next scheduled day. A single request fired at exactly 15:00:00 would just as
+easily land a minute before the slots appear as after.
+
+The trade-off is the part worth being clear about: with `mon,tue` at 15:00,
+**nothing is watched from Tuesday 15:30 until the following Monday at 15:00** —
+about six days. A slot that opens Thursday morning comes and goes unseen. That
+is the right setting if you know the release schedule, and the wrong one if you
+are guessing. Continuous polling at the default 5 minutes is already gentle
+enough that reducing load is not a reason to schedule.
+
+Times are the machine's local zone, and stay put across DST — 15:00 is 15:00 in
+November too. `PRENOTAMI_QUIET_START` / `_END` are ignored when a schedule is
+set; the schedule already decides when to be awake.
+
 ### Running it unattended
 
 `deploy/` has a service definition for each platform, so the monitor starts on
@@ -209,13 +239,13 @@ If you start getting `challenge` outcomes, run once with
 ## Tests
 
 ```bash
-npm test            # 45 unit tests, no browser needed
+npm test            # 57 unit tests, no browser needed
 npm run test:browser   # drives the booking flow against a fake page
 ```
 
 `npm test` covers what can be decided without a browser: how page text is
 classified, which offered date is acceptable, how alerts are deduplicated, and
-how checks are paced.
+how checks are paced and scheduled.
 
 `npm run test:browser` drives the real booking code against a local page shaped
 like prenotami's form, and asserts the things that would be expensive to get
@@ -239,6 +269,7 @@ src/classify.mjs            what the booking page text means (pure)
 src/booking.mjs             taking a slot — the only module that writes
 src/dates.mjs               which offered date is acceptable (pure)
 src/pacing.mjs              intervals, jitter, backoff, quiet hours (pure)
+src/schedule.mjs            which days and times to be awake (pure)
 src/state.mjs               alert deduplication (pure)
 src/notify.mjs              Telegram / ntfy / webhook / desktop
 src/monitor.mjs             the watch loop

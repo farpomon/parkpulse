@@ -13,8 +13,25 @@ import {
   recordHeartbeat,
 } from './state.mjs';
 import { inQuietHours, nextDelaySeconds } from './pacing.mjs';
+import { nextScheduledRun, isWithinWindow, describeSchedule } from './schedule.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// A scheduled wait can be days long. Sleep in short hops so Ctrl-C is answered
+// in seconds rather than on Tuesday.
+async function sleepUntil(targetMs, isStopping) {
+  while (!isStopping() && Date.now() < targetMs) {
+    await sleep(Math.min(30_000, targetMs - Date.now()));
+  }
+}
+
+function formatWait(ms) {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
 
 export async function checkOnce(config, logger, session) {
   const own = !session;
@@ -94,7 +111,8 @@ export async function watch(config, logger) {
   }
 
   logger.info(
-    `Watching for "${config.serviceLabel}" every ~${Math.round(config.intervalSeconds / 60)} min ` +
+    `Watching for "${config.serviceLabel}" ${describeSchedule(config.schedule)}, ` +
+      `checking every ~${Math.round(config.intervalSeconds / 60)} min ` +
       `(+ up to ${config.jitterSeconds}s jitter). Ctrl-C to stop.`
   );
   if (config.booking.enabled) {
@@ -106,8 +124,23 @@ export async function watch(config, logger) {
     );
   }
 
+  let windowStart = null;
+
   while (!stopping) {
-    if (inQuietHours(config)) {
+    // A schedule replaces continuous polling: sleep until the next named day
+    // and time, then poll normally until the window closes.
+    if (config.schedule.enabled) {
+      if (!isWithinWindow(windowStart, config.schedule.windowMinutes)) {
+        const next = nextScheduledRun(config.schedule);
+        logger.info(
+          `Sleeping until ${next.toLocaleString()} (${formatWait(next.getTime() - Date.now())} away)`
+        );
+        await sleepUntil(next.getTime(), () => stopping);
+        if (stopping) break;
+        windowStart = next;
+        logger.info(`Window open — polling for ${config.schedule.windowMinutes} min`);
+      }
+    } else if (inQuietHours(config)) {
       logger.info('Quiet hours — skipping this check');
       await sleep(15 * 60 * 1000);
       continue;
@@ -139,8 +172,20 @@ export async function watch(config, logger) {
     if (stopping) break;
 
     const delay = nextDelaySeconds(config, consecutiveFailures);
+
+    // Do not idle inside a window that is about to close; go back to sleep and
+    // let the next scheduled run open a fresh one.
+    if (config.schedule.enabled) {
+      const windowEnds = windowStart.getTime() + config.schedule.windowMinutes * 60_000;
+      if (Date.now() + delay * 1000 >= windowEnds) {
+        logger.info('Window closed');
+        windowStart = null;
+        continue;
+      }
+    }
+
     logger.info(`Next check in ${delay}s`);
-    await sleep(delay * 1000);
+    await sleepUntil(Date.now() + delay * 1000, () => stopping);
   }
 
   await session.close();

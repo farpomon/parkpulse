@@ -7,6 +7,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseWeekdays } from './dates.mjs';
+import { parseTimeOfDay } from './schedule.mjs';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -114,6 +115,39 @@ function bookingConfig(env) {
   };
 }
 
+
+// Optional schedule. Absent, the monitor polls continuously. Set, it sleeps
+// until the next named day and time, polls for a window, and sleeps again.
+function scheduleConfig(env) {
+  const days = parseWeekdays(env.PRENOTAMI_SCHEDULE_DAYS);
+  const raw = env.PRENOTAMI_SCHEDULE_TIME?.trim();
+
+  if (!days.length && !raw) {
+    return { enabled: false, days: [], hour: 0, minute: 0, windowMinutes: 0 };
+  }
+  if (!days.length || !raw) {
+    throw new Error(
+      'PRENOTAMI_SCHEDULE_DAYS and PRENOTAMI_SCHEDULE_TIME must be set together ' +
+        '(e.g. "mon,tue" and "15:00"), or both left empty to poll continuously.'
+    );
+  }
+
+  const time = parseTimeOfDay(raw);
+  if (!time) {
+    throw new Error(`PRENOTAMI_SCHEDULE_TIME must be HH:MM in 24-hour time, got "${raw}".`);
+  }
+
+  // A scheduled run polls for a while rather than firing one request: slots
+  // released on the hour are gone within minutes, and a single instantaneous
+  // check either catches that or silently does not.
+  const windowMinutes = num(env, 'PRENOTAMI_SCHEDULE_WINDOW_MINUTES', 30);
+  if (windowMinutes < 1) {
+    throw new Error('PRENOTAMI_SCHEDULE_WINDOW_MINUTES must be at least 1.');
+  }
+
+  return { enabled: true, days, hour: time.hour, minute: time.minute, windowMinutes };
+}
+
 export function loadConfig(env = process.env) {
   const email = env.PRENOTAMI_EMAIL?.trim();
   const password = env.PRENOTAMI_PASSWORD;
@@ -167,6 +201,7 @@ export function loadConfig(env = process.env) {
     unavailablePhrases: list(env, 'PRENOTAMI_UNAVAILABLE_PHRASES', DEFAULT_UNAVAILABLE),
     blockedPhrases: list(env, 'PRENOTAMI_BLOCKED_PHRASES', DEFAULT_BLOCKED),
 
+    schedule: scheduleConfig(env),
     booking: bookingConfig(env),
 
     dataDir: env.PRENOTAMI_DATA_DIR || join(ROOT, 'data'),
