@@ -5960,6 +5960,30 @@
   // --- Account sheet ---
   let acctMode = 'login';
   // Stable per-browser device id — the unit the 5-device account cap counts.
+  // Where this browser first arrived from, remembered once and never
+  // overwritten. Last-touch would credit whatever they typed into the address
+  // bar on the day they finally signed up; first-touch credits whatever
+  // actually found them. Sent with signup so the account can be attributed.
+  const firstTouch = (() => {
+    try {
+      const saved = localStorage.getItem('pp-src');
+      if (saved) return JSON.parse(saved);
+      const q = new URLSearchParams(location.search);
+      const ref = document.referrer || '';
+      let host = '';
+      try { host = ref ? new URL(ref).hostname.replace(/^www\./, '') : ''; } catch {}
+      const mine = location.hostname.replace(/^www\./, '');
+      const src = q.get('utm_source') || (host && host !== mine ? host : '') || 'direct';
+      const t = {
+        source: String(src).toLowerCase().slice(0, 60),
+        medium: String(q.get('utm_medium') || (host && host !== mine ? 'referral' : 'direct')).toLowerCase().slice(0, 24),
+        campaign: String(q.get('utm_campaign') || '').toLowerCase().slice(0, 40),
+      };
+      localStorage.setItem('pp-src', JSON.stringify(t));
+      return t;
+    } catch { return { source: 'direct', medium: 'direct', campaign: '' }; }
+  })();
+
   let deviceId = localStorage.getItem('pp-device');
   if (!deviceId) {
     deviceId = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
@@ -6178,7 +6202,7 @@
       const res = await api('/api/auth/oauth/claim', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code, device: deviceId }),
+        body: JSON.stringify({ code, device: deviceId, src: firstTouch }),
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || tr('Something went wrong.')); return false; }
@@ -6370,7 +6394,9 @@
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value, device: deviceId,
-          ...(acctMode === 'signup' && { name: $('acct-name').value }) }),
+          // Only on signup: this is where the account is born, and first-touch
+          // is stamped once and never revised.
+          ...(acctMode === 'signup' && { name: $('acct-name').value, src: firstTouch }) }),
       });
       const data = await res.json();
       if (!res.ok) { $('acct-err').textContent = data.error || tr('Something went wrong.'); return; }

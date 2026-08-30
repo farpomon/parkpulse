@@ -3050,6 +3050,49 @@ consultant.init({
 // is 301-redirected there, so links, SEO and sessions converge on one origin.
 const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
 
+// --- Where a visitor came from -----------------------------------------------
+// A referrer and a handful of utm parameters, turned into three short strings.
+// No cookie, no fingerprint, nothing that identifies a person -- the row it
+// lands in is a day, a source and a count.
+//
+// Crawlers get their own medium rather than being dropped. "1,645 views" is
+// only worth reading once you know how much of it was Googlebot, and the way
+// to know is to count it separately, not to throw it away.
+const BOT_UA = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora link preview|whatsapp|telegram|discord|preview|monitor|uptime|curl|wget|python-requests|headless|lighthouse|pagespeed|gtmetrix|semrush|ahrefs|mj12|dotbot|petalbot|bytespider|applebot|duckduckbot|yandex|baiduspider|archive\.org/i;
+const SEARCH_HOSTS = /(^|\.)(google|bing|duckduckgo|yahoo|ecosia|baidu|yandex|brave|startpage|qwant)\./i;
+const SOCIAL_HOSTS = /(^|\.)(reddit|facebook|instagram|x|twitter|t|tiktok|pinterest|youtube|linkedin|threads|bsky|mastodon|tumblr|quora)\.(com|co|app|social|net|me)$/i;
+
+function visitSource(req, url) {
+  const ua = String(req.headers['user-agent'] || '');
+  if (!ua || BOT_UA.test(ua)) {
+    // Name the crawler where it is obvious, so the panel says "googlebot"
+    // rather than lumping every robot together.
+    const who = /googlebot/i.test(ua) ? 'googlebot' : /bingbot/i.test(ua) ? 'bingbot'
+      : /applebot/i.test(ua) ? 'applebot' : /ahrefs|semrush|mj12|dotbot/i.test(ua) ? 'seo-crawler'
+      : ua ? 'other-bot' : 'no-user-agent';
+    return { source: who, medium: 'bot', campaign: '' };
+  }
+  const clean = (v, n = 40) => String(v || '').trim().toLowerCase().replace(/[^\w .-]+/g, '').slice(0, n);
+  // An explicit campaign always wins: it is the one thing somebody chose to
+  // tell us, and it survives a referrer being stripped.
+  const utmSource = clean(url.searchParams.get('utm_source'));
+  const utmMedium = clean(url.searchParams.get('utm_medium'), 24);
+  const campaign = clean(url.searchParams.get('utm_campaign'), 40);
+  if (utmSource) return { source: utmSource, medium: utmMedium || 'campaign', campaign };
+
+  const ref = String(req.headers.referer || req.headers.referrer || '');
+  if (!ref) return { source: 'direct', medium: 'direct', campaign };
+  let host = '';
+  try { host = new URL(ref).hostname.replace(/^www\./, ''); } catch { return { source: 'direct', medium: 'direct', campaign }; }
+  // Our own pages linking to each other are not a traffic source.
+  if (host === String(req.headers.host || '').replace(/^www\./, '').split(':')[0]) {
+    return { source: 'internal', medium: 'internal', campaign };
+  }
+  if (SEARCH_HOSTS.test(host)) return { source: host.split('.')[0], medium: 'search', campaign };
+  if (SOCIAL_HOSTS.test(host)) return { source: host.split('.')[0], medium: 'social', campaign };
+  return { source: host.slice(0, 60), medium: 'referral', campaign };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const host = String(req.headers.host || '').toLowerCase();
@@ -3195,6 +3238,18 @@ async function stripePriceCheck() {
         }])),
         uptimeMin: Math.round(process.uptime() / 60),
       },
+      traffic: (() => {
+        const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const t = db.visits.totals(since);
+        return {
+          people: t.people, bots: t.bots,
+          bySource: db.visits.bySource(since).slice(0, 12),
+          bots_by: db.visits.bySource(since, { bots: true }).slice(0, 8),
+          campaigns: db.visits.byCampaign(since).slice(0, 8),
+          landing: db.visits.topLanding(since, 8),
+          signups: db.admin.signupsBySource(30),
+        };
+      })(),
       // The top of the funnel is page views, not people -- hits counts requests
       // and nothing here de-duplicates a visitor. Labelled as views on the
       // dashboard for that reason; the rate below it is the honest one.
@@ -3372,6 +3427,10 @@ async function stripePriceCheck() {
   // no cookies, no identifiers). API and asset requests are not counted.
   if (req.method === 'GET' && /^\/(app|guide|welcome|reset|terms|privacy|parks\/[a-z-]+)?$/.test(url.pathname)) {
     try { db.hits.bump(url.pathname || '/'); } catch {}
+    try {
+      const v = visitSource(req, url);
+      db.visits.bump(etNow().date, v.source, v.medium, v.campaign, (url.pathname || '/').slice(0, 60));
+    } catch {}
   }
 
   // Traffic stats for the operator — requires a dev pass token.
@@ -4252,6 +4311,15 @@ ${sections}
         return sendJson(res, 200, { ok: true });
       }
 
+      // The browser has been carrying this since that visitor's very first page
+      // view. Whitelisted like everything else that arrives from a client.
+      const firstTouchOf = (v) => {
+        const c = (x, n) => String(x || '').trim().toLowerCase().replace(/[^\w .-]+/g, '').slice(0, n);
+        if (!v || typeof v !== 'object') return null;
+        const source = c(v.source, 60);
+        return source ? { source, medium: c(v.medium, 24) || 'direct', campaign: c(v.campaign, 40) } : null;
+      };
+
       if (url.pathname === '/api/auth/signup' || url.pathname === '/api/auth/login') {
         // Loose on purpose: a park's wifi is one address for everybody in the
         // building, so this is set to stop a script and nothing else. The
@@ -4275,6 +4343,8 @@ ${sections}
           } else {
             db.users.create(email, salt, hashPassword(password, salt), 0);
           }
+          const ft = firstTouchOf(parsed.src);
+          if (ft) { try { db.admin.attribute(email, ft.source, ft.medium, ft.campaign); } catch {} }
           db.users.setName(email, asked.name);
           startVerification(email);
           return sendJson(res, 200, { pending: true, email, ...(asked.profane && { nameNote: NAME_NOTE }) });
@@ -4338,6 +4408,13 @@ ${sections}
         const device = typeof parsed.device === 'string' ? parsed.device.trim().slice(0, 64) : '';
         if (!device || device !== held.device) {
           return sendJson(res, 403, { error: 'that sign-in was started on another device' });
+        }
+        if (held.created) {
+          const c = (x, n) => String(x || '').trim().toLowerCase().replace(/[^\w .-]+/g, '').slice(0, n);
+          const src = parsed.src && typeof parsed.src === 'object' ? parsed.src : null;
+          if (src && c(src.source, 60)) {
+            try { db.admin.attribute(held.email, c(src.source, 60), c(src.medium, 24) || 'direct', c(src.campaign, 40)); } catch {}
+          }
         }
         const bound = passFromReq(req);
         if (bound) grantToUser(held.email, bound.plan, bound.exp);

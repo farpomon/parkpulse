@@ -138,6 +138,10 @@
       <p class="muted" style="font-size:.8rem;margin:.9rem 0 .3rem" id="health-summary"></p>
       <div class="overflow"><table id="health-table"></table></div>
     </div>
+    <div class="card" id="traffic-card">
+      <h2>Where it comes from · 30 days</h2>
+      <div id="traffic-body"></div>
+    </div>
     <div class="card" id="funnel-card">
       <h2>Conversion · 30 days</h2>
       <div class="overflow"><table id="funnel-table"></table></div>
@@ -402,6 +406,38 @@ function renderOps(d) {
         + `<td class="muted">${esc(p.error || '')}</td></tr>`).join('')
       + (noId.length ? `<tr><td colspan="4" class="muted">${noId.length} park${noId.length === 1 ? '' : 's'} still have no upstream id resolved.</td></tr>` : '')
     : '<tr><td class="muted">Every park that has been asked for is serving live data.</td></tr>';
+
+  // Traffic. The panel that answers "1,645 views of what, from where".
+  const tr_ = d.traffic || {};
+  const rows = (list, key, extra) => list.length
+    ? '<div class="overflow"><table><tr><th>' + key + '</th><th>Kind</th><th class="n">Views</th>' + (extra || '') + '</tr>'
+      + list.map((r) => `<tr><td>${esc(r.source || r.campaign || r.landing || '—')}</td>`
+        + `<td class="muted">${esc(r.medium || '')}</td><td class="n">${Number(r.n).toLocaleString()}</td></tr>`).join('')
+      + '</table></div>'
+    : '<p class="muted" style="font-size:.85rem">Nothing recorded yet — this starts filling the moment it deploys.</p>';
+  const su = tr_.signups || [];
+  $('traffic-body').innerHTML =
+    `<div class="tiles" style="margin-bottom:.9rem">
+       <div class="tile"><div class="num">${Number(tr_.people || 0).toLocaleString()}</div><div class="lbl">Views by people</div><div class="sub">30 days</div></div>
+       <div class="tile"><div class="num">${Number(tr_.bots || 0).toLocaleString()}</div><div class="lbl">Views by crawlers</div><div class="sub">${
+         (tr_.people + tr_.bots) ? Math.round(tr_.bots / (tr_.people + tr_.bots) * 100) : 0}% of all requests</div></div>
+     </div>`
+    + '<p class="muted" style="font-size:.8rem;margin:.2rem 0 .3rem"><b>People, by source</b></p>'
+    + rows(tr_.bySource || [], 'Source')
+    + (su.length
+        ? '<p class="muted" style="font-size:.8rem;margin:1rem 0 .3rem"><b>Signups, by where that account first arrived from</b></p>'
+          + '<div class="overflow"><table><tr><th>Source</th><th>Kind</th><th class="n">Signups</th><th class="n">Paid</th></tr>'
+          + su.map((r) => `<tr><td>${esc(r.source)}</td><td class="muted">${esc(r.medium)}</td>`
+            + `<td class="n">${r.signups}</td><td class="n">${r.paid}</td></tr>`).join('')
+          + '</table></div>'
+        : '')
+    + ((tr_.campaigns || []).length
+        ? '<p class="muted" style="font-size:.8rem;margin:1rem 0 .3rem"><b>Campaigns</b></p>' + rows(tr_.campaigns, 'Campaign')
+        : '')
+    + ((tr_.bots_by || []).length
+        ? '<p class="muted" style="font-size:.8rem;margin:1rem 0 .3rem"><b>Which crawlers</b></p>' + rows(tr_.bots_by, 'Crawler')
+        : '')
+    + '<p class="muted" style="font-size:.8rem;margin:.9rem 0 0">Add <code>?utm_source=…&amp;utm_medium=…&amp;utm_campaign=…</code> to any link you post and it shows up here by name. Attribution is first-touch: an account is credited to whatever found it, not to whatever it typed on the day it signed up.</p>';
 
   // Funnel. Each step as a share of the one above it.
   const f = d.funnel.d30;

@@ -237,7 +237,33 @@ for (const ddl of [
   // a question count -- it is drawn down by what the answers actually cost,
   // and it does not expire with the day.
   "ALTER TABLE users ADD COLUMN ai_credit_usd REAL DEFAULT 0",
+  // Where this account came from, captured on the visitor's FIRST page view
+  // and carried through to signup. Last-touch would credit whatever they typed
+  // into the address bar on the day they finally paid; first-touch credits
+  // whatever actually found them.
+  "ALTER TABLE users ADD COLUMN signup_source TEXT",
+  "ALTER TABLE users ADD COLUMN signup_medium TEXT",
+  "ALTER TABLE users ADD COLUMN signup_campaign TEXT",
 ]) { try { db.exec(ddl); } catch {} }
+
+db.exec(`
+  -- Where a page view came from. The hits table counts paths and nothing else,
+  -- so "1,645 views, 3 signups" could not be read: no referrer, no campaign,
+  -- and crawlers counted the same as people.
+  --
+  -- Aggregate, not per-visitor: a row is a day, a source and a count. Nothing
+  -- here identifies anybody.
+  CREATE TABLE IF NOT EXISTS visits (
+    day TEXT NOT NULL,
+    source TEXT NOT NULL,      -- google, reddit, direct, a domain, a utm_source
+    medium TEXT NOT NULL,      -- search | social | referral | direct | campaign | bot
+    campaign TEXT NOT NULL DEFAULT '',
+    landing TEXT NOT NULL DEFAULT '',
+    n INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, source, medium, campaign, landing)
+  );
+  CREATE INDEX IF NOT EXISTS visits_day ON visits (day);
+`);
 
 db.exec(`
   -- What each account has actually cost us in model calls, by day.
@@ -690,6 +716,18 @@ const admin = {
       FROM users WHERE created_at >= ?`).get(from);
     return row;
   },
+  // Stamped once, at signup, from the first-touch the browser has been
+  // carrying since that visitor's first page view.
+  attribute: (email, source, medium, campaign) =>
+    db.prepare("UPDATE users SET signup_source = ?, signup_medium = ?, signup_campaign = ? WHERE email = ? AND signup_source IS NULL")
+      .run(source, medium, campaign, email).changes,
+  signupsBySource: (days) => db.prepare(`SELECT
+      COALESCE(NULLIF(signup_source, ''), 'unknown') AS source,
+      COALESCE(NULLIF(signup_medium, ''), 'unknown') AS medium,
+      COUNT(*) AS signups,
+      COALESCE(SUM(plan IS NOT NULL AND plan != ''), 0) AS paid
+    FROM users WHERE created_at >= ? GROUP BY source, medium ORDER BY signups DESC`).all(daysAgoIso(days)),
+
   markFirstPlan: (email) =>
     db.prepare("UPDATE users SET first_plan_at = ? WHERE email = ? AND (first_plan_at IS NULL OR first_plan_at = '')")
       .run(new Date().toISOString(), email).changes,
@@ -808,6 +846,26 @@ const aiusage = {
   totalOn: (day) => db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS usd FROM ai_usage WHERE day = ?').get(day).usd,
 };
 
+const visits = {
+  bump: (day, source, medium, campaign, landing) =>
+    db.prepare(`INSERT INTO visits (day, source, medium, campaign, landing, n) VALUES (?, ?, ?, ?, ?, 1)
+      ON CONFLICT(day, source, medium, campaign, landing) DO UPDATE SET n = n + 1`)
+      .run(day, source, medium, campaign, landing),
+  // People, by where they came from. Crawlers are their own medium and are
+  // asked for separately, because mixing them into a funnel makes the top of
+  // it meaningless.
+  bySource: (from, { bots = false } = {}) => db.prepare(`SELECT source, medium, SUM(n) AS n FROM visits
+      WHERE day >= ? AND medium ${bots ? '=' : '!='} 'bot' GROUP BY source, medium ORDER BY n DESC`).all(from),
+  byCampaign: (from) => db.prepare(`SELECT campaign, source, SUM(n) AS n FROM visits
+      WHERE day >= ? AND campaign != '' GROUP BY campaign, source ORDER BY n DESC`).all(from),
+  totals: (from) => db.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN medium != 'bot' THEN n END), 0) AS people,
+      COALESCE(SUM(CASE WHEN medium = 'bot' THEN n END), 0) AS bots
+    FROM visits WHERE day >= ?`).get(from),
+  topLanding: (from, limit = 8) => db.prepare(`SELECT landing, SUM(n) AS n FROM visits
+      WHERE day >= ? AND medium != 'bot' AND landing != '' GROUP BY landing ORDER BY n DESC LIMIT ?`).all(from, limit),
+};
+
 // The per-account side of the same ledger. Kept separate from ai_usage on
 // purpose: that table is product analytics and is grouped by feature, this one
 // is a budget and has to be readable for one address in one lookup.
@@ -838,4 +896,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, identities, aispend, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

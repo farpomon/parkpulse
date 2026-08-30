@@ -52,12 +52,23 @@ function adminSession() {
   console.log('\n[revenue counts money, and only money]');
   {
     // Two real sales, one dev pass, one retired plan id with no price.
-    db.passes.add('week-pass', 'cs_1', 'a@example.com');    // 49.99
-    db.passes.add('day-pass', 'cs_2', 'b@example.com');     // 24.99
+    // The retired one is read off the live catalogue rather than hardcoded:
+    // this test used to name 'trip-pass' as the priceless example, and then
+    // trip-pass became the $59.99 Trip Pass and the assertion quietly meant
+    // something else.
+    const cfg = await (await fetch(`${B}/api/config`)).json();
+    const sold = cfg.plans.map((p) => p.id);
+    const priced = Object.fromEntries(cfg.plans.map((p) => [p.id, Number(p.usd)]));
+    const retired = ['week-pass', 'month-pass', 'half-year-pass'].find((id) => !sold.includes(id));
+    check('there is a retired id to test with', Boolean(retired), sold.join(','));
+    const [a, b] = [sold[0], sold[1]];
+    db.passes.add(a, 'cs_1', 'a@example.com');
+    db.passes.add(b, 'cs_2', 'b@example.com');
     db.passes.add('dev', null, ADMIN);
-    db.passes.add('trip-pass', null, 'legacy@example.com'); // retired, priceless
+    db.passes.add(retired, null, 'legacy@example.com');
+    const expect = priced[a] + priced[b];
     const r = (await ops()).revenue;
-    check('the catalogue plans are added up', Math.abs(r.month.usd - 74.98) < 0.005, String(r.month.usd));
+    check('the catalogue plans are added up', Math.abs(r.month.usd - expect) < 0.005, `${r.month.usd} vs ${expect}`);
     check('and counted', r.month.sold === 2, String(r.month.sold));
     // The point of the split: a dev pass is not revenue, but pretending it does
     // not exist hides how many free passes are in circulation.
