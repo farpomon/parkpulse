@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "新日子，新计划——你说一声我就开工。",
   "Want the whole day mapped out for this one?": "要把这天整天都规划出来吗？",
   "I can have this day planned in a blink. Shall I?": "我一眨眼就能把这天排好。要吗？",
-  "See passes — one-time, from ${price}": "查看通行证 — 一次性付费，${price} 起"
+  "See passes — one-time, from ${price}": "查看通行证 — 一次性付费，${price} 起",
+  "Too far out to plan": "还太远，暂时排不了",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "我最多可以提前 {n} 天规划某一天。你的行程已保存——临近时我就准备好了。"
 }

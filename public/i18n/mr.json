@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "नवी तारीख, नवी योजना — सांगा आणि मी कामाला लागते.",
   "Want the whole day mapped out for this one?": "या तारखेसाठी संपूर्ण दिवस आखू का?",
   "I can have this day planned in a blink. Shall I?": "हा दिवस मी डोळ्याचे पाते लवते तोवर आखू शकते. आखू का?",
-  "See passes — one-time, from ${price}": "पास पहा — एकदाच शुल्क, ${price} पासून"
+  "See passes — one-time, from ${price}": "पास पहा — एकदाच शुल्क, ${price} पासून",
+  "Too far out to plan": "आखण्यासाठी अजून खूप लांब",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "मी एखादा दिवस जास्तीत जास्त {n} दिवस आधी आखू शकते. तुमचा प्रवास जतन झाला आहे — तारीख जवळ आल्यावर मी तयार असेन."
 }

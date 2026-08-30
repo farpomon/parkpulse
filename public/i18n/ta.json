@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "புதிய தேதி, புதிய திட்டம் — சொல்லுங்கள், நான் தொடங்குகிறேன்.",
   "Want the whole day mapped out for this one?": "இந்தத் தேதிக்கு நாள் முழுவதையும் வரையவா?",
   "I can have this day planned in a blink. Shall I?": "இந்த நாளை ஒரு கண் இமைப்பில் திட்டமிடுவேன். செய்யவா?",
-  "See passes — one-time, from ${price}": "பாஸ்களைப் பார் — ஒரே கட்டணம், ${price} முதல்"
+  "See passes — one-time, from ${price}": "பாஸ்களைப் பார் — ஒரே கட்டணம், ${price} முதல்",
+  "Too far out to plan": "திட்டமிட இன்னும் தொலைவில்",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "ஒரு நாளை அதிகபட்சம் {n} நாட்கள் முன்பே வரையமுடியும். உங்கள் பயணம் சேமிக்கப்பட்டது — நேரம் நெருங்கும்போது தயாராக இருப்பேன்."
 }

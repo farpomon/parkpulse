@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "Tanggal baru, rencana baru — bilang saja dan saya mulai.",
   "Want the whole day mapped out for this one?": "Mau seluruh hari dipetakan untuk tanggal ini?",
   "I can have this day planned in a blink. Shall I?": "Saya bisa merencanakan hari ini dalam sekejap. Mau?",
-  "See passes — one-time, from ${price}": "Lihat pass — sekali bayar, mulai ${price}"
+  "See passes — one-time, from ${price}": "Lihat pass — sekali bayar, mulai ${price}",
+  "Too far out to plan": "Masih terlalu jauh",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Saya bisa menyusun satu hari maksimal {n} hari sebelumnya. Perjalanan Anda tersimpan — saya siap saat waktunya mendekat."
 }

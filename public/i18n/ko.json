@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "새 날짜, 새 계획 — 말씀만 하시면 시작할게요.",
   "Want the whole day mapped out for this one?": "이 날 하루를 통째로 짜 볼까요?",
   "I can have this day planned in a blink. Shall I?": "이 날은 눈 깜짝할 사이에 계획할 수 있어요. 할까요?",
-  "See passes — one-time, from ${price}": "패스 보기 — 1회 결제, ${price}부터"
+  "See passes — one-time, from ${price}": "패스 보기 — 1회 결제, ${price}부터",
+  "Too far out to plan": "아직 너무 멀어요",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "하루 계획은 최대 {n}일 전까지 가능해요. 여행은 저장해 두었어요 — 날짜가 가까워지면 준비할게요."
 }

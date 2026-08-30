@@ -4437,8 +4437,8 @@
   function applyStaticText() {
     applyMarkupText();
     // The gate's price comes from the ladder, never from the sentence: the
-    // last time it lived in the copy it went on advertising $19.99 for weeks
-    // after the ladder had moved.
+    // last time it lived in the copy it went on advertising a retired price
+    // for weeks after the ladder had moved.
     const cheapest = PASS_TIERS.reduce((lo, t) => (Number(t.usd) < Number(lo.usd) ? t : lo), PASS_TIERS[0]);
     const gcta = $('gate-cta');
     if (gcta) gcta.textContent = trf('See passes — one-time, from ${price}', { price: cheapest.usd });
@@ -4925,8 +4925,12 @@
       const dowName = day.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const saved = myPlansIdx[`${d.date}|${d.park}`];
       const past = d.date < today;
+      const horizon = planHorizonDays();
+      const out = Math.round((new Date(d.date + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 86400000);
+      const tooFar = !past && out > horizon;
       const action = past ? ''
         : saved ? `<button class="btn" data-trip-day="${d.park}|${d.date}|1" style="padding:.35rem .7rem;font-size:.82rem">✓ ${tr('Open plan')}</button>`
+        : tooFar ? `<span class="why" style="color:var(--muted);font-size:.78rem;text-align:end;max-width:9rem">${tr('Too far out to plan')}</span>`
         : `<button class="btn" data-trip-day="${d.park}|${d.date}|0" style="padding:.35rem .7rem;font-size:.82rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">${tr('Plan this day')}</button>`;
       return `<div class="step"><span class="time">${dowName}</span><span class="what"><b>${parks[d.park]?.name || d.park}</b>${d.level ? ` <span class="why">· ${tr(['','Light','Mild','Moderate','Busy','Packed'][d.level])}</span>` : ''}${saved ? `<br><span class="why">✓ ${saved.attractions} ${tr('rides planned')}${saved.first ? `, ${tr('first at')} ${esc(saved.first)}` : ''}</span>` : ''}</span>${action}</div>`;
     }).join('');
@@ -4941,6 +4945,12 @@
       current = park; dest = parks[park].group;
       localStorage.setItem('pp-park', park);
       await load();
+    }
+    const horizon = planHorizonDays();
+    const out = Math.round((new Date(date + 'T12:00:00Z') - new Date(parkDay() + 'T12:00:00Z')) / 86400000);
+    if (out > horizon) {
+      toast(trf("I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.", { n: horizon }));
+      return;
     }
     switchPlanDay(date > parkDay() ? date : null);
     renderDayOptions();
@@ -5007,6 +5017,7 @@
       `<button class="btn wide" id="trip-save" style="margin-top:.7rem">💾 Save this trip</button>
        <p class="why" style="color:var(--muted);margin:.4rem 0 0">${sessionToken() ? 'Saved to your account — your magical fairy will plan around it.' : 'Saved on this phone. Log in (👤) to sync it and let your magical fairy use it.'}</p>`;
     document.getElementById('trip-save').addEventListener('click', saveTrip);
+    bindTripDayButtons();
   }
 
   async function saveTrip() {

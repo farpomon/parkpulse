@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "Yeni tarih, yeni plan — bir kelime edin, işe koyulayım.",
   "Want the whole day mapped out for this one?": "Bu tarih için bütün günü çizeyim mi?",
   "I can have this day planned in a blink. Shall I?": "Bu günü göz açıp kapayıncaya kadar planlayabilirim. Yapayım mı?",
-  "See passes — one-time, from ${price}": "Pasları gör — tek seferlik, ${price} başlangıç"
+  "See passes — one-time, from ${price}": "Pasları gör — tek seferlik, ${price} başlangıç",
+  "Too far out to plan": "Planlamak için çok uzak",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Bir günü en fazla {n} gün önceden planlayabilirim. Geziniz kayıtlı — tarih yaklaşınca hazır olacağım."
 }

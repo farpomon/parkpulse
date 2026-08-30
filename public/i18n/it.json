@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "Data nuova, piano nuovo: dimmelo e mi metto all'opera.",
   "Want the whole day mapped out for this one?": "Vuoi tutta la giornata tracciata per questa data?",
   "I can have this day planned in a blink. Shall I?": "Posso pianificare questo giorno in un battito di ciglia. Procedo?",
-  "See passes — one-time, from ${price}": "Vedi i pass — pagamento unico, da ${price}"
+  "See passes — one-time, from ${price}": "Vedi i pass — pagamento unico, da ${price}",
+  "Too far out to plan": "Ancora troppo lontano",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Posso tracciare una giornata fino a {n} giorni prima. Il tuo viaggio è salvato: sarò pronta più vicino alla data."
 }

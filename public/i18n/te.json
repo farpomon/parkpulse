@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "కొత్త తేదీ, కొత్త ప్లాన్ — చెప్పండి, నేను మొదలుపెడతాను.",
   "Want the whole day mapped out for this one?": "ఈ తేదీకి రోజంతా సిద్ధం చేయనా?",
   "I can have this day planned in a blink. Shall I?": "ఈ రోజును కనురెప్ప పాటులో ప్లాన్ చేయగలను. చేయనా?",
-  "See passes — one-time, from ${price}": "పాస్‌లు చూడండి — ఒకసారి చెల్లింపు, ${price} నుండి"
+  "See passes — one-time, from ${price}": "పాస్‌లు చూడండి — ఒకసారి చెల్లింపు, ${price} నుండి",
+  "Too far out to plan": "ప్లాన్ చేయడానికి ఇంకా దూరం",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "ఒక రోజును గరిష్ఠంగా {n} రోజుల ముందు ప్లాన్ చేయగలను. మీ ప్రయాణం సేవ్ అయింది — సమయం దగ్గరపడినప్పుడు సిద్ధంగా ఉంటాను."
 }

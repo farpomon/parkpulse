@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "新しい日付、新しいプラン — ひと言いただければ取りかかります。",
   "Want the whole day mapped out for this one?": "この日を一日まるごと組み立てますか？",
   "I can have this day planned in a blink. Shall I?": "この日ならまばたきの間にプランできます。やりましょうか？",
-  "See passes — one-time, from ${price}": "パスを見る — 買い切り、${price} から"
+  "See passes — one-time, from ${price}": "パスを見る — 買い切り、${price} から",
+  "Too far out to plan": "まだ先すぎます",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "プランを組めるのは{n}日先までです。旅程は保存しました — 近づいたら準備できます。"
 }

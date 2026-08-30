@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "নতুন তারিখ, নতুন পরিকল্পনা — বলুন, আমি কাজে লেগে যাই।",
   "Want the whole day mapped out for this one?": "এই তারিখের জন্য পুরো দিনটা সাজিয়ে দেব?",
   "I can have this day planned in a blink. Shall I?": "চোখের পলকে এই দিনটা সাজিয়ে দিতে পারি। দেব?",
-  "See passes — one-time, from ${price}": "পাস দেখুন — এককালীন, ${price} থেকে"
+  "See passes — one-time, from ${price}": "পাস দেখুন — এককালীন, ${price} থেকে",
+  "Too far out to plan": "এখনও অনেক দূরে",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "আমি সর্বোচ্চ {n} দিন আগে একটি দিন সাজাতে পারি। আপনার ভ্রমণ সংরক্ষিত — সময় ঘনিয়ে এলে আমি প্রস্তুত থাকব।"
 }

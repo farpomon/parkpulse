@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "Новая дата — новый план. Скажите слово, и я возьмусь.",
   "Want the whole day mapped out for this one?": "Расписать для этой даты весь день целиком?",
   "I can have this day planned in a blink. Shall I?": "Я спланирую этот день в мгновение ока. Приступать?",
-  "See passes — one-time, from ${price}": "Посмотреть пропуски — разовая оплата, от ${price}"
+  "See passes — one-time, from ${price}": "Посмотреть пропуски — разовая оплата, от ${price}",
+  "Too far out to plan": "Пока слишком далеко",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Я могу расписать день не более чем за {n} дней. Поездка сохранена — ближе к дате буду готова."
 }

@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "Ngày mới, kế hoạch mới — bạn nói một tiếng là tôi bắt tay ngay.",
   "Want the whole day mapped out for this one?": "Bạn muốn vạch trọn cả ngày cho ngày này chứ?",
   "I can have this day planned in a blink. Shall I?": "Tôi có thể lên kế hoạch ngày này trong chớp mắt. Làm nhé?",
-  "See passes — one-time, from ${price}": "Xem pass — trả một lần, từ ${price}"
+  "See passes — one-time, from ${price}": "Xem pass — trả một lần, từ ${price}",
+  "Too far out to plan": "Còn quá xa để lên kế hoạch",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Tôi có thể vạch một ngày trước tối đa {n} ngày. Chuyến đi đã được lưu — gần đến ngày tôi sẽ sẵn sàng."
 }

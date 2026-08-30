@@ -911,5 +911,7 @@
   "New date, fresh plan — say the word and I'll get to work.": "تاريخ جديد، خطة جديدة — قل كلمة وأبدأ.",
   "Want the whole day mapped out for this one?": "أتريد اليوم كاملاً مرسومًا لهذا التاريخ؟",
   "I can have this day planned in a blink. Shall I?": "أستطيع تخطيط هذا اليوم في لمح البصر. أفعل؟",
-  "See passes — one-time, from ${price}": "شاهد التذاكر — دفعة واحدة، ابتداءً من ${price}"
+  "See passes — one-time, from ${price}": "شاهد التذاكر — دفعة واحدة، ابتداءً من ${price}",
+  "Too far out to plan": "أبعد من أن يُخطَّط الآن",
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "أستطيع رسم يوم قبل {n} يومًا على الأكثر. رحلتك محفوظة — سأكون جاهزة مع اقتراب الموعد."
 }
