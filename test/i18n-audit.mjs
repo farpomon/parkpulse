@@ -191,6 +191,31 @@ await visit('skip-pass sheet', async () => {
 });
 await closeOverlays();
 await visit('account', async () => { await page.evaluate(() => document.getElementById('acct-btn')?.click()); });
+// Signed-in account panel. It is display:none until a session exists, which is
+// why every string in it -- "Account", "Log out everywhere else", "Delete my
+// account", the whole deletion warning -- went years unaudited. Revealing it is
+// enough: these are authored in the markup, so what renders here is what a
+// signed-in reader gets.
+await visit('account · signed in', async () => {
+  await page.evaluate(() => {
+    document.getElementById('acct-sheet')?.classList.add('open');
+    const li = document.getElementById('acct-logged-in');
+    if (li) li.style.display = '';
+    document.getElementById('acct-form')?.setAttribute('style', 'display:none');
+    document.getElementById('acct-switch')?.setAttribute('style', 'display:none');
+    for (const id of ['acct-del', 'acct-wa']) { const e = document.getElementById(id); if (e) e.style.display = ''; }
+  });
+});
+await closeOverlays();
+// The paywall, likewise: shown only with PRO_GATE on and no pass, so its whole
+// sales pitch had never been read back in another language.
+await visit('the pass gate', async () => {
+  await page.evaluate(() => {
+    document.body.classList.add('gated-hard');
+    document.getElementById('gate')?.classList.add('open');
+  });
+});
+await page.evaluate(() => { document.body.classList.remove('gated-hard'); });
 await visit('language sheet', async () => { await page.evaluate(() => document.getElementById('lang-lbl')?.scrollIntoView()); });
 await closeOverlays();
 await visit('trip sheet', async () => { await page.evaluate(() => document.getElementById('trip-sheet')?.classList.add('open')); });
