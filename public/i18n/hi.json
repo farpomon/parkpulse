@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "अगला: {ride}, अभी {n} मिनट।",
   "Next up: {ride} at {t}.": "अगला: {t} बजे {ride}।",
   "Shortest queue right now: {ride}, {n} min.": "अभी सबसे छोटी कतार: {ride}, {n} मिनट।",
-  "Watching the queues for you ✨": "आपके लिए कतारों पर नज़र रख रही हूँ ✨"
+  "Watching the queues for you ✨": "आपके लिए कतारों पर नज़र रख रही हूँ ✨",
+  "✨ Buy more time with Mila": "✨ मिला के साथ और समय खरीदें",
+  "Could not start that — try again.": "शुरू नहीं हो सका — फिर कोशिश करें।",
+  "Mila is all yours again ✨ {n} of her time added.": "मिला फिर से आपकी ✨ उनके {n} का समय जोड़ा गया।"
 }

@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "Berikutnya: {ride}, {n} menit sekarang.",
   "Next up: {ride} at {t}.": "Berikutnya: {ride} pukul {t}.",
   "Shortest queue right now: {ride}, {n} min.": "Antrean terpendek sekarang: {ride}, {n} menit.",
-  "Watching the queues for you ✨": "Memantau antrean untukmu ✨"
+  "Watching the queues for you ✨": "Memantau antrean untukmu ✨",
+  "✨ Buy more time with Mila": "✨ Beli lebih banyak waktu dengan Mila",
+  "Could not start that — try again.": "Tidak bisa memulai — coba lagi.",
+  "Mila is all yours again ✨ {n} of her time added.": "Mila kembali untukmu ✨ {n} waktunya ditambahkan."
 }

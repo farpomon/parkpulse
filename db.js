@@ -233,7 +233,27 @@ for (const ddl of [
   // and actually planning a day are very different things, and nothing
   // recorded the second one.
   "ALTER TABLE users ADD COLUMN first_plan_at TEXT",
+  // Bought extra time with Mila. Dollars of model spend, not minutes and not
+  // a question count -- it is drawn down by what the answers actually cost,
+  // and it does not expire with the day.
+  "ALTER TABLE users ADD COLUMN ai_credit_usd REAL DEFAULT 0",
 ]) { try { db.exec(ddl); } catch {} }
+
+db.exec(`
+  -- What each account has actually cost us in model calls, by day.
+  -- ai_usage answers "what did the product spend"; this answers "what did this
+  -- visitor spend", which is the only question a per-account budget can be
+  -- built on. Counting conversations cannot do it: one question costs six
+  -- times another depending on whether Mila reaches for a tool.
+  CREATE TABLE IF NOT EXISTS ai_spend (
+    email TEXT NOT NULL,
+    day TEXT NOT NULL,
+    usd REAL NOT NULL DEFAULT 0,
+    calls INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (email, day)
+  );
+  CREATE INDEX IF NOT EXISTS ai_spend_day ON ai_spend (day);
+`);
 
 db.exec(`
   -- One row per account per day it was seen. Retention cannot be read off
@@ -351,6 +371,12 @@ const users = {
   setVerifyCode: (email, codeHash, exp) =>
     db.prepare('UPDATE users SET verify_code = ?, verify_exp = ? WHERE email = ?').run(codeHash, exp, email),
   setEveningMail: (email, on) => db.prepare('UPDATE users SET evening_mail = ? WHERE email = ?').run(on, email),
+  // Bought time with Mila. Added on purchase, drawn down as answers are
+  // billed, and never allowed below zero.
+  addAiCredit: (email, usd) =>
+    db.prepare('UPDATE users SET ai_credit_usd = COALESCE(ai_credit_usd, 0) + ? WHERE email = ?').run(usd, email).changes,
+  spendAiCredit: (email, usd) =>
+    db.prepare('UPDATE users SET ai_credit_usd = MAX(0, COALESCE(ai_credit_usd, 0) - ?) WHERE email = ?').run(usd, email).changes,
   markVerified: (email) =>
     db.prepare('UPDATE users SET verified = 1, verify_code = NULL, verify_exp = NULL WHERE email = ?').run(email),
   grant: (email, plan, exp) =>
@@ -593,6 +619,7 @@ const accounts = {
     try {
       run('sessions', 'DELETE FROM sessions WHERE email = ?');
       run('identities', 'DELETE FROM identities WHERE email = ?');
+      run('aiSpend', 'DELETE FROM ai_spend WHERE email = ?');
       run('trips', 'DELETE FROM trips WHERE email = ?');
       run('daystate', 'DELETE FROM daystate WHERE email = ?');
       run('savedPlans', 'DELETE FROM saved_plans WHERE email = ?');
@@ -776,6 +803,26 @@ const aiusage = {
     FROM ai_usage WHERE day >= ? AND day <= ? GROUP BY feature ORDER BY cost_usd DESC`).all(from, to),
   byDay: (from, to) => db.prepare(`SELECT day, SUM(calls) calls, SUM(cost_usd) cost_usd
     FROM ai_usage WHERE day >= ? AND day <= ? GROUP BY day ORDER BY day`).all(from, to),
+  // Everything spent today, across every account and every feature. The
+  // global backstop reads this.
+  totalOn: (day) => db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS usd FROM ai_usage WHERE day = ?').get(day).usd,
+};
+
+// The per-account side of the same ledger. Kept separate from ai_usage on
+// purpose: that table is product analytics and is grouped by feature, this one
+// is a budget and has to be readable for one address in one lookup.
+const aispend = {
+  add: (email, day, usd) =>
+    db.prepare(`INSERT INTO ai_spend (email, day, usd, calls) VALUES (?, ?, ?, 1)
+      ON CONFLICT(email, day) DO UPDATE SET usd = usd + excluded.usd, calls = calls + 1`)
+      .run(email, day, usd),
+  on: (email, day) => db.prepare('SELECT usd, calls FROM ai_spend WHERE email = ? AND day = ?').get(email, day)
+    ?? { usd: 0, calls: 0 },
+  since: (email, from) => db.prepare('SELECT COALESCE(SUM(usd), 0) AS usd, COALESCE(SUM(calls), 0) AS calls FROM ai_spend WHERE email = ? AND day >= ?').get(email, from),
+  // Who is spending the most today -- the dashboard's "is anyone running away
+  // with it" list.
+  topOn: (day, limit = 10) => db.prepare('SELECT email, usd, calls FROM ai_spend WHERE day = ? ORDER BY usd DESC LIMIT ?').all(day, limit),
+  removeAll: (email) => db.prepare('DELETE FROM ai_spend WHERE email = ?').run(email).changes,
 };
 
 // Admin-minted comp-access invites: single-use, optionally bound to an email.
@@ -791,4 +838,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, identities, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, identities, aispend, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

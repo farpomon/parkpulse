@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "Следующее: {ride}, сейчас {n} мин.",
   "Next up: {ride} at {t}.": "Следующее: {ride} в {t}.",
   "Shortest queue right now: {ride}, {n} min.": "Самая короткая очередь сейчас: {ride}, {n} мин.",
-  "Watching the queues for you ✨": "Слежу за очередями для вас ✨"
+  "Watching the queues for you ✨": "Слежу за очередями для вас ✨",
+  "✨ Buy more time with Mila": "✨ Купить больше времени с Милой",
+  "Could not start that — try again.": "Не удалось начать — попробуйте ещё раз.",
+  "Mila is all yours again ✨ {n} of her time added.": "Мила снова с вами ✨ Добавлено {n} её времени."
 }

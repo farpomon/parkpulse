@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "পরেরটি: {ride}, এখন {n} মিনিট।",
   "Next up: {ride} at {t}.": "পরেরটি: {t}-এ {ride}।",
   "Shortest queue right now: {ride}, {n} min.": "এখন সবচেয়ে ছোট লাইন: {ride}, {n} মিনিট।",
-  "Watching the queues for you ✨": "আপনার জন্য লাইনগুলো নজরে রাখছি ✨"
+  "Watching the queues for you ✨": "আপনার জন্য লাইনগুলো নজরে রাখছি ✨",
+  "✨ Buy more time with Mila": "✨ মিলার সঙ্গে আরও সময় কিনুন",
+  "Could not start that — try again.": "শুরু করা গেল না — আবার চেষ্টা করুন।",
+  "Mila is all yours again ✨ {n} of her time added.": "মিলা আবার আপনার ✨ তাঁর {n} সময় যোগ হয়েছে।"
 }

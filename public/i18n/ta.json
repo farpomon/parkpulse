@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "அடுத்தது: {ride}, இப்போது {n} நிமிடம்.",
   "Next up: {ride} at {t}.": "அடுத்தது: {t} மணிக்கு {ride}.",
   "Shortest queue right now: {ride}, {n} min.": "இப்போது குறுகிய வரிசை: {ride}, {n} நிமிடம்.",
-  "Watching the queues for you ✨": "உங்களுக்காக வரிசைகளைக் கவனிக்கிறேன் ✨"
+  "Watching the queues for you ✨": "உங்களுக்காக வரிசைகளைக் கவனிக்கிறேன் ✨",
+  "✨ Buy more time with Mila": "✨ மிலாவுடன் மேலும் நேரம் வாங்குங்கள்",
+  "Could not start that — try again.": "தொடங்க முடியவில்லை — மீண்டும் முயற்சிக்கவும்.",
+  "Mila is all yours again ✨ {n} of her time added.": "மிலா மீண்டும் உங்களுடையவள் ✨ {n} நேரம் சேர்க்கப்பட்டது."
 }

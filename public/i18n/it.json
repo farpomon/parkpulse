@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "Prossima: {ride}, {n} min in questo momento.",
   "Next up: {ride} at {t}.": "Prossima: {ride} alle {t}.",
   "Shortest queue right now: {ride}, {n} min.": "La coda più corta adesso: {ride}, {n} min.",
-  "Watching the queues for you ✨": "Tengo d’occhio le code per te ✨"
+  "Watching the queues for you ✨": "Tengo d’occhio le code per te ✨",
+  "✨ Buy more time with Mila": "✨ Acquista più tempo con Mila",
+  "Could not start that — try again.": "Non è stato possibile avviare: riprova.",
+  "Mila is all yours again ✨ {n} of her time added.": "Mila è di nuovo tutta tua ✨ Aggiunti {n} del suo tempo."
 }

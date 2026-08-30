@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "다음은 {ride}, 지금 {n}분이에요.",
   "Next up: {ride} at {t}.": "다음은 {t}의 {ride}.",
   "Shortest queue right now: {ride}, {n} min.": "지금 가장 짧은 줄: {ride}, {n}분.",
-  "Watching the queues for you ✨": "당신을 위해 대기줄을 지켜보고 있어요 ✨"
+  "Watching the queues for you ✨": "당신을 위해 대기줄을 지켜보고 있어요 ✨",
+  "✨ Buy more time with Mila": "✨ 밀라와의 시간 더 구매하기",
+  "Could not start that — try again.": "시작할 수 없었어요 — 다시 시도해 주세요.",
+  "Mila is all yours again ✨ {n} of her time added.": "밀라가 다시 당신 곁에 ✨ {n}만큼의 시간이 추가됐어요."
 }

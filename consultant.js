@@ -56,8 +56,11 @@ let deps = null;
 function init(d) { deps = d; }
 
 // Every billed API call reports its token usage so the server can price it.
-const noteUsage = (feature, msg) => {
-  try { if (deps && deps.recordUsage && msg && msg.usage) deps.recordUsage(feature, msg.model || MODEL, msg.usage); } catch {}
+// `billTo` is the account this call was made for, when there is one. Catalogue
+// work (ride blurbs, dining, map placement) is written once and shared by
+// everybody, so it passes nothing and lands on the product's bill instead.
+const noteUsage = (feature, msg, billTo) => {
+  try { if (deps && deps.recordUsage && msg && msg.usage) deps.recordUsage(feature, msg.model || MODEL, msg.usage, billTo || null); } catch {}
 };
 
 // Test hook: swap the Anthropic client for a fake.
@@ -599,7 +602,7 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
       }
     }
     const msg = await stream.finalMessage();
-    noteUsage('advisor', msg);
+    noteUsage('advisor', msg, email);
     continuing = false;
 
     if (msg.stop_reason === 'refusal') {
@@ -726,7 +729,7 @@ async function diningGuide(parkName, group, lang) {
 //
 // The facts come in already decided. The model's whole job is to say them the
 // way Mila would, in the visitor's language, in one breath.
-async function liveNudge({ parkName, lang, headline, facts, name }) {
+async function liveNudge({ parkName, lang, headline, facts, name, billTo }) {
   const msg = await client.beta.messages.create({
     model: CATALOG_MODEL,
     max_tokens: 160,
@@ -737,7 +740,7 @@ async function liveNudge({ parkName, lang, headline, facts, name }) {
       + 'No greeting, no preamble, no quotes, no markdown, no emoji at the start. One short sentence.',
     messages: [{ role: 'user', content: JSON.stringify({ park: parkName, language: lang || 'English', visitor: name || null, change: headline, facts }) }],
   }, { timeout: 20000, maxRetries: 1 });
-  noteUsage('live-nudge', msg);
+  noteUsage('live-nudge', msg, billTo);
   if (msg.stop_reason === 'refusal') return null;
   const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   // One sentence, and short enough for a single strip on a phone.

@@ -6863,6 +6863,25 @@
     // and the rail and board already share one scroll.
     if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
     load();
+    // Back from buying more of Mila's time. Credited here rather than by
+    // webhook so the visitor sees it land, and guarded server-side against
+    // being claimed twice -- credit is money, and unlike a pass, granting it
+    // again on a replay would be a gift.
+    (async () => {
+      const q = new URLSearchParams(location.search);
+      const cs = q.get('mila_topup');
+      if (!cs) return;
+      history.replaceState(null, '', '/app');
+      try {
+        const r = await api('/api/mila/topup/claim', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ session_id: cs }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok) toast(trf('Mila is all yours again ✨ {n} of her time added.', { n: '$' + (d.credit ?? 0).toFixed(2) }));
+        else toast(d.error || tr('Something went wrong.'));
+      } catch { toast(tr('Something went wrong.')); }
+    })();
     // Back from Google or Apple: trade the one-time code for a session before
     // anything decides whether to ask this visitor to sign up.
     const signedInByProvider = await claimOauthReturn();

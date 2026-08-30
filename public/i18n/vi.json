@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "Tiếp theo: {ride}, {n} phút ngay lúc này.",
   "Next up: {ride} at {t}.": "Tiếp theo: {ride} lúc {t}.",
   "Shortest queue right now: {ride}, {n} min.": "Hàng chờ ngắn nhất lúc này: {ride}, {n} phút.",
-  "Watching the queues for you ✨": "Đang theo dõi hàng chờ giúp bạn ✨"
+  "Watching the queues for you ✨": "Đang theo dõi hàng chờ giúp bạn ✨",
+  "✨ Buy more time with Mila": "✨ Mua thêm thời gian với Mila",
+  "Could not start that — try again.": "Không thể bắt đầu — hãy thử lại.",
+  "Mila is all yours again ✨ {n} of her time added.": "Mila lại là của bạn ✨ Đã thêm {n} thời gian của cô ấy."
 }

@@ -393,6 +393,16 @@
       });
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         const data = await res.json().catch(() => ({}));
+        // 402 means two different things now. Out of budget is not a locked
+        // feature: the visitor has a pass, they have simply used the day's
+        // allowance, and telling them to go and buy the thing they already
+        // own would be nonsense.
+        if (res.status === 402 && data.milaRest) {
+          const err = new Error(data.error || 'Mila needs a rest.');
+          err.milaRest = data.milaRest;
+          err.topUp = Boolean(data.topUp);
+          throw err;
+        }
         if (res.status === 402) throw new Error('This is a Trip Pass feature — see /#pricing to unlock everything.');
         throw new Error(data.error || 'error');
       }
@@ -441,6 +451,25 @@
       out.textContent = (e.message && e.message.length < 130 && e.message !== 'empty reply')
         ? e.message
         : T()('Your magical fairy is having a moment — try again shortly.');
+      // Out of her day's time, and more can be bought: offer it right here
+      // rather than leaving a refusal on screen with nowhere to go.
+      if (e.milaRest === 'account' && e.topUp) {
+        const b = document.createElement('button');
+        b.className = 'ppc-topup';
+        b.type = 'button';
+        b.textContent = T()('✨ Buy more time with Mila');
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try {
+            const r = await fetch('/api/mila/topup', { method: 'POST', headers: authHeaders(), body: '{}' });
+            const d = await r.json().catch(() => ({}));
+            if (d.url) location.href = d.url;
+            else { b.disabled = false; b.textContent = T()('Could not start that — try again.'); }
+          } catch { b.disabled = false; }
+        });
+        out.appendChild(document.createElement('br'));
+        out.appendChild(b);
+      }
       state.history.pop();
       saveHistory();
     } finally {

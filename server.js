@@ -73,6 +73,14 @@ const STRIPE_PRICES = {
 // are sent to Checkout as inline price_data from the catalog above. Setting
 // STRIPE_PRICE_* env vars remains supported and takes precedence per plan.
 const CHECKOUT_ENABLED = Boolean(STRIPE_KEY);
+// More time with Mila, for somebody who has used their day's allowance and
+// wants to carry on. Sold as dollars of her attention rather than as a number
+// of questions, because that is what it actually is -- and it means a short
+// question costs them less than a long one, which is the honest way round.
+const MILA_TOPUP_PRICE = process.env.STRIPE_PRICE_MILA_TOPUP || '';
+const MILA_TOPUP_USD = Number(process.env.MILA_TOPUP_USD || 2.00);      // credit granted
+const MILA_TOPUP_LABEL = process.env.MILA_TOPUP_LABEL || 'More time with Mila';
+const MILA_TOPUP_ENABLED = Boolean(STRIPE_KEY && MILA_TOPUP_PRICE);
 // MUST be set in production — the ephemeral default invalidates all passes on restart.
 const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
@@ -1722,12 +1730,66 @@ function priceUsage(model, usage) {
   return { input, output, cacheWrite, cacheRead, cost };
 }
 
-function recordUsage(feature, model, usage) {
+// `billTo` is the account the call was made for, when there is one. The
+// catalogue jobs -- ride blurbs, dining guides, map placement -- are written
+// once per park and shared by everybody, so they belong to the product rather
+// than to whoever happened to trigger them, and they pass nothing.
+function recordUsage(feature, model, usage, billTo) {
   // A billed call is a call that worked, which is the only success signal the
   // AI upstream gives us without asking it something on purpose.
   upstream.service('anthropic', true);
-  try { db.aiusage.add(etNow().date, feature, model, priceUsage(model, usage)); }
+  const priced = priceUsage(model, usage);
+  try { db.aiusage.add(etNow().date, feature, model, priced); }
   catch (err) { console.log(`usage record failed: ${err.message}`); }
+  if (!billTo || !priced.cost) return;
+  try {
+    db.aispend.add(billTo, etNow().date, priced.cost);
+    // Bought time is spent before the daily allowance is touched, so somebody
+    // who has paid for more is not also told they have run out.
+    const credit = db.users.get(billTo)?.ai_credit_usd || 0;
+    if (credit > 0) db.users.spendAiCredit(billTo, Math.min(credit, priced.cost));
+  } catch (err) { console.log(`account spend record failed: ${err.message}`); }
+}
+
+// --- What one account may cost ------------------------------------------------
+// Counting questions cannot cap money: a question that makes Mila reach for a
+// tool bills several times over and costs six times one that does not. So the
+// budget is in dollars, and it scales with the pass, because a day-tripper
+// with one day of access is worth being generous to and an annual holder is
+// the same person for three hundred days.
+const AI_BUDGET_USD = Object.assign(Object.create(null), {
+  'day-pass': 2.50, 'trip-pass': 1.00, 'week-pass': 1.00,
+  'month-pass': 0.50, 'half-year-pass': 0.40, 'year-pass': 0.35, 'pro-annual': 0.35,
+  'comp': 0.50, 'dev': 25.00,
+}, (() => {
+  // One env var, so a budget can be moved without a deploy of the table.
+  try { return JSON.parse(process.env.AI_BUDGETS || '{}'); } catch { return {}; }
+})());
+// No pass: the single free plan review a day, and nothing else.
+const AI_BUDGET_FREE = Number(process.env.AI_BUDGET_FREE || 0.20);
+// Everything, everyone, one day. The backstop that does not care how the spend
+// was distributed.
+const AI_GLOBAL_DAILY_USD = Number(process.env.AI_GLOBAL_DAILY_USD || 50);
+
+function aiBudgetFor(user) {
+  const base = (user && accountPassActive(user) && AI_BUDGET_USD[user.plan] !== undefined)
+    ? AI_BUDGET_USD[user.plan] : AI_BUDGET_FREE;
+  return base + (user?.ai_credit_usd || 0);
+}
+
+// Why Mila cannot answer right now, or null if she can. Split from the route so
+// the same answer can be given before a turn and shown on the account sheet.
+function aiBudgetState(email) {
+  const day = etNow().date;
+  const globalSpent = db.aiusage.totalOn(day);
+  if (AI_GLOBAL_DAILY_USD > 0 && globalSpent >= AI_GLOBAL_DAILY_USD) {
+    return { ok: false, reason: 'global', spent: globalSpent, budget: AI_GLOBAL_DAILY_USD };
+  }
+  const user = email ? db.users.get(email) : null;
+  const budget = aiBudgetFor(user);
+  const spent = email ? db.aispend.on(email, day).usd : 0;
+  if (spent >= budget) return { ok: false, reason: 'account', spent, budget, credit: user?.ai_credit_usd || 0 };
+  return { ok: true, spent, budget, credit: user?.ai_credit_usd || 0 };
 }
 
 const usd = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
@@ -3025,6 +3087,21 @@ const server = http.createServer(async (req, res) => {
 
   // Everything the dashboard grew in one request: money, health, funnel,
   // cohorts, what got rate-limited and what deletions are queued.
+  // What is left of this account's day with Mila. Cheap, and the app asks for
+  // it when she declines rather than on every page load.
+  if (req.method === 'GET' && url.pathname === '/api/mila/budget') {
+    const s2 = sessionUser(req);
+    if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+    const b = aiBudgetState(s2.email);
+    return sendJson(res, 200, {
+      ok: b.ok, reason: b.ok ? null : b.reason,
+      spent: Math.round(b.spent * 100) / 100,
+      budget: Math.round(b.budget * 100) / 100,
+      credit: Math.round((b.credit || 0) * 100) / 100,
+      topUp: MILA_TOPUP_ENABLED ? { usd: MILA_TOPUP_USD, label: MILA_TOPUP_LABEL } : null,
+    });
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/admin/ops') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     const aiDay = etNow().date;
@@ -3075,6 +3152,13 @@ const server = http.createServer(async (req, res) => {
       },
       cohorts: db.admin.cohorts(6),
       rateBlocks,
+      // The accounts costing the most today, so a runaway is visible before
+      // it is a line on the invoice.
+      topSpenders: db.aispend.topOn(etNow().date, 8).map((r) => ({
+        email: r.email, usd: Math.round(r.usd * 100) / 100, calls: r.calls,
+        budget: Math.round(aiBudgetFor(db.users.get(r.email)) * 100) / 100,
+      })),
+      budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
       deletions: db.admin.pendingDeletions().map((d) => ({ email: d.email, at: d.delete_at, inDays: Math.round((d.delete_at - now) / 86400000) })),
       alerts: { ceilingUsd: AI_ALERT_USD, multiple: AI_ALERT_MULTIPLE, floorUsd: AI_ALERT_FLOOR_USD, to: AI_REPORT_TO },
     });
@@ -3110,6 +3194,10 @@ const server = http.createServer(async (req, res) => {
       // front instead of inviting a question and rejecting the answer.
       consultantAccess: consultant.enabled() && hasAccess(req),
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
+      // Whether more of Mila's time can be bought at all. Without it a visitor
+      // who runs out is told no with nowhere to go, which is worse than not
+      // mentioning it.
+      milaTopUp: MILA_TOPUP_ENABLED ? { usd: MILA_TOPUP_USD, label: MILA_TOPUP_LABEL } : null,
       // Only the providers that are actually configured, so the buttons never
       // appear for a sign-in that cannot complete.
       oauth: oauth.list(),
@@ -4035,6 +4123,11 @@ ${sections}
         if (accountLimited(req, 'live-nudge', LIVE_NUDGE_CAP, 12 * 3600000)) {
           return sendJson(res, 429, { error: 'enough for now' });
         }
+        // The strip is the least valuable thing Mila spends on, so it is the
+        // first to go quiet: it already has a local line to fall back on, and
+        // a visitor out of budget should keep their questions, not their
+        // decorations.
+        if (!aiBudgetState(s.email).ok) return sendJson(res, 200, { text: null });
         const park = PARKS[parsed.park];
         if (!park) return sendJson(res, 400, { error: 'unknown park' });
         const headline = typeof parsed.headline === 'string' ? parsed.headline.trim().slice(0, 200) : '';
@@ -4045,6 +4138,7 @@ ${sections}
           const text = await consultant.liveNudge({
             parkName: park.name, lang, headline, facts,
             name: db.users.get(s.email)?.name || null,
+            billTo: s.email,
           });
           return sendJson(res, 200, { text: text || null });
         } catch (err) {
@@ -4349,6 +4443,64 @@ ${sections}
         }
       }
 
+      // Buying more of Mila's time. Deliberately its own product rather than a
+      // pass: it grants model credit, not access, and it must not extend a
+      // pass's expiry by accident.
+      if (url.pathname === '/api/mila/topup') {
+        if (!MILA_TOPUP_ENABLED) return sendJson(res, 503, { error: 'top-ups not configured' });
+        const buyer = sessionUser(req);
+        if (!buyer) return sendJson(res, 401, { error: 'log in first' });
+        const origin = OAUTH_REDIRECT_BASE || `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+        try {
+          const session = await stripeApi('/v1/checkout/sessions', {
+            mode: 'payment',
+            'line_items[0][price]': MILA_TOPUP_PRICE,
+            'line_items[0][quantity]': '1',
+            'metadata[kind]': 'mila-topup',
+            'metadata[email]': buyer.email,
+            customer_email: buyer.email,
+            success_url: `${origin}/app?mila_topup={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/app`,
+          });
+          return sendJson(res, 200, { url: session.url });
+        } catch (err) {
+          console.log(`mila top-up checkout: ${err.message}`);
+          return sendJson(res, 502, { error: 'checkout failed' });
+        }
+      }
+
+      if (url.pathname === '/api/mila/topup/claim') {
+        if (!MILA_TOPUP_ENABLED) return sendJson(res, 503, { error: 'top-ups not configured' });
+        const buyer = sessionUser(req);
+        if (!buyer) return sendJson(res, 401, { error: 'log in first' });
+        const sessionId = parsed.session_id;
+        if (typeof sessionId !== 'string' || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return sendJson(res, 400, { error: 'invalid session' });
+        // Credit is money, so unlike a pass this is NOT idempotent by replay:
+        // claiming the same checkout twice must not grant it twice.
+        const spentKey = `topup:${sessionId}`;
+        try {
+          const session = await stripeApi(`/v1/checkout/sessions/${sessionId}`);
+          if (session.payment_status !== 'paid' || session.metadata?.kind !== 'mila-topup') {
+            return sendJson(res, 402, { error: 'payment not completed' });
+          }
+          if (session.metadata?.email && session.metadata.email !== buyer.email) {
+            return sendJson(res, 403, { error: 'that purchase belongs to another account' });
+          }
+          if (db.kv.get(spentKey)) {
+            const already = db.users.get(buyer.email)?.ai_credit_usd || 0;
+            return sendJson(res, 200, { credit: Math.round(already * 100) / 100, already: true });
+          }
+          db.kv.set(spentKey, buyer.email);
+          db.users.addAiCredit(buyer.email, MILA_TOPUP_USD);
+          const credit = db.users.get(buyer.email)?.ai_credit_usd || 0;
+          console.log(`mila top-up: ${buyer.email} +${usd(MILA_TOPUP_USD)}`);
+          return sendJson(res, 200, { credit: Math.round(credit * 100) / 100 });
+        } catch (err) {
+          console.log(`mila top-up claim: ${err.message}`);
+          return sendJson(res, 502, { error: 'could not verify payment' });
+        }
+      }
+
       if (url.pathname === '/api/pass/claim') {
         if (!CHECKOUT_ENABLED) return sendJson(res, 503, { error: 'checkout not configured' });
         const sessionId = parsed.session_id;
@@ -4464,6 +4616,25 @@ ${sections}
         // an hour is far more than a day in a park produces and far less than
         // a loop costs.
         if (accountLimited(req, 'advisor', 40)) return sendJson(res, 429, { error: 'that is a lot of questions at once — give me a minute' });
+        // The money gate, before any of the free-tier bookkeeping. Counting
+        // questions never capped the bill: under the old ceiling alone one
+        // account could run to about $8 a day, which is three Month Passes'
+        // worth of margin from one chatty family.
+        {
+          const who = sessionUser(req);
+          const budget = aiBudgetState(who?.email || null);
+          if (!budget.ok) {
+            return sendJson(res, 402, {
+              error: budget.reason === 'global'
+                ? 'Mila is having a little rest — everything else still works. Try her again shortly.'
+                : 'Mila has given you everything she has for today.',
+              milaRest: budget.reason,
+              spent: Math.round(budget.spent * 100) / 100,
+              budget: Math.round(budget.budget * 100) / 100,
+              topUp: budget.reason === 'account' && MILA_TOPUP_ENABLED,
+            });
+          }
+        }
         let freeWish = null;
         // Free tier: exactly ONE consultant call per day — the review that
         // rides along with the single free "Plan my day" — and only for the

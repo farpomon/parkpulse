@@ -856,5 +856,8 @@
   "Next up: {ride}, {n} min right now.": "A seguir: {ride}, {n} min neste momento.",
   "Next up: {ride} at {t}.": "A seguir: {ride} às {t}.",
   "Shortest queue right now: {ride}, {n} min.": "A fila mais curta agora: {ride}, {n} min.",
-  "Watching the queues for you ✨": "A vigiar as filas por ti ✨"
+  "Watching the queues for you ✨": "A vigiar as filas por ti ✨",
+  "✨ Buy more time with Mila": "✨ Compra mais tempo com a Mila",
+  "Could not start that — try again.": "Não foi possível iniciar — tenta novamente.",
+  "Mila is all yours again ✨ {n} of her time added.": "A Mila é toda tua outra vez ✨ {n} do tempo dela adicionados."
 }
