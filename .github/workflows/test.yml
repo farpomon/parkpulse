@@ -1,0 +1,58 @@
+# The suite, on every push and pull request.
+#
+# Node 22.5+ is required, not preferred: the server uses node:sqlite, which
+# does not exist before it.
+#
+# Chromium comes from `playwright install`, not from a path baked into the
+# tests -- test/browser.mjs resolves it, and falls back to Playwright's own
+# download when PP_CHROMIUM is unset, which is the case here.
+name: tests
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Every test that touches the advisor stubs the client; this only has to
+      # be non-empty so consultant.enabled() is true.
+      ANTHROPIC_API_KEY: stub
+      PASS_SECRET: testsecret
+      # Keep the browsers next to the checkout so actions/cache can hold them.
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Cache Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.pw-browsers
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx --yes playwright install --with-deps chromium
+
+      # --with-deps is skipped on a cache hit, so the shared libraries the
+      # browser links against still have to be there.
+      - name: System libraries for Chromium
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx --yes playwright install-deps chromium
+
+      - run: npm test

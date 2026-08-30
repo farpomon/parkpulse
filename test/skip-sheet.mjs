@@ -14,7 +14,7 @@ const RIDES = Array.from({ length: 16 }, (_, i) => ({
 }));
 let fail = 0;
 const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== undefined ? ' — ' + d : ''}`); } else console.log(`  ok   ${l}`); };
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 
 // Anything left in English is a leak. Words that are the same in every
 // language (the pass's official name, ride names, numbers) are not.

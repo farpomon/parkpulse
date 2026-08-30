@@ -3,8 +3,7 @@
 // visitor would: type a fragment, an abbreviation, a resort, a region, a
 // misspelling without accents -- and check the right park comes back and
 // switching to it actually works.
-const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-const chromium = pw.chromium || pw.default?.chromium;
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -13,7 +12,7 @@ const B = process.env.PP_BASE || 'http://127.0.0.1:9695';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 let fail = 0;
 const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== undefined ? ' — ' + d : ''}`); } else console.log(`  ok   ${l}`); };
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 
 async function open(lang = 'en') {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });

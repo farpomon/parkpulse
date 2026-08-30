@@ -9,8 +9,7 @@
 // Simulates that state directly: seed the mirror with a dictionary missing the
 // newest keys, load the app, and require every one of them to end up
 // translated without a second reload.
-const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-const chromium = pw.chromium || pw.default?.chromium;
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -37,7 +36,7 @@ const missing = WRITE_ONCE.filter((k) => fresh[k] === undefined);
 const stale = { ...fresh };
 for (const k of WRITE_ONCE) delete stale[k];
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 
 async function load(seedMirror) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });

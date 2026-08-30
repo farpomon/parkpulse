@@ -4,10 +4,9 @@
 // need it -- the one coming back on the day their party changed -- was the one
 // who no longer had it. This checks the standing label is there, points at the
 // chip, cannot be dismissed, and survives the sheet it opens.
-const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-const chromium = pw.chromium || pw.default?.chromium;
+import { launchBrowser } from './browser.mjs';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 let fail = 0;
 const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== undefined ? ' — ' + d : ''}`); } else console.log(`  ok   ${l}`); };
 for (const [lang, w] of [['pt', 390], ['en', 390], ['de', 320]]) {

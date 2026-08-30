@@ -6,6 +6,7 @@
 //
 // The section is also the one place on the page where an untranslated block
 // would be self-refuting, so the translated landings are checked too.
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -51,11 +52,18 @@ check('it sits above the screenshots, not at the bottom of the page',
   home.indexOf('id="languages"') < home.indexOf('<!--SHOTS-->') || home.indexOf('id="languages"') < home.indexOf('See it before you buy'));
 check('the VIP list names it too', /In your language/.test(home));
 
-console.log('\n[the translated landings]');
-for (const lang of ['pt', 'fr', 'es']) {
-  const res = await fetch(`${B}/${lang}`);
-  if (!res.ok) { console.log(`  --   /${lang} is not offered (${res.status})`); continue; }
-  const page = await res.text();
+// Which languages the landing page actually serves. Asking beats a hardcoded
+// list: a language is added by filling its dictionary, and the test should
+// start covering it the moment it does, not the next time someone edits this.
+const LANDING_CODES = ['es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'];
+const shipped = [];
+for (const code of LANDING_CODES) {
+  try { if ((await fetch(`${B}/${code}`)).ok) shipped.push(code); } catch {}
+}
+console.log(`\n[the translated landings: ${shipped.join(' ') || 'none'}]`);
+check('at least one language ships besides English', shipped.length > 0);
+for (const lang of shipped) {
+  const page = await (await fetch(`${B}/${lang}`)).text();
   const sec = page.match(/<section class="sec" id="languages">([\s\S]*?)<\/section>/)?.[1] || '';
   const h2 = sec.match(/<h2>([\s\S]*?)<\/h2>/)?.[1]?.trim();
   const lead = sec.match(/<p class="lead">([\s\S]*?)<\/p>/)?.[1]?.trim();
@@ -68,11 +76,9 @@ for (const lang of ['pt', 'fr', 'es']) {
 
 // Layout: the one name that wraps is Bahasa Indonesia, and a wrapped card must
 // not leave its row taller than the rest or push the page sideways.
-if (process.env.PP_PLAYWRIGHT || !process.env.PP_NO_BROWSER) {
+if (!process.env.PP_NO_BROWSER) {
   console.log('\n[how it lays out]');
-  const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-  const chromium = pw.chromium || pw.default?.chromium;
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchBrowser();
   for (const [label, width] of [['desktop', 1280], ['tablet', 760], ['phone', 390]]) {
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: 'block' });
     const page = await ctx.newPage();

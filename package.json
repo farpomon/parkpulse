@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
+    "test": "node scripts/run-tests.mjs",
     "test:cache": "node test/prompt-cache.cjs",
     "test:card": "node test/plan-card.cjs",
     "test:i18n": "node test/i18n-audit.mjs",
@@ -26,5 +27,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.0"
   }
 }

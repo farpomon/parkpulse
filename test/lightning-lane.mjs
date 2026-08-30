@@ -2,8 +2,7 @@
 // until now the app forgot it the moment the page reloaded. This drives the
 // whole round trip: apply it, hear Mila say so, see it stated on the plan,
 // reload, take it back off -- and check the advisor is told about it.
-const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-const chromium = pw.chromium || pw.default?.chromium;
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -17,7 +16,7 @@ const RIDES = Array.from({ length: 16 }, (_, i) => ({
 }));
 let fail = 0;
 const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== undefined ? ' — ' + d : ''}`); } else console.log(`  ok   ${l}`); };
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 
 const consults = [];
 async function open(lang = 'en') {
@@ -41,6 +40,18 @@ async function open(lang = 'en') {
   return { ctx, page, errs };
 }
 const buildPlan = async (page) => {
+  // Plan a whole day, not whatever is left of this one. With "now" as the
+  // arrival this test passed in the morning and failed after about six in the
+  // evening: only two or three slots fit before closing, and the planner
+  // spends them on the biggest headliners -- which are exactly the rides a
+  // Multi Pass does not cover. Nothing wrong with that behaviour; it just
+  // meant the assertion was really about the wall clock.
+  await page.evaluate(() => {
+    const s = document.getElementById('start-hour');
+    const open = [...s.options].map((o) => Number(o.value)).filter(Number.isFinite);
+    if (open.length) { s.value = String(Math.min(...open)); s.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+  await page.waitForTimeout(200);
   await page.evaluate(() => document.querySelectorAll('#rides input[type=checkbox][data-name]').forEach((c) => { if (!c.disabled && !c.checked) c.click(); }));
   await page.evaluate(() => document.querySelector('.tabbar button[data-tab="plan"]')?.click());
   await page.waitForTimeout(400);

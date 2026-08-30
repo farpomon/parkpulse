@@ -9,8 +9,7 @@
 //   node test/i18n-audit.mjs --lang ja
 // playwright-core is a developer tool, not a dependency of the app -- resolve
 // it from wherever it is installed rather than pinning it into package.json.
-const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-const chromium = pw.chromium || pw.default?.chromium;
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -130,7 +129,7 @@ function record(screen, items) {
   }
 }
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
 const page = await ctx.newPage();
 const errs = [];

@@ -10,13 +10,12 @@
 //      read and both characters' dialogue, all of which live inside <script>
 //      and so miss the markup translator unless their strings are dictionary
 //      keys.
-const pw = await import(process.env.PP_PLAYWRIGHT || 'playwright-core');
-const chromium = pw.chromium || pw.default?.chromium;
+import { launchBrowser } from './browser.mjs';
 
 const B = process.env.PP_BASE || 'http://127.0.0.1:9695';
 let fail = 0;
 const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== undefined ? ' — ' + d : ''}`); } else console.log(`  ok   ${l}`); };
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const browser = await launchBrowser();
 
 async function app(seedLang, width = 390) {
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: 'block' });
@@ -103,9 +102,16 @@ check('the English page still renders its pass ladder', en.plans.length >= 5, `$
 check('and still highlights the popular one', en.hi === 1, String(en.hi));
 check('the section names both characters', /Mila/.test(en.lead) && /Pip/.test(en.lead), en.lead.slice(0, 90));
 
-for (const lang of ['fr', 'pt', 'es']) {
-  const res = await fetch(`${B}/${lang}`);
-  if (!res.ok) { console.log(`  --   /${lang} is not offered (${res.status})`); continue; }
+// Which languages the landing page actually serves. Asking beats a hardcoded
+// list: a language is added by filling its dictionary, and the test should
+// start covering it the moment it does, not the next time someone edits this.
+const LANDING_CODES = ['es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'];
+const shipped = [];
+for (const code of LANDING_CODES) {
+  try { if ((await fetch(`${B}/${code}`)).ok) shipped.push(code); } catch {}
+}
+check('at least one language ships besides English', shipped.length > 0);
+for (const lang of shipped) {
   const { out, errs } = await snap('/' + lang);
   console.log(`  /${lang}: ${out.plans.map((p) => p.label).join(' · ')}`);
   check(`/${lang} pass names are translated`, out.plans.every((p, i) => p.label !== en.plans[i].label),
