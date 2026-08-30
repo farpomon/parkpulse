@@ -331,6 +331,11 @@
   .planask .pa-btns button { border: 1.5px solid var(--brand); background: var(--bg); color: var(--brand);
     border-radius: 999px; font: inherit; font-weight: 700; font-size: .8rem; padding: .35rem .7rem; cursor: pointer; }
   .planask .pa-btns button:active { transform: scale(.97); }
+  /* The new-day offer wears the same card as her other asides, with the first
+     button filled: it is the whole point of the card, not one of two equals. */
+  .planask.newday { border: 1.5px solid var(--brand); }
+  .planask .nd-who { color: var(--muted); font-size: .78rem; margin-top: .25rem; }
+  .planask #nd-go { background: var(--brand); color: #fff; border-color: var(--brand); }
   /* Same card language as .planask, but the whole thing is the tap target --
      there is only one thing to do here (open the chat), not a choice of two. */
   .askmila { display: flex; gap: .7rem; align-items: center; width: 100%;
@@ -1213,24 +1218,24 @@
      pass. The board stays half-visible behind a fade as the teaser. -->
 <div id="gatecover"><div class="gate-bar">
   <img src="/img/mila/mila-welcome-320.webp" alt="">
-  <span><b>Preview only.</b> The full board — and Mila — come with a pass.</span>
-  <button class="btn-see" id="gate-open">See what you're missing</button>
+  <span data-i18n-html="&lt;b&gt;Preview only.&lt;/b&gt; The full board — and Mila — come with a pass."><b>Preview only.</b> The full board — and Mila — come with a pass.</span>
+  <button class="btn-see" id="gate-open" data-i18n="See what you're missing">See what you're missing</button>
 </div></div>
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="What the pass unlocks">
   <div class="gate-card">
     <img src="/img/mila/mila-cool-160.webp" alt="" width="72" height="72" class="gate-mila">
-    <h3>Your free day at Magic Kingdom</h3>
-    <p class="gate-sub">Free: Magic Kingdom's live board, today, and one "Plan my day" — on the house. A pass unlocks the rest:</p>
+    <h3 data-i18n="Your free day at Magic Kingdom">Your free day at Magic Kingdom</h3>
+    <p class="gate-sub" data-i18n="Free: Magic Kingdom's live board, today, and one &quot;Plan my day&quot; — on the house. A pass unlocks the rest:">Free: Magic Kingdom's live board, today, and one "Plan my day" — on the house. A pass unlocks the rest:</p>
     <ul class="gate-list">
-      <li><span>🎢</span><div>Live wait times for all <b>65 parks</b> — refreshed every minute</div></li>
-      <li><span>✨</span><div><b>Mila plans your whole day</b> — one tap, ordered against the crowds, explained</div></li>
-      <li><span>📏</span><div>Child height filter — only rides your kid can actually board</div></li>
-      <li><span>🔔</span><div>Wait-drop alerts on any ride</div></li>
-      <li><span>🗓️</span><div>Plan any day up to 60 out, with weather and events baked in</div></li>
-      <li><span>📧</span><div>Your plan emailed, with Mila's read on the day</div></li>
+      <li><span>🎢</span><div data-i18n-html="Live wait times for all &lt;b&gt;65 parks&lt;/b&gt; — refreshed every minute">Live wait times for all <b>65 parks</b> — refreshed every minute</div></li>
+      <li><span>✨</span><div data-i18n-html="&lt;b&gt;Mila plans your whole day&lt;/b&gt; — one tap, ordered against the crowds, explained"><b>Mila plans your whole day</b> — one tap, ordered against the crowds, explained</div></li>
+      <li><span>📏</span><div data-i18n="Child height filter — only rides your kid can actually board">Child height filter — only rides your kid can actually board</div></li>
+      <li><span>🔔</span><div data-i18n="Wait-drop alerts on any ride">Wait-drop alerts on any ride</div></li>
+      <li><span>🗓️</span><div data-i18n="Plan any day up to 60 out, with weather and events baked in">Plan any day up to 60 out, with weather and events baked in</div></li>
+      <li><span>📧</span><div data-i18n="Your plan emailed, with Mila's read on the day">Your plan emailed, with Mila's read on the day</div></li>
     </ul>
-    <a class="gate-cta" href="/#pricing">See passes — one-time, from $24.99</a>
-    <button class="gate-later" id="gate-later">Keep previewing</button>
+    <a class="gate-cta" id="gate-cta" href="/#pricing">See passes — one-time, from $24.99</a>
+    <button class="gate-later" id="gate-later" data-i18n="Keep previewing">Keep previewing</button>
   </div>
 </div>
 
@@ -1319,29 +1324,29 @@
     </div>
   </div>
   <div id="acct-logged-in" style="display:none">
-    <h3>Account</h3>
+    <h3 data-i18n="Account">Account</h3>
     <p class="acct-status"><b id="acct-who"></b><span id="acct-plan"></span><span id="acct-devices" style="display:block;color:var(--muted);font-size:.85rem"></span></p>
     <div id="my-plans" style="margin:0 0 .9rem"></div>
     <label style="display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;font-size:.9rem;color:var(--muted)">
       <input type="checkbox" id="eve-mail" checked style="width:1.1rem;height:1.1rem;accent-color:var(--brand)">
-      <span id="eve-mail-lbl">🌙 Email me each plan the evening before</span>
+      <span id="eve-mail-lbl" data-i18n="🌙 Email me each plan the evening before">🌙 Email me each plan the evening before</span>
     </label>
     <button class="btn wide" id="acct-logout">Log out</button>
-    <button class="btn wide" id="acct-logout-all" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
+    <button class="btn wide" id="acct-logout-all" data-i18n="Log out everywhere else" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
     <div id="acct-wa" style="display:none;margin-top:.9rem;border:1px solid var(--border);border-radius:12px;padding:.85rem">
       <p style="margin:0 0 .55rem;font-size:.9rem"><b>💬 <span id="wa-title">WhatsApp concierge</span></b><br>
       <span id="wa-sub" style="color:var(--muted);font-size:.85rem">Text your AI planner — it knows your park, group and plan.</span></p>
       <button class="btn wide" id="wa-connect" style="background:#25d366;color:#fff">Connect on WhatsApp</button>
       <p class="err" id="wa-err" style="margin:.4rem 0 0"></p>
     </div>
-    <p class="switch" style="margin-top:1rem"><a id="acct-del-open" style="color:var(--red)">Delete my account</a></p>
+    <p class="switch" style="margin-top:1rem"><a id="acct-del-open" data-i18n="Delete my account" style="color:var(--red)">Delete my account</a></p>
     <div id="acct-del" style="display:none;margin-top:.6rem;border:1px solid var(--red);background:var(--red-soft);border-radius:12px;padding:.85rem">
-      <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--ink)"><b style="color:var(--red)">This schedules your account for deletion.</b> You have <b>7 days</b> to change your mind — we'll email you a cancel link, and logging back in cancels it too. After that your trips, plans, advisor history and alerts are erased for good.</p>
-      <input type="password" id="acct-del-pw" placeholder="Confirm your password" autocomplete="current-password"
+      <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--ink)"><span data-i18n-html="&lt;b&gt;This schedules your account for deletion.&lt;/b&gt; You have &lt;b&gt;7 days&lt;/b&gt; to change your mind — we'll email you a cancel link, and logging back in cancels it too. After that your trips, plans, advisor history and alerts are erased for good."><b style="color:var(--red)">This schedules your account for deletion.</b> You have <b>7 days</b> to change your mind — we'll email you a cancel link, and logging back in cancels it too. After that your trips, plans, advisor history and alerts are erased for good.</span></p>
+      <input type="password" id="acct-del-pw" placeholder="Confirm your password" data-i18n-attr="placeholder" autocomplete="current-password"
         style="width:100%;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:10px;padding:.6rem .8rem;font-size:1rem;margin-bottom:.5rem">
       <p class="err" id="acct-del-err"></p>
-      <button class="btn wide" id="acct-del-go" style="background:var(--red-btn)">Delete my account</button>
-      <p class="switch" style="margin:.5rem 0 0"><a id="acct-del-cancel">Keep my account</a></p>
+      <button class="btn wide" id="acct-del-go" data-i18n="Delete my account" style="background:var(--red-btn)">Delete my account</button>
+      <p class="switch" style="margin:.5rem 0 0"><a id="acct-del-cancel" data-i18n="Keep my account">Keep my account</a></p>
     </div>
   </div>
   <button class="cancel" id="acct-cancel">Close</button>
@@ -2745,6 +2750,38 @@
     "This is my best read of that day. Want me to try another one? ✨",
   ];
   const planAskLine = () => tr(PLAN_ASK[Math.floor(Math.random() * PLAN_ASK.length)]);
+  // Picking a day and getting nothing back is the one dead end left in the
+  // planner: the board re-reads itself for the new date, and the pane where a
+  // plan would be stays empty without a word. She offers instead -- and names
+  // the party, because a day planned for two adults and a seven-year-old is a
+  // different day, and saying so is how the reader knows she knows.
+  const NEW_DAY_ASK = [
+    "A new day to play with! Want me to plan it?",
+    "Shall I build you this one?",
+    "New date, fresh plan — say the word and I'll get to work.",
+    "Want the whole day mapped out for this one?",
+    "I can have this day planned in a blink. Shall I?",
+  ];
+  const newDayAskLine = () => tr(NEW_DAY_ASK[Math.floor(Math.random() * NEW_DAY_ASK.length)]);
+  // Who she would be planning for, in the reader's language. Empty when there
+  // is no profile yet -- better to say nothing than to guess at the party.
+  function partyLine() {
+    if (!profile) return '';
+    const c = profile.counts || {};
+    const bits = [];
+    const adults = (c.adult || 0) + (c.elderly || 0);
+    if (adults) bits.push(adults === 1 ? tr('1 adult') : trf('{n} adults', { n: adults }));
+    const kids = (profile.kids || []).filter((k) => k.age > 0 || k.cm > 0);
+    if (kids.length) {
+      const ages = kids.map((k) => k.age).filter((a) => a > 0);
+      if (ages.length === kids.length) {
+        bits.push(kids.length === 1
+          ? trf('a {age}-year-old', { age: ages[0] })
+          : trf('{n} children aged {ages}', { n: kids.length, ages: ages.join(', ') }));
+      } else bits.push(kids.length === 1 ? tr('1 child') : trf('{n} children', { n: kids.length }));
+    }
+    return bits.join(' · ');
+  }
   // Ten voices for the Today-board check-in: same idea as .planask (Mila
   // asking after the plan), but for whoever is browsing attractions instead
   // of looking at the plan itself, where .planask never shows.
@@ -4082,6 +4119,33 @@
     // that plan straight back rather than making you ask for it again. Both
     // paths are free: the order is local arithmetic and Mila replays from cache.
     if ($('plan-out').querySelector('.plan') || hasPlanFor(current, planDate)) buildPlan({ quiet: true });
+    else offerToPlanDay();
+  }
+
+  // The offer that fills the gap. Only when there is genuinely nothing there:
+  // a plan already on screen answers the question by existing, and a day this
+  // park has been planned for is rebuilt rather than re-offered.
+  function offerToPlanDay() {
+    const out = $('plan-out');
+    if (!out || out.querySelector('.plan')) return;
+    const when = planDate
+      ? new Date(planDate + 'T12:00:00Z').toLocaleDateString(window.PP_LANG || undefined,
+          { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })
+      : tr('today');
+    const who = partyLine();
+    out.innerHTML = `<div class="planask newday" id="newday-ask">
+      <img src="/img/mila/mila-welcome-320.webp" alt="" width="38" height="38" loading="lazy">
+      <div class="pa-t"><b>${esc(when)}</b> — ${esc(newDayAskLine())}
+        ${who ? `<div class="nd-who">${esc(trf('Planning for {who}', { who }))}</div>` : ''}
+        <div class="pa-btns">
+          <button type="button" id="nd-go">✨ ${tr('Plan this day')}</button>
+          <button type="button" id="nd-no">${tr('Not yet')}</button>
+        </div>
+      </div>
+    </div>`;
+    out.querySelector('#nd-go').addEventListener('click', () => buildPlan());
+    out.querySelector('#nd-no').addEventListener('click', () => { out.innerHTML = ''; });
+    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
   }
   $('plan-day-sel').addEventListener('change', (e) => switchPlanDay(e.target.value || null));
 
@@ -4351,7 +4415,33 @@
     try { if (wizDraft && $('wiz').classList.contains('open')) renderWiz(); } catch {}
   });
 
+  // Markup carrying data-i18n is re-authored from the dictionary here, so a
+  // translatable string costs one attribute instead of an id plus a line in
+  // this function. That bookkeeping is exactly why the account panel and the
+  // pass gate were never wired up at all.
+  //   data-i18n       -> textContent
+  //   data-i18n-html  -> innerHTML, for a line with <b> inside it
+  //   data-i18n-attr  -> "placeholder" or "aria-label" or "title", comma-listed
+  function applyMarkupText(root = document) {
+    for (const el of root.querySelectorAll('[data-i18n]')) el.textContent = tr(el.getAttribute('data-i18n'));
+    for (const el of root.querySelectorAll('[data-i18n-html]')) el.innerHTML = tr(el.getAttribute('data-i18n-html'));
+    for (const el of root.querySelectorAll('[data-i18n-attr]')) {
+      for (const a of el.getAttribute('data-i18n-attr').split(',')) {
+        const name = a.trim();
+        const en = el.getAttribute('data-en-' + name) || el.getAttribute(name);
+        if (en) { el.setAttribute('data-en-' + name, en); el.setAttribute(name, tr(en)); }
+      }
+    }
+  }
+
   function applyStaticText() {
+    applyMarkupText();
+    // The gate's price comes from the ladder, never from the sentence: the
+    // last time it lived in the copy it went on advertising $19.99 for weeks
+    // after the ladder had moved.
+    const cheapest = PASS_TIERS.reduce((lo, t) => (Number(t.usd) < Number(lo.usd) ? t : lo), PASS_TIERS[0]);
+    const gcta = $('gate-cta');
+    if (gcta) gcta.textContent = trf('See passes — one-time, from ${price}', { price: cheapest.usd });
     $('plan-day').textContent = '🗓️ ' + tr('Plan my day');
     $('ph-title').textContent = '🗓️ ' + tr('Plan my day');
     $('ph-sub').textContent = tr(PLAN_HERO_SUBS[Math.floor(Math.random() * PLAN_HERO_SUBS.length)]);
@@ -6082,11 +6172,11 @@
   }
 
   function planLabel(plan, exp) {
-    if (!plan) return 'Free plan';
+    if (!plan) return tr('Free plan');
     const until = new Date(exp).toLocaleDateString(window.PP_LANG || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     // Retired ids stay listed: somebody mid-pass still needs their plan named.
     const names = { 'day-pass': 'Day Pass', 'trip-pass': 'Trip Pass', 'season-pass': 'Season Pass', 'year-pass': 'Annual Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer', 'comp': 'Guest Pass' };
-    return `${names[plan] || plan} · active until ${until}`;
+    return `${names[plan] || plan} · ${trf('active until {date}', { date: until })}`;
   }
 
   // --- My plans: the saved-plan library under the You tab -------------------
@@ -6170,7 +6260,9 @@
       $('acct-plan').textContent = planLabel(localStorage.getItem('pp-plan'), Number(localStorage.getItem('pp-plan-exp')));
       $('acct-devices').textContent = '';
       api('/api/auth/me').then((r) => r.ok ? r.json() : null).then((d) => {
-        if (d && d.devices) $('acct-devices').textContent = `Active on ${d.devices} device${d.devices === 1 ? '' : 's'} (max 5)`;
+        if (d && d.devices) $('acct-devices').textContent = d.devices === 1
+          ? tr('Active on 1 device (max 5)')
+          : trf('Active on {n} devices (max 5)', { n: d.devices });
         if (d) $('eve-mail').checked = d.eveningMail !== false;
       }).catch(() => {});
       renderMyPlans();
