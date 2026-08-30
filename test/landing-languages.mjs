@@ -82,6 +82,46 @@ console.log('\n[nothing from the wrong alphabet]');
   check('no dictionary carries a character from another script', strays.length === 0, strays.slice(0, 3).join(' | '));
 }
 
+// --- prices ------------------------------------------------------------------
+// The landing page advertised "for $19.99" in every language for as long as
+// the section existed. Nothing sells for $19.99 -- the cheapest pass is
+// $24.99, which the FAQ two sections below said correctly, and so did the
+// JSON-LD Google reads. The page contradicted itself and nobody noticed,
+// because prices live in three places and none of them checked each other.
+//
+// The rule: a price written the way OUR prices are written must be one of
+// ours. Third-party numbers on the page -- what a private guide charges, what
+// a Lightning Lane costs -- are none of our business and are left alone.
+console.log('\n[the page charges what we charge]');
+{
+  const cfg = await (await fetch(B + '/api/config')).json();
+  const plans = cfg.plans || [];
+  check('the catalogue came back', plans.length > 0, JSON.stringify(plans).slice(0, 60));
+  const ours = new Set(plans.map((p) => String(p.usd)));
+  const cheapest = plans.map((p) => Number(p.usd)).sort((a, b) => a - b)[0];
+
+  // Every landing language, because the translations carry their own copy of
+  // the number and drifted with it last time.
+  const langs = ['', ...['es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'].map((l) => '/' + l)];
+  const bad = [];
+  for (const path of langs) {
+    const res = await fetch(B + (path || '/'));
+    if (!res.ok) continue;
+    const html = await res.text();
+    // Prices shaped like ours: a number ending in .99 or ,99.
+    for (const m of html.matchAll(/(\d+)[.,]99/g)) {
+      const asUsd = `${m[1]}.99`;
+      if (!ours.has(asUsd)) bad.push(`${path || '/'}: ${m[0]}`);
+    }
+  }
+  check('no page quotes a price we do not sell', bad.length === 0, [...new Set(bad)].slice(0, 6).join(' | '));
+
+  // And the headline claim is the real entry price, not a rounder one.
+  const en = await (await fetch(B + '/')).text();
+  const vip = en.match(/<h2>Like a VIP tour guide[^<]*<\/h2>/)?.[0] || '';
+  check('the VIP headline quotes the cheapest pass', vip.includes(`$${cheapest}`), `${vip} (cheapest ${cheapest})`);
+}
+
 console.log('\n[promoted, not buried]');
 check('the nav links to it', /href="#languages"/.test(home));
 check('it sits above the screenshots, not at the bottom of the page',
