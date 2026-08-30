@@ -229,7 +229,25 @@ for (const ddl of [
   "ALTER TABLE users ADD COLUMN delete_at INTEGER",
   "ALTER TABLE users ADD COLUMN delete_token TEXT",
   "ALTER TABLE users ADD COLUMN evening_mail INTEGER DEFAULT 1",
+  // When this account first built a plan. The funnel's middle step: signing up
+  // and actually planning a day are very different things, and nothing
+  // recorded the second one.
+  "ALTER TABLE users ADD COLUMN first_plan_at TEXT",
 ]) { try { db.exec(ddl); } catch {} }
+
+db.exec(`
+  -- One row per account per day it was seen. Retention cannot be read off
+  -- sessions: the five-device cap evicts them and logging out deletes them, so
+  -- somebody who came back every day of their trip on one phone can leave no
+  -- trace of having returned at all. This is the durable record -- an address
+  -- and a date, nothing about what they did.
+  CREATE TABLE IF NOT EXISTS account_days (
+    email TEXT NOT NULL,
+    day TEXT NOT NULL,
+    PRIMARY KEY (email, day)
+  );
+  CREATE INDEX IF NOT EXISTS account_days_day ON account_days (day);
+`);
 
 db.exec(`
   -- Sign-in with Google or Apple. Keyed on the provider's own subject rather
@@ -383,6 +401,13 @@ const alerts = {
 const passes = {
   add: (plan, stripeSession, email) =>
     db.prepare('INSERT INTO passes (plan, stripe_session, email, at) VALUES (?, ?, ?, ?)').run(plan, stripeSession ?? null, email ?? null, new Date().toISOString()),
+  // Sold passes in a window, by plan. The caller prices them: the catalogue
+  // lives in server.js and only it knows which ids are real money. Anything
+  // priceless -- a dev pass, a legacy id retired before the current catalogue
+  // -- has to be counted somewhere rather than quietly dropped, so this hands
+  // back every plan and lets the caller split them.
+  soldSince: (iso) => db.prepare('SELECT plan, COUNT(*) AS n FROM passes WHERE at >= ? GROUP BY plan').all(iso),
+  soldByDay: (iso) => db.prepare('SELECT substr(at, 1, 10) AS day, plan, COUNT(*) AS n FROM passes WHERE at >= ? GROUP BY day, plan ORDER BY day').all(iso),
 };
 
 const leads = {
@@ -621,6 +646,66 @@ const admin = {
     (t) => [t, db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n],
   )),
   recentLeads: (limit) => db.prepare('SELECT email, plan, at FROM leads ORDER BY id DESC LIMIT ?').all(limit),
+
+  // --- funnel ---------------------------------------------------------------
+  // Each stage counted over the same window, so the drop-offs between them
+  // mean something. Verified and planned are cumulative states on the account
+  // rather than events, so they are counted among accounts created in the
+  // window -- otherwise a long-standing account verifying today would show up
+  // as a conversion from a signup that never happened here.
+  funnel: (days) => {
+    const from = daysAgoIso(days);
+    const row = db.prepare(`SELECT
+        COUNT(*) AS signups,
+        COALESCE(SUM(verified), 0) AS verified,
+        COALESCE(SUM(first_plan_at IS NOT NULL), 0) AS planned,
+        COALESCE(SUM(plan IS NOT NULL AND plan != ''), 0) AS paid
+      FROM users WHERE created_at >= ?`).get(from);
+    return row;
+  },
+  markFirstPlan: (email) =>
+    db.prepare("UPDATE users SET first_plan_at = ? WHERE email = ? AND (first_plan_at IS NULL OR first_plan_at = '')")
+      .run(new Date().toISOString(), email).changes,
+
+  // --- retention ------------------------------------------------------------
+  seen: (email, day) =>
+    db.prepare('INSERT INTO account_days (email, day) VALUES (?, ?) ON CONFLICT(email, day) DO NOTHING').run(email, day),
+  // Weekly cohorts: for each signup week, how many of that week's accounts
+  // were seen again in each of the following weeks. Done in JS rather than one
+  // clever query because the shape is a grid, and a grid is easier to read
+  // than the SQL that would build it.
+  cohorts: (weeks = 6) => {
+    const since = daysAgoIso(weeks * 7);
+    const users = db.prepare('SELECT email, created_at FROM users WHERE created_at >= ?').all(since);
+    const days = db.prepare('SELECT email, day FROM account_days WHERE day >= ?').all(since.slice(0, 10));
+    // Monday-anchored week key, so a cohort is a calendar week not an offset.
+    const weekOf = (iso) => {
+      const d = new Date(iso.slice(0, 10) + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      return d.toISOString().slice(0, 10);
+    };
+    const cohortOf = new Map(users.map((u) => [u.email, weekOf(u.created_at)]));
+    const size = {};
+    for (const w of cohortOf.values()) size[w] = (size[w] || 0) + 1;
+    const back = {};                       // cohort -> week offset -> Set(email)
+    for (const { email, day } of days) {
+      const c = cohortOf.get(email);
+      if (!c) continue;
+      const off = Math.round((Date.parse(weekOf(day)) - Date.parse(c)) / (7 * 86400000));
+      if (off < 0) continue;
+      ((back[c] ||= {})[off] ||= new Set()).add(email);
+    }
+    return Object.keys(size).sort().map((cohort) => ({
+      cohort, size: size[cohort],
+      weeks: Array.from({ length: weeks }, (_, i) => (back[cohort]?.[i]?.size) || 0),
+    }));
+  },
+
+  // --- deletion queue -------------------------------------------------------
+  // Scheduled account deletions. They run themselves on a timer and nothing
+  // showed what was queued, so there was no way to see one coming or to prove
+  // afterwards that it happened.
+  pendingDeletions: () => db.prepare('SELECT email, delete_at FROM users WHERE delete_at IS NOT NULL ORDER BY delete_at').all(),
 };
 
 migrateLegacy();

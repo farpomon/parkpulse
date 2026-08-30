@@ -121,6 +121,29 @@
     <div class="tiles" id="tiles"></div>
     <!-- What the AI actually costs. The daily email already says this; the
          dashboard is where you look when you did not like what the email said. -->
+    <!-- Money. The AI card below says what a visitor costs; this says what one
+         is worth, and the pair is the only reason either number matters. -->
+    <div class="card" id="rev-card">
+      <h2>Revenue</h2>
+      <div class="tiles" id="rev-tiles"></div>
+      <p class="muted" style="font-size:.8rem;margin:.9rem 0 0" id="rev-note"></p>
+    </div>
+    <div class="card" id="health-card">
+      <h2>Upstream health</h2>
+      <div id="health-services"></div>
+      <p class="muted" style="font-size:.8rem;margin:.9rem 0 .3rem" id="health-summary"></p>
+      <div class="overflow"><table id="health-table"></table></div>
+    </div>
+    <div class="card" id="funnel-card">
+      <h2>Conversion · 30 days</h2>
+      <div class="overflow"><table id="funnel-table"></table></div>
+      <p class="muted" style="font-size:.8rem;margin:.7rem 0 0" id="funnel-note"></p>
+    </div>
+    <div class="card" id="cohort-card">
+      <h2>Retention · weekly cohorts</h2>
+      <div class="overflow"><table id="cohort-table"></table></div>
+      <p class="muted" style="font-size:.8rem;margin:.7rem 0 0" id="cohort-note"></p>
+    </div>
     <div class="card" id="ai-card">
       <h2>AI spend</h2>
       <div class="tiles" id="ai-tiles"></div>
@@ -142,6 +165,15 @@
     <div class="card"><h2>Top pages · 30 days</h2><div class="overflow"><table id="pages-table"></table></div></div>
     <div class="card"><h2>AI advisor feedback · 30 days</h2><div class="fb" id="fb"></div><div id="fb-down"></div></div>
     <div class="card"><h2>Newest accounts</h2><div class="overflow"><table id="users-table"></table></div></div>
+    <div class="card" id="limits-card">
+      <h2>Rate limiting</h2>
+      <div id="limits-body"></div>
+      <p class="muted" style="font-size:.8rem;margin:.7rem 0 0">Limits are strict per account and deliberately loose per address — a park's public wifi puts every guest in the building behind one IP, so an IP ceiling tuned for one person would lock out a whole park.</p>
+    </div>
+    <div class="card" id="del-card">
+      <h2>Scheduled deletions</h2>
+      <div id="del-body"></div>
+    </div>
     <div class="card"><h2>Login-sharing signals</h2><p class="muted" style="font-size:.82rem;margin:.2rem 0 .5rem">Accounts pulling wait times at parks &gt;500 km apart within an hour (since last server restart).</p><div id="sharing"></div></div>
   </div>
 </div>
@@ -307,6 +339,109 @@ function renderAiCost(d) {
     + ' Estimated from token counts at list prices; the invoice is the source of truth.';
 }
 
+// --- ops: money, health, funnel, cohorts, limits, deletions ------------------
+function renderOps(d) {
+  // Revenue, and what is left after the AI bill for the same window.
+  const r = d.revenue;
+  const m = r.margin;
+  $('rev-tiles').innerHTML = [
+    { num: usd(r.today.usd), lbl: 'Revenue · today', sub: `${r.today.sold} sold · ${usd(m.today.net)} after AI` },
+    { num: usd(r.week.usd), lbl: 'Revenue · 7 days', sub: `${r.week.sold} sold · ${usd(m.week.net)} after AI` },
+    { num: usd(r.month.usd), lbl: 'Revenue · 30 days', sub: `${r.month.sold} sold · ${usd(m.month.net)} after AI` },
+    { num: r.month.arpu == null ? '—' : usd(r.month.arpu), lbl: 'Per active account', sub: `30d · ${r.month.accounts} active` },
+  ].map((t) => `<div class="tile"><div class="num">${esc(t.num)}</div><div class="lbl">${esc(t.lbl)}</div><div class="sub">${esc(t.sub)}</div></div>`).join('');
+  const comped = r.month.comped;
+  $('rev-note').innerHTML = `Counts the five catalogue plans only.`
+    + (comped ? ` <b>${comped}</b> non-revenue pass${comped === 1 ? '' : 'es'} (dev or a retired plan id) issued in the last 30 days are excluded from the money above.` : ' No dev or legacy passes issued in the last 30 days.')
+    + ' Invited comps are never recorded as passes at all.';
+
+  // Upstream health. "unknown" is honest: nobody has asked for that park yet.
+  const h = d.health;
+  const svc = Object.entries(h.services);
+  $('health-services').innerHTML = svc.length
+    ? svc.map(([name, v]) => {
+        const bad = v.fails > 0;
+        return `<div style="display:flex;gap:.5rem;align-items:baseline;padding:.15rem 0">
+          <span class="${bad ? 'no' : 'ok'}">${bad ? '✗' : '✓'}</span>
+          <b>${esc(name)}</b>
+          <span class="muted" style="font-size:.85rem">${bad
+            ? `${v.fails} failure${v.fails === 1 ? '' : 's'} — ${esc(v.error || '')}${v.okAgeMin == null ? ', never succeeded' : `, last good ${v.okAgeMin}m ago`}`
+            : `last good ${v.okAgeMin == null ? 'never' : v.okAgeMin + 'm ago'}`}</span></div>`;
+      }).join('')
+    : '<p class="muted" style="font-size:.85rem">No upstream calls yet this process.</p>';
+  const sum = h.summary || {};
+  $('health-summary').textContent = `Parks: ${sum.live || 0} live · ${sum.sample || 0} on typical waits · `
+    + `${sum.unavailable || 0} unavailable · ${sum.unknown || 0} not asked for yet. Process up ${h.uptimeMin}m — this resets on restart.`;
+  // Only the parks worth looking at: anything not currently serving live data.
+  const bad = h.parks.filter((p) => p.source !== 'live' && p.source !== 'unknown');
+  const noId = h.parks.filter((p) => !p.idResolved);
+  $('health-table').innerHTML = bad.length || noId.length
+    ? '<tr><th>Park</th><th>Serving</th><th>Last good</th><th>Why</th></tr>'
+      + bad.map((p) => `<tr><td>${esc(p.name)}</td><td class="${p.source === 'unavailable' ? 'no' : ''}">${esc(p.source)}</td>`
+        + `<td>${p.okAgeMin == null ? '<span class="muted">never</span>' : esc(p.okAgeMin + 'm ago')}</td>`
+        + `<td class="muted">${esc(p.error || '')}</td></tr>`).join('')
+      + (noId.length ? `<tr><td colspan="4" class="muted">${noId.length} park${noId.length === 1 ? '' : 's'} still have no upstream id resolved.</td></tr>` : '')
+    : '<tr><td class="muted">Every park that has been asked for is serving live data.</td></tr>';
+
+  // Funnel. Each step as a share of the one above it.
+  const f = d.funnel.d30;
+  const steps = [
+    ['App page views', d.funnel.appViews30d, null],
+    ['Signed up', f.signups, null],
+    ['Verified their email', f.verified, f.signups],
+    ['Built a plan', f.planned, f.verified],
+    ['Bought a pass', f.paid, f.planned],
+  ];
+  $('funnel-table').innerHTML = '<tr><th>Stage</th><th class="n">Count</th><th class="n">Of previous</th><th style="width:35%"></th></tr>'
+    + steps.map(([label, n, prev]) => {
+        const pct = prev ? Math.round(n / prev * 100) : null;
+        const width = steps[1][1] ? Math.min(100, Math.round(n / Math.max(1, steps[1][1]) * 100)) : 0;
+        return `<tr><td>${esc(label)}</td><td class="n">${Number(n || 0).toLocaleString()}</td>`
+          + `<td class="n">${pct == null ? '<span class="muted">—</span>' : pct + '%'}</td>`
+          + `<td><div class="meter" style="width:${label === 'App page views' ? 100 : width}%"></div></td></tr>`;
+      }).join('');
+  $('funnel-note').textContent = 'Accounts created in the last 30 days only, so the rates describe one cohort rather than mixing new signups with old ones. Page views count requests, not people.';
+
+  // Cohorts.
+  const c = d.cohorts || [];
+  if (!c.length) {
+    $('cohort-table').innerHTML = '<tr><td class="muted">No signups in the window yet.</td></tr>';
+  } else {
+    const width = Math.max(...c.map((x) => x.weeks.length));
+    $('cohort-table').innerHTML = `<tr><th>Signed up week of</th><th class="n">Accounts</th>${
+      Array.from({ length: width }, (_, i) => `<th class="n">W${i}</th>`).join('')}</tr>`
+      + c.map((row) => `<tr><td>${fmtDay(row.cohort)}</td><td class="n">${row.size}</td>${
+        row.weeks.map((n, i) => {
+          if (!row.size || (i > 0 && n === 0)) return `<td class="n muted">${n ? n : '·'}</td>`;
+          const pct = Math.round(n / row.size * 100);
+          return `<td class="n" style="background:color-mix(in srgb, var(--brand) ${Math.round(pct * 0.5)}%, transparent)">${pct}%</td>`;
+        }).join('')}</tr>`).join('');
+  }
+  $('cohort-note').textContent = 'Share of each signup week seen again in later weeks. Counted from a per-account activity log, not from sessions — sessions get evicted by the device cap and deleted on logout, so they undercount returns.';
+
+  // Rate limiting.
+  const rb = Object.entries(d.rateBlocks || {});
+  $('limits-body').innerHTML = rb.length
+    ? '<div class="overflow"><table><tr><th>Limit</th><th class="n">Blocked</th><th>Last</th></tr>'
+      + rb.map(([name, v]) => `<tr><td>${esc(name)}</td><td class="n">${v.n}</td><td class="muted">${v.at ? new Date(v.at).toLocaleString() : '—'}</td></tr>`).join('')
+      + '</table></div>'
+    : '<p class="muted" style="font-size:.85rem">Nothing has been rate-limited since the last restart. 🎉</p>';
+
+  // Deletions.
+  const dels = d.deletions || [];
+  $('del-body').innerHTML = dels.length
+    ? '<div class="overflow"><table><tr><th>Account</th><th>Runs</th></tr>'
+      + dels.map((x) => `<tr><td>${esc(x.email)}</td><td>${x.inDays <= 0 ? '<span class="no">due now</span>' : `in ${x.inDays} day${x.inDays === 1 ? '' : 's'}`} <span class="muted">· ${new Date(x.at).toLocaleDateString()}</span></td></tr>`).join('')
+      + '</table></div>'
+    : '<p class="muted" style="font-size:.85rem">Nothing scheduled for deletion.</p>';
+}
+
+async function loadOps() {
+  const { status, data } = await api('/api/admin/ops');
+  if (status !== 200) return;
+  renderOps(data);
+}
+
 async function loadAiCost() {
   const { status, data } = await api('/api/admin/ai-cost');
   if (status !== 200) { $('ai-card').hidden = true; return; }
@@ -321,6 +456,7 @@ async function load() {
     render(data);
     loadInvites();
     loadAiCost();
+    loadOps();
     return true;
   }
   if (status === 403 && localStorage.getItem(KEY)) $('err').textContent = 'This account does not have admin access.';

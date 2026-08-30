@@ -126,6 +126,18 @@ function issueSession(email, device, req) {
   return signToken({ sid, email, exp: Date.now() + SESSION_DAYS * 86400000 });
 }
 
+// Which accounts this process has already written down as seen today, so an
+// active visitor costs one insert a day rather than one per request.
+const seenToday = new Set();
+function markSeen(email) {
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `${email}|${day}`;
+  if (seenToday.has(key)) return;
+  seenToday.add(key);
+  if (seenToday.size > 20000) seenToday.clear();   // a new day, or a big one
+  try { db.admin.seen(email, day); } catch {}
+}
+
 function sessionUser(req) {
   const p = verifyToken(req.headers['x-session']);
   if (!p?.email || !p.sid) return null; // legacy stateless tokens are retired
@@ -133,6 +145,7 @@ function sessionUser(req) {
   if (!row || row.email !== p.email) return null; // revoked or evicted
   if (Date.now() - new Date(row.last_seen).getTime() > 10 * 60 * 1000) db.sessions.touch(p.sid);
   const user = db.users.get(p.email);
+  if (user) markSeen(p.email);
   return user ? { email: p.email, user, sid: p.sid } : null;
 }
 const accountPassActive = (user) => Boolean(user.plan && PLAN_DAYS[user.plan] && user.plan_exp > Date.now());
@@ -168,6 +181,29 @@ const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'support@parkpulse.fun';
 // which is right for dev and prod alike; set it only when the app sits
 // behind something that rewrites the host.
 const OAUTH_REDIRECT_BASE = (process.env.OAUTH_REDIRECT_BASE || '').replace(/\/$/, '');
+
+// What each upstream is actually doing, as opposed to what the logs say at
+// 3am. Live-wait fetches fail quietly -- the board falls back to typical waits
+// and nobody finds out -- so every outcome is written down here and shown on
+// the dashboard. In memory: it describes this process, and a restart genuinely
+// does reset what we know.
+const upstream = {
+  parks: Object.create(null),   // slug -> { source, at, okAt, error }
+  note(slug, source, error) {
+    const prev = upstream.parks[slug] || {};
+    upstream.parks[slug] = {
+      source, at: Date.now(), error: error || null,
+      okAt: source === 'live' ? Date.now() : (prev.okAt || null),
+    };
+  },
+  services: Object.create(null), // name -> { okAt, failAt, fails, error }
+  service(name, ok, error) {
+    const s = (upstream.services[name] ||= { okAt: null, failAt: null, fails: 0, error: null });
+    if (ok) { s.okAt = Date.now(); s.fails = 0; s.error = null; }
+    else { s.failAt = Date.now(); s.fails += 1; s.error = String(error || 'failed').slice(0, 160); }
+  },
+};
+
 
 // WhatsApp concierge: the same AI advisor, reachable by texting our WhatsApp
 // Business number. Dormant until the Meta Cloud API credentials are set.
@@ -473,6 +509,52 @@ function throttleIdentity(req) {
   const s = sessionUser(req);
   if (s) return `u:${s.email}`;
   return `i:${clientIp(req)}`;
+}
+
+// --- Rate limiting -----------------------------------------------------------
+// Two scopes, deliberately lopsided.
+//
+// Strict on the account, because that is where abuse actually costs money: an
+// advisor turn or a plan email is a paid model call, and an account is a thing
+// somebody had to verify an address to get.
+//
+// Deliberately loose on the IP, because a theme park's public wifi puts every
+// guest in the building behind one address. A limit tuned for one person would
+// lock out an entire park mid-visit, which is a far worse failure than letting
+// a script through -- so the IP ceilings here are set to catch automated
+// floods and nothing else.
+const buckets = new Map();          // "name|key" -> { n, resetAt }
+// What got turned away, for the dashboard. Nothing is stored per person.
+const rateBlocks = Object.create(null);   // name -> { n, at }
+
+function overLimit(name, key, max, windowMs) {
+  const id = `${name}|${key}`;
+  const now = Date.now();
+  const b = buckets.get(id);
+  if (!b || now > b.resetAt) { buckets.set(id, { n: 1, resetAt: now + windowMs }); return false; }
+  b.n += 1;
+  if (b.n <= max) return false;
+  const seen = (rateBlocks[name] ||= { n: 0, at: null });
+  seen.n += 1; seen.at = now;
+  return true;
+}
+// Buckets outlive their window; sweep occasionally so a long-running process
+// does not accumulate one entry per address it has ever seen.
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, b] of buckets) if (now > b.resetAt) buckets.delete(id);
+}, 10 * 60 * 1000).unref?.();
+
+// Keyed on the account when there is one. An anonymous caller gets the loose
+// IP ceiling instead of the strict account one -- never the other way round,
+// or one park's wifi would share a single strict bucket.
+function accountLimited(req, name, max, windowMs = 3600000) {
+  const id = throttleIdentity(req);
+  if (id.startsWith('i:')) return ipLimited(req, name, max * 20, windowMs);
+  return overLimit(name, id, max, windowMs);
+}
+function ipLimited(req, name, max, windowMs = 3600000) {
+  return overLimit(name, `i:${clientIp(req)}`, max, windowMs);
 }
 
 async function stripeApi(endpoint, params) {
@@ -800,6 +882,7 @@ async function resolveParkIds(attempt = 1) {
     }
     const unresolved = leftover.filter((e) => e.id == null);
 
+    upstream.service('queue-times directory', true);
     qtResolution = {
       at: Date.now(), ok: true, matched, error: null,
       unresolved: unresolved.map((e) => ({ slug: e.slug, name: e.name, tokens: e.tokens })),
@@ -817,6 +900,7 @@ async function resolveParkIds(attempt = 1) {
     }
   } catch (err) {
     qtResolution = { ...qtResolution, at: Date.now(), ok: false, error: err.message };
+    upstream.service('queue-times directory', false, err.message);
     // 1, 2, 4, 8, then 15-minute ceiling: about 45 minutes of trying before it
     // waits for the daily pass, instead of giving up on the first failure.
     const delay = Math.min(60_000 * 2 ** (attempt - 1), 15 * 60_000);
@@ -944,6 +1028,7 @@ async function getWeather(park) {
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset' +
     `&timezone=${encodeURIComponent(park.tz || 'auto')}&forecast_days=7`;
   const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  upstream.service('open-meteo weather', res.ok, res.ok ? null : `HTTP ${res.status}`);
   if (!res.ok) throw new Error(`open-meteo ${res.status}`);
   const j = await res.json();
   const cur = j.current || {};
@@ -1638,6 +1723,9 @@ function priceUsage(model, usage) {
 }
 
 function recordUsage(feature, model, usage) {
+  // A billed call is a call that worked, which is the only success signal the
+  // AI upstream gives us without asking it something on purpose.
+  upstream.service('anthropic', true);
   try { db.aiusage.add(etNow().date, feature, model, priceUsage(model, usage)); }
   catch (err) { console.log(`usage record failed: ${err.message}`); }
 }
@@ -1701,6 +1789,41 @@ function aiCostReport(day) {
   };
 }
 
+// --- Revenue -----------------------------------------------------------------
+// Only the catalogue plans are money. A dev pass is recorded in the same table
+// and a couple of retired ids (trip-pass, pro-annual) predate the current
+// catalogue and carry no price at all -- counting either as revenue would
+// overstate the cash. They are counted separately instead of dropped, because
+// "how many free passes are in circulation" is its own question.
+const PLAN_PRICE = Object.assign(Object.create(null),
+  Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, Number(p.usd)])));
+
+function revenueOf(rows) {
+  let usd = 0, sold = 0, comped = 0;
+  for (const r of rows) {
+    const price = PLAN_PRICE[r.plan];
+    if (price === undefined) { comped += r.n; continue; }
+    usd += price * r.n;
+    sold += r.n;
+  }
+  return { usd: Math.round(usd * 100) / 100, sold, comped };
+}
+
+function revenueReport() {
+  const since = (days) => new Date(Date.now() - days * 86400000).toISOString();
+  const win = (days) => {
+    const rev = revenueOf(db.passes.soldSince(since(days)));
+    // The same denominator the AI report divides by, admins excluded. Two
+    // per-account figures sitting next to each other on one screen have to be
+    // over the same population or subtracting one from the other is nonsense --
+    // and reading the dashboard touches the operator's own session, so without
+    // the exclusion the person checking the numbers appears in them.
+    const accounts = db.admin.activeAccountsSince(since(days), [...ADMIN_EMAILS]);
+    return { ...rev, accounts, arpu: accounts ? rev.usd / accounts : null };
+  };
+  return { today: win(1), week: win(7), month: win(30), byDay: db.passes.soldByDay(since(30)) };
+}
+
 function aiCostEmailHtml(r) {
   // The headline number answers "what did I spend"; the one next to it answers
   // "what does one more visitor cost me", which is the one that decides whether
@@ -1759,6 +1882,54 @@ async function sendAiCostEmail(day) {
     aiCostEmailHtml(r), `AI spend ${day}: today ${usd(r.today.cost_usd)}, week ${usd(r.week.cost_usd)}, month ${usd(r.month.cost_usd)}${per}`);
 }
 
+// --- Spend alerting ----------------------------------------------------------
+// The daily report is a lagging indicator: a runaway loop bills for a whole day
+// before it says anything. This watches two shapes of trouble -- a day that
+// crosses a fixed ceiling, and a day running far above the recent norm -- and
+// mails the moment either happens. Once per condition per day, so a loop does
+// not become a mail flood on top of a bill.
+const AI_ALERT_USD = Number(process.env.AI_ALERT_USD || 25);
+const AI_ALERT_MULTIPLE = Number(process.env.AI_ALERT_MULTIPLE || 4);
+// Below this the multiple is meaningless: 4x of eleven cents is not news.
+const AI_ALERT_FLOOR_USD = Number(process.env.AI_ALERT_FLOOR_USD || 5);
+
+async function maybeAlertOnSpend() {
+  if (!AI_REPORT_TO) return;
+  const day = etNow().date;
+  const r = aiCostReport(day);
+  const today = r.today.cost_usd;
+  // The trailing week excluding today, as a daily average.
+  const priorDaily = Math.max(0, (r.week.cost_usd - today)) / 6;
+
+  const reasons = [];
+  if (AI_ALERT_USD > 0 && today >= AI_ALERT_USD) {
+    reasons.push({ k: 'ceiling', why: `today's spend has passed ${usd(AI_ALERT_USD)}` });
+  }
+  if (today >= AI_ALERT_FLOOR_USD && priorDaily > 0 && today >= priorDaily * AI_ALERT_MULTIPLE) {
+    reasons.push({ k: 'spike', why: `today is running ${(today / priorDaily).toFixed(1)}x the daily average of the past week (${usd(priorDaily)})` });
+  }
+  for (const reason of reasons) {
+    const key = `ai-alert:${reason.k}:${day}`;
+    if (db.kv.get(key)) continue;          // already said so today
+    db.kv.set(key, '1');
+    const top = r.features.slice(0, 3).map((f) => `${f.feature} ${usd4(f.cost_usd)} (${f.calls})`).join(', ');
+    console.log(`AI spend alert (${reason.k}): ${reason.why}`);
+    try {
+      await sendEmail(AI_REPORT_TO, `⚠️ ParkPulse AI spend: ${usd(today)} today`,
+        `<div style="font:15px/1.6 -apple-system,Segoe UI,sans-serif;color:#251d3d;max-width:560px">
+          <h2 style="margin:0 0 4px">AI spend alert</h2>
+          <p style="margin:0 0 14px;color:#666">${day} (Eastern)</p>
+          <p style="margin:0 0 14px">Flagged because ${reason.why}.</p>
+          <p style="margin:0 0 6px"><b>${usd(today)}</b> today · ${r.today.calls} calls</p>
+          <p style="margin:0 0 14px;color:#666">Past week ${usd(r.week.cost_usd)} · past 30 days ${usd(r.month.cost_usd)}</p>
+          ${top ? `<p style="margin:0 0 14px;font-size:13px;color:#666">Biggest so far this month: ${top}</p>` : ''}
+          <p style="margin:0;font-size:12px;color:#888">The full breakdown is on the admin dashboard. Thresholds: AI_ALERT_USD, AI_ALERT_MULTIPLE.</p>
+        </div>`,
+        `AI spend alert for ${day}: ${reason.why}. ${usd(today)} today across ${r.today.calls} calls.`);
+    } catch (err) { console.log(`AI spend alert email failed: ${err.message}`); }
+  }
+}
+
 // Fires once per day at AI_REPORT_HOUR Eastern, from the shared interval.
 async function maybeSendAiCostEmail() {
   const { date, hour } = etNow();
@@ -1806,7 +1977,7 @@ function sweepDeletedAccounts() {
 // Cached plan reviews outlive their longest TTL by a day and are then dead
 // weight -- a plan for a past date will never be asked for again.
 const sweepPlanAdvice = () => { try { db.planadvice.prune(36 * 60 * 60 * 1000); } catch {} };
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
 
 // --- Night-before plan emails ------------------------------------------------
 // Zero taps during the trip: the evening before a saved plan's date (18:00 to
@@ -2247,11 +2418,14 @@ async function getWaits(slug) {
       rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, land: r.land, typical: typicalFor(slug, r.name) })),
     };
     waitsCache.set(slug, { at: Date.now(), data });
+    upstream.note(slug, 'live');
     return data;
   } catch (err) {
     if (!SAMPLE[slug]) {
+      upstream.note(slug, 'unavailable', err.message);
       return { park: park.name, source: 'unavailable', attribution: '', updatedAt: new Date().toISOString(), rides: [] };
     }
+    upstream.note(slug, 'sample', err.message);
     return {
       park: park.name,
       source: 'sample',
@@ -2846,6 +3020,63 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ...report, cachedFeatures: [...CACHED_FEATURES], recipient: AI_REPORT_TO, hourET: AI_REPORT_HOUR });
   }
 
+  // Everything the dashboard grew in one request: money, health, funnel,
+  // cohorts, what got rate-limited and what deletions are queued.
+  if (req.method === 'GET' && url.pathname === '/api/admin/ops') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const aiDay = etNow().date;
+    const ai = aiCostReport(aiDay);
+    const rev = revenueReport();
+    // Cost and revenue over the same window, which is the only way the
+    // difference between them means anything.
+    const margin = (r, a) => ({
+      revenue: r.usd, cost: a.running_usd,
+      net: Math.round((r.usd - a.running_usd) * 100) / 100,
+      perAccount: r.accounts ? Math.round((r.usd - a.running_usd) / r.accounts * 100) / 100 : null,
+    });
+    const now = Date.now();
+    const parks = REGISTRY.map((p) => {
+      const u = upstream.parks[p.slug];
+      return {
+        slug: p.slug, name: p.name,
+        source: u?.source || 'unknown',
+        idResolved: p.id != null,
+        ageMin: u?.at ? Math.round((now - u.at) / 60000) : null,
+        okAgeMin: u?.okAt ? Math.round((now - u.okAt) / 60000) : null,
+        error: u?.error || null,
+      };
+    });
+    return sendJson(res, 200, {
+      revenue: {
+        ...rev,
+        margin: { today: margin(rev.today, ai.today), week: margin(rev.week, ai.week), month: margin(rev.month, ai.month) },
+      },
+      health: {
+        parks,
+        // Only parks actually asked for since boot have a verdict; the rest
+        // are "unknown", which is honest -- nobody has looked.
+        summary: parks.reduce((a, p) => { a[p.source] = (a[p.source] || 0) + 1; return a; }, Object.create(null)),
+        services: Object.fromEntries(Object.entries(upstream.services).map(([k, v]) => [k, {
+          ...v,
+          okAgeMin: v.okAt ? Math.round((now - v.okAt) / 60000) : null,
+          failAgeMin: v.failAt ? Math.round((now - v.failAt) / 60000) : null,
+        }])),
+        uptimeMin: Math.round(process.uptime() / 60),
+      },
+      // The top of the funnel is page views, not people -- hits counts requests
+      // and nothing here de-duplicates a visitor. Labelled as views on the
+      // dashboard for that reason; the rate below it is the honest one.
+      funnel: {
+        d30: db.admin.funnel(30),
+        appViews30d: db.hits.totals(30).filter((h) => h.path === '/app').reduce((a, h) => a + h.n, 0),
+      },
+      cohorts: db.admin.cohorts(6),
+      rateBlocks,
+      deletions: db.admin.pendingDeletions().map((d) => ({ email: d.email, at: d.delete_at, inDays: Math.round((d.delete_at - now) / 86400000) })),
+      alerts: { ceilingUsd: AI_ALERT_USD, multiple: AI_ALERT_MULTIPLE, floorUsd: AI_ALERT_FLOOR_USD, to: AI_REPORT_TO },
+    });
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/admin/geo') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     const out = [];
@@ -3431,6 +3662,7 @@ ${sections}
       return sendJson(res, 200, { tags });
     } catch (err) {
       console.log(`ride-tags error: ${err.message}`);
+      upstream.service('anthropic', false, err.message);
       return sendJson(res, 502, { error: 'no tags' });
     }
   }
@@ -3472,6 +3704,7 @@ ${sections}
   if (oauthMatch && (req.method === 'GET' || req.method === 'POST')) {
     const [, provider, leg] = oauthMatch;
     if (!oauth.enabled(provider)) return sendJson(res, 404, { error: 'provider not configured' });
+    if (ipLimited(req, 'oauth', 600)) return sendJson(res, 429, { error: 'too many sign-in attempts from this connection' });
     // The redirect must match what is registered at the provider to the
     // character, so it is derived once and used for both legs.
     const base = OAUTH_REDIRECT_BASE || `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
@@ -3800,14 +4033,22 @@ ${sections}
           // suggesting something the family has already said no to is worse
           // than suggesting nothing.
           excluded: strList(d.excluded, 40),
-    lanePasses: strList(d.lanePasses, 30),
+          lanePasses: strList(d.lanePasses, 30),
           // Whitelisted like everything else: a plain date or nothing.
           planDate: typeof d.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.planDate) ? d.planDate : null,
         });
+        // Picking rides is the moment an account stops being a signup and
+        // starts being a user. It is the middle of the funnel and nothing
+        // recorded it; the column only ever fills once.
+        if (strList(d.picked, 30).length) { try { db.admin.markFirstPlan(s.email); } catch {} }
         return sendJson(res, 200, { ok: true });
       }
 
       if (url.pathname === '/api/auth/signup' || url.pathname === '/api/auth/login') {
+        // Loose on purpose: a park's wifi is one address for everybody in the
+        // building, so this is set to stop a script and nothing else. The
+        // strict per-address limits live in verifyBlocked/forgotBlocked.
+        if (ipLimited(req, 'auth', 600)) return sendJson(res, 429, { error: 'too many attempts from this connection — try again shortly' });
         const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase().slice(0, 254) : '';
         const password = typeof parsed.password === 'string' ? parsed.password : '';
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return sendJson(res, 400, { error: 'invalid email' });
@@ -3867,6 +4108,7 @@ ${sections}
       // from the redirect for a real session. Single use, two-minute life, and
       // bound to the device that started the login.
       if (url.pathname === '/api/auth/oauth/claim') {
+        if (ipLimited(req, 'oauth', 600)) return sendJson(res, 429, { error: 'too many sign-in attempts from this connection' });
         const code = typeof parsed.code === 'string' ? parsed.code.slice(0, 64) : '';
         const key = `oauthclaim:${code}`;
         // Delete rather than blank, and only when the row was really there.
@@ -4182,6 +4424,10 @@ ${sections}
 
       if (url.pathname === '/api/consultant') {
         if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
+        // Every turn here is a paid model call and nothing capped them. Forty
+        // an hour is far more than a day in a park produces and far less than
+        // a loop costs.
+        if (accountLimited(req, 'advisor', 40)) return sendJson(res, 429, { error: 'that is a lot of questions at once — give me a minute' });
         let freeWish = null;
         // Free tier: exactly ONE consultant call per day — the review that
         // rides along with the single free "Plan my day" — and only for the
@@ -4515,3 +4761,9 @@ function bootBanner() {
 refreshAccuracy();
 
 server.listen(PORT, bootBanner);
+
+// A seam for the tests, in the spirit of oauth._setProvider. The spend alert
+// otherwise only runs on a five-minute timer, and an alert that quietly never
+// fires is worse than no alert at all -- it is the same silence, with the
+// belief that somebody is watching.
+module.exports = { _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport };

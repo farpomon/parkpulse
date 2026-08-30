@@ -22,6 +22,9 @@ const DAYS = Array.from({ length: 7 }, (_, i) => ({
   level: 4, label: 'Busy', score: 70, factor: 1.2,
 }));
 const TARGET = DAYS[3].date;
+// Today's date in park time. The clock is pinned to one o'clock on it, so the
+// "future" days above stay in the future once time stops moving.
+const TODAY_ET = iso(0);
 
 // Three rides, one per source: one with a measured typical, one open with only
 // a live wait, one shut with only a tag to go on.
@@ -36,6 +39,15 @@ async function board({ tags = true, plan = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+  // Hold the page at one o'clock in the afternoon, park time.
+  //
+  // The crowd curve HOURLY only has entries for 7am to 11pm, and projecting a
+  // live wait divides by it -- so outside those hours there is deliberately no
+  // projection to make, and the board shows a dash. That is correct behaviour
+  // and it made this file pass by day and fail after midnight. Pinning the
+  // park's opening hours was not enough: HOURLY is a separate table read off
+  // the wall clock. Freeze the clock and the question becomes about the code.
+  await page.clock.setFixedTime(new Date(`${TODAY_ET}T17:00:00Z`));   // 13:00 ET
   await page.addInitScript(() => { localStorage.setItem('pp-onboarded', '1'); localStorage.setItem('pp-park', 'magic-kingdom'); });
   const json = (b) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
   await page.route('**/api/config', async (r) => {
