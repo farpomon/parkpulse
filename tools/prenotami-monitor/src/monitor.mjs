@@ -41,12 +41,16 @@ export async function checkOnce(config, logger, session) {
     const state = loadState(config.dataDir);
     const notify = shouldNotify(state, result.outcome);
 
+    // Every check writes `outcome` and `check: true` to the log, so `report` can
+    // aggregate on a field rather than parsing English out of the message.
+    const logFields = { ...result, outcome: result.outcome, check: true };
+
     if (result.outcome === 'available') {
-      logger.ok(`SLOTS OPEN — ${result.bookingUrl}`, result);
+      logger.ok(`SLOTS OPEN — ${result.bookingUrl}`, logFields);
     } else if (result.outcome === 'unavailable') {
-      logger.info('No dates available', { detail: result.detail });
+      logger.info('No dates available', logFields);
     } else {
-      logger.warn(`${result.outcome}: ${result.detail}`, result);
+      logger.warn(`${result.outcome}: ${result.detail}`, logFields);
     }
 
     if (notify) await notifyAll(config, logger, buildMessage(config, result));

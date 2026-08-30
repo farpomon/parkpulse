@@ -11,6 +11,7 @@
     "check": "node bin/prenotami-monitor.mjs check",
     "watch": "node bin/prenotami-monitor.mjs watch",
     "probe": "node bin/prenotami-monitor.mjs probe",
+    "report": "node bin/prenotami-monitor.mjs report",
     "test-notify": "node bin/prenotami-monitor.mjs test-notify",
     "test": "node --test test/*.test.mjs",
     "test:browser": "node test/booking.browser.mjs",

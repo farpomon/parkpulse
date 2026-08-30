@@ -13,17 +13,22 @@ import { createLogger } from '../src/log.mjs';
 import { checkOnce, watch } from '../src/monitor.mjs';
 import { Session } from '../src/session.mjs';
 import { notifyAll, configuredChannels, validateChannels } from '../src/notify.mjs';
+import { parseLog, summarize, recommendSchedule, formatReport } from '../src/report.mjs';
 
 const USAGE = `
 prenotami-monitor — watch prenotami.esteri.it for an open appointment slot
 
   npm run check         Check once and print the result
   npm run watch         Keep checking until you stop it (Ctrl-C)
+  npm run report        Show when availability actually appeared, from the log
   npm run probe         Dump the Services page so you can fix selectors
   npm run test-notify   Send a test alert through every configured channel
 
 Configuration lives in .env — see .env.example.
-This tool never books an appointment. It tells you; you book.
+
+Booking is OFF unless PRENOTAMI_AUTOBOOK is set, and even then it books only
+inside the date window you give it. Start by watching continuously for a week
+or two, then run "report" to find out when slots actually appear.
 `;
 
 async function main() {
@@ -56,6 +61,22 @@ async function main() {
     case 'watch':
       await watch(config, logger);
       break;
+
+    case 'report': {
+      // Reads the log only — no login, no browser, no traffic to the site.
+      const { readFileSync } = await import('node:fs');
+      const path = join(config.dataDir, 'checks.jsonl');
+      let text = '';
+      try {
+        text = readFileSync(path, 'utf8');
+      } catch {
+        console.log(`\nNo log at ${path} yet. Run \`npm run watch\` first.\n`);
+        break;
+      }
+      const summary = summarize(parseLog(text));
+      console.log(formatReport(summary, recommendSchedule(summary)));
+      break;
+    }
 
     case 'test-notify':
       await notifyAll(config, logger, {

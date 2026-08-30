@@ -58,14 +58,19 @@ is not monitoring anything.
 
 ### Watching only on certain days
 
-By default it watches continuously. To watch only when your consulate actually
-releases slots:
+By default it watches continuously. Once you know when your consulate actually
+releases slots, you can narrow it:
 
 ```bash
-PRENOTAMI_SCHEDULE_DAYS=mon,tue
+PRENOTAMI_SCHEDULE_DAYS=tue,thu
 PRENOTAMI_SCHEDULE_TIME=15:00
-PRENOTAMI_SCHEDULE_WINDOW_MINUTES=30
+PRENOTAMI_SCHEDULE_WINDOW_MINUTES=180
 ```
+
+**Find those values, do not guess them.** Watch continuously for a week or two
+first, then run `npm run report` — see [Finding the release
+pattern](#finding-the-release-pattern). Narrowing on a hunch means not watching
+six days a week on the strength of a coincidence.
 
 The process still runs all week; it sleeps between windows and wakes at the
 appointed time. Nothing else to install — no cron entry, no timer unit.
@@ -107,6 +112,63 @@ at the consulate.
 **A sleeping laptop is not monitoring anything.** Run this somewhere that stays
 awake — a desktop, a Raspberry Pi, a cheap VPS. On macOS, `caffeinate -s`
 alongside it.
+
+### Finding the release pattern
+
+```bash
+npm run report
+```
+
+Reads `data/checks.jsonl` and answers the question the raw log cannot: when did
+availability actually appear? No login, no browser, no traffic to the site — it
+only reads the file.
+
+```
+4032 checks over 14.0 days (9/1/2026, 12:00:00 AM → 9/14/2026, 11:55:00 PM)
+
+Outcomes
+  unavailable      4016   99.6%
+  available          16    0.4%
+
+Availability seen 16 times, by local hour:
+
+      Sun Mon Tue Wed Thu Fri Sat
+  15  ·   ·   ·   ·   ·   ·   ·
+  16  ·   ·   8   ·   8   ·   ·
+  17  ·   ·   ·   ·   ·   ·   ·
+
+  n = times availability was seen   · = watched, nothing seen   blank = not watched
+
+Suggested schedule, from 16 sightings:
+
+  PRENOTAMI_SCHEDULE_DAYS=tue,thu
+  PRENOTAMI_SCHEDULE_TIME=15:00
+  PRENOTAMI_SCHEDULE_WINDOW_MINUTES=180
+```
+
+The grid separates *watched and saw nothing* (`·`) from *never watched* (blank).
+Those are different facts, and conflating them would have you conclude slots
+never appear at an hour where nothing was ever looking.
+
+Suggested windows start an hour before the earliest sighting and end an hour
+after the latest, because the log records when a slot was **seen**, which is at
+best the release moment and at worst a full interval later.
+
+It declines to recommend rather than guessing:
+
+- **Under a week of data, or fewer than three sightings** — too thin. A schedule
+  built on two sightings stops watching most of the week on a coincidence.
+- **No availability at all** — nothing to narrow to. Keep watching.
+- **Availability on five or more days a week** — real, but not a pattern.
+  Narrowing saves little and risks missing the days you drop.
+
+A slot that was skipped, booked, or handed back to you still counts as a
+sighting: the question is when the consulate released something, not what was
+done about it. Errors and bot checks do not count.
+
+Re-run it every few weeks after narrowing. Consulates change their habits, and
+a schedule tuned to last quarter's pattern fails silently — you simply stop
+seeing slots.
 
 ### Knowing it is still alive
 
@@ -296,14 +358,15 @@ If you start getting `challenge` outcomes, run once with
 ## Tests
 
 ```bash
-npm test            # 69 unit tests, no browser needed
+npm test            # 82 unit tests, no browser needed
 npm run test:browser   # drives the booking flow against a fake page
 npm run test:discord   # posts real alerts at a Discord-shaped server
 ```
 
 `npm test` covers what can be decided without a browser: how page text is
-classified, which offered date is acceptable, how alerts are deduplicated, and
-how checks are paced and scheduled.
+classified, which offered date is acceptable, how alerts are deduplicated, how
+checks are paced and scheduled, and how the report reads a log back — including
+the cases where it must refuse to recommend a schedule.
 
 `npm run test:browser` drives the real booking code against a local page shaped
 like prenotami's form, and asserts the things that would be expensive to get
@@ -324,7 +387,7 @@ here instead. Same caveat: those are the documented rules, not a live capture.
 ## Layout
 
 ```
-bin/prenotami-monitor.mjs   CLI: check | watch | probe | test-notify
+bin/prenotami-monitor.mjs   CLI: check | watch | report | probe | test-notify
 src/config.mjs              .env loading, validation, credential redaction
 src/session.mjs             browser, login, session reuse, selector cascades
 src/check.mjs               one check, read-only
@@ -333,6 +396,7 @@ src/booking.mjs             taking a slot — the only module that writes
 src/dates.mjs               which offered date is acceptable (pure)
 src/pacing.mjs              intervals, jitter, backoff, quiet hours (pure)
 src/schedule.mjs            which days and times to be awake (pure)
+src/report.mjs              reading the check log back (pure)
 src/state.mjs               alert deduplication (pure)
 src/notify.mjs              Telegram / ntfy / webhook / desktop
 src/monitor.mjs             the watch loop
