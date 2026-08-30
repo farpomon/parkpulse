@@ -847,5 +847,6 @@
   "Your group: {n}": "Ваша компания: {n}",
   "Now the important bit — how old and how tall?": "Теперь главное — сколько лет и какой рост?",
   "Child {n}": "Ребёнок {n}",
-  "Rides they can board here: {a} of {b}": "Аттракционов, доступных им здесь: {a} из {b}"
+  "Rides they can board here: {a} of {b}": "Аттракционов, доступных им здесь: {a} из {b}",
+  "Continue with {provider}": "Продолжить через {provider}"
 }

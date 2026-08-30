@@ -847,5 +847,6 @@
   "Your group: {n}": "あなたのグループ：{n}人",
   "Now the important bit — how old and how tall?": "ここが肝心 —— 年齢と身長は？",
   "Child {n}": "お子さま {n} 人目",
-  "Rides they can board here: {a} of {b}": "ここで乗れるアトラクション：{b} 件中 {a} 件"
+  "Rides they can board here: {a} of {b}": "ここで乗れるアトラクション：{b} 件中 {a} 件",
+  "Continue with {provider}": "{provider} で続ける"
 }

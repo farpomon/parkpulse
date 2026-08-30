@@ -847,5 +847,6 @@
   "Your group: {n}": "आपका समूह: {n}",
   "Now the important bit — how old and how tall?": "अब सबसे ज़रूरी बात — उम्र कितनी और कद कितना?",
   "Child {n}": "बच्चा {n}",
-  "Rides they can board here: {a} of {b}": "यहाँ वे जिन राइड्स पर जा सकते हैं: {b} में से {a}"
+  "Rides they can board here: {a} of {b}": "यहाँ वे जिन राइड्स पर जा सकते हैं: {b} में से {a}",
+  "Continue with {provider}": "{provider} से जारी रखें"
 }

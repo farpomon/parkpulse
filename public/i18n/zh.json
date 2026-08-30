@@ -847,5 +847,6 @@
   "Your group: {n}": "你的队伍：{n} 人",
   "Now the important bit — how old and how tall?": "现在是关键 —— 多大年纪，多高个子？",
   "Child {n}": "第 {n} 位小朋友",
-  "Rides they can board here: {a} of {b}": "这里他们能玩的项目：{b} 个中的 {a} 个"
+  "Rides they can board here: {a} of {b}": "这里他们能玩的项目：{b} 个中的 {a} 个",
+  "Continue with {provider}": "使用 {provider} 继续"
 }

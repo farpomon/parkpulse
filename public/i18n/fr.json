@@ -847,5 +847,6 @@
   "Your group: {n}": "Votre groupe : {n}",
   "Now the important bit — how old and how tall?": "Maintenant l'essentiel — quel âge et quelle taille ?",
   "Child {n}": "Enfant {n}",
-  "Rides they can board here: {a} of {b}": "Attractions accessibles ici : {a} sur {b}"
+  "Rides they can board here: {a} of {b}": "Attractions accessibles ici : {a} sur {b}",
+  "Continue with {provider}": "Continuer avec {provider}"
 }

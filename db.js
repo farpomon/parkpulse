@@ -232,6 +232,21 @@ for (const ddl of [
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
+  -- Sign-in with Google or Apple. Keyed on the provider's own subject rather
+  -- than the email, because an email can change at the provider and the
+  -- subject cannot: matching on the address would hand somebody else's new
+  -- Gmail an existing ParkPulse account. One account can carry several.
+  CREATE TABLE IF NOT EXISTS identities (
+    provider TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    email TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (provider, subject)
+  );
+  CREATE INDEX IF NOT EXISTS identities_email ON identities (email);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL,
@@ -330,6 +345,16 @@ const users = {
   setName: (email, name) => db.prepare('UPDATE users SET name = ? WHERE email = ?').run(name, email),
   setPassword: (email, salt, hash) =>
     db.prepare('UPDATE users SET salt = ?, hash = ? WHERE email = ?').run(salt, hash, email),
+};
+
+const identities = {
+  get: (provider, subject) => db.prepare('SELECT * FROM identities WHERE provider = ? AND subject = ?').get(provider, subject) ?? null,
+  forEmail: (email) => db.prepare('SELECT provider, created_at FROM identities WHERE email = ?').all(email),
+  link: (provider, subject, email) =>
+    db.prepare('INSERT INTO identities (provider, subject, email, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(provider, subject) DO UPDATE SET email = excluded.email')
+      .run(provider, subject, email, new Date().toISOString()),
+  unlink: (provider, email) => db.prepare('DELETE FROM identities WHERE provider = ? AND email = ?').run(provider, email).changes,
+  removeAll: (email) => db.prepare('DELETE FROM identities WHERE email = ?').run(email).changes,
 };
 
 const alerts = {
@@ -537,6 +562,7 @@ const accounts = {
     db.exec('BEGIN');
     try {
       run('sessions', 'DELETE FROM sessions WHERE email = ?');
+      run('identities', 'DELETE FROM identities WHERE email = ?');
       run('trips', 'DELETE FROM trips WHERE email = ?');
       run('daystate', 'DELETE FROM daystate WHERE email = ?');
       run('savedPlans', 'DELETE FROM saved_plans WHERE email = ?');
@@ -675,4 +701,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, identities, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

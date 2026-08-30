@@ -847,5 +847,6 @@
   "Your group: {n}": "일행: {n}명",
   "Now the important bit — how old and how tall?": "이제 중요한 부분 —— 나이와 키는요?",
   "Child {n}": "{n}번째 아이",
-  "Rides they can board here: {a} of {b}": "여기서 탈 수 있는 어트랙션: {b}개 중 {a}개"
+  "Rides they can board here: {a} of {b}": "여기서 탈 수 있는 어트랙션: {b}개 중 {a}개",
+  "Continue with {provider}": "{provider}(으)로 계속하기"
 }

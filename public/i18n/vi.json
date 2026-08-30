@@ -847,5 +847,6 @@
   "Your group: {n}": "Nhóm của bạn: {n}",
   "Now the important bit — how old and how tall?": "Giờ đến phần quan trọng — mấy tuổi và cao bao nhiêu?",
   "Child {n}": "Bé thứ {n}",
-  "Rides they can board here: {a} of {b}": "Trò các bé chơi được ở đây: {a} trên {b}"
+  "Rides they can board here: {a} of {b}": "Trò các bé chơi được ở đây: {a} trên {b}",
+  "Continue with {provider}": "Tiếp tục với {provider}"
 }

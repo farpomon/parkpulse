@@ -20,7 +20,8 @@
     "test:staledict": "node test/stale-dictionary.mjs",
     "test:langpromo": "node test/language-promo.mjs",
     "test:projected": "node test/projected-waits.mjs",
-    "test:partyshape": "node test/party-shape.mjs"
+    "test:partyshape": "node test/party-shape.mjs",
+    "test:oauth": "node test/oauth-signin.cjs"
   },
   "engines": {
     "node": ">=22.5"

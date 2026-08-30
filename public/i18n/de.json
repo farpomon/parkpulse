@@ -847,5 +847,6 @@
   "Your group: {n}": "Deine Gruppe: {n}",
   "Now the important bit — how old and how tall?": "Jetzt das Wichtigste — wie alt und wie groß?",
   "Child {n}": "Kind {n}",
-  "Rides they can board here: {a} of {b}": "Fahrten, die sie hier schaffen: {a} von {b}"
+  "Rides they can board here: {a} of {b}": "Fahrten, die sie hier schaffen: {a} von {b}",
+  "Continue with {provider}": "Weiter mit {provider}"
 }

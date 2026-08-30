@@ -847,5 +847,6 @@
   "Your group: {n}": "আপনার দল: {n}",
   "Now the important bit — how old and how tall?": "এবার আসল কথা — বয়স কত আর উচ্চতা কত?",
   "Child {n}": "শিশু {n}",
-  "Rides they can board here: {a} of {b}": "এখানে তারা যেগুলোয় চড়তে পারবে: {b}-এর মধ্যে {a}"
+  "Rides they can board here: {a} of {b}": "এখানে তারা যেগুলোয় চড়তে পারবে: {b}-এর মধ্যে {a}",
+  "Continue with {provider}": "{provider} দিয়ে চালিয়ে যান"
 }

@@ -847,5 +847,6 @@
   "Your group: {n}": "مجموعتك: {n}",
   "Now the important bit — how old and how tall?": "الآن الأهم — كم العمر وكم الطول؟",
   "Child {n}": "الطفل {n}",
-  "Rides they can board here: {a} of {b}": "الألعاب التي يمكنهم ركوبها هنا: {a} من {b}"
+  "Rides they can board here: {a} of {b}": "الألعاب التي يمكنهم ركوبها هنا: {a} من {b}",
+  "Continue with {provider}": "المتابعة باستخدام {provider}"
 }

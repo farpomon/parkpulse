@@ -847,5 +847,6 @@
   "Your group: {n}": "உங்கள் குழு: {n}",
   "Now the important bit — how old and how tall?": "இப்போது முக்கியமானது — வயது என்ன, உயரம் என்ன?",
   "Child {n}": "குழந்தை {n}",
-  "Rides they can board here: {a} of {b}": "இங்கே அவர்கள் ஏற முடிந்தவை: {b}-ல் {a}"
+  "Rides they can board here: {a} of {b}": "இங்கே அவர்கள் ஏற முடிந்தவை: {b}-ல் {a}",
+  "Continue with {provider}": "{provider} மூலம் தொடரவும்"
 }

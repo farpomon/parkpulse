@@ -25,6 +25,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 
 const consultant = require('./consultant');
+const oauth = require('./oauth');
 const pages = require('./pages');
 const premade = require('./premade');
 const history = require('./history');
@@ -163,6 +164,10 @@ const MAIL_FROM = process.env.MAIL_FROM || 'ParkPulse <onboarding@resend.dev>';
 // Replies to any transactional mail land in the support inbox, which
 // forwards to a human — otherwise they vanish into the sender domain.
 const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'support@parkpulse.fun';
+// Where providers send people back. Derived from the request by default,
+// which is right for dev and prod alike; set it only when the app sits
+// behind something that rewrites the host.
+const OAUTH_REDIRECT_BASE = (process.env.OAUTH_REDIRECT_BASE || '').replace(/\/$/, '');
 
 // WhatsApp concierge: the same AI advisor, reachable by texting our WhatsApp
 // Business number. Dormant until the Meta Cloud API credentials are set.
@@ -2855,6 +2860,9 @@ const server = http.createServer(async (req, res) => {
       // front instead of inviting a question and rejecting the answer.
       consultantAccess: consultant.enabled() && hasAccess(req),
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
+      // Only the providers that are actually configured, so the buttons never
+      // appear for a sign-in that cannot complete.
+      oauth: oauth.list(),
       pushKey: vapidKeys.publicKey,
       parks: Object.fromEntries(REGISTRY.map((p) => [p.slug, { name: p.name, group: p.group, region: p.region, open: p.open, close: p.close, show: p.show, skip: p.skip, lat: p.lat, lng: p.lng, tz: p.tz }])),
       popular: PICKER_TOP.filter((slug) => PARKS[slug]),
@@ -3435,6 +3443,105 @@ ${sections}
     return sendJson(res, 200, await getWaits(slug));
   }
 
+  // --- Sign in with Google / Apple -------------------------------------------
+  // Authorization-code flow, finished on this side. Two rules do most of the
+  // security work here:
+  //
+  //   * accounts are matched on the provider's SUBJECT, never on the address.
+  //     Emails change hands; a subject does not.
+  //   * an address is only ever attached to an existing ParkPulse account when
+  //     the provider says it verified it. Otherwise anyone able to set an
+  //     unverified email at a provider could walk into somebody's account.
+  const oauthMatch = url.pathname.match(/^\/api\/auth\/oauth\/([a-z]+)\/(start|callback)$/);
+  if (oauthMatch && (req.method === 'GET' || req.method === 'POST')) {
+    const [, provider, leg] = oauthMatch;
+    if (!oauth.enabled(provider)) return sendJson(res, 404, { error: 'provider not configured' });
+    // The redirect must match what is registered at the provider to the
+    // character, so it is derived once and used for both legs.
+    const base = OAUTH_REDIRECT_BASE || `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+    const redirectUri = `${base}/api/auth/oauth/${provider}/callback`;
+
+    if (leg === 'start') {
+      const device = String(url.searchParams.get('device') || 'unknown').slice(0, 64);
+      const nonce = crypto.randomBytes(16).toString('hex');
+      // The state is signed and carries everything the callback needs, so
+      // nothing has to be remembered between the two legs.
+      const state = signToken({ k: 'oauth', provider, device, nonce, exp: Date.now() + 10 * 60 * 1000 });
+      res.writeHead(302, { location: oauth.authorizeUrl(provider, { redirectUri, state, nonce }), 'cache-control': 'no-store' });
+      return res.end();
+    }
+
+    // Apple posts the callback as a form when name or email is requested;
+    // Google redirects with a query string. Accept both.
+    const fields = await (async () => {
+      if (req.method === 'GET') return url.searchParams;
+      let body = '';
+      await new Promise((done) => {
+        req.on('data', (c) => { body += c; if (body.length > 16384) req.destroy(); });
+        req.on('end', done);
+        req.on('error', done);
+      });
+      return new URLSearchParams(body);
+    })();
+
+    const back = (params) => {
+      res.writeHead(302, { location: `/app#${new URLSearchParams(params)}`, 'cache-control': 'no-store' });
+      res.end();
+    };
+    try {
+      const st = verifyToken(fields.get('state'));
+      if (!st || st.k !== 'oauth' || st.provider !== provider) throw new Error('login expired — please try again');
+      if (fields.get('error')) throw new Error(fields.get('error_description') || fields.get('error'));
+      const code = fields.get('code');
+      if (!code) throw new Error('no authorisation code came back');
+
+      const tokens = await oauth.exchange(provider, { code, redirectUri });
+      const claims = await oauth.verifyIdToken(provider, tokens.id_token, { nonce: st.nonce });
+      // Apple sends the name exactly once, on first authorisation, in its own
+      // form field. There is no second chance to ask.
+      let hint = '';
+      try { hint = JSON.parse(fields.get('user') || '{}')?.name?.firstName || ''; } catch {}
+      const id = oauth.identityFrom(claims, hint);
+
+      let email = db.identities.get(provider, id.subject)?.email || '';
+      if (!email) {
+        if (!id.email) throw new Error('that account did not share an email address');
+        if (!id.emailVerified) throw new Error('that email is not verified with the provider — sign in with a code instead');
+        email = id.email.slice(0, 254);
+        const existing = db.users.get(email);
+        if (!existing) {
+          // No password: this account is reached through the provider. A
+          // random one keeps the column honest and unguessable, and "forgot
+          // password" still works if they ever want one.
+          const salt = crypto.randomBytes(16).toString('hex');
+          db.users.create(email, salt, hashPassword(crypto.randomBytes(32).toString('hex'), salt), 1);
+          if (id.name) db.users.setName(email, cleanFirstName(id.name).name);
+          sendWelcomeEmail(email).catch((err) => console.log(`welcome email failed: ${err.message}`));
+        } else {
+          // Joining a provider to an account that already existed. Safe only
+          // because the provider verified the address above.
+          if (!existing.verified) db.users.markVerified(email);
+          if (!existing.name && id.name) db.users.setName(email, cleanFirstName(id.name).name);
+        }
+        db.identities.link(provider, id.subject, email);
+      }
+      if (db.users.get(email)?.delete_at) {
+        db.users.cancelDeletion(email);
+        console.log(`account deletion cancelled by ${provider} sign-in: ${email}`);
+      }
+      // The session is not handed over in the URL. A one-time code is, and
+      // the app trades it in over POST -- so a token never lands in history,
+      // a referrer, or somebody's screenshot.
+      const claim = crypto.randomBytes(24).toString('base64url');
+      db.kv.set(`oauthclaim:${claim}`, JSON.stringify({ email, device: st.device, exp: Date.now() + 2 * 60 * 1000 }));
+      console.log(`${provider} sign-in: ${email}`);
+      return back({ auth: claim });
+    } catch (err) {
+      console.log(`${provider} sign-in failed: ${err.message}`);
+      return back({ autherr: String(err.message).slice(0, 160) });
+    }
+  }
+
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
     let body = '';
     req.on('data', (chunk) => { body += chunk; if (body.length > 65536) req.destroy(); });
@@ -3712,6 +3819,35 @@ ${sections}
           session: issueSession(email, parsed.device, req),
           email,
           deletionCancelled: wasPendingDeletion,
+          plan: active ? u.plan : null,
+          exp: active ? u.plan_exp : null,
+          passToken: active ? signPass(u.plan, u.plan_exp) : null,
+        });
+      }
+
+      // The other half of the provider flow: the app trades the one-time code
+      // from the redirect for a real session. Single use, two-minute life, and
+      // bound to the device that started the login.
+      if (url.pathname === '/api/auth/oauth/claim') {
+        const code = typeof parsed.code === 'string' ? parsed.code.slice(0, 64) : '';
+        const key = `oauthclaim:${code}`;
+        let held = null;
+        try { held = JSON.parse(db.kv.get(key) || 'null'); } catch {}
+        db.kv.set(key, '');                       // spent, whatever happens next
+        if (!held || !held.email || held.exp < Date.now()) return sendJson(res, 403, { error: 'that sign-in link has expired — try again' });
+        const device = typeof parsed.device === 'string' ? parsed.device.trim().slice(0, 64) : '';
+        if (held.device && held.device !== 'unknown' && device !== held.device) {
+          return sendJson(res, 403, { error: 'that sign-in was started on another device' });
+        }
+        const bound = passFromReq(req);
+        if (bound) grantToUser(held.email, bound.plan, bound.exp);
+        const u = db.users.get(held.email);
+        if (!u) return sendJson(res, 403, { error: 'account not found' });
+        const active = accountPassActive(u);
+        return sendJson(res, 200, {
+          session: issueSession(held.email, parsed.device, req),
+          email: held.email,
+          name: u.name || null,
           plan: active ? u.plan : null,
           exp: active ? u.plan_exp : null,
           passToken: active ? signPass(u.plan, u.plan_exp) : null,
