@@ -68,6 +68,27 @@ async function waitForServer(ms = 30000) {
   return false;
 }
 
+// The self-hosting tests each bind a fixed port. A stray server left over
+// from something else takes one and the failure that follows says only
+// EADDRINUSE, three hundred lines up from the summary -- so say it here,
+// before anything runs, and name the port.
+const OWN_PORTS = { cache: null, card: null, emaillinks: 9698 };
+async function portFree(port) {
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(700) });
+    return false;                       // something answered
+  } catch { return true; }
+}
+const busy = [];
+for (const [name, port] of Object.entries(OWN_PORTS)) {
+  if (port && !(await portFree(port))) busy.push(`${name} needs ${port}`);
+}
+if (busy.length) {
+  console.log(`\nSomething is already listening where the suite needs to: ${busy.join(', ')}.`);
+  console.log('Stop it first — `ps -eo pid,args | grep "[s]erver.js"` usually finds a stray one.');
+  process.exit(1);
+}
+
 for (const f of [DB, `${DB}-wal`, `${DB}-shm`]) fs.rmSync(f, { force: true });
 const server = spawn(process.execPath, ['server.js'], {
   cwd: ROOT,
