@@ -128,6 +128,10 @@
       <div class="tiles" id="rev-tiles"></div>
       <p class="muted" style="font-size:.8rem;margin:.9rem 0 0" id="rev-note"></p>
     </div>
+    <div class="card" id="price-card">
+      <h2>Pricing</h2>
+      <div id="price-body"></div>
+    </div>
     <div class="card" id="health-card">
       <h2>Upstream health</h2>
       <div id="health-services"></div>
@@ -354,6 +358,22 @@ function renderOps(d) {
   $('rev-note').innerHTML = `Counts the five catalogue plans only.`
     + (comped ? ` <b>${comped}</b> non-revenue pass${comped === 1 ? '' : 'es'} (dev or a retired plan id) issued in the last 30 days are excluded from the money above.` : ' No dev or legacy passes issued in the last 30 days.')
     + ' Invited comps are never recorded as passes at all.';
+
+  // Sticker versus till. These can disagree silently, and only the till matters.
+  const pr = d.pricing || {};
+  if (pr.mode === 'inline') {
+    $('price-body').innerHTML = `<p class="muted" style="font-size:.85rem">${esc(pr.note || '')}</p>`;
+  } else {
+    const rows = pr.rows || [];
+    $('price-body').innerHTML =
+      (pr.mismatches ? `<p class="no" style="margin:.1rem 0 .6rem">⚠ ${pr.mismatches} plan${pr.mismatches === 1 ? '' : 's'} charge a different amount than the site advertises.</p>` : '')
+      + '<div class="overflow"><table><tr><th>Plan</th><th class="n">Shown</th><th class="n">Charged</th><th>Source</th></tr>'
+      + rows.map((r) => `<tr><td>${esc(r.plan)}</td><td class="n">${usd(r.shown)}</td>`
+        + `<td class="n ${r.ok ? '' : 'no'}">${r.charged == null ? '—' : usd(r.charged)}</td>`
+        + `<td class="muted">${esc(r.source)}${r.error ? ' · ' + esc(r.error) : ''}</td></tr>`).join('')
+      + '</table></div>'
+      + '<p class="muted" style="font-size:.8rem;margin:.6rem 0 0">A Stripe Price set in the dashboard overrides the catalogue amount, so editing a price in the code moves the label and not the charge. Checked hourly.</p>';
+  }
 
   // Upstream health. "unknown" is honest: nobody has asked for that park yet.
   const h = d.health;

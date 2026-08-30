@@ -55,7 +55,7 @@ const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
 const PLAN_CATALOG = [
   { id: 'day-pass', days: 1, usd: '24.99', label: 'Day Pass', per: '1 day' },
   { id: 'week-pass', days: 7, usd: '49.99', label: 'Week Pass', per: '7 days', badge: 'MOST POPULAR' },
-  { id: 'month-pass', days: 30, usd: '69.99', label: 'Month Pass', per: '30 days' },
+  { id: 'month-pass', days: 30, usd: '89.99', label: 'Month Pass', per: '30 days' },
   { id: 'half-year-pass', days: 182, usd: '129.99', label: '6-Month Pass', per: '6 months' },
   { id: 'year-pass', days: 365, usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
 ];
@@ -3095,6 +3095,33 @@ const server = http.createServer(async (req, res) => {
 
   // Everything the dashboard grew in one request: money, health, funnel,
   // cohorts, what got rate-limited and what deletions are queued.
+// What Stripe will actually charge, against what the site says it will.
+//
+// The catalogue amount is only the sticker: STRIPE_PRICES[plan] wins when set,
+// and its amount lives in the Stripe dashboard. So editing a price here moves
+// the label and not the charge, and nothing anywhere would have said so. Read
+// once an hour, because it changes about never.
+let stripePriceCache = { at: 0, rows: null };
+async function stripePriceCheck() {
+  if (!STRIPE_KEY) return { mode: 'inline', note: 'No Stripe key: the catalogue amount is charged directly, so it cannot disagree with itself.', rows: [] };
+  if (stripePriceCache.rows && Date.now() - stripePriceCache.at < 3600000) return stripePriceCache.rows;
+  const rows = [];
+  for (const cat of PLAN_CATALOG) {
+    const id = STRIPE_PRICES[cat.id];
+    if (!id) { rows.push({ plan: cat.id, shown: Number(cat.usd), charged: Number(cat.usd), source: 'inline', ok: true }); continue; }
+    try {
+      const price = await stripeApi(`/v1/prices/${encodeURIComponent(id)}`);
+      const charged = (price.unit_amount ?? 0) / 100;
+      rows.push({ plan: cat.id, shown: Number(cat.usd), charged, source: 'stripe', ok: Math.abs(charged - Number(cat.usd)) < 0.005 });
+    } catch (err) {
+      rows.push({ plan: cat.id, shown: Number(cat.usd), charged: null, source: 'stripe', ok: false, error: String(err.message).slice(0, 100) });
+    }
+  }
+  const out = { mode: 'stripe', rows, mismatches: rows.filter((r) => !r.ok).length };
+  stripePriceCache = { at: Date.now(), rows: out };
+  return out;
+}
+
   // What is left of this account's day with Mila. Cheap, and the app asks for
   // it when she declines rather than on every page load.
   if (req.method === 'GET' && url.pathname === '/api/mila/budget') {
@@ -3166,6 +3193,7 @@ const server = http.createServer(async (req, res) => {
         email: r.email, usd: Math.round(r.usd * 100) / 100, calls: r.calls,
         budget: Math.round(aiBudgetFor(db.users.get(r.email)) * 100) / 100,
       })),
+      pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
       deletions: db.admin.pendingDeletions().map((d) => ({ email: d.email, at: d.delete_at, inDays: Math.round((d.delete_at - now) / 86400000) })),
       alerts: { ceilingUsd: AI_ALERT_USD, multiple: AI_ALERT_MULTIPLE, floorUsd: AI_ALERT_FLOOR_USD, to: AI_REPORT_TO },
