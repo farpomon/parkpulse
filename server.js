@@ -2289,6 +2289,14 @@ function localizeLanding(html, lang) {
 
 // In-flight dining-guide generations, one per park+language.
 const diningJobs = new Map();
+// And the ones that just failed. Without this the browser's poll -- every four
+// seconds for a minute and a half -- started a FRESH generation each time,
+// because the in-flight entry is deleted when the job settles. A park whose
+// guide could not be written burned twenty-two model calls per visitor and
+// still showed "cooking up..." the whole time. Remembering the failure stops
+// the retry and lets the visitor be told straight away.
+const diningFails = new Map();          // park|lang -> { at, error }
+const DINING_FAIL_COOLDOWN_MS = 10 * 60 * 1000;
 
 // --- Ride coordinates from OpenStreetMap -------------------------------------
 // One Overpass extraction per park, matched to the wait feed's ride names
@@ -3670,14 +3678,33 @@ ${sections}
     // the client to poll. Nobody stares at a spinner tied to a model call, and
     // concurrent visitors share one generation instead of stampeding it.
     const jobKey = `${slug}|${langCode}`;
+    // Recently failed: say so now rather than making them wait out the poll
+    // for an answer that is not coming.
+    const failed = diningFails.get(jobKey);
+    if (failed && Date.now() - failed.at < DINING_FAIL_COOLDOWN_MS && !diningJobs.has(jobKey)) {
+      return sendJson(res, 503, { error: 'dining guide unavailable', reason: failed.error });
+    }
     if (!diningJobs.has(jobKey)) {
       if (rideInfoBlocked(clientIp(req))) return sendJson(res, 429, { error: 'slow down' });
       const job = consultant.diningGuide(park.name, park.group, LANG_NAMES[langCode])
         .then((list) => {
-          if (list && list.length) db.dining.set(slug, langCode, JSON.stringify(list));
-          else console.log(`dining: empty guide for ${jobKey}`);
+          if (list && list.length) {
+            db.dining.set(slug, langCode, JSON.stringify(list));
+            diningFails.delete(jobKey);
+          } else {
+            // A guide with nothing in it is a failure with better manners.
+            console.log(`dining: empty guide for ${jobKey}`);
+            diningFails.set(jobKey, { at: Date.now(), error: 'the guide came back empty' });
+          }
         })
-        .catch((err) => console.log(`dining error (${jobKey}): ${err.message}`))
+        .catch((err) => {
+          console.log(`dining error (${jobKey}): ${err.message}`);
+          diningFails.set(jobKey, { at: Date.now(), error: String(err.message).slice(0, 120) });
+          // The health panel exists to make exactly this visible: nothing
+          // errors loudly when a catalogue job stops working, the feature
+          // just quietly never fills in.
+          upstream.service('anthropic', false, err.message);
+        })
         .finally(() => diningJobs.delete(jobKey));
       diningJobs.set(jobKey, job);
     }

@@ -26,7 +26,8 @@
     "test:adminai": "node test/admin-ai-spend.cjs",
     "test:adminops": "node test/admin-ops.cjs",
     "test:livestrip": "node test/live-strip.cjs",
-    "test:milabudget": "node test/mila-budget.cjs"
+    "test:milabudget": "node test/mila-budget.cjs",
+    "test:dining": "node test/dining-guide.cjs"
   },
   "engines": {
     "node": ">=22.5"
