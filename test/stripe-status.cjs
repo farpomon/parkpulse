@@ -91,6 +91,9 @@ const db = require('../db.js');
     const d = await ops();
     check('the paywall is reported off when PRO_GATE is unset', d.proGate === false, JSON.stringify(d.proGate));
     check('and the free park is named', d.freePark === 'magic-kingdom', d.freePark);
+    // The revenue note used to state the ladder's length as a literal, and
+    // said "five" for a good while after the ladder became four.
+    check('the plan count comes from the catalogue', d.planCount === 4, String(d.planCount));
   }
 
   console.log('\n[a key Stripe rejects]');

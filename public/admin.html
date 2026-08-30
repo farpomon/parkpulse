@@ -362,7 +362,8 @@ function renderOps(d) {
     { num: r.month.arpu == null ? '—' : usd(r.month.arpu), lbl: 'Per active account', sub: `30d · ${r.month.accounts} active` },
   ].map((t) => `<div class="tile"><div class="num">${esc(t.num)}</div><div class="lbl">${esc(t.lbl)}</div><div class="sub">${esc(t.sub)}</div></div>`).join('');
   const comped = r.month.comped;
-  $('rev-note').innerHTML = `Counts the five catalogue plans only.`
+  const nPlans = d.planCount || (d.pricing?.rows || []).length;
+  $('rev-note').innerHTML = `Counts the ${nPlans || ''} catalogue plan${nPlans === 1 ? '' : 's'} only.`.replace('  ', ' ')
     + (comped ? ` <b>${comped}</b> non-revenue pass${comped === 1 ? '' : 'es'} (dev or a retired plan id) issued in the last 30 days are excluded from the money above.` : ' No dev or legacy passes issued in the last 30 days.')
     + ' Invited comps are never recorded as passes at all.';
 

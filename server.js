@@ -3351,6 +3351,7 @@ async function stripePriceCheck() {
       // like a marketing problem.
       proGate: PRO_GATE,
       freePark: FREE_PARK,
+      planCount: PLAN_CATALOG.length,
       stripe: await stripeStatus(),
       pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
