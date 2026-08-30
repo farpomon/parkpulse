@@ -6673,6 +6673,12 @@
     } catch {
       parks = { [FREE_PARK]: { name: 'Magic Kingdom', group: 'Walt Disney World', open: 9, close: 22, show: null } };
     }
+    // Open on Plan, not on the board. Planning the day is what the app is
+    // for; the attraction list is where you go to change the plan's inputs.
+    // Phone only, and set before load() paints, so the board never flashes up
+    // as the first thing seen -- above the breakpoint the pane class is inert
+    // and the rail and board already share one scroll.
+    if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
     load();
     // Back from Google or Apple: trade the one-time code for a session before
     // anything decides whether to ask this visitor to sign up.
