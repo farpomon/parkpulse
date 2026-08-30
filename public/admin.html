@@ -131,6 +131,7 @@
     <div class="card" id="price-card">
       <h2>Pricing</h2>
       <p id="stripe-status" style="font-size:.85rem;margin:.1rem 0 .9rem"></p>
+      <p id="gate-status" style="font-size:.85rem;margin:.1rem 0 .9rem"></p>
       <div id="price-body"></div>
     </div>
     <div class="card" id="health-card">
@@ -387,6 +388,13 @@ function renderOps(d) {
         + (st.currencies?.length ? ` \u00b7 balance in ${esc(st.currencies.join(', '))}` : '')
       : `<span class="no">\u25cf</span> Stripe connected, but in <b>TEST mode</b> \u2014 `
         + 'real cards will be declined. Swap the key for a live one.';
+
+  // Is anybody being asked to pay? Off is correct during a launch preview and
+  // silently wrong after it, and the only symptom is a flat revenue line.
+  $('gate-status').innerHTML = d.proGate
+    ? `<span class="ok">\u25cf</span> Paywall <b>on</b> \u00b7 free tier is ${esc(d.freePark || '')} only`
+    : '<span class="no">\u25cf</span> Paywall <b>off</b> \u2014 every signed-up visitor gets all parks, '
+      + 'the planner and Mila for free. Set <code>PRO_GATE=on</code> to start charging.';
 
   // Sticker versus till. These can disagree silently, and only the till matters.
   const pr = d.pricing || {};

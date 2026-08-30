@@ -3337,6 +3337,13 @@ async function stripePriceCheck() {
       // same thing forever and nobody who works on the site ever sees it,
       // having dismissed it on day one.
       comingSoon: COMING_SOON,
+      // Whether anyone is being asked to pay at all. PRO_GATE defaults to off,
+      // which is right for a launch preview and silently wrong forever after:
+      // nothing in the product says "you are giving this away", and the only
+      // symptom is a revenue line that stays at zero for reasons that look
+      // like a marketing problem.
+      proGate: PRO_GATE,
+      freePark: FREE_PARK,
       stripe: await stripeStatus(),
       pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },

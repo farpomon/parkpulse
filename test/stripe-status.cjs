@@ -119,6 +119,17 @@ const db = require('../db.js');
     check('checkout is off without a key', r.checkout === false, JSON.stringify(r));
   }
 
+  console.log('\n[whether anyone is being charged at all]');
+  {
+    // PRO_GATE is unset in this process, which is the default and the state
+    // that gives the whole product away. The dashboard has to say so out loud.
+    balance = { body: { object: 'balance', livemode: true, available: [] } };
+    clearCache();
+    const d = await ops();
+    check('the paywall is reported off when PRO_GATE is unset', d.proGate === false, JSON.stringify(d.proGate));
+    check('and the free park is named', d.freePark === 'magic-kingdom', d.freePark);
+  }
+
   console.log(fail ? `\n${fail} failed` : '\nall good');
   process.exit(fail ? 1 : 0);
 })();
