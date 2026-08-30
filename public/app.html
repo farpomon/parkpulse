@@ -5383,11 +5383,15 @@
   const AGE_BANDS = [['kid', '🧒', 'Kids'], ['adult', '🧔', 'Adults'], ['elderly', '🧓', 'Elderly']];
   // The fairy preference: what Mila does with the happy problem of a day
   // where every attraction is done and the park is still open.
+  // Each label says what the PLAN will do, not what the moment is called.
+  // "Mila's encore" and "Victory laps" were theatre: charming, and no help at
+  // all in deciding, because neither says whether you stop for dinner or
+  // whether you queue again. The real choice is those two things.
   const FINALE_OPTS = [
-    ['encore', '✨', "Mila's encore — early dinner, then favorites again"],
-    ['laps', '🎢', 'Victory laps — just keep riding'],
-    ['chill', '🌇', 'Wind down — food, shops and the show'],
-    ['ask', '🤔', 'Ask me on the day'],
+    ['encore', '✨', 'Ride the best ones again — early dinner first'],
+    ['laps', '🎢', 'Straight back on the rides — no dinner stop'],
+    ['chill', '🌇', 'No more queues — food, shops and the show'],
+    ['ask', '🤔', 'Decide on the day'],
   ];
   // The youngest rider's age. Now that every child is asked for theirs, this
   // is a fact rather than the bottom of a band -- an eleven-year-old stops
@@ -5778,8 +5782,11 @@
         wrap.appendChild(chip(`🛟 ${tr('Only show rides the whole group can ride')}`, wizDraft.strict, () => { wizDraft.strict = !wizDraft.strict; renderWiz(); }));
       }
     } else if (step === 3) {
-      body.innerHTML = `<h2>🌙 ${tr('If you finish every ride, how should the day end?')}</h2><div class="chipgrid" id="wiz-finale"></div>
-        <p class="wiz-note">${tr("Mila's favorite problem to have — everything's done and the park is still open.")}</p>`;
+      // "If you finish every ride" read as every ride in the park, which sounds
+      // impossible, so the question sounded hypothetical. It is your list, and
+      // running out of it is common.
+      body.innerHTML = `<h2>🌙 ${tr('You finish your list and the park is still open. What then?')}</h2><div class="chipgrid" id="wiz-finale"></div>
+        <p class="wiz-note">${tr('This happens more often than you would think — Mila plans a tight day.')}</p>`;
       const grid = body.querySelector('#wiz-finale');
       for (const [val, emoji, label] of FINALE_OPTS) {
         grid.appendChild(chip(`${emoji} ${tr(label)}`, (wizDraft.finale || 'encore') === val, () => { wizDraft.finale = val; renderWiz(); }));
