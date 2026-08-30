@@ -39,15 +39,25 @@ async function board({ tags = true, plan = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-  // Hold the page at one o'clock in the afternoon, park time.
+  // Hold the page at ten in the morning, park time. Two reasons, both about
+  // taking the wall clock out of the answers.
   //
-  // The crowd curve HOURLY only has entries for 7am to 11pm, and projecting a
-  // live wait divides by it -- so outside those hours there is deliberately no
-  // projection to make, and the board shows a dash. That is correct behaviour
-  // and it made this file pass by day and fail after midnight. Pinning the
-  // park's opening hours was not enough: HOURLY is a separate table read off
-  // the wall clock. Freeze the clock and the question becomes about the code.
-  await page.clock.setFixedTime(new Date(`${TODAY_ET}T17:00:00Z`));   // 13:00 ET
+  // The crowd curve HOURLY only runs from 7am to 11pm, and projecting a live
+  // wait divides by it -- so outside those hours there is deliberately no
+  // projection to make and the board shows a dash. Correct behaviour, and it
+  // made this file pass by day and fail after midnight. Pinning the park's
+  // opening hours was not enough: HOURLY is read off the wall clock, not off
+  // the park's schedule.
+  //
+  // Ten rather than midday because of what the checks below actually claim. A
+  // posted wait is de-scaled by the current hour to get a baseline, then
+  // scaled by the target day's crowd factor. At 1pm the hour multiplier is
+  // 1.15 and the busy day is 1.2, so the projection lands four percent above
+  // the posted wait -- inside the rounding to the nearest five minutes, and
+  // "busier day means longer queue" stops being visible. At ten the
+  // multiplier is 0.8, the gap is unmistakable, and the assertion is about
+  // the arithmetic rather than about when the suite happened to run.
+  await page.clock.setFixedTime(new Date(`${TODAY_ET}T14:00:00Z`));   // 10:00 ET
   await page.addInitScript(() => { localStorage.setItem('pp-onboarded', '1'); localStorage.setItem('pp-park', 'magic-kingdom'); });
   const json = (b) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
   await page.route('**/api/config', async (r) => {
