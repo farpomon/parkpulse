@@ -78,8 +78,8 @@ const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 // Legacy plan ids stay valid so previously issued passes keep working.
-const PLAN_DAYS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650, 'comp': 365 };
-const PLAN_LABELS = { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])), 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass', 'comp': 'Guest Pass' };
+const PLAN_DAYS = Object.assign(Object.create(null), { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650, 'comp': 365  })
+const PLAN_LABELS = Object.assign(Object.create(null), { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])), 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass', 'comp': 'Guest Pass'  })
 
 function signToken(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -267,6 +267,9 @@ async function waAgentReply(link, text) {
     excluded: strList(ds.excluded, 40),
     planPicks: strList(ds.picked, 30),
     done: strList(ds.done, 40),
+    // Passes bought in the app. Without this the assistant on WhatsApp kept
+    // recommending a Lightning Lane the visitor was already holding.
+    lanePasses: strList(ds.lanePasses, 30),
     profile: sanitizeProfile(ds.profile),
     subscription: null,
     email: link.email,
@@ -491,7 +494,12 @@ function recordPass(entry) {
   try { db.passes.add(entry.plan, entry.session, entry.email); } catch {}
 }
 
-const LANG_NAMES = { en: 'English', zh: 'Chinese', hi: 'Hindi', es: 'Spanish', fr: 'French', ar: 'Arabic', bn: 'Bengali', de: 'German', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', mr: 'Marathi', pt: 'Portuguese', ru: 'Russian', ta: 'Tamil', te: 'Telugu', tr: 'Turkish', ur: 'Urdu', vi: 'Vietnamese' };
+// Lookup tables indexed by request-supplied strings. Null-prototype, because a
+// plain object answers to "constructor", "toString" and "__proto__" as though
+// they were entries: LANG_NAMES['__proto__'] came back truthy, which sent
+// '__proto__' into Intl.DateTimeFormat and took the process down with an
+// unhandled RangeError. Object.create(null) has no inherited keys to find.
+const LANG_NAMES = Object.assign(Object.create(null), { en: 'English', zh: 'Chinese', hi: 'Hindi', es: 'Spanish', fr: 'French', ar: 'Arabic', bn: 'Bengali', de: 'German', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', mr: 'Marathi', pt: 'Portuguese', ru: 'Russian', ta: 'Tamil', te: 'Telugu', tr: 'Turkish', ur: 'Urdu', vi: 'Vietnamese'  })
 
 const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json'), 'utf8'));
 
@@ -503,7 +511,7 @@ const SAMPLE = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sample-waits.json
 //
 // English keys, English fallback, exactly like the client's tr() -- a missing
 // key degrades to English rather than to a blank.
-const I18N = {};
+const I18N = Object.create(null);
 for (const code of Object.keys(LANG_NAMES)) {
   if (code === 'en') continue;
   try {
@@ -710,7 +718,7 @@ async function premadeIndexFor(slug) {
 // hints. Static ids are fallbacks — resolveParkIds() corrects them against
 // queue-times' live parks directory by name, so we never hardcode a wrong id.
 const REGISTRY = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'parks.json'), 'utf8'));
-const PARKS = Object.fromEntries(REGISTRY.map((p) => [p.slug, p]));
+const PARKS = Object.assign(Object.create(null), Object.fromEntries(REGISTRY.map((p) => [p.slug, p])));
 // Safe now that PARKS exists -- see the note beside refreshBaselines.
 refreshBaselines();
 
@@ -3462,7 +3470,13 @@ ${sections}
     const redirectUri = `${base}/api/auth/oauth/${provider}/callback`;
 
     if (leg === 'start') {
-      const device = String(url.searchParams.get('device') || 'unknown').slice(0, 64);
+      // No device, no login: the claim is bound to it, and a blank one would
+      // bind to nothing.
+      const device = String(url.searchParams.get('device') || '').trim().slice(0, 64);
+      if (!device || device === 'unknown') {
+        res.writeHead(302, { location: '/app#autherr=' + encodeURIComponent('sign-in could not start on this device'), 'cache-control': 'no-store' });
+        return res.end();
+      }
       const nonce = crypto.randomBytes(16).toString('hex');
       // The state is signed and carries everything the callback needs, so
       // nothing has to be remembered between the two legs.
@@ -3835,8 +3849,13 @@ ${sections}
         try { held = JSON.parse(db.kv.get(key) || 'null'); } catch {}
         db.kv.set(key, '');                       // spent, whatever happens next
         if (!held || !held.email || held.exp < Date.now()) return sendJson(res, 403, { error: 'that sign-in link has expired — try again' });
+        // The device must match, with no exception. The escape hatch for
+        // 'unknown' was one: the start leg takes ?device= from the caller, so
+        // anyone could begin a login as 'unknown', finish it with their own
+        // provider account, and hand the resulting code to a victim -- whose
+        // app would claim it and sign them into the attacker's account.
         const device = typeof parsed.device === 'string' ? parsed.device.trim().slice(0, 64) : '';
-        if (held.device && held.device !== 'unknown' && device !== held.device) {
+        if (!device || device !== held.device) {
           return sendJson(res, 403, { error: 'that sign-in was started on another device' });
         }
         const bound = passFromReq(req);

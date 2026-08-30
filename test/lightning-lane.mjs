@@ -89,7 +89,13 @@ console.log('\n[applying the pass]');
   const s = await state(page);
   console.log(`      opener: "${s.opener}"`);
   console.log(`      card:   "${s.appliedText}" / "${s.sub}" / [${s.remove}]`);
-  check('Mila says the pass went on', /applied|is on|is in|Sorted|Done|Applied/i.test(s.opener), s.opener);
+  // The opener is drawn at random from ten written lines, so a word list was
+  // really a one-in-ten coin toss: "Lovely. With {pass} on those, we can
+  // afford to be greedy with the afternoon." says the pass went on without
+  // using any of the words it looked for. What actually matters -- and what
+  // this now checks -- is that she wrote a NEW opener once the pass was on,
+  // instead of leaving the one from before the purchase standing.
+  check('Mila says the pass went on', !!s.opener && s.opener !== before.opener, `${before.opener} -> ${s.opener}`);
   check('and names the pass', /Lightning Lane|Skip pass|Express/i.test(s.opener), s.opener);
   check('the applied card replaced the pitch', s.applied);
   check('it counts the attractions', /\d/.test(s.appliedText), s.appliedText);

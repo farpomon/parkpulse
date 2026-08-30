@@ -1,10 +1,12 @@
 // Tapping "fit these in with a skip pass" opened a panel that was English top
 // to bottom in a Portuguese app. This opens it for real in several languages
 // and reads back every word in it.
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.mjs';
 import fs from 'node:fs';
-const B = 'http://127.0.0.1:9695';
-const SCRATCH = '/tmp/claude-0/-home-user-oc-acoustic-selector/777ddc54-fe29-574b-b52e-87d5cdd8e814/scratchpad';
+import os from 'node:os';
+const B = process.env.PP_BASE || 'http://127.0.0.1:9695';
+// A screenshot for eyeballing, written wherever this machine puts temp files.
+const SCRATCH = process.env.PP_SHOTS || os.tmpdir();
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 // Enough rides that the planner has to leave some out — the sheet only opens
 // for the ones that did not fit.

@@ -103,6 +103,23 @@ const EMAIL = 'planner@test.dev';
   // &amp; in an href, because it is HTML: the parser hands the browser a bare &.
   check('and now also names the day it was planned for', links2.every((l) => l.includes(`&amp;date=${FUTURE}`)), links2.join(', '));
 
+  console.log('\n[a language that is not a language]');
+  {
+    // LANG_NAMES['__proto__'] came back truthy on a plain object, so
+    // '__proto__' reached Intl.DateTimeFormat and the RangeError took the
+    // process down. Any logged-in account could send it.
+    for (const lang of ['__proto__', 'constructor', 'toString']) {
+      const res = await fetch('http://127.0.0.1:9698/api/plan/email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-session': token },
+        body: JSON.stringify({ park: SLUG, lang, date: FUTURE, stops: [{ name: 'Balder', time: '10:00', predicted: 25 }] }),
+      });
+      check(`  lang "${lang}" is handled, not fatal`, res.status < 500, String(res.status));
+    }
+    const alive = await fetch('http://127.0.0.1:9698/api/config');
+    check('the server survived all three', alive.ok, String(alive.status));
+  }
+
   console.log('\n[the app honours it]');
   // The email is only as good as the deep link it relies on.
   const appHtml = await (await fetch('http://127.0.0.1:9698/app')).text();

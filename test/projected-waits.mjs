@@ -41,6 +41,12 @@ async function board({ tags = true, plan = true } = {}) {
   await page.route('**/api/config', async (r) => {
     const cfg = await (await r.fetch()).json();
     cfg.proGate = false;                       // planning ahead is a pass feature
+    // Hold the park open around the clock. Outside its real hours the board is
+    // in its pre-open state, where showing typical waits instead of live ones
+    // is correct -- so without this the "today" checks below pass in the
+    // afternoon and fail after closing time, which is a fact about the wall
+    // clock rather than about the code.
+    for (const p of Object.values(cfg.parks || {})) { p.open = 0; p.close = 24; }
     r.fulfill(json(cfg));
   });
   await page.route('**/api/forecast/**', (r) => r.fulfill(json({ park: 'Magic Kingdom', days: DAYS, best: DAYS[0].dow, measuredDays: 0 })));

@@ -106,6 +106,11 @@ check('the section names both characters', /Mila/.test(en.lead) && /Pip/.test(en
 // list: a language is added by filling its dictionary, and the test should
 // start covering it the moment it does, not the next time someone edits this.
 const LANDING_CODES = ['es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'];
+// What the two of them are called in each script.
+const CHARACTER_NAMES = {
+  es: ['Mila', 'Pip'], pt: ['Mila', 'Pip'], fr: ['Mila', 'Pip'], de: ['Mila', 'Pip'], it: ['Mila', 'Pip'],
+  zh: ['米拉', '皮普'], ja: ['ミラ', 'ピップ'], ko: ['밀라', '핍'], ru: ['Мила', 'Пип'],
+};
 const shipped = [];
 for (const code of LANDING_CODES) {
   try { if ((await fetch(`${B}/${code}`)).ok) shipped.push(code); } catch {}
@@ -125,10 +130,13 @@ for (const lang of shipped) {
   check(`  so is Pip's muttering`, out.pip !== en.pip, out.pip);
   check(`  and it carries no HTML entities`, !/&[a-z]{2,6};/.test(out.pip + out.mila + out.lead), out.pip);
   check(`  the demo read is translated`, out.demo !== en.demo, out.demo.slice(0, 50));
-  // Both names survive translation, so naming them is not evidence of much on
-  // its own -- the sentence around them has to have moved too.
+  // Names get transliterated, and should: insisting on Latin "Mila" in a
+  // Japanese sentence would force a worse translation, not catch a bug. Check
+  // for the form that language actually uses.
+  const [mila, pip] = CHARACTER_NAMES[lang] || ['Mila', 'Pip'];
   check(`  the section names both characters, in ${lang}`,
-    /Mila/.test(out.lead) && /Pip/.test(out.lead) && out.lead !== en.lead, out.lead.slice(0, 80));
+    out.lead.includes(mila) && out.lead.includes(pip) && out.lead !== en.lead,
+    `${mila}/${pip} in ${out.lead.slice(0, 60)}`);
   check(`  no page errors`, errs.length === 0, errs[0]);
 }
 

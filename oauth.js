@@ -69,11 +69,16 @@ const PROVIDERS = {
 // Tests point these at a local fake so the whole round trip can run without
 // the internet or a real developer account.
 function _setProvider(name, patch) {
-  if (!PROVIDERS[name]) throw new Error(`unknown provider ${name}`);
+  if (!provider(name)) throw new Error(`unknown provider ${name}`);
   Object.assign(PROVIDERS[name], patch);
 }
 
-const enabled = (name) => Boolean(PROVIDERS[name] && PROVIDERS[name].ready());
+// Own properties only. The route matches [a-z]+, and a plain object answers
+// to "constructor" as though it were a provider: PROVIDERS.constructor.ready
+// is not a function, which threw inside an async handler and took the process
+// down on an unauthenticated GET.
+const provider = (name) => (typeof name === 'string' && Object.hasOwn(PROVIDERS, name) ? PROVIDERS[name] : null);
+const enabled = (name) => Boolean(provider(name)?.ready());
 const list = () => Object.entries(PROVIDERS).filter(([, p]) => p.ready()).map(([id, p]) => ({ id, label: p.label }));
 
 // --- JWKS --------------------------------------------------------------------
@@ -84,7 +89,9 @@ const jwksCache = new Map(); // name -> { at, keys }
 const JWKS_TTL = 60 * 60 * 1000;
 
 async function fetchJwks(name) {
-  const res = await fetch(PROVIDERS[name].jwks, { signal: AbortSignal.timeout(8000) });
+  const p = provider(name);
+  if (!p) throw new Error(`unknown provider ${name}`);
+  const res = await fetch(p.jwks, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`${name} JWKS ${res.status}`);
   const body = await res.json();
   const keys = Array.isArray(body.keys) ? body.keys : [];
@@ -121,7 +128,8 @@ async function verifyIdToken(name, token, { nonce }) {
     : crypto.verify('sha256', data, { key, dsaEncoding: 'ieee-p1363' }, sig);
   if (!ok) throw new Error('id_token signature does not verify');
 
-  const prov = PROVIDERS[name];
+  const prov = provider(name);
+  if (!prov) throw new Error(`unknown provider ${name}`);
   if (!prov.issuers.includes(claims.iss)) throw new Error(`unexpected issuer ${claims.iss}`);
   const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
   if (!aud.includes(prov.clientId())) throw new Error('id_token was not issued for this app');
@@ -136,7 +144,8 @@ async function verifyIdToken(name, token, { nonce }) {
 
 // --- Flow --------------------------------------------------------------------
 function authorizeUrl(name, { redirectUri, state, nonce }) {
-  const p = PROVIDERS[name];
+  const p = provider(name);
+  if (!p) throw new Error(`unknown provider ${name}`);
   const q = new URLSearchParams({
     client_id: p.clientId(),
     redirect_uri: redirectUri,
@@ -151,7 +160,8 @@ function authorizeUrl(name, { redirectUri, state, nonce }) {
 }
 
 async function exchange(name, { code, redirectUri }) {
-  const p = PROVIDERS[name];
+  const p = provider(name);
+  if (!p) throw new Error(`unknown provider ${name}`);
   const res = await fetch(p.token, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -183,4 +193,4 @@ function identityFrom(claims, firstNameHint) {
   };
 }
 
-module.exports = { PROVIDERS, enabled, list, authorizeUrl, exchange, verifyIdToken, identityFrom, appleClientSecret, _setProvider };
+module.exports = { PROVIDERS, provider, enabled, list, authorizeUrl, exchange, verifyIdToken, identityFrom, appleClientSecret, _setProvider };

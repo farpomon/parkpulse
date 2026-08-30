@@ -1945,6 +1945,10 @@
           // Carried so the WhatsApp assistant answers about the same day the
           // app is showing, rather than about today.
           planDate,
+          // And about the same purchases: the server has always sanitised this
+          // field, but nothing sent it, so the assistant kept offering a pass
+          // the visitor had already bought in the app.
+          lanePasses: [...llSet],
         } }),
       }).catch(() => {});
     }, 2500);
@@ -4003,6 +4007,11 @@
   // which day the reader was looking at.
   function switchPlanDay(date) {
     planDate = date || null;
+    // The pass is bought for one day: llKey() is per park AND per date, so
+    // moving the day has to re-read it. Without this, a Lightning Lane bought
+    // for today was still applied as walk-on waits to next Thursday's plan,
+    // and "Remove it" then cleared the wrong day's key.
+    loadLl();
     renderWeather(); // the card follows the day being planned
     // A future day has no "now" — start at opening unless they choose otherwise.
     if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
@@ -6478,10 +6487,16 @@
       return;
     }
     // Highlight what they typed inside the name so the match is visible.
+    // Highlight by searching the RAW name, not by indexing the normalised one
+    // and slicing the raw: normalising collapses "Knott's Berry" to
+    // "knott s berry", so every index after a punctuation run was off by the
+    // characters it had eaten, and the <mark> landed beside the match.
     const mark = (name) => {
-      const i = pfNorm(name).indexOf(pfNorm(q));
-      if (i < 0 || !pfNorm(q)) return esc(name);
-      return `${esc(name.slice(0, i))}<mark>${esc(name.slice(i, i + q.trim().length))}</mark>${esc(name.slice(i + q.trim().length))}`;
+      const needle = q.trim();
+      if (!needle) return esc(name);
+      const i = name.toLowerCase().indexOf(needle.toLowerCase());
+      if (i < 0) return esc(name);
+      return `${esc(name.slice(0, i))}<mark>${esc(name.slice(i, i + needle.length))}</mark>${esc(name.slice(i + needle.length))}`;
     };
     list.innerHTML = hits.map(({ slug }, i) => {
       const p = parks[slug];

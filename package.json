@@ -21,7 +21,8 @@
     "test:langpromo": "node test/language-promo.mjs",
     "test:projected": "node test/projected-waits.mjs",
     "test:partyshape": "node test/party-shape.mjs",
-    "test:oauth": "node test/oauth-signin.cjs"
+    "test:oauth": "node test/oauth-signin.cjs",
+    "test:skipsheet": "node test/skip-sheet.mjs"
   },
   "engines": {
     "node": ">=22.5"

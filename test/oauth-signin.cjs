@@ -207,6 +207,33 @@ const db = require('../db.js');
     const r = await signIn('phone-a');
     const wrong = await claim(r.code, 'phone-b');
     check('another device cannot finish the sign-in', wrong.status === 403, String(wrong.status));
+    // The hole this closes: ?device= comes from the caller, so a login started
+    // as "unknown" used to skip the check entirely -- finish it with your own
+    // Google account, hand the code to somebody else, and their app signs them
+    // into yours.
+    const anon = await fetch(`${B}/api/auth/oauth/google/start?device=unknown`, { redirect: 'manual' });
+    const anonFrag = new URLSearchParams((anon.headers.get('location') || '').split('#')[1] || '');
+    check('a login cannot start without a real device', Boolean(anonFrag.get('autherr')), anon.headers.get('location'));
+    const blank = await fetch(`${B}/api/auth/oauth/google/start`, { redirect: 'manual' });
+    check('nor with none at all', /autherr/.test(blank.headers.get('location') || ''), blank.headers.get('location'));
+    const r2 = await signIn('phone-c');
+    const noDev = await fetch(`${B}/api/auth/oauth/claim`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: r2.code }),
+    });
+    check('and a claim with no device is refused', noDev.status === 403, String(noDev.status));
+  }
+
+  console.log('\n[names that are not providers]');
+  {
+    // [a-z]+ in the route matches "constructor", and a plain object answers to
+    // it: PROVIDERS.constructor.ready is not a function, which threw inside an
+    // async handler and killed the process on an unauthenticated GET.
+    for (const name of ['constructor', 'toString', 'hasOwnProperty', 'valueof']) {
+      const res = await fetch(`${B}/api/auth/oauth/${name}/start?device=d`, { redirect: 'manual' });
+      check(`  /${name} is a 404, not a crash`, res.status === 404, String(res.status));
+    }
+    const alive = await fetch(`${B}/api/config`);
+    check('the server is still up afterwards', alive.ok, String(alive.status));
   }
 
   console.log('\n[deleting the account takes the link with it]');

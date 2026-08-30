@@ -31,6 +31,7 @@ const SHARED_SERVER = [
   ['langs', 'test/landing-languages.mjs'],
   ['staledict', 'test/stale-dictionary.mjs'],
   ['langpromo', 'test/language-promo.mjs'],
+  ['skipsheet', 'test/skip-sheet.mjs'],
   ['partyshape', 'test/party-shape.mjs'],
   ['party', 'test/party-change.mjs'],
   ['ll', 'test/lightning-lane.mjs'],
