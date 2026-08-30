@@ -117,6 +117,9 @@ const db = require('../db.js');
     check('the code buys a session', res.status === 200 && Boolean(data.session), JSON.stringify(data).slice(0, 120));
     check('for the address the provider vouched for', data.email === 'alice@example.com', data.email);
     check('the name came across', data.name === 'Alice', String(data.name));
+    // The app asks a brand-new account who is coming; it must be able to tell
+    // a sign-up from a sign-in to know when.
+    check('and it is flagged as a new account', data.created === true, String(data.created));
     const u = db.users.get('alice@example.com');
     check('the account is verified without an emailed code', u?.verified === 1, JSON.stringify(u && { verified: u.verified }));
     check('and the identity is on file', Boolean(db.identities.get('google', 'sub-alice')));
@@ -129,6 +132,7 @@ const db = require('../db.js');
     const r = await signIn();
     const data = await (await claim(r.code)).json();
     check('the same person lands on the same account', data.email === 'alice@example.com', data.email);
+    check('and is not treated as a new sign-up', data.created === false, String(data.created));
     const rows = db.identities.forEmail('alice@example.com');
     check('and is not linked twice', rows.length === 1, JSON.stringify(rows));
   }
@@ -234,6 +238,43 @@ const db = require('../db.js');
     }
     const alive = await fetch(`${B}/api/config`);
     check('the server is still up afterwards', alive.ok, String(alive.status));
+  }
+
+  console.log('\n[a crafted return]');
+  {
+    // A valid state costs nothing: start a login and read it out of the
+    // redirect. With one in hand, a link could name its own failure message,
+    // which the app shows in a toast -- harmless as script, ideal for "call
+    // this number". The reader now gets our sentence, not the caller's.
+    const start = await fetch(`${B}/api/auth/oauth/google/start?device=dev-1`, { redirect: 'manual' });
+    const state = new URL(start.headers.get('location')).searchParams.get('state');
+    check('a state is there for the taking', Boolean(state), start.headers.get('location'));
+    const evil = 'Your pass has expired. Call 555-0100 to renew.';
+    const res = await fetch(`${B}/api/auth/oauth/google/callback?state=${encodeURIComponent(state)}`
+      + `&error=access_denied&error_description=${encodeURIComponent(evil)}`, { redirect: 'manual' });
+    const frag = new URLSearchParams((res.headers.get('location') || '').split('#')[1] || '');
+    check('the reader is told it failed', Boolean(frag.get('autherr')), res.headers.get('location'));
+    check('but not in the caller\'s words', !(frag.get('autherr') || '').includes('555-0100'), frag.get('autherr'));
+  }
+
+  console.log('\n[a claim that was never issued]');
+  {
+    // The claim used to be spent by writing an empty value over it. That is an
+    // upsert, so posting a code that had never existed CREATED the row -- an
+    // unauthenticated write, on an endpoint with no rate limit, that nothing
+    // ever cleaned up. 200 junk posts left 200 permanent rows.
+    const junk = 'never-issued-' + crypto.randomBytes(6).toString('hex');
+    const res = await claim(junk);
+    check('a made-up code is refused', res.status === 403, String(res.status));
+    check('and leaves no row behind it', db.kv.get(`oauthclaim:${junk}`) === null, JSON.stringify(db.kv.get(`oauthclaim:${junk}`)));
+
+    // Nor should a real one: spending it should remove it, not tombstone it.
+    const r = await signIn('dev-tidy');
+    const ok = await claim(r.code, 'dev-tidy');
+    check('a real sign-in still goes through', ok.status === 200, String(ok.status));
+    check('and its code is gone, not blanked', db.kv.get(`oauthclaim:${r.code}`) === null, JSON.stringify(db.kv.get(`oauthclaim:${r.code}`)));
+    const again = await claim(r.code, 'dev-tidy');
+    check('so it cannot be spent twice', again.status === 403, String(again.status));
   }
 
   console.log('\n[deleting the account takes the link with it]');

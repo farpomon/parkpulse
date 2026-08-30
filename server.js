@@ -1983,7 +1983,12 @@ function translateAttrs(html, dict) {
   for (const en of Object.keys(dict).sort((a, b) => b.length - a.length)) {
     const to = dict[en];
     if (!to || to === en) continue;
-    const safe = to.replace(/"/g, '&quot;');
+    // $& and $$ mean something to replace() when the replacement is a string,
+    // and the dictionaries are full of prices. "$29" is safe by luck -- there
+    // are no capture groups, so $2 stays literal -- but a value carrying $&
+    // would paste the whole matched attribute back into itself. Doubling the
+    // dollars is what makes the value mean itself.
+    const safe = to.replace(/"/g, '&quot;').replace(/\$/g, '$$$$');
     for (const attr of TRANSLATED_ATTRS) {
       out = out.replace(new RegExp(attr + '="' + rx(en) + '"', 'g'), `${attr}="${safe}"`);
     }
@@ -3505,7 +3510,17 @@ ${sections}
     try {
       const st = verifyToken(fields.get('state'));
       if (!st || st.k !== 'oauth' || st.provider !== provider) throw new Error('login expired — please try again');
-      if (fields.get('error')) throw new Error(fields.get('error_description') || fields.get('error'));
+      // Say that it failed, not what the caller wrote. Everything on this
+      // request is attacker-supplied, and a valid state is free to obtain --
+      // hit the start leg and read it out of the redirect. Reflecting
+      // error_description would let a crafted link put any sentence of its
+      // choosing in front of the reader, inside our own toast: no script (the
+      // toast sets textContent), but a fine place to ask them to ring a
+      // "support" number. The real text goes to the log instead.
+      if (fields.get('error')) {
+        console.log(`${provider} returned an error: ${String(fields.get('error_description') || fields.get('error')).slice(0, 200)}`);
+        throw new Error('that sign-in did not complete — please try again');
+      }
       const code = fields.get('code');
       if (!code) throw new Error('no authorisation code came back');
 
@@ -3518,6 +3533,11 @@ ${sections}
       const id = oauth.identityFrom(claims, hint);
 
       let email = db.identities.get(provider, id.subject)?.email || '';
+      // Whether this login brought a brand-new ParkPulse account into being.
+      // The app needs to know: a first-ever sign-up is asked about its party,
+      // and a provider sign-up was skipping that, leaving Mila planning for a
+      // group she had never been told about.
+      let created = false;
       if (!email) {
         if (!id.email) throw new Error('that account did not share an email address');
         if (!id.emailVerified) throw new Error('that email is not verified with the provider — sign in with a code instead');
@@ -3529,6 +3549,7 @@ ${sections}
           // password" still works if they ever want one.
           const salt = crypto.randomBytes(16).toString('hex');
           db.users.create(email, salt, hashPassword(crypto.randomBytes(32).toString('hex'), salt), 1);
+          created = true;
           if (id.name) db.users.setName(email, cleanFirstName(id.name).name);
           sendWelcomeEmail(email).catch((err) => console.log(`welcome email failed: ${err.message}`));
         } else {
@@ -3547,7 +3568,7 @@ ${sections}
       // the app trades it in over POST -- so a token never lands in history,
       // a referrer, or somebody's screenshot.
       const claim = crypto.randomBytes(24).toString('base64url');
-      db.kv.set(`oauthclaim:${claim}`, JSON.stringify({ email, device: st.device, exp: Date.now() + 2 * 60 * 1000 }));
+      db.kv.set(`oauthclaim:${claim}`, JSON.stringify({ email, device: st.device, created, exp: Date.now() + 2 * 60 * 1000 }));
       console.log(`${provider} sign-in: ${email}`);
       return back({ auth: claim });
     } catch (err) {
@@ -3845,9 +3866,16 @@ ${sections}
       if (url.pathname === '/api/auth/oauth/claim') {
         const code = typeof parsed.code === 'string' ? parsed.code.slice(0, 64) : '';
         const key = `oauthclaim:${code}`;
+        // Delete rather than blank, and only when the row was really there.
+        // Writing an empty value did two bad things: it kept a tombstone for
+        // every sign-in that ever happened, and because the write was an
+        // upsert it CREATED a row for a code that had never been issued --
+        // so anyone could grow the table by posting junk at this endpoint,
+        // with no account and no rate limit in the way.
+        const raw = code ? db.kv.get(key) : null;
+        if (raw !== null) db.kv.del(key);         // spent, whatever happens next
         let held = null;
-        try { held = JSON.parse(db.kv.get(key) || 'null'); } catch {}
-        db.kv.set(key, '');                       // spent, whatever happens next
+        try { held = JSON.parse(raw || 'null'); } catch {}
         if (!held || !held.email || held.exp < Date.now()) return sendJson(res, 403, { error: 'that sign-in link has expired — try again' });
         // The device must match, with no exception. The escape hatch for
         // 'unknown' was one: the start leg takes ?device= from the caller, so
@@ -3866,6 +3894,8 @@ ${sections}
         return sendJson(res, 200, {
           session: issueSession(held.email, parsed.device, req),
           email: held.email,
+          // So the app can treat a first sign-in like a sign-up.
+          created: Boolean(held.created),
           name: u.name || null,
           plan: active ? u.plan : null,
           exp: active ? u.plan_exp : null,

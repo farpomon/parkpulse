@@ -319,6 +319,11 @@ function migrateLegacy() {
 const kv = {
   get: (key) => db.prepare('SELECT value FROM kv WHERE key = ?').get(key)?.value ?? null,
   set: (key, value) => db.prepare('INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value),
+  // Spending a one-time code should leave nothing behind. Blanking the value
+  // instead of removing the row meant every sign-in kept a tombstone forever,
+  // and -- worse -- a claim for a code that never existed CREATED one, so
+  // anybody could add rows by posting nonsense at the endpoint.
+  del: (key) => db.prepare('DELETE FROM kv WHERE key = ?').run(key).changes,
 };
 
 const users = {

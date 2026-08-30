@@ -5953,10 +5953,14 @@
   // Sign in with Google / Apple. The button is a plain link out to the
   // server, which does the whole exchange and sends the browser back to
   // /app#auth=<one-time code>; nothing secret passes through the URL.
-  const OAUTH_MARK = {
+  // Null-prototype: this is indexed by an id that arrives over the network,
+  // and a plain object would answer to "constructor" as though it were a
+  // provider -- the same shape of bug that crashed the server on
+  // /api/auth/oauth/constructor/start.
+  const OAUTH_MARK = Object.assign(Object.create(null), {
     google: '<svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45 24c0-1.6-.1-2.7-.4-3.9H24v7.1h12c-.2 1.8-1.5 4.6-4.4 6.4l6.7 5.2C42.2 35.1 45 30 45 24z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.3c-1.8 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-7.1 5.5C8.1 41.1 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.5 28.5c-.5-1.4-.7-2.9-.7-4.5s.3-3.1.7-4.5l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 10z"/><path fill="#EA4335" d="M24 10.6c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4.4 29.9 2 24 2 15.4 2 8.1 6.9 4.4 14l7.1 5.5C13.3 14.4 18.2 10.6 24 10.6z"/></svg>',
     apple: '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.6-1.9-1.5-.2-3 .9-3.7.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.7 3-.4 7.5 1.3 9.9.8 1.2 1.8 2.5 3.1 2.5 1.2-.1 1.7-.8 3.2-.8s1.9.8 3.2.8 2.2-1.2 3-2.4c.9-1.4 1.3-2.7 1.3-2.8 0 0-2.5-1-2.5-3.9zM14 5.6c.7-.8 1.1-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"/></svg>',
-  };
+  });
   function renderOauthButtons(providers) {
     const box = $('acct-oauth');
     const or = $('acct-oauth-or');
@@ -5999,6 +6003,13 @@
       applyAuth(data);
       closeAcct();
       toast(milaSays('welcome', localStorage.getItem('pp-name')));
+      // Everything the email sign-up does once an account exists. A first
+      // sign-in through a provider IS a sign-up, so it gets the same welcome:
+      // a waiting pass is joined up, and the party questions open -- without
+      // this, an account born on the Google button never told Mila who was
+      // coming, and she planned for nobody in particular.
+      if (!maybeJoinPass() && data.created) setTimeout(openWizard, 400);
+      load();
       return true;
     } catch { toast(tr('Something went wrong.')); return false; }
   }
