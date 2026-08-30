@@ -21,7 +21,8 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "Nunito", "Segoe UI", system-ui, sans-serif; }
   .wrap { max-width: 860px; margin: 0 auto; padding: 1rem 1rem 4rem; }
-  header { display: flex; align-items: center; gap: .75rem; padding: .5rem 0 1rem; }
+  /* Wraps, or the Refresh/Log out pair pushes the page sideways on a phone. */
+  header { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; padding: .5rem 0 1rem; }
   h1 { font-size: 1.35rem; margin: 0; font-weight: 800;
     background: linear-gradient(120deg, var(--brand), #9b6bf0); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .envtag { font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--brand); background: var(--brand-soft); border-radius: 999px; padding: .15rem .6rem; }
@@ -118,6 +119,23 @@
       <div class="overflow" style="margin-top:.8rem"><table id="inv-table"></table></div>
     </div>
     <div class="tiles" id="tiles"></div>
+    <!-- What the AI actually costs. The daily email already says this; the
+         dashboard is where you look when you did not like what the email said. -->
+    <div class="card" id="ai-card">
+      <h2>AI spend</h2>
+      <div class="tiles" id="ai-tiles"></div>
+      <div id="ai-feat-wrap" hidden>
+        <p class="muted" style="font-size:.8rem;margin:1rem 0 .2rem">By feature · 30 days. <b>Cached</b> jobs are written once per park and never charged again.</p>
+        <div class="overflow"><table id="ai-feat"></table></div>
+      </div>
+      <div id="ai-chart-wrap" hidden>
+        <p class="muted" style="font-size:.8rem;margin:1rem 0 0">Daily spend · 14 days</p>
+        <div class="chart" id="ai-chart"></div><div class="axis" id="ai-axis"></div>
+      </div>
+      <p class="muted" style="font-size:.8rem;margin:.9rem 0 0" id="ai-note"></p>
+      <p style="margin:.6rem 0 0"><button id="ai-send">Email the report now</button>
+        <span id="ai-send-result" class="muted" style="font-size:.85rem;margin-left:.6rem"></span></p>
+    </div>
     <div class="card"><h2>Page views · last 14 days</h2><div class="chart" id="views-chart"></div><div class="axis" id="views-axis"></div></div>
     <div class="card"><h2>Signups · last 30 days</h2><div class="chart" id="signup-chart"></div><div class="axis" id="signup-axis"></div></div>
     <div class="card"><h2>Park demand · live-wait requests, 30 days</h2><div class="overflow"><table id="parks-table"></table></div></div>
@@ -214,12 +232,95 @@ function render(d) {
     : '<p class="muted" style="font-size:.85rem">None detected. 🎉</p>';
 }
 
+// --- AI spend ---------------------------------------------------------------
+// Money, so never rounded away: under a cent still reads as a number rather
+// than as $0.00, which would say "free" about something that is not.
+const usd = (n) => (n >= 1 || n === 0 ? `$${n.toFixed(2)}` : `$${n.toFixed(4)}`);
+// Which features are write-once catalogue jobs comes from the server, which
+// holds the list. Guessing it from the name was wrong: they are called
+// "ride-tags" and "dining", with nothing in the string to give it away, so the
+// marker never appeared on the one row that needed it.
+let cachedFeatures = new Set();
+
+function renderAiCost(d) {
+  cachedFeatures = new Set(d.cachedFeatures || []);
+  const win = (label, w, sub) => ({
+    num: usd(w.cost_usd), lbl: label,
+    sub: `${(w.calls || 0).toLocaleString()} calls${sub ? ' · ' + sub : ''}`,
+  });
+  // Cost per account is the number that decides whether growth is affordable,
+  // so it goes on the tile rather than in a footnote.
+  const per = (w) => (w.per_account == null ? 'no accounts active' : `${usd(w.per_account)}/account · ${w.accounts} active`);
+  $('ai-tiles').innerHTML = [
+    win('AI · today', d.today, per(d.today)),
+    win('AI · 7 days', d.week, per(d.week)),
+    win('AI · 30 days', d.month, per(d.month)),
+  ].map((t) => `<div class="tile"><div class="num">${esc(t.num)}</div><div class="lbl">${esc(t.lbl)}</div><div class="sub">${esc(t.sub)}</div></div>`).join('');
+
+  const feats = d.features || [];
+  $('ai-feat-wrap').hidden = !feats.length;
+  if (feats.length) {
+    const max = Math.max(...feats.map((f) => f.cost_usd), 0.0001);
+    $('ai-feat').innerHTML = '<tr><th>Feature</th><th class="n">Cost</th><th class="n">Calls</th><th style="width:30%"></th></tr>' +
+      feats.map((f) => `<tr><td>${esc(f.feature)}${cachedFeatures.has(f.feature) ? ' <span class="muted" style="font-size:.75rem">· cached, one-off</span>' : ''}</td>`
+        + `<td class="n">${esc(usd(f.cost_usd))}</td><td class="n">${(f.calls || 0).toLocaleString()}</td>`
+        + `<td><div class="meter" style="width:${Math.round(f.cost_usd / max * 100)}%"></div></td></tr>`).join('');
+  }
+
+  // Same shape as the other charts, but scaled on money rather than counts.
+  const days = d.days || [];
+  $('ai-chart-wrap').hidden = !days.length;
+  if (days.length) {
+    const byDay = Object.fromEntries(days.map((r) => [r.day, r.cost_usd]));
+    // Walk back from the report's own day, not from this browser's clock. The
+    // windows are Eastern calendar days; anchoring on Date.now() drew a chart
+    // that ended on the reader's tomorrow -- an empty bar for a day the server
+    // has no data for, and every other bar off by one -- for anyone east of
+    // New York, which is most of the world.
+    const back = (from, n) => {
+      const t = new Date(from + 'T12:00:00Z');
+      t.setUTCDate(t.getUTCDate() - n);
+      return t.toISOString().slice(0, 10);
+    };
+    const series = [];
+    for (let i = 13; i >= 0; i--) series.push({ day: back(d.day, i), cost: byDay[back(d.day, i)] || 0 });
+    const max = Math.max(...series.map((s) => s.cost), 0.0001);
+    $('ai-chart').innerHTML = '';
+    for (const s of series) {
+      const b = document.createElement('div');
+      b.className = 'bar';
+      b.style.height = `${Math.max(2, Math.round(s.cost / max * 100))}%`;
+      if (!s.cost) b.style.opacity = '.25';
+      b.dataset.tip = `${fmtDay(s.day)} · ${usd(s.cost)}`;
+      $('ai-chart').appendChild(b);
+    }
+    $('ai-axis').innerHTML = `<span>${fmtDay(series[0].day)}</span><span>${fmtDay(series[series.length - 1].day)}</span>`;
+  }
+
+  // The cache share is the only thing that tells you prompt caching broke:
+  // nothing errors when it does, the requests just cost more.
+  const share = d.month.cache_share;
+  $('ai-note').innerHTML = (share == null
+    ? 'No prompt-cache data yet.'
+    : `<b>${Math.round(share * 100)}%</b> of the 30-day prompt came back from cache rather than being paid for again — it should be high and steady, and a drop after a deploy means prompt assembly changed and the cache broke.`)
+    + ` Daily report goes to <b>${esc(d.recipient || 'nobody — AI_REPORT_TO unset')}</b> at ${Number(d.hourET)}:00 Eastern.`
+    + ' Estimated from token counts at list prices; the invoice is the source of truth.';
+}
+
+async function loadAiCost() {
+  const { status, data } = await api('/api/admin/ai-cost');
+  if (status !== 200) { $('ai-card').hidden = true; return; }
+  $('ai-card').hidden = false;
+  renderAiCost(data);
+}
+
 async function load() {
   const { status, data } = await api('/api/admin/stats');
   if (status === 200) {
     $('login').hidden = true; $('dash').hidden = false; $('refresh').hidden = false; $('logout').hidden = false;
     render(data);
     loadInvites();
+    loadAiCost();
     return true;
   }
   if (status === 403 && localStorage.getItem(KEY)) $('err').textContent = 'This account does not have admin access.';
@@ -303,6 +404,11 @@ $('inv-create').onclick = async () => {
     navigator.clipboard?.writeText(data.link);
   }
   loadInvites();
+};
+$('ai-send').onclick = async () => {
+  $('ai-send-result').textContent = 'Sending…';
+  const { data } = await api('/api/admin/ai-cost/send', {});
+  $('ai-send-result').textContent = data.sent ? `Sent to ${data.to}.` : `Not sent: ${data.reason || 'unknown error'}`;
 };
 $('test-email').onclick = async () => {
   $('email-result').textContent = 'Sending…';

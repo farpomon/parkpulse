@@ -2840,7 +2840,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/admin/ai-cost') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     const report = aiCostReport(etNow().date);
-    return sendJson(res, 200, { ...report, recipient: AI_REPORT_TO, hourET: AI_REPORT_HOUR });
+    // Which features are the write-once catalogue jobs. The dashboard cannot
+    // tell from the name -- they are called "ride-tags" and "dining", with
+    // nothing in the string to give it away -- and guessing got it wrong.
+    return sendJson(res, 200, { ...report, cachedFeatures: [...CACHED_FEATURES], recipient: AI_REPORT_TO, hourET: AI_REPORT_HOUR });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/admin/geo') {
