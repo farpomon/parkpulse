@@ -869,10 +869,16 @@ function renderNotFoundPage() {
 </div></body></html>`;
 }
 
-const renderSitemap = (origin, slugs, planParks = []) => {
+// `langs` are the non-English landing codes that actually ship. They are real,
+// indexable, translated pages carrying their own hreflang alternates -- and
+// they were missing from the sitemap entirely, so the only way a crawler
+// learned about them was by following an alternate off the English page.
+const renderSitemap = (origin, slugs, planParks = [], langs = []) => {
   const today = new Date().toISOString().slice(0, 10);
   const entries = [
     { p: '', pri: '1.0' },
+    // Just under the English home page: same content, a different reader.
+    ...langs.map((l) => ({ p: `/${l}`, pri: '0.9' })),
     { p: '/app', pri: '0.9' },
     { p: '/parks', pri: '0.9' },
     { p: '/plans', pri: '0.9' },

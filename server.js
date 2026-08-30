@@ -3653,7 +3653,13 @@ ${sections}
     if (APP_ENV !== 'production') {
       return res.end(isMap ? '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>' : 'User-agent: *\nDisallow: /\n');
     }
-    return res.end(isMap ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug), REGISTRY.map((p) => ({ slug: p.slug, personas: premade.PERSONAS.filter((x) => !x.needsTags).map((x) => x.slug) }))) : pages.renderRobots(origin));
+    return res.end(isMap
+      ? pages.renderSitemap(origin, REGISTRY.map((p) => p.slug),
+          REGISTRY.map((p) => ({ slug: p.slug, personas: premade.PERSONAS.filter((x) => !x.needsTags).map((x) => x.slug) })),
+          // The same list the hreflang alternates are built from, so the two
+          // can never disagree about which languages exist.
+          LANDING_LANGS.filter((l) => l !== 'en'))
+      : pages.renderRobots(origin));
   }
 
   // Tap-for-description: AI-generated once per ride per language, cached in
