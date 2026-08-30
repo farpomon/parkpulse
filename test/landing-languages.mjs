@@ -46,6 +46,42 @@ check(`the section says "${NUMBER_WORD[EXPECT]}"`, new RegExp(NUMBER_WORD[EXPECT
 const claimed = [...home.matchAll(/(\d+) languages/g)].map((m) => Number(m[1]));
 check('no other number of languages is claimed anywhere on the page', claimed.every((n) => n === EXPECT), claimed.join(', '));
 
+// Writing a dictionary by hand, a character from the neighbouring language
+// slips in and reads as a typo to everyone who speaks it: a Hangul syllable
+// landed in the middle of a Japanese sentence twice while these were written.
+// Cheap to catch, invisible to anyone who does not read the script.
+console.log('\n[nothing from the wrong alphabet]');
+{
+  const dict = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'landing-i18n.json'), 'utf8'));
+  const HANGUL = /[\uac00-\ud7af\u1100-\u11ff]/;
+  const KANA = /[\u3040-\u309f\u30a0-\u30ff]/;
+  const CYRILLIC = /[\u0400-\u04ff]/;
+  const ARABIC = /[\u0600-\u06ff]/;
+  const DEVANAGARI = /[\u0900-\u097f]/;
+  const FOREIGN = {
+    zh: [['Hangul', HANGUL], ['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    ja: [['Hangul', HANGUL], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    ko: [['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    ru: [['Hangul', HANGUL], ['kana', KANA], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    // The Latin dictionaries should carry no other script at all.
+    es: [['Hangul', HANGUL], ['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    pt: [['Hangul', HANGUL], ['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    fr: [['Hangul', HANGUL], ['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    de: [['Hangul', HANGUL], ['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+    it: [['Hangul', HANGUL], ['kana', KANA], ['Cyrillic', CYRILLIC], ['Arabic', ARABIC], ['Devanagari', DEVANAGARI]],
+  };
+  const strays = [];
+  for (const [lang, tests] of Object.entries(FOREIGN)) {
+    for (const [key, value] of Object.entries(dict[lang] || {})) {
+      for (const [label, rx] of tests) {
+        const m = rx.exec(value);
+        if (m) strays.push(`${lang}: ${label} ${JSON.stringify(m[0])} in ${JSON.stringify(value.slice(0, 50))}`);
+      }
+    }
+  }
+  check('no dictionary carries a character from another script', strays.length === 0, strays.slice(0, 3).join(' | '));
+}
+
 console.log('\n[promoted, not buried]');
 check('the nav links to it', /href="#languages"/.test(home));
 check('it sits above the screenshots, not at the bottom of the page',
