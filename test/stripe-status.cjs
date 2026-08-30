@@ -34,6 +34,9 @@ global.fetch = async (url, opts) => {
     if (balance instanceof Error) throw balance;
     return { ok: balance.ok !== false, status: balance.ok === false ? 401 : 200, json: async () => balance.body };
   }
+  if (String(url).startsWith('https://api.stripe.com/v1/checkout/sessions')) {
+    return { ok: true, status: 200, json: async () => ({ url: 'https://checkout.stripe.com/c/pay/cs_test_123' }) };
+  }
   return realFetch(url, opts);
 };
 
@@ -94,6 +97,70 @@ const db = require('../db.js');
     // The revenue note used to state the ladder's length as a literal, and
     // said "five" for a good while after the ladder became four.
     check('the plan count comes from the catalogue', d.planCount === 4, String(d.planCount));
+  }
+
+  console.log('\n[a till that cannot take money does not open]');
+  {
+    const buy = () => fetch(`${B}/api/checkout`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ plan: 'trip-pass' }),
+    }).then(async (r) => ({ status: r.status, body: await r.json() }));
+
+    // A TEST key on a live site: Stripe answers, and declines every real card.
+    // Opening a checkout here spends the buyer's attention on a guaranteed
+    // failure, so they get the coming-soon page instead.
+    balance = { body: { object: 'balance', livemode: false, available: [] } };
+    clearCache();
+    let r = await buy();
+    check('a test-mode key diverts to /soon', r.body.soon === '/soon?plan=trip-pass', JSON.stringify(r));
+    check('and does not hand back a Stripe url', !r.body.url, JSON.stringify(r.body));
+    check('with a 200, not an error the page has to explain', r.status === 200, String(r.status));
+
+    // A key Stripe rejects: same destination, same reasoning.
+    balance = { ok: false, body: { error: { message: 'Expired API Key provided' } } };
+    clearCache();
+    r = await buy();
+    check('a rejected key diverts too', r.body.soon === '/soon?plan=trip-pass', JSON.stringify(r.body));
+
+    // Live: the divert gets out of the way by itself, with no second switch
+    // to remember to turn off.
+    balance = { body: { object: 'balance', livemode: true, available: [{ currency: 'usd', amount: 1 }] } };
+    clearCache();
+    r = await buy();
+    check('a live key checks out for real', /checkout\.stripe\.com/.test(r.body.url || ''), JSON.stringify(r.body));
+    check('and stops diverting', !r.body.soon, JSON.stringify(r.body));
+
+    // The plan id lands in a URL, so it may not carry anything but a plan id.
+    balance = { body: { object: 'balance', livemode: false, available: [] } };
+    clearCache();
+    const nasty = await fetch(`${B}/api/checkout`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ plan: '"><script>alert(1)</script>' }),
+    }).then((x) => x.json());
+    check('a hostile plan id is stripped, not reflected', nasty.soon === '/soon?plan=scriptalert1script', JSON.stringify(nasty));
+  }
+
+  console.log('\n[the page, and the address it collects]');
+  {
+    const page = await fetch(`${B}/soon`);
+    const html = await page.text();
+    check('/soon is served', page.status === 200, String(page.status));
+    check('it asks for an email', html.includes('id="email"'));
+    check('and posts it to the lead capture', html.includes('/api/subscribe'));
+    check('Mila is on it', /img\/mila\//.test(html));
+    check('it is kept out of the index', /name="robots" content="noindex"/.test(html));
+
+    const sub = (email) => fetch(`${B}/api/subscribe`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, plan: 'soon' }),
+    }).then((r) => r.status);
+    check('an address is accepted', await sub('a@example.com') === 200);
+    check('and a non-address is not', await sub('nope') === 400);
+
+    // It writes a row per call with nobody signed in, so it needs a ceiling.
+    let limited = 0;
+    for (let i = 0; i < 40; i++) if (await sub(`f${i}@example.com`) === 429) limited++;
+    check('the capture is rate limited', limited > 0, `${limited} of 40 refused`);
   }
 
   console.log('\n[a key Stripe rejects]');

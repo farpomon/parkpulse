@@ -3514,7 +3514,7 @@ async function stripePriceCheck() {
 
   // Aggregate page-view counting for HTML pages (a number per page per day —
   // no cookies, no identifiers). API and asset requests are not counted.
-  if (req.method === 'GET' && /^\/(app|guide|welcome|reset|terms|privacy|parks\/[a-z-]+)?$/.test(url.pathname)) {
+  if (req.method === 'GET' && /^\/(app|guide|welcome|soon|reset|terms|privacy|parks\/[a-z-]+)?$/.test(url.pathname)) {
     try { db.hits.bump(url.pathname || '/'); } catch {}
     try {
       const v = visitSource(req, url);
@@ -4652,7 +4652,20 @@ ${sections}
       }
 
       if (url.pathname === '/api/checkout') {
-        if (!CHECKOUT_ENABLED) return sendJson(res, 503, { error: 'checkout not configured' });
+        // A till that cannot take money should not open. Without a key, with a
+        // key Stripe rejects, or with a TEST key on the live site, every card
+        // is declined -- so the buyer gets the coming-soon page and a chance to
+        // leave an address instead of an error they can do nothing about.
+        //
+        // Gated on what Stripe actually answers rather than on a flag, so it
+        // stops diverting by itself the moment a live key lands. There is no
+        // second switch to remember.
+        const till = await stripeStatus();
+        if (!till.connected || !till.live) {
+          const plan = typeof parsed.plan === 'string' ? parsed.plan.replace(/[^a-z0-9-]/gi, '').slice(0, 40) : '';
+          console.log(`checkout diverted to /soon: ${till.connected ? 'test-mode key' : till.detail || 'no key'}`);
+          return sendJson(res, 200, { soon: `/soon${plan ? `?plan=${encodeURIComponent(plan)}` : ''}` });
+        }
         const plan = parsed.plan;
         const cat = PLAN_CATALOG.find((p) => p.id === plan);
         if (!cat && !STRIPE_PRICES[plan]) return sendJson(res, 400, { error: 'unknown plan' });
@@ -4781,6 +4794,10 @@ ${sections}
       }
 
       if (url.pathname === '/api/subscribe') {
+        // Unauthenticated, and it writes a row per call. That was survivable
+        // while it sat behind a prompt() nobody reached; it is now the one
+        // thing the coming-soon page asks visitors to do, so it gets a ceiling.
+        if (ipLimited(req, 'subscribe', 30)) return sendJson(res, 429, { error: 'too many, slow down' });
         const { email, plan } = parsed;
         if (typeof email !== 'string' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
           return sendJson(res, 400, { error: 'invalid email' });
