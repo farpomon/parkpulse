@@ -130,6 +130,7 @@
     </div>
     <div class="card" id="price-card">
       <h2>Pricing</h2>
+      <p id="stripe-status" style="font-size:.85rem;margin:.1rem 0 .9rem"></p>
       <div id="price-body"></div>
     </div>
     <div class="card" id="health-card">
@@ -373,6 +374,19 @@ function renderOps(d) {
   } else {
     $('coming-soon').innerHTML = '<span class="muted">The coming-soon banner is off.</span>';
   }
+
+  // Is Stripe answering at all? A set key and a working key look identical
+  // everywhere else, and the difference is whether a buyer reaches a payment
+  // page or an error.
+  const st = d.stripe || {};
+  $('stripe-status').innerHTML = !st.connected
+    ? `<span class="no">\u25cf</span> <b>Stripe is not connected.</b> ${esc(st.detail || '')} `
+      + 'No payment can complete until this is fixed.'
+    : st.live
+      ? `<span class="ok">\u25cf</span> Stripe connected \u00b7 <b>live mode</b>`
+        + (st.currencies?.length ? ` \u00b7 balance in ${esc(st.currencies.join(', '))}` : '')
+      : `<span class="no">\u25cf</span> Stripe connected, but in <b>TEST mode</b> \u2014 `
+        + 'real cards will be declined. Swap the key for a live one.';
 
   // Sticker versus till. These can disagree silently, and only the till matters.
   const pr = d.pricing || {};

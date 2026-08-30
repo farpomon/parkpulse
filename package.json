@@ -29,7 +29,8 @@
     "test:milabudget": "node test/mila-budget.cjs",
     "test:dining": "node test/dining-guide.cjs",
     "test:traffic": "node test/traffic-source.cjs",
-    "test:soon": "node test/coming-soon.cjs"
+    "test:soon": "node test/coming-soon.cjs",
+    "test:stripe": "node test/stripe-status.cjs"
   },
   "engines": {
     "node": ">=22.5"

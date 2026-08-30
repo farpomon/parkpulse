@@ -3193,6 +3193,42 @@ const server = http.createServer(async (req, res) => {
 // the label and not the charge, and nothing anywhere would have said so. Read
 // once an hour, because it changes about never.
 let stripePriceCache = { at: 0, rows: null };
+let stripeStatusCache = { at: 0, val: null };
+// Is Stripe actually answering?
+//
+// A set key is not a connected key. STRIPE_SECRET_KEY being present tells you
+// only that somebody pasted something into an env var -- a revoked key, a
+// typo, or a test key on a live site all look exactly the same from the
+// outside, and the first two mean every buyer gets an error at the till.
+// Nothing else here notices: the price check only calls Stripe when a
+// STRIPE_PRICE_* id is configured, so with the inline prices we ship by
+// default the API is never touched until a real customer tries to pay.
+//
+// So this asks Stripe directly, and reports the account it reached. Test mode
+// is called out separately because a test key sells nothing while looking
+// perfectly healthy.
+async function stripeStatus() {
+  if (!STRIPE_KEY) return { connected: false, reason: 'no key', detail: 'STRIPE_SECRET_KEY is not set — the site cannot take a payment.' };
+  if (stripeStatusCache.val && Date.now() - stripeStatusCache.at < 300000) return stripeStatusCache.val;
+  let out;
+  try {
+    const bal = await stripeApi('/v1/balance');
+    out = {
+      connected: true,
+      live: bal.livemode === true,
+      // The currencies Stripe holds a balance in, which is a cheap way to see
+      // the account is the one you think it is.
+      currencies: (bal.available || []).map((a) => String(a.currency || '').toUpperCase()).filter(Boolean),
+    };
+  } catch (err) {
+    // The message is the diagnosis: "Invalid API Key provided", "Expired API
+    // Key", a network timeout. Passing it through beats inventing our own.
+    out = { connected: false, reason: 'rejected', detail: String(err.message).slice(0, 160) };
+  }
+  stripeStatusCache = { at: Date.now(), val: out };
+  return out;
+}
+
 async function stripePriceCheck() {
   if (!STRIPE_KEY) return { mode: 'inline', note: 'No Stripe key: the catalogue amount is charged directly, so it cannot disagree with itself.', rows: [] };
   if (stripePriceCache.rows && Date.now() - stripePriceCache.at < 3600000) return stripePriceCache.rows;
@@ -3301,6 +3337,7 @@ async function stripePriceCheck() {
       // same thing forever and nobody who works on the site ever sees it,
       // having dismissed it on day one.
       comingSoon: COMING_SOON,
+      stripe: await stripeStatus(),
       pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
       deletions: db.admin.pendingDeletions().map((d) => ({ email: d.email, at: d.delete_at, inDays: Math.round((d.delete_at - now) / 86400000) })),
@@ -5166,4 +5203,7 @@ server.listen(PORT, bootBanner);
 // otherwise only runs on a five-minute timer, and an alert that quietly never
 // fires is worse than no alert at all -- it is the same silence, with the
 // belief that somebody is watching.
-module.exports = { _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport };
+module.exports = { _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
+  // The status is cached for five minutes, which a test walking through every
+  // Stripe answer in turn has to be able to step past.
+  _clearStripeStatusCache: () => { stripeStatusCache = { at: 0, val: null }; } };
