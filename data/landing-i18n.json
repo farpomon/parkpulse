@@ -279,7 +279,9 @@
     "90 days": "90 Tage",
     "Long enough for any real holiday — about $6 a day for the whole family.": "Lang genug für jede echte Reise — rund 6 $ pro Tag für die ganze Familie.",
     "A summer, or two trips in the same stretch.": "Ein Sommer — oder zwei Reisen im selben Zeitraum.",
-    "One full trip, covered.": "Eine komplette Reise, abgedeckt."
+    "One full trip, covered.": "Eine komplette Reise, abgedeckt.",
+    "Get ready for the magic — coming soon": "Macht euch bereit für die Magie — bald verfügbar",
+    "Dismiss": "Schließen"
   },
   "es": {
     " How many, how tall, how brave — and what the clouds are up to. That’s how a good park day becomes the best one.": " Cuántos sois, cuánto medís, cuánto os atrevéis — y qué traman las nubes. Así es como un buen día de parque se convierte en el mejor.",
@@ -561,7 +563,9 @@
     "90 days": "90 días",
     "Long enough for any real holiday — about $6 a day for the whole family.": "Suficiente para cualquier viaje real: unos 6 $ al día para toda la familia.",
     "A summer, or two trips in the same stretch.": "Un verano, o dos viajes en el mismo periodo.",
-    "One full trip, covered.": "Un viaje completo, cubierto."
+    "One full trip, covered.": "Un viaje completo, cubierto.",
+    "Get ready for the magic — coming soon": "¡Prepárate para la magia! Muy pronto",
+    "Dismiss": "Cerrar"
   },
   "fr": {
     " How many, how tall, how brave — and what the clouds are up to. That’s how a good park day becomes the best one.": " Combien vous êtes, votre taille, votre audace — et ce que préparent les nuages. C'est ainsi qu'une bonne journée au parc devient la meilleure.",
@@ -843,7 +847,9 @@
     "90 days": "90 jours",
     "Long enough for any real holiday — about $6 a day for the whole family.": "De quoi couvrir n’importe quel vrai séjour — environ 6 $ par jour pour toute la famille.",
     "A summer, or two trips in the same stretch.": "Un été, ou deux séjours dans la même période.",
-    "One full trip, covered.": "Un séjour entier, couvert."
+    "One full trip, covered.": "Un séjour entier, couvert.",
+    "Get ready for the magic — coming soon": "Préparez-vous à la magie — bientôt disponible",
+    "Dismiss": "Fermer"
   },
   "it": {
     "Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.": "Attese in tempo reale in 65 parchi, piani della giornata con l'IA in un tocco, oltre 500 piani di visita gratuiti e consigli onesti sui pass salta-fila — mai un abbonamento.",
@@ -1125,7 +1131,9 @@
     "90 days": "90 giorni",
     "Long enough for any real holiday — about $6 a day for the whole family.": "Abbastanza per qualsiasi vacanza vera: circa 6 $ al giorno per tutta la famiglia.",
     "A summer, or two trips in the same stretch.": "Un’estate, o due viaggi nello stesso periodo.",
-    "One full trip, covered.": "Un viaggio intero, coperto."
+    "One full trip, covered.": "Un viaggio intero, coperto.",
+    "Get ready for the magic — coming soon": "Preparati alla magia — in arrivo",
+    "Dismiss": "Chiudi"
   },
   "ja": {
     "Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.": "65 パークの実時間待ち時間、ワンタップの AI 一日プラン、500 以上の無料まわり方プラン、そして行列をとばすパスについての正直な助言 —— サブスクリプションは一切ありません。",
@@ -1407,7 +1415,9 @@
     "90 days": "90 日間",
     "Long enough for any real holiday — about $6 a day for the whole family.": "どんな旅行にも足りる長さ — 家族全員で 1 日およそ 6 ドル。",
     "A summer, or two trips in the same stretch.": "ひと夏、あるいは同じ期間の二度の旅行に。",
-    "One full trip, covered.": "旅行まるごと一回分。"
+    "One full trip, covered.": "旅行まるごと一回分。",
+    "Get ready for the magic — coming soon": "魔法の準備はいいですか — まもなく登場",
+    "Dismiss": "閉じる"
   },
   "ko": {
     "Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.": "65개 파크의 실시간 대기 시간, 한 번 눌러 만드는 AI 하루 플랜, 500개가 넘는 무료 동선 플랜, 그리고 줄 건너뛰기 패스에 대한 솔직한 조언 —— 구독은 없습니다, 앞으로도.",
@@ -1689,7 +1699,9 @@
     "90 days": "90일",
     "Long enough for any real holiday — about $6 a day for the whole family.": "어떤 여행에도 충분한 길이 — 온 가족이 하루 약 6달러.",
     "A summer, or two trips in the same stretch.": "한 여름, 또는 같은 기간의 두 번의 여행.",
-    "One full trip, covered.": "여행 한 번을 온전히."
+    "One full trip, covered.": "여행 한 번을 온전히.",
+    "Get ready for the magic — coming soon": "마법을 맞이할 준비하세요 — 곧 만나요",
+    "Dismiss": "닫기"
   },
   "pt": {
     " How many, how tall, how brave — and what the clouds are up to. That’s how a good park day becomes the best one.": " Quantos são, que altura têm, quanta coragem carregam — e o que as nuvens estão tramando. É assim que um bom dia de parque vira o melhor de todos.",
@@ -1971,7 +1983,9 @@
     "90 days": "90 dias",
     "Long enough for any real holiday — about $6 a day for the whole family.": "Tempo de sobra para qualquer viagem a sério — cerca de 6 $ por dia para a família toda.",
     "A summer, or two trips in the same stretch.": "Um verão, ou duas viagens no mesmo período.",
-    "One full trip, covered.": "Uma viagem inteira, coberta."
+    "One full trip, covered.": "Uma viagem inteira, coberta.",
+    "Get ready for the magic — coming soon": "Prepara-te para a magia — em breve",
+    "Dismiss": "Fechar"
   },
   "ru": {
     "Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.": "Живые очереди в 65 парках, планы дня от ИИ в одно касание, 500+ бесплатных маршрутов и честный совет насчёт пропусков в обход очереди — и никакой подписки, никогда.",
@@ -2253,7 +2267,9 @@
     "90 days": "90 дней",
     "Long enough for any real holiday — about $6 a day for the whole family.": "Хватит на любую настоящую поездку — около 6 $ в день на всю семью.",
     "A summer, or two trips in the same stretch.": "Целое лето или две поездки подряд.",
-    "One full trip, covered.": "Одна поездка целиком."
+    "One full trip, covered.": "Одна поездка целиком.",
+    "Get ready for the magic — coming soon": "Готовьтесь к волшебству — скоро",
+    "Dismiss": "Закрыть"
   },
   "zh": {
     "Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.": "65 座乐园的实时排队时间、一键生成的 AI 行程、500 多份免费游玩路线，以及关于免排队通行证的实话 —— 永远不搞订阅。",
@@ -2535,6 +2551,8 @@
     "90 days": "90 天",
     "Long enough for any real holiday — about $6 a day for the whole family.": "足够覆盖任何一趟真正的假期——全家每天约 6 美元。",
     "A summer, or two trips in the same stretch.": "一个夏天，或同一段时间里的两趟出行。",
-    "One full trip, covered.": "完整一趟出行，全程覆盖。"
+    "One full trip, covered.": "完整一趟出行，全程覆盖。",
+    "Get ready for the magic — coming soon": "准备好迎接魔法吧 — 即将上线",
+    "Dismiss": "关闭"
   }
 }

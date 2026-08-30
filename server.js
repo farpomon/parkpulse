@@ -36,6 +36,13 @@ const PORT = process.env.PORT || 3000;
 // DEV badge in the app and are hidden from search engines so the dev URL
 // never competes with production in Google.
 const APP_ENV = process.env.APP_ENV === 'dev' ? 'dev' : 'production';
+// The pre-launch strip. On by default in production and off on dev, because
+// "coming soon" is a message for visitors, not for us. COMING_SOON=0 takes it
+// down on launch day without a deploy; COMING_SOON=1 puts it on dev to look at
+// it. Whichever way it resolves is reported by /api/admin/ops, so a launched
+// product cannot quietly keep telling people it has not launched.
+const COMING_SOON = process.env.COMING_SOON === '1'
+  || (process.env.COMING_SOON !== '0' && APP_ENV === 'production');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DATA_DIR = path.join(__dirname, 'data');
 
@@ -2210,6 +2217,30 @@ function languageCards() {
     + `<b>${esc(LANG_NATIVE[c])}</b><span dir="ltr">${esc(LANG_NAMES[c])}</span></div>`).join('');
 }
 
+// The pre-launch strip, injected before the page is translated so the sentence
+// inside it goes through the landing dictionary like every other line of copy.
+// Mila's portrait carries an empty alt on purpose: the sentence beside it says
+// the whole message, and naming her again would only make a screen reader read
+// the banner twice.
+//
+// The dismissal is checked in a synchronous script directly beneath the markup,
+// so a visitor who has already closed it never sees it flash. Rendering the
+// strip in the HTML rather than after load is what makes it survive a visitor
+// with JavaScript off -- they simply get a banner they cannot close, which is
+// the right way round for a message that is only a sentence.
+function comingSoonStrip() {
+  if (!COMING_SOON) return '';
+  return `<div class="csoon" id="csoon" role="status">`
+    + `<img src="/img/mila/mila-celebrate-160.webp" width="34" height="34" alt="" aria-hidden="true" decoding="async">`
+    + `<span class="csoon-t">Get ready for the magic &mdash; coming soon</span>`
+    + `<button class="csoon-x" type="button" title="Dismiss" aria-label="Dismiss">&#10005;</button>`
+    + `</div>`
+    + `<script>(function(){var b=document.getElementById('csoon');if(!b)return;`
+    + `try{if(localStorage.getItem('pp-soon-seen')==='1'){b.remove();return}}catch(e){}`
+    + `b.querySelector('.csoon-x').addEventListener('click',function(){`
+    + `b.remove();try{localStorage.setItem('pp-soon-seen','1')}catch(e){}})})()</scr` + `ipt>`;
+}
+
 function landingAlternates() {
   return LANDING_LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="https://www.parkpulse.fun${l === 'en' ? '/' : '/' + l}">`).join('\n')
     + '\n<link rel="alternate" hreflang="x-default" href="https://www.parkpulse.fun/">';
@@ -2229,7 +2260,7 @@ function langPicker(active) {
 // Copy that lives in attributes rather than between tags: meta and Open Graph
 // (or a translated page still shares and indexes in English), and alt/title,
 // which is the text a screen-reader user actually receives.
-const TRANSLATED_ATTRS = ['content', 'alt', 'title'];
+const TRANSLATED_ATTRS = ['content', 'alt', 'title', 'aria-label'];
 function translateAttrs(html, dict) {
   let out = html;
   const rx = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -3265,6 +3296,11 @@ async function stripePriceCheck() {
         email: r.email, usd: Math.round(r.usd * 100) / 100, calls: r.calls,
         budget: Math.round(aiBudgetFor(db.users.get(r.email)) * 100) / 100,
       })),
+      // Whether visitors are still being told the product has not launched.
+      // Reported here because the failure mode is silence: the strip says the
+      // same thing forever and nobody who works on the site ever sees it,
+      // having dismissed it on day one.
+      comingSoon: COMING_SOON,
       pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
       deletions: db.admin.pendingDeletions().map((d) => ({ email: d.email, at: d.delete_at, inDays: Math.round((d.delete_at - now) / 86400000) })),
@@ -3291,6 +3327,7 @@ async function stripePriceCheck() {
   if (url.pathname === '/api/config') {
     return sendJson(res, 200, {
       env: APP_ENV,
+      comingSoon: COMING_SOON,
       paymentLink: PAYMENT_LINK,
       proGate: PRO_GATE,
       checkout: CHECKOUT_ENABLED,
@@ -3502,6 +3539,7 @@ async function stripePriceCheck() {
     let board = '';
     try { board = heroBoardHtml(await heroBoardPanels()); } catch (err) { console.log(`hero board: ${err.message}`); }
     let html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8')
+      .replace('<!--COMING_SOON-->', () => comingSoonStrip())
       .replace('<!--HERO_BOARD-->', () => board)
       .replace('<!--HERO_PHOTO-->', () => heroPhoto())
       .replace('<!--VIP_PHOTO-->', () => vipPhoto())

@@ -133,6 +133,7 @@
       <div id="price-body"></div>
     </div>
     <div class="card" id="health-card">
+      <p id="coming-soon" style="font-size:.85rem;margin:0 0 .9rem"></p>
       <h2>Upstream health</h2>
       <div id="health-services"></div>
       <p class="muted" style="font-size:.8rem;margin:.9rem 0 .3rem" id="health-summary"></p>
@@ -362,6 +363,16 @@ function renderOps(d) {
   $('rev-note').innerHTML = `Counts the five catalogue plans only.`
     + (comped ? ` <b>${comped}</b> non-revenue pass${comped === 1 ? '' : 'es'} (dev or a retired plan id) issued in the last 30 days are excluded from the money above.` : ' No dev or legacy passes issued in the last 30 days.')
     + ' Invited comps are never recorded as passes at all.';
+
+  // The pre-launch strip, said out loud. Everyone who works on the site
+  // dismissed it on day one and stops seeing it, so the only place it can be
+  // noticed still flying a month after launch is here.
+  if (d.comingSoon) {
+    $('coming-soon').innerHTML = '<span class="no">\u25cf</span> Visitors are being told the product is <b>coming soon</b>. '
+      + 'Set <code>COMING_SOON=0</code> to take the banner down.';
+  } else {
+    $('coming-soon').innerHTML = '<span class="muted">The coming-soon banner is off.</span>';
+  }
 
   // Sticker versus till. These can disagree silently, and only the till matters.
   const pr = d.pricing || {};

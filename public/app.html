@@ -716,6 +716,21 @@
   [hidden] { display: none !important; }
   /* Same furniture as the language nudge, without the caret or the dismiss:
      this one stays. */
+  /* The pre-launch strip. Same message and the same dismissal key as the one on
+     the landing page, so closing it in either place closes it in both. Unlike
+     Mila's live line this one IS dismissible -- it says the same thing every
+     day, and a banner that never changes has nothing to earn the space after
+     the first read. */
+  .csoon { display: flex; align-items: center; gap: .5rem; margin: 0 0 .55rem;
+    padding: .5rem .6rem; border-radius: .8rem; color: #fff;
+    background: linear-gradient(100deg, #4f3ac9, #7b5fe0 55%, #9b7ff0); }
+  .csoon img { flex: 0 0 auto; border-radius: 99px; border: 2px solid rgba(255,255,255,.75); }
+  .csoon .cs-txt { flex: 1 1 auto; min-width: 0; font-size: .78rem; font-weight: 700;
+    line-height: 1.35; text-shadow: 0 1px 2px rgba(0,0,0,.18); }
+  .csoon .cs-x { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: 0;
+    border-radius: 99px; cursor: pointer; font-size: .72rem; line-height: 1;
+    background: rgba(255,255,255,.18); color: #fff; }
+  .csoon .cs-x:hover { background: rgba(255,255,255,.32); }
   .milalive { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 0;
     padding: .5rem .6rem; border-radius: .8rem;
     background: var(--brand-soft, rgba(91,61,245,.09)); border: 1px solid var(--border); }
@@ -1001,6 +1016,11 @@
 </style>
 
 <div class="wrap">
+  <div class="csoon" id="csoon" role="status" hidden>
+    <img src="/img/mila/mila-celebrate-160.webp" alt="" width="30" height="30" loading="lazy">
+    <span class="cs-txt" id="csoon-txt"></span>
+    <button class="cs-x" id="csoon-x" type="button" aria-label="Dismiss">✕</button>
+  </div>
   <header>
     <div class="topline">
       <a class="logo" href="/"><img src="/icon.svg" alt="" width="24" height="24" style="vertical-align:-5px;margin-inline-end:.2rem"> ParkPulse</a>
@@ -6790,6 +6810,21 @@
       pushKey = c.pushKey || '';
       consultantOn = Boolean(c.consultant);
       whatsappOn = Boolean(c.whatsapp);
+      // The pre-launch strip, if the server is still flying it. Written here
+      // rather than in the markup so the sentence goes through tr() and lands
+      // in the reader's language like everything else on the page.
+      try {
+        if (c.comingSoon && localStorage.getItem('pp-soon-seen') !== '1') {
+          const b = $('csoon');
+          $('csoon-txt').textContent = tr('Get ready for the magic — coming soon');
+          $('csoon-x').setAttribute('aria-label', tr('Dismiss'));
+          b.hidden = false;
+          $('csoon-x').addEventListener('click', () => {
+            b.hidden = true;
+            try { localStorage.setItem('pp-soon-seen', '1'); } catch {}
+          });
+        }
+      } catch {}
       if (c.env === 'dev') {
         document.querySelector('.logo').insertAdjacentHTML('beforeend',
           ' <span style="font-size:.62rem;font-weight:800;letter-spacing:.08em;background:#e5484d;color:#fff;border-radius:6px;padding:.12rem .4rem;vertical-align:middle">DEV</span>');
