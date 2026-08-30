@@ -52,21 +52,26 @@ const FREE_PARK = 'magic-kingdom';
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
 // The pass ladder. Prices are display-only — Stripe Prices (created in the
 // Stripe dashboard, ids passed via env) are the source of truth for billing.
+// Sold by the shape of a holiday, not by the calendar. Nobody plans "a month
+// of theme parks" -- they plan nine days -- and the old week/month/six-month
+// ladder made every buyer translate a trip into a duration, which landed them
+// on Month whether they needed thirty days or twelve.
 const PLAN_CATALOG = [
   { id: 'day-pass', days: 1, usd: '24.99', label: 'Day Pass', per: '1 day' },
-  { id: 'week-pass', days: 7, usd: '49.99', label: 'Week Pass', per: '7 days', badge: 'MOST POPULAR' },
-  { id: 'month-pass', days: 30, usd: '89.99', label: 'Month Pass', per: '30 days' },
-  { id: 'half-year-pass', days: 182, usd: '129.99', label: '6-Month Pass', per: '6 months' },
+  { id: 'trip-pass', days: 10, usd: '59.99', label: 'Trip Pass', per: '10 days', badge: 'MOST POPULAR' },
+  { id: 'season-pass', days: 90, usd: '99.99', label: 'Season Pass', per: '90 days' },
   { id: 'year-pass', days: 365, usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
 ];
 const STRIPE_PRICES = {
   'day-pass': process.env.STRIPE_PRICE_DAY || '',
+  'trip-pass': process.env.STRIPE_PRICE_TRIP || '',
+  'season-pass': process.env.STRIPE_PRICE_SEASON || '',
+  'year-pass': process.env.STRIPE_PRICE_YEAR || '',
+  // Retired plans — kept resolvable so an env var set for one still works, and
+  // so a buyer re-activating an old purchase on a new device still checks out.
   'week-pass': process.env.STRIPE_PRICE_WEEK || '',
   'month-pass': process.env.STRIPE_PRICE_MONTH || '',
   'half-year-pass': process.env.STRIPE_PRICE_HALFYEAR || '',
-  'year-pass': process.env.STRIPE_PRICE_YEAR || '',
-  // Legacy v0 plans — keep resolvable so their env vars still work if set.
-  'trip-pass': process.env.STRIPE_PRICE_TRIP || '',
   'pro-annual': process.env.STRIPE_PRICE_ANNUAL || '',
 };
 // The secret key alone is enough to sell: plans without a dashboard Price id
@@ -86,8 +91,19 @@ const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
 const DEV_PASS_CODE = process.env.DEV_PASS_CODE || '';
 // Legacy plan ids stay valid so previously issued passes keep working.
-const PLAN_DAYS = Object.assign(Object.create(null), { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])), 'trip-pass': 30, 'pro-annual': 365, 'dev': 3650, 'comp': 365  })
-const PLAN_LABELS = Object.assign(Object.create(null), { ...Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])), 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass', 'comp': 'Guest Pass'  })
+// Retired ids stay here so passes already in the wild keep validating. The
+// duration only matters when a pass is ISSUED -- an existing one carries its
+// own expiry in the token and on the account -- so a plan that is no longer
+// sold needs its entry to exist, not to be right about the future.
+//
+// One deliberate collision: 'trip-pass' was a retired 30-day v0 plan and is now
+// the 10-day tier. Tokens already issued keep their baked-in expiry and stay
+// valid; the only path that would shorten anyone is re-claiming a v0 Stripe
+// session on a new device, on a plan that has not been sold since v0.
+const RETIRED_DAYS = { 'week-pass': 7, 'month-pass': 30, 'half-year-pass': 182, 'pro-annual': 365, 'dev': 3650, 'comp': 365 };
+const RETIRED_LABELS = { 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'pro-annual': 'Pro Annual', 'dev': 'Dev Pass', 'comp': 'Guest Pass' };
+const PLAN_DAYS = Object.assign(Object.create(null), RETIRED_DAYS, Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.days])))
+const PLAN_LABELS = Object.assign(Object.create(null), RETIRED_LABELS, Object.fromEntries(PLAN_CATALOG.map((p) => [p.id, p.label])))
 
 function signToken(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -1758,8 +1774,9 @@ function recordUsage(feature, model, usage, billTo) {
 // with one day of access is worth being generous to and an annual holder is
 // the same person for three hundred days.
 const AI_BUDGET_USD = Object.assign(Object.create(null), {
-  'day-pass': 2.50, 'trip-pass': 1.00, 'week-pass': 1.00,
-  'month-pass': 0.50, 'half-year-pass': 0.40, 'year-pass': 0.35, 'pro-annual': 0.35,
+  'day-pass': 2.50, 'trip-pass': 0.90, 'season-pass': 0.45, 'year-pass': 0.35,
+  // Retired plans, so somebody mid-pass keeps the allowance they bought.
+  'week-pass': 1.00, 'month-pass': 0.50, 'half-year-pass': 0.40, 'pro-annual': 0.35,
   'comp': 0.50, 'dev': 25.00,
 }, (() => {
   // One env var, so a budget can be moved without a deploy of the table.

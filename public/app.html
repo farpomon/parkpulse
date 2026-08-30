@@ -5808,12 +5808,10 @@
   const PASS_TIERS = [
     { chip: '1 park day', id: 'day-pass', label: 'Day Pass', usd: '24.99',
       math: "One day, the whole family covered — the price of one person's Lightning Lane." },
-    { chip: '2–7 days', id: 'week-pass', label: 'Week Pass', usd: '49.99', badge: 'MOST POPULAR',
-      math: 'Your whole trip for about $7 a day — every park, on every device.' },
-    { chip: '1–4 weeks', id: 'month-pass', label: 'Month Pass', usd: '69.99',
-      math: 'Long trips and split stays — about $2.30 a day.' },
-    { chip: 'A whole season', id: 'half-year-pass', label: '6-Month Pass', usd: '129.99',
-      math: 'A summer of park days for about 72¢ each.' },
+    { chip: 'A holiday 🧳', id: 'trip-pass', label: 'Trip Pass', usd: '59.99', badge: 'MOST POPULAR',
+      math: 'Ten days — longer than almost any trip — for about $6 a day.' },
+    { chip: 'A whole season', id: 'season-pass', label: 'Season Pass', usd: '99.99',
+      math: 'Ninety days, so a summer or two trips are one purchase.' },
     { chip: "We're locals 🏰", id: 'year-pass', label: 'Annual Pass', usd: '199.99', badge: 'BEST VALUE',
       math: 'Under 55¢ a day, every park, all year long.' },
   ];
@@ -6029,7 +6027,8 @@
   function planLabel(plan, exp) {
     if (!plan) return 'Free plan';
     const until = new Date(exp).toLocaleDateString(window.PP_LANG || undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    const names = { 'day-pass': 'Day Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'year-pass': 'Annual Pass', 'trip-pass': 'Trip Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer', 'comp': 'Guest Pass' };
+    // Retired ids stay listed: somebody mid-pass still needs their plan named.
+    const names = { 'day-pass': 'Day Pass', 'trip-pass': 'Trip Pass', 'season-pass': 'Season Pass', 'year-pass': 'Annual Pass', 'week-pass': 'Week Pass', 'month-pass': 'Month Pass', 'half-year-pass': '6-Month Pass', 'pro-annual': 'Pro Annual', 'dev': 'Developer', 'comp': 'Guest Pass' };
     return `${names[plan] || plan} · active until ${until}`;
   }
 

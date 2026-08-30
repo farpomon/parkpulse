@@ -101,8 +101,10 @@ console.log('\n[the page charges what we charge]');
   const cheapest = plans.map((p) => Number(p.usd)).sort((a, b) => a - b)[0];
 
   // Every landing language, because the translations carry their own copy of
-  // the number and drifted with it last time.
-  const langs = ['', ...['es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'].map((l) => '/' + l)];
+  // the number and drifted with it last time -- AND the app, because the
+  // in-app pass picker keeps its own copy of the ladder too. Checking only the
+  // landing page let the picker sit a whole price behind it.
+  const langs = ['', '/app', ...['es', 'pt', 'fr', 'de', 'it', 'zh', 'ja', 'ko', 'ru'].map((l) => '/' + l)];
   const bad = [];
   for (const path of langs) {
     const res = await fetch(B + (path || '/'));
@@ -115,6 +117,13 @@ console.log('\n[the page charges what we charge]');
     }
   }
   check('no page quotes a price we do not sell', bad.length === 0, [...new Set(bad)].slice(0, 6).join(' | '));
+
+  // Every tier we sell should be reachable from both places somebody buys.
+  const home = await (await fetch(B + '/')).text();
+  const app = await (await fetch(B + '/app')).text();
+  const missing = plans.filter((p) => !home.includes(p.usd) || !app.includes(p.usd))
+    .map((p) => `${p.id} ${p.usd}`);
+  check('and every plan we do sell is quoted on both', missing.length === 0, missing.join(', '));
 
   // And the headline claim is the real entry price, not a rounder one.
   const en = await (await fetch(B + '/')).text();

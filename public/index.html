@@ -18,7 +18,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
  {"@type":"Organization","@id":"https://www.parkpulse.fun/#org","name":"ParkPulse","url":"https://www.parkpulse.fun/","logo":"https://www.parkpulse.fun/icon-512.png"},
- {"@type":"WebApplication","name":"ParkPulse","url":"https://www.parkpulse.fun/","applicationCategory":"TravelApplication","operatingSystem":"Any (web app)","browserRequirements":"Requires JavaScript","description":"Live wait times for 65 theme parks worldwide — Disney, Universal (including Universal Studios Japan), Six Flags, LEGOLAND, Europa-Park, Everland and more — with Mila, an AI day planner, 500+ free ready-made touring plans, crowd calendars, trip itineraries and wait-drop alerts.","featureList":["Live wait times for 65 theme parks, refreshed every minute","Mila — AI day planner that builds and re-times your whole day in one tap","500+ free ready-made touring plans for every kind of crew","Crowd calendars scoring every day four months out","Honest skip-the-line pass verdicts, park by park","Multi-park trip itineraries with plans emailed the night before","Wait-drop alerts on any ride"],"publisher":{"@id":"https://www.parkpulse.fun/#org"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"0","highPrice":"199.99","offerCount":6,"description":"Free tier included; one-time passes from $24.99 — no subscription."}}
+ {"@type":"WebApplication","name":"ParkPulse","url":"https://www.parkpulse.fun/","applicationCategory":"TravelApplication","operatingSystem":"Any (web app)","browserRequirements":"Requires JavaScript","description":"Live wait times for 65 theme parks worldwide — Disney, Universal (including Universal Studios Japan), Six Flags, LEGOLAND, Europa-Park, Everland and more — with Mila, an AI day planner, 500+ free ready-made touring plans, crowd calendars, trip itineraries and wait-drop alerts.","featureList":["Live wait times for 65 theme parks, refreshed every minute","Mila — AI day planner that builds and re-times your whole day in one tap","500+ free ready-made touring plans for every kind of crew","Crowd calendars scoring every day four months out","Honest skip-the-line pass verdicts, park by park","Multi-park trip itineraries with plans emailed the night before","Wait-drop alerts on any ride"],"publisher":{"@id":"https://www.parkpulse.fun/#org"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"0","highPrice":"199.99","offerCount":5,"description":"Free tier included; one-time passes from $24.99 — no subscription."}}
 ]}
 </script>
 <link rel="manifest" href="/manifest.json">
@@ -806,9 +806,8 @@
   // The pass ladder comes from the server so prices live in one place.
   const FALLBACK_PLANS = [
     { id: 'day-pass', usd: '24.99', label: 'Day Pass', per: '1 day' },
-    { id: 'week-pass', usd: '49.99', label: 'Week Pass', per: '7 days', badge: 'MOST POPULAR' },
-    { id: 'month-pass', usd: '89.99', label: 'Month Pass', per: '30 days' },
-    { id: 'half-year-pass', usd: '129.99', label: '6-Month Pass', per: '6 months' },
+    { id: 'trip-pass', usd: '59.99', label: 'Trip Pass', per: '10 days', badge: 'MOST POPULAR' },
+    { id: 'season-pass', usd: '99.99', label: 'Season Pass', per: '90 days' },
     { id: 'year-pass', usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
   ];
   // Every word on a pass card, keyed by the pass id rather than by its English
@@ -819,10 +818,13 @@
   const PLAN_COPY = {
     free: { label: 'Free', per: 'forever', note: 'Live waits for one park, the full strategy guide, trip-countdown tips.' },
     'day-pass': { label: 'Day Pass', per: '1 day', note: 'The price of one person’s Lightning Lane — and it tells the whole family whether to buy any.' },
-    'week-pass': { label: 'Week Pass', per: '7 days', note: 'One full trip, covered — about $7 a day for the family.' },
+    'trip-pass': { label: 'Trip Pass', per: '10 days', note: 'Long enough for any real holiday — about $6 a day for the whole family.' },
+    'season-pass': { label: 'Season Pass', per: '90 days', note: 'A summer, or two trips in the same stretch.' },
+    'year-pass': { label: 'Annual Pass', per: '12 months', note: 'For locals and passholders — under 55¢ a day.' },
+    // Retired tiers: a returning buyer can still land on one from an old link.
+    'week-pass': { label: 'Week Pass', per: '7 days', note: 'One full trip, covered.' },
     'month-pass': { label: 'Month Pass', per: '30 days', note: 'Long trips or split stays, fully covered.' },
     'half-year-pass': { label: '6-Month Pass', per: '6 months', note: 'A whole season of park days.' },
-    'year-pass': { label: 'Annual Pass', per: '12 months', note: 'For locals and passholders — under 55¢ a day.' },
   };
   // The badge arrives from the server in English and is matched on below, so
   // the value it carries is never translated -- only what gets printed is.
