@@ -82,6 +82,17 @@ const db = require('../db.js');
     check('but NOT live', d.stripe.live === false, JSON.stringify(d.stripe));
   }
 
+  console.log('\n[whether anyone is being charged at all]');
+  {
+    // PRO_GATE is unset in this process, which is the default and the state
+    // that gives the whole product away. The dashboard has to say so out loud.
+    balance = { body: { object: 'balance', livemode: true, available: [] } };
+    clearCache();
+    const d = await ops();
+    check('the paywall is reported off when PRO_GATE is unset', d.proGate === false, JSON.stringify(d.proGate));
+    check('and the free park is named', d.freePark === 'magic-kingdom', d.freePark);
+  }
+
   console.log('\n[a key Stripe rejects]');
   {
     balance = { ok: false, body: { error: { message: 'Expired API Key provided: sk_live_***' } } };
@@ -106,6 +117,7 @@ const db = require('../db.js');
     const out = require('child_process').spawnSync(process.execPath, ['-e', `
       process.env.ANTHROPIC_API_KEY='stub'; process.env.PASS_SECRET='t';
       process.env.DB_FILE='/tmp/pp-stripe-nokey.db'; process.env.PORT='9666';
+      for (const f of ['','-wal','-shm']) require('node:fs').rmSync(process.env.DB_FILE+f,{force:true});
       delete process.env.STRIPE_SECRET_KEY;
       require('${__dirname}/../server.js');
       setTimeout(async () => {
@@ -119,15 +131,45 @@ const db = require('../db.js');
     check('checkout is off without a key', r.checkout === false, JSON.stringify(r));
   }
 
-  console.log('\n[whether anyone is being charged at all]');
+  console.log('\n[an admin does not buy a pass to see their own product]');
   {
-    // PRO_GATE is unset in this process, which is the default and the state
-    // that gives the whole product away. The dashboard has to say so out loud.
-    balance = { body: { object: 'balance', livemode: true, available: [] } };
-    clearCache();
-    const d = await ops();
-    check('the paywall is reported off when PRO_GATE is unset', d.proGate === false, JSON.stringify(d.proGate));
-    check('and the free park is named', d.freePark === 'magic-kingdom', d.freePark);
+    // PRO_GATE is off in this process, so the gate itself is exercised in a
+    // child with it on -- which is also the only honest way to test it.
+    const out = require('child_process').spawnSync(process.execPath, ['-e', `
+      process.env.ANTHROPIC_API_KEY='stub'; process.env.PASS_SECRET='t';
+      process.env.DB_FILE='/tmp/pp-gate-on.db'; process.env.PORT='9665';
+      process.env.PRO_GATE='on'; process.env.ADMIN_EMAILS='boss@example.com';
+      // A file database outlives the run that made it, and the second run
+      // then trips the unique index on users.email.
+      for (const f of ['','-wal','-shm']) require('node:fs').rmSync(process.env.DB_FILE+f,{force:true});
+      const crypto=require('node:crypto');
+      const db=require('${__dirname}/../db.js');
+      require('${__dirname}/../server.js');
+      const sess=(email)=>{
+        db.users.create(email,'s','x',1); db.users.markVerified(email);
+        const sid=crypto.randomBytes(16).toString('hex');
+        db.sessions.create(sid,email,'d','t');
+        const b=Buffer.from(JSON.stringify({sid,email,exp:Date.now()+864e5})).toString('base64url');
+        return b+'.'+crypto.createHmac('sha256','t').update(b).digest('base64url');
+      };
+      setTimeout(async () => {
+        const admin=sess('boss@example.com'), punter=sess('punter@example.com');
+        const get=(s)=>fetch('http://127.0.0.1:9665/api/waits/epcot',{headers:{'x-session':s}}).then(r=>r.status);
+        console.log(JSON.stringify({
+          anon: await fetch('http://127.0.0.1:9665/api/waits/epcot').then(r=>r.status),
+          punter: await get(punter),
+          admin: await get(admin),
+          freeParkAnon: await fetch('http://127.0.0.1:9665/api/waits/magic-kingdom').then(r=>r.status),
+        }));
+        process.exit(0);
+      }, 3000);
+    `], { encoding: 'utf8', timeout: 40000 });
+    const line = (out.stdout || '').trim().split('\n').filter((l) => l.startsWith('{')).pop();
+    const r = line ? JSON.parse(line) : {};
+    check('a paid park is closed to an anonymous visitor', r.anon === 402, JSON.stringify(r));
+    check('and to a signed-in account with no pass', r.punter === 402, JSON.stringify(r));
+    check('but open to an admin', r.admin === 200, JSON.stringify(r));
+    check('and the free park stays free to everyone', r.freeParkAnon === 200, JSON.stringify(r));
   }
 
   console.log(fail ? `\n${fail} failed` : '\nall good');

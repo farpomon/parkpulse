@@ -512,7 +512,14 @@ function hasAccess(req) {
   if (!PRO_GATE) return true;
   if (passFromReq(req)) return true;
   const s = sessionUser(req);
-  return Boolean(s && accountPassActive(s.user));
+  if (!s) return false;
+  // Nobody buys a pass to look at their own product. Without this, the first
+  // thing that happens after turning PRO_GATE on is that the owner is locked
+  // out of every park but one -- from an account that can read the whole
+  // admin dashboard, which makes it look like the gate is broken rather than
+  // working. To see the paywall as a visitor does, sign out.
+  if (s.user.verified && ADMIN_EMAILS.has(s.email)) return true;
+  return accountPassActive(s.user);
 }
 
 // Behind a platform proxy every connection arrives from the proxy, so
