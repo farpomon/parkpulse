@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "これでよろしいですか。ほかの日もお組みできます ✨",
   "Heads up for this day": "この日の注意点",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "身長・年齢の制限はそのまま適用され、多くのパークではお子さま一人でのシングルライダー利用を認めていません。",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "身長で乗れるものが決まります。がっかりするものは、並ぶ前に隠しておきます。",
   "Height unit": "身長の単位",
   "Hi": "こんにちは",
   "High": "最高",
@@ -847,7 +846,6 @@
   "Your group: {n}": "あなたのグループ：{n}人",
   "Now the important bit — how old and how tall?": "ここが肝心 —— 年齢と身長は？",
   "Child {n}": "お子さま {n} 人目",
-  "Rides they can board here: {a} of {b}": "ここで乗れるアトラクション：{b} 件中 {a} 件",
   "Continue with {provider}": "{provider} で続ける",
   "First up on the day I planned: {ride} at {t}.": "計画した日の最初は {t} の {ride} です。",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "先の予定を計画中 — 当日は私が待ち時間を見張ります。✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "リストに登録しました。",
   "Mila will write the moment the gates open.": "ゲートが開いたらすぐにミラがお知らせします。",
   "That did not send — try again in a moment.": "送信できませんでした — 少し後にもう一度お試しください。",
-  "Your email": "メールアドレス"
+  "Your email": "メールアドレス",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "身長でほとんどのアトラクションが決まり、年齢でさらにいくつか決まります。パークの規定に照らして両方を確認するので、乗れないものに並ばずにすみます。",
+  "Tall enough for {a} of the {b} rides with a height rule": "身長制限のある {b} 件のうち {a} 件に乗れます"
 }

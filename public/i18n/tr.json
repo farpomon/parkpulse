@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Memnun musun? Başka bir günü de planlarım, sen söyle ✨",
   "Heads up for this day": "Bu güne dair uyarı",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Boy ve yaş kuralları geçerliliğini korur ve çoğu park bir çocuğun tek kişilik sıraya yalnız girmesine izin vermez.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "Boy neye binebileceklerini belirler — kimse sıraya girmeden, hayal kırıklıklarını gizlerim.",
   "Height unit": "Boy birimi",
   "Hi": "Merhaba",
   "High": "En yüksek",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Grubun: {n}",
   "Now the important bit — how old and how tall?": "Şimdi asıl mesele — kaç yaşında ve kaç boyunda?",
   "Child {n}": "{n}. çocuk",
-  "Rides they can board here: {a} of {b}": "Burada binebilecekleri atraksiyonlar: {b} içinden {a}",
   "Continue with {provider}": "{provider} ile devam et",
   "First up on the day I planned: {ride} at {t}.": "Planladığım günün ilki: {t}’de {ride}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Önceden planlıyoruz — o gün sıraları senin için takip edeceğim. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Listedesiniz.",
   "Mila will write the moment the gates open.": "Kapılar açılır açılmaz Mila yazacak.",
   "That did not send — try again in a moment.": "Gönderilemedi — birazdan tekrar deneyin.",
-  "Your email": "E-postanız"
+  "Your email": "E-postanız",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "Boy çoğu üniteyi belirler, yaş birkaç tanesini daha — ikisini de parkın kendi kurallarıyla kontrol ediyorum ki kimse binemeyeceği bir şey için sıraya girmesin.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Boy sınırı olan {b} üniteden {a} tanesine binebilir"
 }

@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "आवडलं? दुसरा कुठलाही दिवसही मी आखू शकते, फक्त सांगा ✨",
   "Heads up for this day": "या दिवसासाठी लक्षात ठेवा",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "उंची आणि वयाचे नियम तसेच लागू राहतात, आणि बहुतेक पार्क लहान मुलाला एकट्याने सिंगल-रायडर रांगेत जाऊ देत नाहीत.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "उंचीवरून ठरतं ते काय बसू शकतील — निराश करणाऱ्या मी रांग लागण्याआधीच लपवते.",
   "Height unit": "उंचीचं एकक",
   "Hi": "नमस्कार",
   "High": "कमाल",
@@ -847,7 +846,6 @@
   "Your group: {n}": "तुमचा गट: {n}",
   "Now the important bit — how old and how tall?": "आता महत्त्वाचं — वय किती आणि उंची किती?",
   "Child {n}": "मूल {n}",
-  "Rides they can board here: {a} of {b}": "इथे ते बसू शकतील अशा राइड्स: {b} पैकी {a}",
   "Continue with {provider}": "{provider} ने पुढे जा",
   "First up on the day I planned: {ride} at {t}.": "मी आखलेल्या दिवसातील पहिले: {t} वाजता {ride}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "आधीच नियोजन — त्या दिवशी मी तुमच्यासाठी रांगांवर लक्ष ठेवीन. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "तुम्ही यादीत आहात.",
   "Mila will write the moment the gates open.": "दरवाजे उघडताच मिला लिहील.",
   "That did not send — try again in a moment.": "पाठवता आले नाही — थोड्या वेळाने पुन्हा प्रयत्न करा.",
-  "Your email": "तुमचा ईमेल"
+  "Your email": "तुमचा ईमेल",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "उंची बहुतेक राइड ठरवते, वय आणखी काही — मी दोन्ही पार्कच्या स्वतःच्या नियमांशी तपासते, म्हणजे कुणी अशा रांगेत उभं राहणार नाही जिथे त्याला नाकारलं जाईल.",
+  "Tall enough for {a} of the {b} rides with a height rule": "उंचीचा नियम असलेल्या {b} पैकी {a} राइडसाठी पुरेशी उंची"
 }

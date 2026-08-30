@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Zufrieden? Ich plane dir auch jeden anderen Tag — sag einfach Bescheid ✨",
   "Heads up for this day": "Achtung an diesem Tag",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Größen- und Altersregeln gelten weiterhin, und die meisten Parks lassen Kinder nicht allein durch die Einzelfahrer-Schlange.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "Die Größe entscheidet, was sie fahren dürfen – ich blende die Enttäuschungen aus, bevor jemand sich anstellt.",
   "Height unit": "Größeneinheit",
   "Hi": "Hallo",
   "High": "Max",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Deine Gruppe: {n}",
   "Now the important bit — how old and how tall?": "Jetzt das Wichtigste — wie alt und wie groß?",
   "Child {n}": "Kind {n}",
-  "Rides they can board here: {a} of {b}": "Fahrten, die sie hier schaffen: {a} von {b}",
   "Continue with {provider}": "Weiter mit {provider}",
   "First up on the day I planned: {ride} at {t}.": "Zuerst am geplanten Tag: {ride} um {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Vorausgeplant — am Tag selbst behalte ich die Warteschlangen im Blick. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Ihr steht auf der Liste.",
   "Mila will write the moment the gates open.": "Mila schreibt, sobald die Tore öffnen.",
   "That did not send — try again in a moment.": "Das ging nicht raus — versucht es gleich noch einmal.",
-  "Your email": "Eure E-Mail"
+  "Your email": "Eure E-Mail",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "Die Größe entscheidet über die meisten Fahrgeschäfte, das Alter über ein paar weitere — ich prüfe beides gegen die Regeln des Parks, damit niemand für etwas ansteht, wo er abgewiesen wird.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Groß genug für {a} von {b} Fahrgeschäften mit Mindestgröße"
 }

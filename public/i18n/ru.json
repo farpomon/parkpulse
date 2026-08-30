@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Устраивает? Могу спланировать и любой другой день — только скажите ✨",
   "Heads up for this day": "На заметку в этот день",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Ограничения по росту и возрасту продолжают действовать, и в большинстве парков ребёнку не разрешат пройти по такой очереди одному.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "Рост решает, куда их пустят — я прячу разочарования до того, как кто-то встанет в очередь.",
   "Height unit": "Единица роста",
   "Hi": "Привет",
   "High": "Макс",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Ваша компания: {n}",
   "Now the important bit — how old and how tall?": "Теперь главное — сколько лет и какой рост?",
   "Child {n}": "Ребёнок {n}",
-  "Rides they can board here: {a} of {b}": "Аттракционов, доступных им здесь: {a} из {b}",
   "Continue with {provider}": "Продолжить через {provider}",
   "First up on the day I planned: {ride} at {t}.": "Первым в запланированный день: {ride} в {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Планируем заранее — в тот день я послежу за очередями. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Вы в списке.",
   "Mila will write the moment the gates open.": "Мила напишет, как только откроются ворота.",
   "That did not send — try again in a moment.": "Не отправилось — попробуйте ещё раз через минуту.",
-  "Your email": "Ваша почта"
+  "Your email": "Ваша почта",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "Рост определяет большинство аттракционов, возраст — ещё несколько. Я сверяю оба с правилами самого парка, чтобы никто не стоял в очереди туда, куда его не пустят.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Проходит по росту на {a} из {b} аттракционов с ограничением"
 }

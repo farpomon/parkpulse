@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Ça vous va ? Je peux aussi planifier n'importe quel autre jour ✨",
   "Heads up for this day": "À surveiller ce jour-là",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Les règles de taille et d'âge s'appliquent toujours, et la plupart des parcs n'autorisent pas un enfant à emprunter seul la file solo.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "La taille décide de ce qu'ils peuvent prendre — je cache les déceptions avant que quiconque fasse la queue.",
   "Height unit": "Unité de taille",
   "Hi": "Bonjour",
   "High": "Max",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Votre groupe : {n}",
   "Now the important bit — how old and how tall?": "Maintenant l'essentiel — quel âge et quelle taille ?",
   "Child {n}": "Enfant {n}",
-  "Rides they can board here: {a} of {b}": "Attractions accessibles ici : {a} sur {b}",
   "Continue with {provider}": "Continuer avec {provider}",
   "First up on the day I planned: {ride} at {t}.": "En premier sur la journée que j’ai prévue : {ride} à {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "On anticipe — je surveillerai les files pour vous le jour venu. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Vous êtes sur la liste.",
   "Mila will write the moment the gates open.": "Mila vous écrira dès l’ouverture des portes.",
   "That did not send — try again in a moment.": "L’envoi a échoué — réessayez dans un instant.",
-  "Your email": "Votre e-mail"
+  "Your email": "Votre e-mail",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "La taille décide de la plupart des attractions, l’âge de quelques autres — je vérifie les deux avec les règles du parc, pour que personne ne fasse la queue pour une attraction qui lui sera refusée.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Assez grand pour {a} des {b} attractions à taille minimum"
 }

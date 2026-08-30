@@ -4343,6 +4343,12 @@
     for (const again of [applyStaticText, renderGroupChip, renderTabs]) {
       try { again(); } catch {}
     }
+    // The wizard writes its own text and is never rewritten afterwards, so a
+    // step already on screen kept whatever the stale cache had. That is how
+    // the party step showed "Child 1" and "Now the important bit" in English
+    // under a Portuguese heading. Only when it is actually open: wizDraft is
+    // null while the dialog is shut, and renderWiz reads it.
+    try { if (wizDraft && $('wiz').classList.contains('open')) renderWiz(); } catch {}
   });
 
   function applyStaticText() {
@@ -5736,7 +5742,7 @@
           </div>
           <div class="kidunitrow"><span id="kid-unit" role="group" aria-label="${esc(tr('Height unit'))}">${seg('cm', 'cm')}${seg('ft', 'ft·in')}</span></div>
           <div id="kid-rows"></div>
-          <p class="wiz-note">${esc(tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.'))} ✨</p></div>`;
+          <p class="wiz-note">${esc(tr('Height decides most rides, age decides a few more — I check both against the park\'s own limits, so nobody queues for a ride they would be turned away from.'))} ✨</p></div>`;
         kidsWrap.querySelectorAll('#kid-unit button').forEach((b) => b.addEventListener('click', () => {
           if (kidUnit === b.dataset.unit) return;
           kidUnit = b.dataset.unit;
@@ -5761,7 +5767,7 @@
           const fit = row.querySelector('.kidfit');
           const showFit = () => {
             const o = opensUp(k.cm);
-            fit.textContent = o ? trf('Rides they can board here: {a} of {b}', { a: o.fits, b: o.gated }) : '';
+            fit.textContent = o ? trf('Tall enough for {a} of the {b} rides with a height rule', { a: o.fits, b: o.gated }) : '';
           };
           showFit();
           const ins = row.querySelectorAll('input');

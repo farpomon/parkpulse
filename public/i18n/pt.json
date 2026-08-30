@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Curtiu? Também posso planejar qualquer outro dia, é só falar ✨",
   "Heads up for this day": "Fique de olho neste dia",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "As regras de altura e idade continuam valendo, e a maioria dos parques não deixa uma criança usar a fila de passageiro solo sozinha.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "A altura decide no que eles podem subir — escondo as decepções antes que alguém entre na fila.",
   "Height unit": "Unidade de altura",
   "Hi": "Oi",
   "High": "Máx",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Seu grupo: {n}",
   "Now the important bit — how old and how tall?": "Agora o principal — que idade e que altura?",
   "Child {n}": "Criança {n}",
-  "Rides they can board here: {a} of {b}": "Brinquedos que eles podem encarar aqui: {a} de {b}",
   "Continue with {provider}": "Continuar com {provider}",
   "First up on the day I planned: {ride} at {t}.": "O primeiro do dia que planeei: {ride} às {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "A planear com antecedência — vigio as filas por ti nesse dia. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Já estás na lista.",
   "Mila will write the moment the gates open.": "A Mila escreve assim que os portões abrirem.",
   "That did not send — try again in a moment.": "Não foi enviado — tenta de novo daqui a pouco.",
-  "Your email": "O teu email"
+  "Your email": "O teu email",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "A altura decide a maioria dos brinquedos e a idade decide mais alguns — verifico ambos com as regras do próprio parque, para ninguém ficar na fila de algo onde não vai poder entrar.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Tem altura para {a} dos {b} brinquedos com limite de altura"
 }

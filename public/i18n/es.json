@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "¿Te convence? También puedo planear cualquier otro día, tú dime ✨",
   "Heads up for this day": "Ojo con este día",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Las normas de altura y edad siguen vigentes, y la mayoría de los parques no permiten que un menor use solo la fila de pasajero individual.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "La altura decide a qué pueden subir: escondo las decepciones antes de que nadie haga la cola.",
   "Height unit": "Unidad de altura",
   "Hi": "Hola",
   "High": "Máx",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Tu grupo: {n}",
   "Now the important bit — how old and how tall?": "Ahora lo importante — ¿qué edad y qué altura?",
   "Child {n}": "Niño {n}",
-  "Rides they can board here: {a} of {b}": "Atracciones a las que pueden subir aquí: {a} de {b}",
   "Continue with {provider}": "Continuar con {provider}",
   "First up on the day I planned: {ride} at {t}.": "Lo primero del día que planeé: {ride} a las {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Planificando con antelación: vigilaré las colas por ti ese día. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Ya estás en la lista.",
   "Mila will write the moment the gates open.": "Mila te escribirá en cuanto se abran las puertas.",
   "That did not send — try again in a moment.": "No se envió: inténtalo de nuevo en un momento.",
-  "Your email": "Tu correo"
+  "Your email": "Tu correo",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "La altura decide la mayoría de las atracciones y la edad algunas más: compruebo ambas con las normas del propio parque, para que nadie haga cola para algo en lo que no le dejarán subir.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Puede subir a {a} de las {b} atracciones con límite de altura"
 }

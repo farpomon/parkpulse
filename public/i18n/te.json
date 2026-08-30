@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "నచ్చిందా? మరే రోజునైనా నేను సిద్ధం చేయగలను, చెప్పండి చాలు ✨",
   "Heads up for this day": "ఈ రోజుకు గమనిక",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "ఎత్తు, వయసు నిబంధనలు యథావిధిగా వర్తిస్తాయి, చాలా పార్కులు పిల్లలను ఒంటరిగా సింగిల్-రైడర్ లైన్‌లోకి అనుమతించవు.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "ఎత్తే వాళ్లు దేని మీద ఎక్కగలరో నిర్ణయిస్తుంది — నిరాశ కలిగించేవాటిని క్యూ నిలబడక ముందే దాచేస్తాను.",
   "Height unit": "ఎత్తు యూనిట్",
   "Hi": "నమస్తే",
   "High": "గరిష్ఠం",
@@ -847,7 +846,6 @@
   "Your group: {n}": "మీ బృందం: {n}",
   "Now the important bit — how old and how tall?": "ఇప్పుడు ముఖ్యమైనది — వయసు ఎంత, ఎత్తు ఎంత?",
   "Child {n}": "పిల్లవాడు {n}",
-  "Rides they can board here: {a} of {b}": "ఇక్కడ వాళ్లు ఎక్కగలిగేవి: {b}లో {a}",
   "Continue with {provider}": "{provider} ద్వారా కొనసాగండి",
   "First up on the day I planned: {ride} at {t}.": "నేను ప్లాన్ చేసిన రోజులో మొదటిది: {t}కి {ride}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "ముందుగానే ప్లాన్ చేస్తున్నాం — ఆ రోజు క్యూలను నేను గమనిస్తాను. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "మీరు జాబితాలో ఉన్నారు.",
   "Mila will write the moment the gates open.": "ద్వారాలు తెరవగానే మిలా రాస్తుంది.",
   "That did not send — try again in a moment.": "పంపబడలేదు — కాసేపటి తర్వాత మళ్లీ ప్రయత్నించండి.",
-  "Your email": "మీ ఇమెయిల్"
+  "Your email": "మీ ఇమెయిల్",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "ఎత్తు చాలా రైడ్‌లను నిర్ణయిస్తుంది, వయసు మరికొన్నింటిని — రెండింటినీ పార్క్ సొంత నిబంధనలతో సరిచూస్తాను, ఎవరూ ఎక్కలేని దాని కోసం వరుసలో నిలబడకుండా.",
+  "Tall enough for {a} of the {b} rides with a height rule": "ఎత్తు నిబంధన ఉన్న {b}లో {a} రైడ్‌లకు సరిపడా ఎత్తు"
 }

@@ -162,6 +162,64 @@ console.log('\n[a profile saved before any of this]');
   await ctx.close();
 }
 
+console.log('\n[the two numbers explain themselves]');
+{
+  // "13 of 15" read as fifteen rides in the park. It is fifteen rides that
+  // publish a height rule -- 'No Gate' carries hmin -1, meaning the park says
+  // nothing, and counting it either way would be a guess.
+  const { ctx, page } = await open({ party: 3, ages: ['adult', 'kid'], vibes: ['family'], onsite: null, kids: [{ age: 7, cm: 120 }] });
+  const fit = await page.evaluate(() => document.querySelector('.kidfit')?.textContent || '');
+  check('the count says what it is counting', /height rule/.test(fit), fit);
+  check('and counts only rides that publish one', /\b2 of the 3\b/.test(fit), fit);
+  const note = await page.evaluate(() => document.querySelector('.kidbox .wiz-note')?.textContent || '');
+  check('the note explains why BOTH numbers are asked for', /height/i.test(note) && /age/i.test(note), note);
+  await ctx.close();
+}
+
+console.log('\n[a returning visitor whose cached dictionary is a release behind]');
+{
+  // i18n.js serves the previous visit's dictionary first and fetches the real
+  // one behind it. Everything written once and never rewritten kept the stale
+  // copy -- which is how a Portuguese session showed an English "Child 1" and
+  // "Now the important bit" under a Portuguese heading.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem('pp-onboarded', '1');
+    localStorage.setItem('pp-park', 'magic-kingdom');
+    localStorage.setItem('pp-wiz-seen', '2099-01-01');
+    localStorage.setItem('pp-lang', 'pt');
+    localStorage.setItem('pp-profile', JSON.stringify({ party: 3, adults: 2, kids: [{ age: 7, cm: 120 }], ages: ['adult', 'kid'], vibes: ['family'], pace: 'steady', strict: false }));
+    localStorage.setItem('pp-dict-pt', JSON.stringify({ 'Now the important bit — how old and how tall?': 'STALE' }));
+  });
+  const json = (b) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
+  await page.route('**/api/waits/**', (r) => r.fulfill(json({ park: 'x', source: 'live', attribution: 's', updatedAt: new Date().toISOString(), rides: RIDES })));
+  await page.route('**/api/ride-tags/**', (r) => r.fulfill(json({ tags: TAGS })));
+  for (const q of ['**/api/closures/**', '**/api/weather/**', '**/api/dining/**', '**/api/trip']) await page.route(q, (r) => r.fulfill(json({})));
+  // Hold the real dictionary until the wizard is open, so the stale copy is
+  // provably what rendered. Otherwise this is a race the fetch usually wins,
+  // and the test passes without ever reproducing the bug.
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route('**/i18n/pt.json', async (route) => { await held; await route.continue(); });
+  await page.goto(B + '/app', { waitUntil: 'domcontentloaded', timeout: 25000 });
+  await page.waitForTimeout(2800);
+  await page.evaluate(() => { for (const i of ['onboard', 'onboard-bg', 'acct-sheet', 'acct-bg', 'gate', 'sheet-bg']) document.getElementById(i)?.classList.remove('open'); });
+  await page.click('#group-chip-btn');
+  await page.waitForTimeout(450);
+  for (let i = 0; i < 6; i++) {
+    if (await page.evaluate(() => Boolean(document.querySelector('.kidbox')))) break;
+    await page.click('#wiz-next'); await page.waitForTimeout(380);
+  }
+  const before = await page.evaluate(() => document.querySelector('.kidhead b')?.textContent);
+  release();                                   // the real dictionary lands now
+  await page.waitForTimeout(1200);
+  const after = await page.evaluate(() => document.querySelector('.kidhead b')?.textContent);
+  check('the stale string is what renders first', before === 'STALE', String(before));
+  check('and the open wizard re-texts when the real one lands', after !== 'STALE' && /idade/.test(after || ''), String(after));
+  await ctx.close();
+}
+
 console.log(fail ? `\n=== ${fail} failures ===` : '\n=== the group is counted, and the little ones are measured ===');
 await browser.close();
 process.exit(fail ? 1 : 0);

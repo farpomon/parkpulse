@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Cocok? Hari lain juga bisa saya susun, tinggal bilang ✨",
   "Heads up for this day": "Perhatian untuk hari ini",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Aturan tinggi badan dan usia tetap berlaku, dan sebagian besar taman tidak mengizinkan anak memakai jalur single rider sendirian.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "Tinggi badan menentukan apa yang boleh mereka naiki — saya sembunyikan yang bikin kecewa sebelum ada yang mengantre.",
   "Height unit": "Satuan tinggi",
   "Hi": "Halo",
   "High": "Maks",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Rombonganmu: {n}",
   "Now the important bit — how old and how tall?": "Sekarang yang penting — berapa umur dan berapa tingginya?",
   "Child {n}": "Anak ke-{n}",
-  "Rides they can board here: {a} of {b}": "Wahana yang bisa mereka naiki di sini: {a} dari {b}",
   "Continue with {provider}": "Lanjutkan dengan {provider}",
   "First up on the day I planned: {ride} at {t}.": "Pertama di hari yang saya rencanakan: {ride} pukul {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Merencanakan lebih awal — nanti saya pantau antreannya untukmu. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Anda sudah masuk daftar.",
   "Mila will write the moment the gates open.": "Mila akan menulis begitu gerbang dibuka.",
   "That did not send — try again in a moment.": "Gagal terkirim — coba lagi sebentar lagi.",
-  "Your email": "Email Anda"
+  "Your email": "Email Anda",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "Tinggi menentukan sebagian besar wahana, usia menentukan beberapa lagi — saya cek keduanya dengan aturan taman itu sendiri, supaya tidak ada yang mengantre untuk wahana yang akan menolaknya.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Cukup tinggi untuk {a} dari {b} wahana yang punya batas tinggi"
 }

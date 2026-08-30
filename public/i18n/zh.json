@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "还满意吗？其他任何一天我也能安排，你说了算 ✨",
   "Heads up for this day": "这一天要留意",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "身高和年龄限制依然适用，大多数乐园不允许儿童独自走单人通道。",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "身高决定他们能玩什么——我会先把玩不了的藏起来，免得排完队才失望。",
   "Height unit": "身高单位",
   "Hi": "你好",
   "High": "最高",
@@ -847,7 +846,6 @@
   "Your group: {n}": "你的队伍：{n} 人",
   "Now the important bit — how old and how tall?": "现在是关键 —— 多大年纪，多高个子？",
   "Child {n}": "第 {n} 位小朋友",
-  "Rides they can board here: {a} of {b}": "这里他们能玩的项目：{b} 个中的 {a} 个",
   "Continue with {provider}": "使用 {provider} 继续",
   "First up on the day I planned: {ride} at {t}.": "我规划那天的第一项：{t} 的 {ride}。",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "提前规划中——到了那天我会替你盯着排队时间。✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "你已在名单上。",
   "Mila will write the moment the gates open.": "大门一开，米拉就会写信给你。",
   "That did not send — try again in a moment.": "没有发送成功 — 请稍后再试。",
-  "Your email": "你的邮箱"
+  "Your email": "你的邮箱",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "身高决定大多数项目，年龄再决定一部分——我会按乐园自己的规定核对两者，免得有人排了队却上不去。",
+  "Tall enough for {a} of the {b} rides with a height rule": "在 {b} 个有身高限制的项目中，可以玩 {a} 个"
 }

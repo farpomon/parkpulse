@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "பிடித்ததா? வேறு எந்த நாளையும் நான் வகுத்துத் தர முடியும், சொல்லுங்கள் ✨",
   "Heads up for this day": "இந்த நாளுக்கு கவனம்",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "உயரம் மற்றும் வயது விதிகள் தொடர்ந்து பொருந்தும், பெரும்பாலான பூங்காக்கள் குழந்தையைத் தனியாக தனி நபர் வரிசையில் அனுமதிப்பதில்லை.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "உயரமே அவர்கள் எதில் ஏறலாம் என்பதைத் தீர்மானிக்கிறது — ஏமாற்றம் தரும் சவாரிகளை வரிசையில் நிற்பதற்கு முன்பே மறைத்துவிடுகிறேன்.",
   "Height unit": "உயர அலகு",
   "Hi": "வணக்கம்",
   "High": "அதிகபட்சம்",
@@ -847,7 +846,6 @@
   "Your group: {n}": "உங்கள் குழு: {n}",
   "Now the important bit — how old and how tall?": "இப்போது முக்கியமானது — வயது என்ன, உயரம் என்ன?",
   "Child {n}": "குழந்தை {n}",
-  "Rides they can board here: {a} of {b}": "இங்கே அவர்கள் ஏற முடிந்தவை: {b}-ல் {a}",
   "Continue with {provider}": "{provider} மூலம் தொடரவும்",
   "First up on the day I planned: {ride} at {t}.": "நான் திட்டமிட்ட நாளின் முதல்: {t} மணிக்கு {ride}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "முன்கூட்டியே திட்டமிடுகிறோம் — அன்று வரிசைகளை நான் கவனிப்பேன். ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "நீங்கள் பட்டியலில் இருக்கிறீர்கள்.",
   "Mila will write the moment the gates open.": "வாயில்கள் திறந்ததும் மிலா எழுதுவாள்.",
   "That did not send — try again in a moment.": "அனுப்ப முடியவில்லை — சிறிது நேரம் கழித்து மீண்டும் முயலுங்கள்.",
-  "Your email": "உங்கள் மின்னஞ்சல்"
+  "Your email": "உங்கள் மின்னஞ்சல்",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "உயரம் பெரும்பாலான சவாரிகளைத் தீர்மானிக்கிறது, வயது இன்னும் சிலவற்றை — இரண்டையும் பூங்காவின் சொந்த விதிகளோடு சரிபார்க்கிறேன், யாரும் ஏற முடியாத ஒன்றுக்கு வரிசையில் நிற்காமல் இருக்க.",
+  "Tall enough for {a} of the {b} rides with a height rule": "உயர விதி உள்ள {b}-இல் {a} சவாரிகளுக்குப் போதுமான உயரம்"
 }

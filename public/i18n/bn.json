@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "পছন্দ হলো? অন্য যেকোনো দিনও আমি সাজিয়ে দিতে পারি, শুধু বলুন ✨",
   "Heads up for this day": "এই দিনটার জন্য খেয়াল রাখুন",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "উচ্চতা ও বয়সের নিয়ম আগের মতোই থাকে, এবং বেশিরভাগ পার্ক শিশুকে একা সিঙ্গল-রাইডার লাইনে যেতে দেয় না।",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "উচ্চতাই ঠিক করে ওরা কীসে চড়তে পারবে — যেগুলো মন খারাপ করবে, লাইন দেওয়ার আগেই সেগুলো লুকিয়ে রাখি।",
   "Height unit": "উচ্চতার একক",
   "Hi": "হাই",
   "High": "সর্বোচ্চ",
@@ -847,7 +846,6 @@
   "Your group: {n}": "আপনার দল: {n}",
   "Now the important bit — how old and how tall?": "এবার আসল কথা — বয়স কত আর উচ্চতা কত?",
   "Child {n}": "শিশু {n}",
-  "Rides they can board here: {a} of {b}": "এখানে তারা যেগুলোয় চড়তে পারবে: {b}-এর মধ্যে {a}",
   "Continue with {provider}": "{provider} দিয়ে চালিয়ে যান",
   "First up on the day I planned: {ride} at {t}.": "আমার পরিকল্পিত দিনের প্রথমে: {t}-এ {ride}।",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "আগেভাগে পরিকল্পনা — সেদিন আমি আপনার জন্য লাইনগুলো নজরে রাখব। ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "আপনি তালিকায় আছেন।",
   "Mila will write the moment the gates open.": "গেট খোলার সঙ্গে সঙ্গেই মিলা লিখবে।",
   "That did not send — try again in a moment.": "পাঠানো যায়নি — একটু পরে আবার চেষ্টা করুন।",
-  "Your email": "আপনার ইমেল"
+  "Your email": "আপনার ইমেল",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "উচ্চতা বেশিরভাগ রাইড ঠিক করে, বয়স আরও কয়েকটি — আমি দুটোই পার্কের নিজস্ব নিয়মে মিলিয়ে দেখি, যাতে কেউ এমন লাইনে না দাঁড়ায় যেখানে তাকে ফিরিয়ে দেওয়া হবে।",
+  "Tall enough for {a} of the {b} rides with a height rule": "উচ্চতার নিয়ম আছে এমন {b}টির মধ্যে {a}টিতে চড়তে পারবে"
 }

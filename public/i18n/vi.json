@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Ổn chứ? Tôi cũng xếp được bất kỳ ngày nào khác, bạn cứ nói ✨",
   "Heads up for this day": "Lưu ý cho ngày này",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Quy định về chiều cao và độ tuổi vẫn áp dụng, và phần lớn công viên không cho trẻ em đi làn khách đi lẻ một mình.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "Chiều cao quyết định các bé được lên trò nào — tôi giấu sẵn những trò gây hụt hẫng trước khi ai đó phải xếp hàng.",
   "Height unit": "Đơn vị chiều cao",
   "Hi": "Xin chào",
   "High": "Cao nhất",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Nhóm của bạn: {n}",
   "Now the important bit — how old and how tall?": "Giờ đến phần quan trọng — mấy tuổi và cao bao nhiêu?",
   "Child {n}": "Bé thứ {n}",
-  "Rides they can board here: {a} of {b}": "Trò các bé chơi được ở đây: {a} trên {b}",
   "Continue with {provider}": "Tiếp tục với {provider}",
   "First up on the day I planned: {ride} at {t}.": "Đầu tiên trong ngày tôi đã lên kế hoạch: {ride} lúc {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Lên kế hoạch trước — hôm đó tôi sẽ theo dõi hàng chờ giúp bạn. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Bạn đã có trong danh sách.",
   "Mila will write the moment the gates open.": "Mila sẽ viết ngay khi cổng mở.",
   "That did not send — try again in a moment.": "Chưa gửi được — thử lại sau giây lát.",
-  "Your email": "Email của bạn"
+  "Your email": "Email của bạn",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "Chiều cao quyết định phần lớn trò chơi, tuổi quyết định thêm vài trò — tôi đối chiếu cả hai với quy định của chính công viên, để không ai phải xếp hàng cho thứ mình sẽ bị từ chối.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Đủ cao cho {a} trong {b} trò chơi có giới hạn chiều cao"
 }

@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "Ti convince? Posso pianificare anche qualsiasi altro giorno, dimmi tu ✨",
   "Heads up for this day": "Attenzione in questa giornata",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "Le regole di altezza ed età restano valide e la maggior parte dei parchi non lascia che un bambino usi da solo la fila per singoli.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "L'altezza decide su cosa possono salire — nascondo le delusioni prima che qualcuno si metta in fila.",
   "Height unit": "Unità di altezza",
   "Hi": "Ciao",
   "High": "Max",
@@ -847,7 +846,6 @@
   "Your group: {n}": "Il tuo gruppo: {n}",
   "Now the important bit — how old and how tall?": "Ora la parte importante — che età e che altezza?",
   "Child {n}": "Bambino {n}",
-  "Rides they can board here: {a} of {b}": "Attrazioni su cui possono salire qui: {a} su {b}",
   "Continue with {provider}": "Continua con {provider}",
   "First up on the day I planned: {ride} at {t}.": "Per primo nella giornata che ho pianificato: {ride} alle {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "Stiamo pianificando in anticipo: quel giorno terrò d’occhio le code per te. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "Sei in lista.",
   "Mila will write the moment the gates open.": "Mila ti scriverà appena si aprono i cancelli.",
   "That did not send — try again in a moment.": "Non è stato inviato: riprova tra un momento.",
-  "Your email": "La tua email"
+  "Your email": "La tua email",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "L’altezza decide la maggior parte delle attrazioni, l’età qualcuna in più: controllo entrambe con le regole del parco, così nessuno fa la fila per qualcosa a cui non potrà salire.",
+  "Tall enough for {a} of the {b} rides with a height rule": "Abbastanza alto per {a} delle {b} attrazioni con limite di altezza"
 }

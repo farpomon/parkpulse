@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "هل يعجبك؟ أستطيع تخطيط أي يوم آخر أيضًا، فقط قل ✨",
   "Heads up for this day": "انتبه في هذا اليوم",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "شروط الطول والعمر تبقى سارية، ومعظم المدن لا تسمح للطفل باستخدام مسار الراكب الفردي وحده.",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "الطول يحدد ما يمكنهم ركوبه — أُخفي ما يسبّب خيبة الأمل قبل أن يقف أحد في الطابور.",
   "Height unit": "وحدة الطول",
   "Hi": "مرحبًا",
   "High": "العظمى",
@@ -847,7 +846,6 @@
   "Your group: {n}": "مجموعتك: {n}",
   "Now the important bit — how old and how tall?": "الآن الأهم — كم العمر وكم الطول؟",
   "Child {n}": "الطفل {n}",
-  "Rides they can board here: {a} of {b}": "الألعاب التي يمكنهم ركوبها هنا: {a} من {b}",
   "Continue with {provider}": "المتابعة باستخدام {provider}",
   "First up on the day I planned: {ride} at {t}.": "أول شيء في اليوم الذي خططته: {ride} في {t}.",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "نخطط مسبقًا — سأراقب الطوابير من أجلك في ذلك اليوم. ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "أنت على القائمة.",
   "Mila will write the moment the gates open.": "ستراسلك ميلا فور فتح الأبواب.",
   "That did not send — try again in a moment.": "لم يُرسل — حاول مرة أخرى بعد قليل.",
-  "Your email": "بريدك الإلكتروني"
+  "Your email": "بريدك الإلكتروني",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "الطول يحدد معظم الألعاب، والعمر يحدد بعضها الآخر — أتحقق من كليهما وفق قواعد المدينة الترفيهية نفسها، حتى لا يقف أحد في طابور لن يُسمح له بركوبه.",
+  "Tall enough for {a} of the {b} rides with a height rule": "طوله يكفي لـ {a} من {b} لعبة فيها حد أدنى للطول"
 }

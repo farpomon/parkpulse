@@ -173,7 +173,6 @@
   "Happy with this one? I can plan any other day too — just say when ✨": "پسند آیا؟ کوئی اور دن بھی میں ترتیب دے سکتی ہوں، بس کہیے ✨",
   "Heads up for this day": "اس دن کا خیال رکھیں",
   "Height and age rules still apply, and most parks will not let a child ride the single-rider line alone.": "قد اور عمر کی شرائط بدستور لاگو رہتی ہیں، اور زیادہ تر پارک بچے کو اکیلے سنگل رائیڈر لائن میں جانے نہیں دیتے۔",
-  "Height decides what they can board — I hide the heartbreakers before anyone queues for them.": "قد طے کرتا ہے کہ وہ کس پر بیٹھ سکتے ہیں — جو مایوس کریں گی، انہیں قطار لگنے سے پہلے ہی چھپا دیتی ہوں۔",
   "Height unit": "قد کی اکائی",
   "Hi": "ہیلو",
   "High": "زیادہ سے زیادہ",
@@ -847,7 +846,6 @@
   "Your group: {n}": "آپ کا گروپ: {n}",
   "Now the important bit — how old and how tall?": "اب اصل بات — عمر کتنی اور قد کتنا؟",
   "Child {n}": "بچہ {n}",
-  "Rides they can board here: {a} of {b}": "یہاں وہ جن جھولوں پر بیٹھ سکتے ہیں: {b} میں سے {a}",
   "Continue with {provider}": "{provider} کے ساتھ جاری رکھیں",
   "First up on the day I planned: {ride} at {t}.": "میرے منصوبے والے دن سب سے پہلے: {t} بجے {ride}۔",
   "Planning ahead — I’ll watch the queues for you on the day. ✨": "پہلے سے منصوبہ بندی — اُس دن میں آپ کے لیے قطاروں پر نظر رکھوں گی۔ ✨",
@@ -876,5 +874,7 @@
   "You are on the list.": "آپ فہرست میں شامل ہیں۔",
   "Mila will write the moment the gates open.": "دروازے کھلتے ہی میلا آپ کو لکھے گی۔",
   "That did not send — try again in a moment.": "بھیجا نہیں جا سکا — تھوڑی دیر بعد دوبارہ کوشش کریں۔",
-  "Your email": "آپ کا ای میل"
+  "Your email": "آپ کا ای میل",
+  "Height decides most rides, age decides a few more — I check both against the park's own limits, so nobody queues for a ride they would be turned away from.": "قد زیادہ تر رائیڈز کا فیصلہ کرتا ہے اور عمر کچھ مزید کا — میں دونوں کو پارک کے اپنے قواعد سے جانچتی ہوں، تاکہ کوئی ایسی قطار میں نہ لگے جہاں اسے منع کر دیا جائے۔",
+  "Tall enough for {a} of the {b} rides with a height rule": "قد کی حد والی {b} میں سے {a} رائیڈز کے لیے کافی لمبے"
 }
