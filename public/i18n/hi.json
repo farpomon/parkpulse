@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "अब सबसे ज़रूरी बात — उम्र कितनी और कद कितना?",
   "Child {n}": "बच्चा {n}",
   "Rides they can board here: {a} of {b}": "यहाँ वे जिन राइड्स पर जा सकते हैं: {b} में से {a}",
-  "Continue with {provider}": "{provider} से जारी रखें"
+  "Continue with {provider}": "{provider} से जारी रखें",
+  "First up on the day I planned: {ride} at {t}.": "मेरी बनाई योजना के दिन सबसे पहले: {t} बजे {ride}।",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "पहले से योजना बन रही है — उस दिन मैं आपके लिए कतारों पर नज़र रखूँगी। ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "गेट {t} बजे खुलेंगे — मैं आपका दिन तैयार कर रही हूँ। ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "पार्क आज रात के लिए बंद है — आराम करें, सुबह मैं यहीं मिलूँगी। ✨",
+  "Next up: {ride}, {n} min right now.": "अगला: {ride}, अभी {n} मिनट।",
+  "Next up: {ride} at {t}.": "अगला: {t} बजे {ride}।",
+  "Shortest queue right now: {ride}, {n} min.": "अभी सबसे छोटी कतार: {ride}, {n} मिनट।",
+  "Watching the queues for you ✨": "आपके लिए कतारों पर नज़र रख रही हूँ ✨"
 }

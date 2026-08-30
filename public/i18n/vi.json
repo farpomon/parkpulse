@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "Giờ đến phần quan trọng — mấy tuổi và cao bao nhiêu?",
   "Child {n}": "Bé thứ {n}",
   "Rides they can board here: {a} of {b}": "Trò các bé chơi được ở đây: {a} trên {b}",
-  "Continue with {provider}": "Tiếp tục với {provider}"
+  "Continue with {provider}": "Tiếp tục với {provider}",
+  "First up on the day I planned: {ride} at {t}.": "Đầu tiên trong ngày tôi đã lên kế hoạch: {ride} lúc {t}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "Lên kế hoạch trước — hôm đó tôi sẽ theo dõi hàng chờ giúp bạn. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "Cổng mở lúc {t} — tôi đang chuẩn bị ngày của bạn. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "Công viên đã đóng cửa đêm nay — nghỉ ngơi nhé, sáng mai tôi vẫn ở đây. ✨",
+  "Next up: {ride}, {n} min right now.": "Tiếp theo: {ride}, {n} phút ngay lúc này.",
+  "Next up: {ride} at {t}.": "Tiếp theo: {ride} lúc {t}.",
+  "Shortest queue right now: {ride}, {n} min.": "Hàng chờ ngắn nhất lúc này: {ride}, {n} phút.",
+  "Watching the queues for you ✨": "Đang theo dõi hàng chờ giúp bạn ✨"
 }

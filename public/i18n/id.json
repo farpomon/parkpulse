@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "Sekarang yang penting — berapa umur dan berapa tingginya?",
   "Child {n}": "Anak ke-{n}",
   "Rides they can board here: {a} of {b}": "Wahana yang bisa mereka naiki di sini: {a} dari {b}",
-  "Continue with {provider}": "Lanjutkan dengan {provider}"
+  "Continue with {provider}": "Lanjutkan dengan {provider}",
+  "First up on the day I planned: {ride} at {t}.": "Pertama di hari yang saya rencanakan: {ride} pukul {t}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "Merencanakan lebih awal — nanti saya pantau antreannya untukmu. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "Gerbang buka pukul {t} — saya sedang menyiapkan harimu. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "Taman sudah tutup malam ini — istirahatlah, besok pagi saya di sini. ✨",
+  "Next up: {ride}, {n} min right now.": "Berikutnya: {ride}, {n} menit sekarang.",
+  "Next up: {ride} at {t}.": "Berikutnya: {ride} pukul {t}.",
+  "Shortest queue right now: {ride}, {n} min.": "Antrean terpendek sekarang: {ride}, {n} menit.",
+  "Watching the queues for you ✨": "Memantau antrean untukmu ✨"
 }

@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "இப்போது முக்கியமானது — வயது என்ன, உயரம் என்ன?",
   "Child {n}": "குழந்தை {n}",
   "Rides they can board here: {a} of {b}": "இங்கே அவர்கள் ஏற முடிந்தவை: {b}-ல் {a}",
-  "Continue with {provider}": "{provider} மூலம் தொடரவும்"
+  "Continue with {provider}": "{provider} மூலம் தொடரவும்",
+  "First up on the day I planned: {ride} at {t}.": "நான் திட்டமிட்ட நாளின் முதல்: {t} மணிக்கு {ride}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "முன்கூட்டியே திட்டமிடுகிறோம் — அன்று வரிசைகளை நான் கவனிப்பேன். ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "வாயில்கள் {t} மணிக்குத் திறக்கும் — உங்கள் நாளைத் தயார் செய்கிறேன். ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "பூங்கா இன்றிரவு மூடப்பட்டுள்ளது — ஓய்வெடுங்கள், காலையில் இருப்பேன். ✨",
+  "Next up: {ride}, {n} min right now.": "அடுத்தது: {ride}, இப்போது {n} நிமிடம்.",
+  "Next up: {ride} at {t}.": "அடுத்தது: {t} மணிக்கு {ride}.",
+  "Shortest queue right now: {ride}, {n} min.": "இப்போது குறுகிய வரிசை: {ride}, {n} நிமிடம்.",
+  "Watching the queues for you ✨": "உங்களுக்காக வரிசைகளைக் கவனிக்கிறேன் ✨"
 }

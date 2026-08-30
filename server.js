@@ -1888,6 +1888,9 @@ async function sendAiCostEmail(day) {
 // crosses a fixed ceiling, and a day running far above the recent norm -- and
 // mails the moment either happens. Once per condition per day, so a loop does
 // not become a mail flood on top of a bill.
+// How many written lines one account can buy in half a day. The client only
+// asks when the day actually changed, which is far fewer; this is the backstop.
+const LIVE_NUDGE_CAP = Number(process.env.LIVE_NUDGE_CAP || 12);
 const AI_ALERT_USD = Number(process.env.AI_ALERT_USD || 25);
 const AI_ALERT_MULTIPLE = Number(process.env.AI_ALERT_MULTIPLE || 4);
 // Below this the multiple is meaningless: 4x of eleven cents is not news.
@@ -4017,6 +4020,39 @@ ${sections}
 
       // Mirror of the device's in-park choices for the WhatsApp agent (and
       // for restoring a reinstalled app). Client pushes, server sanitizes.
+      // Mila's standing line. The client decides WHETHER anything changed --
+      // it already has the live waits and the plan on screen -- and sends the
+      // change plus a few facts. This turns that into one sentence in her
+      // voice. Everything else the strip says is written locally and costs
+      // nothing.
+      if (url.pathname === '/api/live-nudge') {
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'log in first' });
+        if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
+        // A hard ceiling that does not depend on the client behaving. A stuck
+        // page asking every twenty seconds instead of every twenty minutes
+        // would otherwise bill for it, and the visitor would never know.
+        if (accountLimited(req, 'live-nudge', LIVE_NUDGE_CAP, 12 * 3600000)) {
+          return sendJson(res, 429, { error: 'enough for now' });
+        }
+        const park = PARKS[parsed.park];
+        if (!park) return sendJson(res, 400, { error: 'unknown park' });
+        const headline = typeof parsed.headline === 'string' ? parsed.headline.trim().slice(0, 200) : '';
+        if (!headline) return sendJson(res, 400, { error: 'nothing to say' });
+        const facts = strList(parsed.facts, 6).map((f) => String(f).slice(0, 160));
+        const lang = LANG_NAMES[typeof parsed.lang === 'string' ? parsed.lang : 'en'] || 'English';
+        try {
+          const text = await consultant.liveNudge({
+            parkName: park.name, lang, headline, facts,
+            name: db.users.get(s.email)?.name || null,
+          });
+          return sendJson(res, 200, { text: text || null });
+        } catch (err) {
+          console.log(`live nudge failed: ${err.message}`);
+          return sendJson(res, 200, { text: null });   // the strip falls back to its local line
+        }
+      }
+
       if (url.pathname === '/api/daystate') {
         const s = sessionUser(req);
         if (!s) return sendJson(res, 401, { error: 'not logged in' });

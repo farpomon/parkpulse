@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "Ora la parte importante — che età e che altezza?",
   "Child {n}": "Bambino {n}",
   "Rides they can board here: {a} of {b}": "Attrazioni su cui possono salire qui: {a} su {b}",
-  "Continue with {provider}": "Continua con {provider}"
+  "Continue with {provider}": "Continua con {provider}",
+  "First up on the day I planned: {ride} at {t}.": "Per primo nella giornata che ho pianificato: {ride} alle {t}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "Stiamo pianificando in anticipo: quel giorno terrò d’occhio le code per te. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "I cancelli aprono alle {t}: sto preparando la tua giornata. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "Il parco ha chiuso per stasera: riposati, domattina sono qui. ✨",
+  "Next up: {ride}, {n} min right now.": "Prossima: {ride}, {n} min in questo momento.",
+  "Next up: {ride} at {t}.": "Prossima: {ride} alle {t}.",
+  "Shortest queue right now: {ride}, {n} min.": "La coda più corta adesso: {ride}, {n} min.",
+  "Watching the queues for you ✨": "Tengo d’occhio le code per te ✨"
 }

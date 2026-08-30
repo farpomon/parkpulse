@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "Теперь главное — сколько лет и какой рост?",
   "Child {n}": "Ребёнок {n}",
   "Rides they can board here: {a} of {b}": "Аттракционов, доступных им здесь: {a} из {b}",
-  "Continue with {provider}": "Продолжить через {provider}"
+  "Continue with {provider}": "Продолжить через {provider}",
+  "First up on the day I planned: {ride} at {t}.": "Первым в запланированный день: {ride} в {t}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "Планируем заранее — в тот день я послежу за очередями. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "Ворота открываются в {t} — готовлю ваш день. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "Парк закрыт на ночь — отдыхайте, утром я буду здесь. ✨",
+  "Next up: {ride}, {n} min right now.": "Следующее: {ride}, сейчас {n} мин.",
+  "Next up: {ride} at {t}.": "Следующее: {ride} в {t}.",
+  "Shortest queue right now: {ride}, {n} min.": "Самая короткая очередь сейчас: {ride}, {n} мин.",
+  "Watching the queues for you ✨": "Слежу за очередями для вас ✨"
 }

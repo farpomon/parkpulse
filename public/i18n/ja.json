@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "ここが肝心 —— 年齢と身長は？",
   "Child {n}": "お子さま {n} 人目",
   "Rides they can board here: {a} of {b}": "ここで乗れるアトラクション：{b} 件中 {a} 件",
-  "Continue with {provider}": "{provider} で続ける"
+  "Continue with {provider}": "{provider} で続ける",
+  "First up on the day I planned: {ride} at {t}.": "計画した日の最初は {t} の {ride} です。",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "先の予定を計画中 — 当日は私が待ち時間を見張ります。✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "開園は {t} — あなたの一日を準備しています。✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "今夜のパークは終了 — ゆっくり休んで、朝にまた会いましょう。✨",
+  "Next up: {ride}, {n} min right now.": "次は {ride}、いまは {n} 分です。",
+  "Next up: {ride} at {t}.": "次は {t} の {ride} です。",
+  "Shortest queue right now: {ride}, {n} min.": "いま一番短い列は {ride}、{n} 分です。",
+  "Watching the queues for you ✨": "あなたのために待ち時間を見張っています ✨"
 }

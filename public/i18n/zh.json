@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "现在是关键 —— 多大年纪，多高个子？",
   "Child {n}": "第 {n} 位小朋友",
   "Rides they can board here: {a} of {b}": "这里他们能玩的项目：{b} 个中的 {a} 个",
-  "Continue with {provider}": "使用 {provider} 继续"
+  "Continue with {provider}": "使用 {provider} 继续",
+  "First up on the day I planned: {ride} at {t}.": "我规划那天的第一项：{t} 的 {ride}。",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "提前规划中——到了那天我会替你盯着排队时间。✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "{t} 开园——我正在为你准备这一天。✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "乐园今晚已关闭——好好休息，早上我还在。✨",
+  "Next up: {ride}, {n} min right now.": "接下来：{ride}，目前 {n} 分钟。",
+  "Next up: {ride} at {t}.": "接下来：{t} 的 {ride}。",
+  "Shortest queue right now: {ride}, {n} min.": "目前最短的队伍：{ride}，{n} 分钟。",
+  "Watching the queues for you ✨": "正在替你盯着排队时间 ✨"
 }

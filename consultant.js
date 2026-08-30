@@ -715,6 +715,35 @@ async function diningGuide(parkName, group, lang) {
   })).filter((r) => r.name);
 }
 
+// Mila's standing line under the header, rewritten when the day actually
+// changes under the visitor's feet.
+//
+// Sonnet, not the advisor model: this is one sentence of warmth over facts the
+// caller has already worked out, not reasoning. And it is called only when
+// something moved -- the routine ticks are written locally from wait data the
+// app already polls, for free. Paying a model to say "still looking good"
+// thirty-six times a day is the expensive way to say nothing.
+//
+// The facts come in already decided. The model's whole job is to say them the
+// way Mila would, in the visitor's language, in one breath.
+async function liveNudge({ parkName, lang, headline, facts, name }) {
+  const msg = await client.beta.messages.create({
+    model: CATALOG_MODEL,
+    max_tokens: 160,
+    system: 'You are Mila, a warm theme-park fairy who watches a family\'s day and speaks up when something changes. '
+      + 'Write ONE sentence, at most about 22 words, in the requested language. '
+      + 'You are given the change that matters and a few supporting facts: say the change, and what to do about it, in Mila\'s voice. '
+      + 'Never invent a wait time, a ride, a closure or a weather fact -- use only what you are given, and you may drop anything that does not fit. '
+      + 'No greeting, no preamble, no quotes, no markdown, no emoji at the start. One short sentence.',
+    messages: [{ role: 'user', content: JSON.stringify({ park: parkName, language: lang || 'English', visitor: name || null, change: headline, facts }) }],
+  }, { timeout: 20000, maxRetries: 1 });
+  noteUsage('live-nudge', msg);
+  if (msg.stop_reason === 'refusal') return null;
+  const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+  // One sentence, and short enough for a single strip on a phone.
+  return text ? text.replace(/\s+/g, ' ').slice(0, 200) : null;
+}
+
 // The plan email's three authored flavour lines, moved into another language.
 // These are TRANSLATED rather than regenerated on purpose: the fact line makes
 // a factual claim about a real park and the secret is hand-checked advice, so
@@ -869,4 +898,4 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

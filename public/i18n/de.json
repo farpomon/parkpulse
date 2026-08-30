@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "Jetzt das Wichtigste — wie alt und wie groß?",
   "Child {n}": "Kind {n}",
   "Rides they can board here: {a} of {b}": "Fahrten, die sie hier schaffen: {a} von {b}",
-  "Continue with {provider}": "Weiter mit {provider}"
+  "Continue with {provider}": "Weiter mit {provider}",
+  "First up on the day I planned: {ride} at {t}.": "Zuerst am geplanten Tag: {ride} um {t}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "Vorausgeplant — am Tag selbst behalte ich die Warteschlangen im Blick. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "Die Tore öffnen um {t} — ich bereite deinen Tag vor. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "Der Park hat für heute zu — ruh dich aus, morgen früh bin ich da. ✨",
+  "Next up: {ride}, {n} min right now.": "Als Nächstes: {ride}, gerade {n} Min.",
+  "Next up: {ride} at {t}.": "Als Nächstes: {ride} um {t}.",
+  "Shortest queue right now: {ride}, {n} min.": "Kürzeste Schlange gerade: {ride}, {n} Min.",
+  "Watching the queues for you ✨": "Ich behalte die Warteschlangen für dich im Blick ✨"
 }

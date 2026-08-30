@@ -24,7 +24,8 @@
     "test:oauth": "node test/oauth-signin.cjs",
     "test:skipsheet": "node test/skip-sheet.mjs",
     "test:adminai": "node test/admin-ai-spend.cjs",
-    "test:adminops": "node test/admin-ops.cjs"
+    "test:adminops": "node test/admin-ops.cjs",
+    "test:livestrip": "node test/live-strip.cjs"
   },
   "engines": {
     "node": ">=22.5"

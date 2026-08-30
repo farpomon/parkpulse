@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "Şimdi asıl mesele — kaç yaşında ve kaç boyunda?",
   "Child {n}": "{n}. çocuk",
   "Rides they can board here: {a} of {b}": "Burada binebilecekleri atraksiyonlar: {b} içinden {a}",
-  "Continue with {provider}": "{provider} ile devam et"
+  "Continue with {provider}": "{provider} ile devam et",
+  "First up on the day I planned: {ride} at {t}.": "Planladığım günün ilki: {t}’de {ride}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "Önceden planlıyoruz — o gün sıraları senin için takip edeceğim. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "Kapılar {t}’de açılıyor — gününü hazırlıyorum. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "Park bu gecelik kapandı — dinlen, sabah burada olacağım. ✨",
+  "Next up: {ride}, {n} min right now.": "Sırada: {ride}, şu an {n} dk.",
+  "Next up: {ride} at {t}.": "Sırada: {t}’de {ride}.",
+  "Shortest queue right now: {ride}, {n} min.": "Şu an en kısa sıra: {ride}, {n} dk.",
+  "Watching the queues for you ✨": "Senin için sıraları takip ediyorum ✨"
 }

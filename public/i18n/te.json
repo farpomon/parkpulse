@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "ఇప్పుడు ముఖ్యమైనది — వయసు ఎంత, ఎత్తు ఎంత?",
   "Child {n}": "పిల్లవాడు {n}",
   "Rides they can board here: {a} of {b}": "ఇక్కడ వాళ్లు ఎక్కగలిగేవి: {b}లో {a}",
-  "Continue with {provider}": "{provider} ద్వారా కొనసాగండి"
+  "Continue with {provider}": "{provider} ద్వారా కొనసాగండి",
+  "First up on the day I planned: {ride} at {t}.": "నేను ప్లాన్ చేసిన రోజులో మొదటిది: {t}కి {ride}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "ముందుగానే ప్లాన్ చేస్తున్నాం — ఆ రోజు క్యూలను నేను గమనిస్తాను. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "గేట్లు {t}కి తెరుచుకుంటాయి — మీ రోజును సిద్ధం చేస్తున్నాను. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "పార్క్ ఈ రాత్రికి మూసివేయబడింది — విశ్రాంతి తీసుకోండి, ఉదయం ఇక్కడే ఉంటాను. ✨",
+  "Next up: {ride}, {n} min right now.": "తర్వాత: {ride}, ఇప్పుడు {n} నిమిషాలు.",
+  "Next up: {ride} at {t}.": "తర్వాత: {t}కి {ride}.",
+  "Shortest queue right now: {ride}, {n} min.": "ఇప్పుడు అతి చిన్న క్యూ: {ride}, {n} నిమిషాలు.",
+  "Watching the queues for you ✨": "మీ కోసం క్యూలను గమనిస్తున్నాను ✨"
 }

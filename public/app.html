@@ -706,6 +706,28 @@
     width: 9px; height: 9px; background: var(--brand-soft, rgba(91,61,245,.09));
     border-inline-start: 1px solid var(--border); border-block-start: 1px solid var(--border);
     transform: rotate(45deg); }
+  /* An author `display` rule outranks the UA stylesheet's [hidden]
+     { display: none }, so any element styled display:flex here stayed on
+     screen after being hidden in script. The language nudge did exactly that:
+     dismissed or answered, it kept its box -- an empty purple strip with an
+     avatar and a close button and nothing to say, under the header, for
+     everybody. Nothing pointed at it because nothing was wrong with the
+     JavaScript. */
+  [hidden] { display: none !important; }
+  /* Same furniture as the language nudge, without the caret or the dismiss:
+     this one stays. */
+  .milalive { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 0;
+    padding: .5rem .6rem; border-radius: .8rem;
+    background: var(--brand-soft, rgba(91,61,245,.09)); border: 1px solid var(--border); }
+  .milalive img { flex: 0 0 auto; border-radius: 99px; }
+  .milalive .ml-txt { flex: 1 1 auto; min-width: 0; font-size: .78rem; font-weight: 650;
+    line-height: 1.35; color: var(--ink); }
+  /* Breathes while a fresh line is being written, so the strip reads as live
+     rather than as something that failed to load. */
+  .milalive .ml-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 99px;
+    background: var(--brand); animation: mlpulse 1.4s ease-in-out infinite; }
+  @keyframes mlpulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .milalive .ml-dot { animation: none; opacity: .6; } }
   .langhint img { flex: 0 0 auto; border-radius: 99px; }
   .langhint .lh-txt { flex: 1 1 auto; min-width: 0; font-size: .76rem; font-weight: 650;
     line-height: 1.3; color: var(--ink); }
@@ -993,6 +1015,14 @@
         <button class="iconbtn" id="refresh" title="Refresh waits" aria-label="Refresh waits">↻</button>
         <button class="iconbtn" id="acct-btn" title="Account" aria-label="Account">👤</button>
       </span>
+    </div>
+    <!-- Mila's standing line. Permanent: no dismiss button, because it is not a
+         nudge to get past, it is the app telling you what changed while you
+         were queueing. -->
+    <div class="milalive" id="mila-live" hidden>
+      <img src="/img/mila/mila-wink-160.webp" alt="" width="30" height="30" loading="lazy">
+      <span class="ml-txt" id="mila-live-txt"></span>
+      <span class="ml-dot" id="mila-live-dot" hidden aria-hidden="true"></span>
     </div>
     <div class="langhint" id="lang-hint" hidden>
       <img src="/img/mila/mila-wink-160.webp" alt="" width="30" height="30" loading="lazy">
@@ -4074,6 +4104,159 @@
     // or arriving on a translated landing page), so its absence means the
     // language on screen is a guess from the browser, and the person it was
     // guessed for is exactly who needs telling that there are twenty.
+    // --- Mila's live strip -------------------------------------------------
+    //
+    // A standing line under the header that refreshes every twenty minutes.
+    //
+    // Almost every refresh is written here, from wait data the app already
+    // polls every five minutes: free, instant, and honest. A model is asked
+    // for the sentence ONLY when the day actually moved under the visitor --
+    // a ride in their plan went down, a queue they are heading for swung
+    // hard, or something they still want just fell to a walk-on. Paying for a
+    // fresh sentence every twenty minutes to say "still fine" is the
+    // expensive way to say nothing, and it reads as noise besides.
+    let liveSeen = null;        // wait times at the previous tick
+    let liveSaid = '';          // what is on screen, so we don't restate it
+    let liveBusy = false;
+    let liveGateShown = false;
+
+    const liveEls = () => ({ box: $('mila-live'), txt: $('mila-live-txt'), dot: $('mila-live-dot') });
+
+    function liveSetText(text) {
+      const { box, txt } = liveEls();
+      if (!box || !txt || !text) return;
+      txt.textContent = text;
+      liveSaid = text;
+      box.hidden = false;
+    }
+
+    // Rides worth talking about: open, with a real number, that the party has
+    // not already ridden.
+    function liveRides() {
+      const done = new Set(doneOrder);
+      return (lastData?.rides || []).filter((r) => !done.has(r.name) && Number.isFinite(r.wait));
+    }
+    function liveNextStop() {
+      const done = new Set(doneOrder);
+      return (planStops || []).find((st) => st.name && !done.has(st.name)) || null;
+    }
+    function liveParkShut() {
+      const p = parks[current];
+      if (!p || p.open == null) return false;
+      const { hour } = parkNow();
+      return hour < p.open || hour >= p.close;
+    }
+
+    // The free line. Deliberately concrete -- a number or a name, never
+    // "everything looks great" -- because a strip that says nothing twice is
+    // a strip people stop reading.
+    function liveLocalLine() {
+      const p = parks[current];
+      if (planningAhead()) {
+        const st = liveNextStop();
+        return st ? trf('First up on the day I planned: {ride} at {t}.', { ride: st.name, t: st.time })
+          : tr('Planning ahead — I’ll watch the queues for you on the day. ✨');
+      }
+      if (liveParkShut()) {
+        const { hour } = parkNow();
+        const before = p && p.open != null && hour < p.open;
+        return before
+          ? trf('Gates open at {t} — I’m getting your day ready. ✨', { t: hourLabel(p.open) })
+          : tr('Park’s shut for the night — rest up, I’ll be here in the morning. ✨');
+      }
+      const open = liveRides().filter((r) => r.open);
+      const st = liveNextStop();
+      if (st) {
+        const now = open.find((r) => r.name === st.name);
+        if (now) return trf('Next up: {ride}, {n} min right now.', { ride: st.name, n: now.wait });
+        return trf('Next up: {ride} at {t}.', { ride: st.name, t: st.time });
+      }
+      if (open.length) {
+        const best = open.reduce((a, b) => (b.wait < a.wait ? b : a));
+        return trf('Shortest queue right now: {ride}, {n} min.', { ride: best.name, n: best.wait });
+      }
+      return tr('Watching the queues for you ✨');
+    }
+
+    // Did the day actually move? Returns the one thing worth saying, or null.
+    // Order matters: a closure beats a swing beats an opportunity.
+    function liveChange() {
+      if (planningAhead() || liveParkShut()) return null;
+      const rides = liveRides();
+      if (!rides.length) return null;
+      const now = Object.fromEntries(rides.map((r) => [r.name, r.open ? r.wait : -1]));
+      const was = liveSeen;
+      liveSeen = now;
+      if (!was) return null;                    // first tick has nothing to compare
+      const planned = new Set((planStops || []).filter((st) => st.name).map((st) => st.name));
+
+      // 1. Something in the plan went down.
+      for (const name of planned) {
+        if (was[name] >= 0 && now[name] === -1) {
+          // Facts are the model's input, not copy: it is told which language to
+          // answer in, so these stay English and never need a dictionary.
+          return { headline: `${name} has just gone down`, facts: ['It was in their plan for today.'] };
+        }
+      }
+      // 2. A queue they are heading for moved hard.
+      const st = liveNextStop();
+      if (st && was[st.name] >= 0 && now[st.name] >= 0) {
+        const delta = now[st.name] - was[st.name];
+        if (Math.abs(delta) >= 15) {
+          return {
+            headline: delta > 0
+              ? `${st.name} has climbed from ${was[st.name]} to ${now[st.name]} minutes`
+              : `${st.name} has dropped from ${was[st.name]} to ${now[st.name]} minutes`,
+            facts: [`It is the next stop in their plan.`],
+          };
+        }
+      }
+      // 3. Something they still want has fallen to a walk-on.
+      const gift = rides.find((r) => r.open && r.wait <= 10 && Number.isFinite(r.typical)
+        && r.typical - r.wait >= 20 && was[r.name] >= r.wait + 15);
+      if (gift) {
+        return {
+          headline: `${gift.name} has fallen to ${gift.wait} minutes`,
+          facts: [`It normally runs about ${gift.typical} minutes.`, planned.has(gift.name) ? 'It is already in their plan.' : 'It is not in their plan yet.'],
+        };
+      }
+      return null;
+    }
+
+    async function refreshLiveStrip() {
+      const { box, dot } = liveEls();
+      if (!box || !current || !parks[current]) return;
+      const local = liveLocalLine();
+      const change = liveChange();
+      if (!change) { if (local && local !== liveSaid) liveSetText(local); return; }
+      // Something moved. Say it plainly straight away, then let Mila say it
+      // properly -- the strip is never blank while the sentence is written,
+      // and if the call fails the plain version is what stays.
+      liveSetText(change.headline);
+      if (!sessionToken() || liveBusy) return;
+      liveBusy = true;
+      if (dot) dot.hidden = false;
+      try {
+        const res = await api('/api/live-nudge', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            park: current, lang: (localStorage.getItem('pp-lang') || 'en'),
+            headline: change.headline, facts: change.facts,
+          }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok && d.text) liveSetText(d.text);
+      } catch {} finally {
+        liveBusy = false;
+        if (dot) dot.hidden = true;
+      }
+    }
+
+    // Twenty minutes, and once shortly after the board first has data.
+    setTimeout(() => { refreshLiveStrip(); }, 4000);
+    setInterval(() => { refreshLiveStrip(); }, 20 * 60 * 1000);
+
     (function langHint() {
       const box = $('lang-hint');
       if (!box) return;

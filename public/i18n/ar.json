@@ -848,5 +848,13 @@
   "Now the important bit — how old and how tall?": "الآن الأهم — كم العمر وكم الطول؟",
   "Child {n}": "الطفل {n}",
   "Rides they can board here: {a} of {b}": "الألعاب التي يمكنهم ركوبها هنا: {a} من {b}",
-  "Continue with {provider}": "المتابعة باستخدام {provider}"
+  "Continue with {provider}": "المتابعة باستخدام {provider}",
+  "First up on the day I planned: {ride} at {t}.": "أول شيء في اليوم الذي خططته: {ride} في {t}.",
+  "Planning ahead — I’ll watch the queues for you on the day. ✨": "نخطط مسبقًا — سأراقب الطوابير من أجلك في ذلك اليوم. ✨",
+  "Gates open at {t} — I’m getting your day ready. ✨": "تفتح البوابات في {t} — أُجهّز يومك. ✨",
+  "Park’s shut for the night — rest up, I’ll be here in the morning. ✨": "أغلقت المدينة الترفيهية الليلة — استرح، سأكون هنا صباحًا. ✨",
+  "Next up: {ride}, {n} min right now.": "التالي: {ride}، {n} دقيقة الآن.",
+  "Next up: {ride} at {t}.": "التالي: {ride} في {t}.",
+  "Shortest queue right now: {ride}, {n} min.": "أقصر طابور الآن: {ride}، {n} دقيقة.",
+  "Watching the queues for you ✨": "أراقب الطوابير من أجلك ✨"
 }

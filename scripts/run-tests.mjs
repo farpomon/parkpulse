@@ -39,6 +39,7 @@ const SHARED_SERVER = [
 const OWN_SERVER = [
   ['adminai', 'test/admin-ai-spend.cjs'],
   ['adminops', 'test/admin-ops.cjs'],
+  ['livestrip', 'test/live-strip.cjs'],
   ['oauth', 'test/oauth-signin.cjs'],
   ['cache', 'test/prompt-cache.cjs'],
   ['card', 'test/plan-card.cjs'],
@@ -76,7 +77,7 @@ async function waitForServer(ms = 30000) {
 // from something else takes one and the failure that follows says only
 // EADDRINUSE, three hundred lines up from the summary -- so say it here,
 // before anything runs, and name the port.
-const OWN_PORTS = { adminai: 9691, adminops: 9689, oauth: 9693, cache: null, card: null, emaillinks: 9698 };
+const OWN_PORTS = { adminai: 9691, adminops: 9689, livestrip: 9687, oauth: 9693, cache: null, card: null, emaillinks: 9698 };
 async function portFree(port) {
   try {
     await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(700) });
