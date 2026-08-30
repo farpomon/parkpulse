@@ -204,10 +204,21 @@ function mintWaCode(email) {
 }
 
 function sanitizeProfile(rawP) {
+  // toddler and teen are retired but still arrive from profiles saved before
+  // the wizard counted people; the client folds them into kid and adult, and
+  // dropping them here would make an old phone's group read as empty.
   const AGES = ['toddler', 'kid', 'teen', 'adult', 'elderly'];
+  const BANDS = ['kid', 'adult', 'elderly'];
   const VIBES = ['gentle', 'family', 'thrill', 'water', 'show'];
+  const counts = (v) => {
+    if (!v || typeof v !== 'object') return null;
+    const out = {};
+    for (const b of BANDS) out[b] = Math.max(0, Math.min(12, Math.floor(Number(v[b]) || 0)));
+    return BANDS.some((b) => out[b] > 0) ? out : null;
+  };
   return rawP && typeof rawP === 'object' ? {
     party: Number.isInteger(rawP.party) && rawP.party >= 1 && rawP.party <= 20 ? rawP.party : null,
+    counts: counts(rawP.counts),
     ages: Array.isArray(rawP.ages) ? rawP.ages.filter((a) => AGES.includes(a)).slice(0, 5) : [],
     vibes: Array.isArray(rawP.vibes) ? rawP.vibes.filter((v) => VIBES.includes(v)).slice(0, 5) : [],
     onsite: typeof rawP.onsite === 'boolean' ? rawP.onsite : null,

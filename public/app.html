@@ -414,16 +414,10 @@
     background: var(--bg); color: var(--ink); }
   .hrow b { color: var(--muted); font-size: .85rem; }
   .hclear { border: none; background: var(--border); border-radius: 999px; width: 2rem; height: 2rem; cursor: pointer; color: var(--ink); flex-shrink: 0; }
-  /* Touch screens get a real target. "Remove child" sits beside the height box,
-     and at 26px a mis-tap deleted the row someone had just filled in. */
+  /* Touch screens get a real target on the cm/ft toggle. */
   #kid-unit button { min-height: 2rem; }
-  .kid-hint { margin: .45rem 0 0; font-size: .78rem; color: var(--muted); }
-  /* Sits on the last child row beside ✕. Filled in the brand colour so the
-     two circles never read as the same control. */
-  .hadd { border: none; background: var(--brand); color: #fff; border-radius: 999px;
-    width: 2rem; height: 2rem; font-size: 1rem; line-height: 1; cursor: pointer; flex-shrink: 0; }
   @media (pointer: coarse) {
-    .hclear, .hadd { width: 2.5rem; height: 2.5rem; }
+    .hclear { width: 2.5rem; height: 2.5rem; }
     #kid-unit button { min-height: 2.5rem; }
   }
   .hnote-sub { font-size: .74rem; color: var(--muted); margin: .35rem 0 0; }
@@ -638,6 +632,42 @@
     color: var(--brand); font-size: 1.4rem; font-weight: 800; cursor: pointer; }
   .stepper b { font-size: 1.7rem; min-width: 3.2rem; text-align: center; font-variant-numeric: tabular-nums; }
   .wiz-note { color: var(--muted); font-size: .85rem; margin: .8rem 0 0; }
+  /* One counted row per age band, so the shape of the party is visible at a
+     glance rather than inferred from a total and some ticks. */
+  .bandrow { display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+    border: 1.5px solid var(--border); border-radius: 14px; padding: .5rem .55rem .5rem .9rem;
+    margin-bottom: .5rem; transition: border-color .15s, background .15s; }
+  .bandrow.on { border-color: var(--brand); background: var(--brand-soft); }
+  .bandrow .bl { font-size: .97rem; font-weight: 700; min-width: 0; }
+  .bandrow .bandstep { margin: 0; gap: .55rem; }
+  .bandrow .bandstep button { width: 2.2rem; height: 2.2rem; font-size: 1.15rem; }
+  .bandrow .bandstep b { font-size: 1.2rem; min-width: 1.4rem; }
+  .wiz-total { text-align: center; color: var(--muted); font-size: .85rem; font-weight: 700; margin: .2rem 0 0; }
+  /* The height question, which arrives on its own the moment a child is
+     counted -- Mila asking, not a form demanding. */
+  .kidbox { margin-top: 1.1rem; border: 1.5px solid var(--brand); background: var(--brand-soft);
+    border-radius: 16px; padding: .8rem .75rem; }
+  .kidhead { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .kidhead img { border-radius: 999px; flex: 0 0 auto; }
+  .kidhead b { flex: 1 1 8rem; min-width: 0; font-size: .92rem; line-height: 1.3; }
+  /* The unit toggle gets its own line. Sharing one with the heading squeezed
+     a Portuguese or German sentence into three lines beside a pill. */
+  .kidunitrow { display: flex; justify-content: flex-end; margin-top: .45rem; }
+  .kidunitrow #kid-unit { display: inline-flex; }
+  .unitseg { border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+    font-weight: 700; font-size: .78rem; padding: .26rem .6rem; cursor: pointer; }
+  .unitseg:first-child { border-radius: 999px 0 0 999px; }
+  .unitseg:last-child { border-radius: 0 999px 999px 0; border-left: 0; }
+  .unitseg.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .kidrow { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .5rem; margin-top: .6rem; }
+  .kidno { flex: 0 0 100%; font-size: .76rem; font-weight: 800; color: var(--brand); letter-spacing: .02em; }
+  .kidins { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+  .kidins input { width: 4.2rem; border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+    border-radius: 10px; padding: .5rem .6rem; font-size: .95rem; }
+  .kidins b { font-size: .85rem; color: var(--muted); }
+  /* Answering pays off immediately: the height they just typed, turned into
+     how much of this park it opens. */
+  .kidfit { flex: 1 1 100%; font-size: .78rem; font-weight: 700; color: var(--brand); min-height: 1em; }
   #group-chip { display: flex; align-items: center; gap: .1rem .5rem; margin-bottom: .45rem; }
   .groupchip { display: inline-flex; align-items: center; gap: .35rem; background: var(--brand-soft); color: var(--brand);
     border: none; border-radius: 999px; padding: .35rem .85rem; font-size: .82rem; font-weight: 800; cursor: pointer; margin: .1rem 0;
@@ -1751,13 +1781,13 @@
   const saveSr = () => { try { localStorage.setItem('pp-single', JSON.stringify(srChoice)); } catch {} };
   const srAvailable = (name) => Boolean(tagsCache[current] && tagsCache[current][name] && tagsCache[current][name].sr);
   const srOn = (name) => srAvailable(name) && (srChoice[name] === true ||
-    (srChoice[name] === undefined && profile && profile.party === 1 && !profile.ages.includes('toddler')));
+    (srChoice[name] === undefined && profile && profile.party === 1 && !hasLittleOne()));
 
   function srPromptHtml(r) {
     if (!r.open || !pickedNames.has(r.name) || !srAvailable(r.name)) return '';
     // Splitting up isn't an option with toddlers along; solo visitors get
     // single rider by default (still tappable to turn off).
-    if (profile && profile.ages.includes('toddler')) return '';
+    if (hasLittleOne()) return '';
     const c = srChoice[r.name] !== undefined ? srChoice[r.name] : (profile && profile.party === 1 ? true : undefined);
     if (c === undefined) {
       return `<div class="sr-ask" data-name="${encodeURIComponent(r.name)}">🚶 <b>${tr('Single-rider line available')}</b>
@@ -1895,7 +1925,7 @@
           park: current,
           day: parkDay(),
           lang: window.PP_LANG || 'en',
-          profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+          profile: profile ? { party: profile.party, counts: profile.counts, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite, kids: profile.kids } : null,
           picked: [...pickedNames],
           done: [...doneOrder],
           favorites: [...favs], excluded: [...skips],
@@ -2736,7 +2766,11 @@
   function planCtxKey() {
     const list = (v) => [...v].map(String).sort().join(',');
     return JSON.stringify([
-      profile ? [profile.party, [...(profile.ages || [])].sort(), [...(profile.vibes || [])].sort(), profile.onsite] : null,
+      // The counts and the children's own ages and heights are part of who
+      // she was writing for: swapping an adult for an eight-year-old keeps the
+      // party at four and changes every recommendation in the reply.
+      profile ? [profile.party, profile.counts, (profile.kids || []).map((k) => [k.age, k.cm]),
+        [...(profile.ages || [])].sort(), [...(profile.vibes || [])].sort(), profile.onsite] : null,
       list(favs), list(skips), list(llSet), planDate ? '' : list(doneOrder),
       $('start-hour') ? $('start-hour').value : '', $('end-hour') ? $('end-hour').value : '',
       window.PP_LANG || 'en',
@@ -2931,7 +2965,7 @@
           lanePasses: [...llSet],
           arrive: $('start-hour') ? $('start-hour').value : null,
           leave: $('end-hour') ? $('end-hour').value : null,
-          profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+          profile: profile ? { party: profile.party, counts: profile.counts, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite, kids: profile.kids } : null,
         }),
       });
       if (res.status === 402) {
@@ -3763,7 +3797,7 @@
             // email is dated today and the advisor's note is written for the
             // wrong date.
             planDate,
-            profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+            profile: profile ? { party: profile.party, counts: profile.counts, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite, kids: profile.kids } : null,
           }),
         });
         const d = await r.json();
@@ -5080,29 +5114,68 @@
   // array threw and took every line of script below it with it: no rides, no
   // weather, no planner, and no way back but clearing site data. Normalise on
   // the way in so a stale shape costs the wizard's answers, not the app.
+  // Who is coming, counted rather than ticked. The wizard used to ask for one
+  // party total and a set of age bands, which could not tell four adults from
+  // two adults and two children -- and the second group needs a completely
+  // different day. Two bands are gone with it: toddlers fold into kids (they
+  // get the height question, which is what actually mattered) and teens into
+  // adults (nothing in the planner ever treated them differently).
+  //
+  // party and ages are still derived from these counts and still written into
+  // the profile, because the planner, the advisor and the server all read
+  // them, and an old saved profile still has to load.
+  const BANDS = ['kid', 'adult', 'elderly'];
+  const LEGACY_BAND = { toddler: 'kid', teen: 'adult' };
+  const emptyCounts = () => ({ kid: 0, adult: 0, elderly: 0 });
+  function readCounts(raw) {
+    const c = emptyCounts();
+    const clamp = (v) => Math.max(0, Math.min(12, Math.floor(Number(v) || 0)));
+    if (raw.counts && typeof raw.counts === 'object') {
+      for (const b of BANDS) c[b] = clamp(raw.counts[b]);
+      if (BANDS.some((b) => c[b] > 0)) return c;
+    }
+    // A profile saved before the wizard counted: spread the old party total
+    // across whichever bands were ticked, keeping the total intact.
+    const ticked = new Set((Array.isArray(raw.ages) ? raw.ages : [])
+      .filter((a) => typeof a === 'string').map((a) => LEGACY_BAND[a] || a).filter((a) => BANDS.includes(a)));
+    const party = Math.max(1, Math.min(20, Math.floor(Number(raw.party) || 1)));
+    const kidRows = Array.isArray(raw.kids) ? raw.kids.length : 0;
+    c.kid = ticked.has('kid') ? Math.max(1, kidRows) : kidRows;
+    c.elderly = ticked.has('elderly') ? 1 : 0;
+    c.adult = Math.max(ticked.has('adult') || !ticked.size ? 1 : 0, party - c.kid - c.elderly);
+    return c;
+  }
   function normalizeProfile(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     const arr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+    const counts = readCounts(raw);
+    const total = BANDS.reduce((n, b) => n + counts[b], 0);
+    if (!total) counts.adult = 1;
     return {
       ...raw,
-      party: Number(raw.party) || 1,
-      ages: arr(raw.ages),
+      counts,
+      party: Math.max(1, Math.min(20, BANDS.reduce((n, b) => n + counts[b], 0))),
+      ages: BANDS.filter((b) => counts[b] > 0),
       vibes: arr(raw.vibes),
       strict: raw.strict === true,
       day: typeof raw.day === 'string' ? raw.day : '',
       finale: ['encore', 'laps', 'chill', 'ask'].includes(raw.finale) ? raw.finale : 'encore',
       // Per-child detail: age in years, height in cm (canonical — the UI
       // converts to inches for imperial folks). Height drives ride minimums.
-      kids: Array.isArray(raw.kids)
-        ? raw.kids.filter((k) => k && typeof k === 'object')
-          .map((k) => ({ age: Math.max(0, Math.min(17, Number(k.age) || 0)), cm: Math.max(0, Math.min(200, Number(k.cm) || 0)) }))
-          .slice(0, 8)
-        : [],
+      // One row per child, always: the kid count owns the length, so the
+      // wizard never shows three height boxes for two children.
+      kids: kidRows(raw.kids, counts.kid),
     };
+  }
+  function kidRows(raw, n) {
+    const clean = (Array.isArray(raw) ? raw : []).filter((k) => k && typeof k === 'object')
+      .map((k) => ({ age: Math.max(0, Math.min(17, Number(k.age) || 0)), cm: Math.max(0, Math.min(200, Number(k.cm) || 0)) }));
+    while (clean.length < n) clean.push({ age: 0, cm: 0 });
+    return clean.slice(0, n);
   }
   try { profile = normalizeProfile(JSON.parse(localStorage.getItem('pp-profile') || 'null')); } catch {}
   const saveProfile = () => { try { localStorage.setItem('pp-profile', JSON.stringify(profile)); } catch {} };
-  const AGE_BANDS = [['toddler', '👶', 'Toddlers'], ['kid', '🧒', 'Kids'], ['teen', '🧑', 'Teens'], ['adult', '🧔', 'Adults'], ['elderly', '🧓', 'Elderly']];
+  const AGE_BANDS = [['kid', '🧒', 'Kids'], ['adult', '🧔', 'Adults'], ['elderly', '🧓', 'Elderly']];
   // The fairy preference: what Mila does with the happy problem of a day
   // where every attraction is done and the park is still open.
   const FINALE_OPTS = [
@@ -5111,12 +5184,23 @@
     ['chill', '🌇', 'Wind down — food, shops and the show'],
     ['ask', '🤔', 'Ask me on the day'],
   ];
+  // The youngest rider's age. Now that every child is asked for theirs, this
+  // is a fact rather than the bottom of a band -- an eleven-year-old stops
+  // being filtered like a five-year-old.
   const youngestCap = () => {
-    if (!profile || !profile.ages.length) return 99;
-    if (profile.ages.includes('toddler')) return 0;
-    if (profile.ages.includes('kid')) return 7;
-    if (profile.ages.includes('teen')) return 12;
-    return 99;
+    if (!profile) return 99;
+    const known = (profile.kids || []).map((k) => k.age).filter((a) => a > 0);
+    if (known.length) return Math.min(...known);
+    return profile.ages.includes('kid') ? 7 : 99;
+  };
+  // Splitting the party up is not an option with a small child along. Unknown
+  // ages count as small: better to offer the single-rider line one time too
+  // few than to suggest a four-year-old queues alone.
+  const hasLittleOne = () => {
+    const kids = (profile && profile.kids) || [];
+    if (!kids.length) return false;
+    const known = kids.map((k) => k.age).filter((a) => a > 0);
+    return known.length ? Math.min(...known) <= 6 : true;
   };
   const vibeHit = (name) => {
     const tg = tagsCache[current] && tagsCache[current][name];
@@ -5214,7 +5298,13 @@
     // handlers), so opening over them would just double the questions.
     if ($('passpick') && $('passpick').classList.contains('open')) return;
     if ($('acct-sheet') && $('acct-sheet').classList.contains('open')) return;
-    wizDraft = profile ? JSON.parse(JSON.stringify(profile)) : { party: 2, ages: [], vibes: [], onsite: null, strict: false };
+    // Two grown-ups is the commonest party and the least presumptuous default:
+    // it never invents a child, and it is one tap from any other shape.
+    wizDraft = profile
+      ? JSON.parse(JSON.stringify(profile))
+      : { counts: { kid: 0, adult: 2, elderly: 0 }, kids: [], vibes: [], onsite: null, strict: false };
+    wizDraft.counts = readCounts(wizDraft);
+    wizDraft.kids = kidRows(wizDraft.kids, wizDraft.counts.kid);
     // Frozen for this opening: saving the name mid-wizard must not renumber
     // the remaining steps under the user's feet.
     wizNameStep = wizAsksName();
@@ -5236,7 +5326,7 @@
       if (hs.length) {
         fHeight = Math.min(...hs);
         try { localStorage.setItem('pp-child-height', String(fHeight)); } catch {}
-      } else if (!profile.ages.includes('toddler') && !profile.ages.includes('kid')) {
+      } else if (!profile.ages.includes('kid')) {
         fHeight = 0;
         try { localStorage.removeItem('pp-child-height'); } catch {}
       }
@@ -5339,69 +5429,112 @@
       }
     } else if (step === 1) {
       body.innerHTML = `<h2>👥 ${tr("Who's going?")}</h2>
-        <div class="stepper"><button id="wiz-minus">−</button><b id="wiz-count">${wizDraft.party}</b><button id="wiz-plus">+</button></div>
-        <div class="chipgrid" id="wiz-ages"></div>
+        <p class="wiz-note" style="margin:-.4rem 0 .9rem">${tr('How many of each — I plan a very different day for four grown-ups than for two and two little ones.')}</p>
+        <div id="wiz-bands"></div>
         <div id="wiz-kids"></div>`;
-      body.querySelector('#wiz-minus').addEventListener('click', () => { wizDraft.party = Math.max(1, wizDraft.party - 1); $('wiz-count').textContent = wizDraft.party; });
-      body.querySelector('#wiz-plus').addEventListener('click', () => { wizDraft.party = Math.min(12, wizDraft.party + 1); $('wiz-count').textContent = wizDraft.party; });
-      const grid = body.querySelector('#wiz-ages');
+      // One counter per band. Counting beats ticking: "4 people, adults and
+      // kids" could not say whether that was three adults and one child or
+      // the other way round, and the running order is not the same day.
+      const bands = body.querySelector('#wiz-bands');
+      const total = () => BANDS.reduce((n, b) => n + wizDraft.counts[b], 0);
+      const rows = {};
       for (const [val, emoji, label] of AGE_BANDS) {
-        grid.appendChild(chip(`${emoji} ${tr(label)}`, wizDraft.ages.includes(val), () => {
-          wizDraft.ages = wizDraft.ages.includes(val) ? wizDraft.ages.filter((a) => a !== val) : [...wizDraft.ages, val];
-          renderWiz();
+        const row = document.createElement('div');
+        row.className = 'bandrow';
+        row.innerHTML = `<span class="bl">${emoji} ${esc(tr(label))}</span>
+          <span class="stepper bandstep">
+            <button type="button" data-d="-1" aria-label="${esc(tr('One fewer'))} — ${esc(tr(label))}">−</button>
+            <b>${wizDraft.counts[val]}</b>
+            <button type="button" data-d="1" aria-label="${esc(tr('One more'))} — ${esc(tr(label))}">+</button>
+          </span>`;
+        const out = row.querySelector('b');
+        rows[val] = out;
+        row.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+          const d = Number(b.dataset.d);
+          const next = Math.max(0, Math.min(12, wizDraft.counts[val] + d));
+          // Somebody has to be going.
+          if (next === wizDraft.counts[val] || (d < 0 && total() <= 1)) return;
+          wizDraft.counts[val] = next;
+          out.textContent = next;
+          row.classList.toggle('on', next > 0);
+          if (val === 'kid') wizDraft.kids = kidRows(wizDraft.kids, next);
+          syncTotal();
+          renderKids();
         }));
+        row.classList.toggle('on', wizDraft.counts[val] > 0);
+        bands.appendChild(row);
       }
-      // Kids get names on the guest list: an age and a height each, so the
-      // planner can hide every ride they'd be turned away from. Inputs write
-      // straight into the draft — re-rendering per keystroke would steal focus.
+      const totalLine = document.createElement('p');
+      totalLine.className = 'wiz-total';
+      bands.appendChild(totalLine);
+      const syncTotal = () => { totalLine.textContent = trf('Your group: {n}', { n: total() }); };
+      syncTotal();
+
+      // Say a child is coming and the height question arrives on its own --
+      // no second button to find. Height is the thing that decides what they
+      // can board, so it is asked once, here, rather than discovered in a
+      // queue. Inputs write straight into the draft: re-rendering on every
+      // keystroke would steal focus mid-number.
       const kidsWrap = body.querySelector('#wiz-kids');
       // The height unit is the visitor's choice, not the region's guess:
       // a cm/ft toggle beside the heading, remembered across visits. Feet
       // mode gives proper ft + in boxes; centimetres stay canonical.
       let kidUnit = (() => { try { return localStorage.getItem('pp-kid-unit'); } catch { return null; } })();
       if (kidUnit !== 'cm' && kidUnit !== 'ft') kidUnit = usesFahrenheit() ? 'ft' : 'cm';
+      // What this height actually unlocks here, counted from the park's own
+      // ride minimums. A number typed into a box is a chore; the same number
+      // answering "so what can they ride?" is the reason to type it.
+      const opensUp = (cm) => {
+        const tags = tagsCache[current];
+        if (!cm || !tags || !rides.length) return null;
+        let fits = 0, gated = 0;
+        for (const r of rides) {
+          const t = tags[r.name];
+          if (!t || !(t.hmin > 0)) continue;
+          gated += 1;
+          if (t.hmin <= cm) fits += 1;
+        }
+        return gated ? { fits, gated } : null;
+      };
       const renderKids = () => {
-        if (!wizDraft.ages.includes('toddler') && !wizDraft.ages.includes('kid')) { kidsWrap.innerHTML = ''; return; }
-        wizDraft.kids = Array.isArray(wizDraft.kids) ? wizDraft.kids : [];
-        if (!wizDraft.kids.length) wizDraft.kids.push({ age: 0, cm: 0 });
+        if (!wizDraft.counts.kid) { kidsWrap.innerHTML = ''; return; }
         const ft = kidUnit === 'ft';
-        const seg = (u, label) => `<button type="button" data-unit="${u}" style="border:1px solid var(--border);background:${kidUnit === u ? 'var(--brand)' : 'var(--bg)'};color:${kidUnit === u ? '#fff' : 'var(--ink)'};font-weight:700;font-size:.8rem;padding:.28rem .7rem;cursor:pointer;${u === 'cm' ? 'border-radius:999px 0 0 999px' : 'border-radius:0 999px 999px 0;border-left:0'}">${label}</button>`;
-        kidsWrap.innerHTML = `<div style="margin-top:1rem">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:.6rem">
-            <b style="font-size:.92rem">📏 ${tr('Your little ones — age and height')}</b>
-            <span id="kid-unit" role="group" aria-label="${tr('Height unit')}" style="display:inline-flex">${seg('cm', 'cm')}${seg('ft', 'ft·in')}</span>
+        const seg = (u, label) => `<button type="button" data-unit="${u}" class="unitseg${kidUnit === u ? ' on' : ''}">${label}</button>`;
+        kidsWrap.innerHTML = `<div class="kidbox">
+          <div class="kidhead">
+            <img src="/img/mila/mila-map-320.webp" alt="" width="34" height="34" loading="lazy">
+            <b>${esc(tr('Now the important bit — how old and how tall?'))}</b>
           </div>
+          <div class="kidunitrow"><span id="kid-unit" role="group" aria-label="${esc(tr('Height unit'))}">${seg('cm', 'cm')}${seg('ft', 'ft·in')}</span></div>
           <div id="kid-rows"></div>
-          <!-- The add button lost its label when it moved inline onto the row,
-               which cost the affordance: a bare ＋ beside a ✕ does not announce
-               itself. Say what it does, and only while there is room to add. -->
-          <p class="kid-hint" style="display:none">${tr('Tap ＋ to add another child.')}</p>
-          <p class="wiz-note">${tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.')} ✨</p></div>`;
+          <p class="wiz-note">${esc(tr('Height decides what they can board — I hide the heartbreakers before anyone queues for them.'))} ✨</p></div>`;
         kidsWrap.querySelectorAll('#kid-unit button').forEach((b) => b.addEventListener('click', () => {
           if (kidUnit === b.dataset.unit) return;
           kidUnit = b.dataset.unit;
           try { localStorage.setItem('pp-kid-unit', kidUnit); } catch {}
           renderKids(); // stored cm converts on the way back in
         }));
-        const rows = kidsWrap.querySelector('#kid-rows');
-        const inputCss = 'border:1px solid var(--border);background:var(--bg);color:var(--ink);border-radius:10px;padding:.5rem .6rem;font-size:.95rem';
-        const hint = kidsWrap.querySelector('.kid-hint');
-        if (hint) hint.style.display = wizDraft.kids.length < 8 ? '' : 'none';
+        const rowsEl = kidsWrap.querySelector('#kid-rows');
         wizDraft.kids.forEach((k, i) => {
           const totalIn = k.cm > 0 ? cmToIn(k.cm) : 0;
           const row = document.createElement('div');
-          // wrap, not clip: the ft/in layout is already wide, and the last row
-          // carries an extra button.
-          row.style.cssText = 'display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.45rem';
+          row.className = 'kidrow';
           row.innerHTML = `
-            <input type="number" min="0" max="17" inputmode="numeric" placeholder="${tr('age')}" value="${k.age || ''}" aria-label="${tr('Child age')}" style="width:4.2rem;${inputCss}">
-            ${ft
-              ? `<input type="number" min="0" max="6" inputmode="numeric" placeholder="ft" value="${totalIn ? Math.floor(totalIn / 12) : ''}" aria-label="${tr("Child's height, feet")}" style="width:4.2rem;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">ft</b>
-                 <input type="number" min="0" max="11" inputmode="numeric" placeholder="in" value="${totalIn ? totalIn % 12 : ''}" aria-label="${tr("Child's height, inches")}" style="width:4.2rem;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">in</b>`
-              : `<input type="number" min="0" max="200" inputmode="numeric" placeholder="${tr('height')}" value="${k.cm > 0 ? k.cm : ''}" aria-label="${tr("Child's height")}" style="flex:1;${inputCss}"><b style="font-size:.85rem;color:var(--muted)">cm</b>`}
-            <button class="hclear" aria-label="${tr('Remove child')}">✕</button>
-            ${i === wizDraft.kids.length - 1 && wizDraft.kids.length < 8
-              ? `<button class="hadd" id="kid-add" aria-label="${tr('Add a child')}" title="${tr('Add a child')}">＋</button>` : ''}`;
+            <span class="kidno">${esc(trf('Child {n}', { n: i + 1 }))}</span>
+            <span class="kidins">
+              <input type="number" min="0" max="17" inputmode="numeric" placeholder="${esc(tr('age'))}" value="${k.age || ''}" aria-label="${esc(tr('Child age'))}">
+              ${ft
+                ? `<input type="number" min="0" max="6" inputmode="numeric" placeholder="ft" value="${totalIn ? Math.floor(totalIn / 12) : ''}" aria-label="${esc(tr("Child's height, feet"))}"><b>ft</b>
+                   <input type="number" min="0" max="11" inputmode="numeric" placeholder="in" value="${totalIn ? totalIn % 12 : ''}" aria-label="${esc(tr("Child's height, inches"))}"><b>in</b>`
+                : `<input type="number" min="0" max="200" inputmode="numeric" placeholder="${esc(tr('height'))}" value="${k.cm > 0 ? k.cm : ''}" aria-label="${esc(tr("Child's height"))}"><b>cm</b>`}
+            </span>
+            <span class="kidfit" aria-live="polite"></span>`;
+          const fit = row.querySelector('.kidfit');
+          const showFit = () => {
+            const o = opensUp(k.cm);
+            fit.textContent = o ? trf('Rides they can board here: {a} of {b}', { a: o.fits, b: o.gated }) : '';
+          };
+          showFit();
           const ins = row.querySelectorAll('input');
           ins[0].addEventListener('input', () => { k.age = Math.max(0, Math.min(17, Number(ins[0].value) || 0)); });
           if (ft) {
@@ -5409,6 +5542,7 @@
               const f = Math.max(0, Math.min(6, Number(ins[1].value) || 0));
               const inch = Math.max(0, Math.min(11, Number(ins[2].value) || 0));
               k.cm = (f || inch) ? Math.min(200, Math.round((f * 12 + inch) * 2.54)) : 0;
+              showFit();
             };
             ins[1].addEventListener('input', sync);
             ins[2].addEventListener('input', sync);
@@ -5416,41 +5550,12 @@
             ins[1].addEventListener('input', () => {
               const v = Number(ins[1].value);
               k.cm = Number.isFinite(v) && v > 0 ? Math.min(200, Math.floor(v)) : 0;
+              showFit();
             });
           }
-          row.querySelector('.hclear').addEventListener('click', () => {
-            wizDraft.kids.splice(i, 1);
-            // One fewer person — but never fewer than the kids still listed
-            // (plus one grown-up to push the stroller).
-            wizDraft.party = Math.max(1, wizDraft.kids.length + 1, wizDraft.party - 1);
-            syncParty();
-            renderKids();
-          });
-          rows.appendChild(row);
-        });
-        const addBtn = kidsWrap.querySelector('#kid-add');
-        if (addBtn) addBtn.addEventListener('click', () => {
-          if (wizDraft.kids.length < 8) {
-            wizDraft.kids.push({ age: 0, cm: 0 });
-            wizDraft.party = Math.min(12, wizDraft.party + 1); // a child is a person too
-            syncParty();
-            renderKids();
-            // Straight into the new row: the next thing anyone types is an age.
-            const fresh = kidsWrap.querySelectorAll('#kid-rows > div');
-            const last = fresh[fresh.length - 1];
-            if (last) { const a = last.querySelector('input'); if (a) a.focus(); }
-          }
+          rowsEl.appendChild(row);
         });
       };
-      // The stepper lives outside the kids editor — keep the visible count in
-      // step with child rows, and never let the party be smaller than the
-      // children listed plus one grown-up.
-      const syncParty = () => { const c = $('wiz-count'); if (c) c.textContent = wizDraft.party; };
-      if (Array.isArray(wizDraft.kids) && wizDraft.kids.length + 1 > wizDraft.party
-          && (wizDraft.ages.includes('toddler') || wizDraft.ages.includes('kid'))) {
-        wizDraft.party = Math.min(12, wizDraft.kids.length + 1);
-        syncParty();
-      }
       renderKids();
     } else if (step === 2) {
       body.innerHTML = `<h2>🎢 ${tr('What does your group love?')}</h2><div class="chipgrid" id="wiz-vibes"></div><div id="wiz-strict" style="margin-top:1rem"></div>`;
@@ -5462,7 +5567,7 @@
           renderWiz();
         }));
       }
-      if (wizDraft.ages.includes('toddler') || wizDraft.ages.includes('kid')) {
+      if (wizDraft.counts.kid > 0) {
         const wrap = body.querySelector('#wiz-strict');
         wrap.className = 'chipgrid';
         wrap.appendChild(chip(`🛟 ${tr('Only show rides the whole group can ride')}`, wizDraft.strict, () => { wizDraft.strict = !wizDraft.strict; renderWiz(); }));
@@ -6405,7 +6510,7 @@
           arrive: $('start-hour') ? $('start-hour').value : null,
           leave: $('end-hour') ? $('end-hour').value : null,
           subscription: await pushSubscriptionOrNull(),
-          profile: profile ? { party: profile.party, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite } : null,
+          profile: profile ? { party: profile.party, counts: profile.counts, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite, kids: profile.kids } : null,
         }),
         // Closing the chat is how the user sees the new plan -- so only close
         // it when there is a new plan. A failed match leaves the chat open with

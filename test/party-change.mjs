@@ -79,26 +79,27 @@ console.log('\n[the grandparent is no longer coming]');
   });
   check('the group sheet opens from the chip', opened);
   await page.waitForTimeout(500);
-  // The wizard is several screens and the age chips are on one of them, so
-  // walk it the way a visitor does, unticking the grandparent when that
-  // screen comes up.
+  // The wizard is several screens and the group counters are on one of them,
+  // so walk it the way a visitor does, counting the grandparent back down to
+  // zero when that screen comes up.
   let unpicked = false;
   for (let i = 0; i < 8; i++) {
     const open = await page.evaluate(() => document.getElementById('wiz')?.classList.contains('open'));
     if (!open) break;
     if (!unpicked) {
       unpicked = await page.evaluate(() => {
-        const chip = [...document.querySelectorAll('#wiz-ages button')].find((c) => c.textContent.includes('\u{1F9D3}'));
-        if (!chip || !chip.classList.contains('on')) return false;
-        chip.click();
-        return true;
+        const row = [...document.querySelectorAll('.bandrow')].find((r) => r.textContent.includes('\u{1F9D3}'));
+        if (!row) return false;
+        let guard = 12;
+        while (Number(row.querySelector('b').textContent) > 0 && guard--) row.querySelector('button[data-d="-1"]').click();
+        return Number(row.querySelector('b').textContent) === 0;
       });
       if (unpicked) await page.waitForTimeout(250);
     }
     await page.evaluate(() => document.getElementById('wiz-next')?.click());
     await page.waitForTimeout(280);
   }
-  check('the elderly chip was unticked', unpicked);
+  check('the elderly were counted back down to zero', unpicked);
   check('the wizard was committed', !(await page.evaluate(() => document.getElementById('wiz')?.classList.contains('open'))));
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('pp-profile') || 'null'));
   check('and the group no longer includes them', !(saved?.ages || []).includes('elderly'), JSON.stringify(saved?.ages));

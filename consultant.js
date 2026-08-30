@@ -464,7 +464,14 @@ function userContextBlock({ favorites, excluded, planPicks, subscription, email,
   if (profile && (profile.party || profile.ages.length || profile.vibes.length || profile.onsite !== null)) {
     const bits = [];
     if (profile.party) bits.push(`party of ${profile.party}`);
-    if (profile.ages.length) bits.push(`ages in group: ${profile.ages.join(', ')}`);
+    // Who they are, not just how many: four adults and two-adults-plus-two-kids
+    // are the same number and completely different days.
+    const c = profile.counts;
+    if (c) {
+      const said = [['adult', 'adult', 'adults'], ['kid', 'child', 'children'], ['elderly', 'older traveller', 'older travellers']]
+        .filter(([k]) => c[k] > 0).map(([k, one, many]) => `${c[k]} ${c[k] === 1 ? one : many}`);
+      if (said.length) bits.push(`made up of ${said.join(', ')}`);
+    } else if (profile.ages.length) bits.push(`ages in group: ${profile.ages.join(', ')}`);
     if (profile.vibes.length) bits.push(`ride tastes: ${profile.vibes.join(', ')}`);
     if (profile.onsite !== null) bits.push(profile.onsite ? 'staying at an on-site park hotel' : 'staying off-site');
     if (Array.isArray(profile.kids) && profile.kids.length) {
