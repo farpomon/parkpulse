@@ -6901,7 +6901,7 @@
   (async () => {
     screenStoredName();
     try {
-      const c = await (await fetch('/api/config')).json();
+      const c = await (await api('/api/config')).json();
       parks = c.parks;
       popularParks = Array.isArray(c.popular) ? c.popular : [];
       pfIndex = null;   // parks may have arrived or changed; re-index on next search
@@ -6985,6 +6985,12 @@
       })();
       renderOauthButtons(Array.isArray(c.oauth) ? c.oauth : []);
       if (!c.proGate) {
+        isPro = true;
+      } else if (c.access) {
+        // The server has already decided, and it knows about routes the client
+        // cannot see -- a pass held on the account, or an admin account. Taking
+        // its word is what stops the UI locking someone out of a call the API
+        // would happily have answered.
         isPro = true;
       } else if (!isPro && passToken()) {
         try {

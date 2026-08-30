@@ -3390,6 +3390,13 @@ async function stripePriceCheck() {
       // still gets a 402. The widget needs both so it can show a paywall up
       // front instead of inviting a question and rejecting the answer.
       consultantAccess: consultant.enabled() && hasAccess(req),
+      // Whether THIS caller is through the gate at all, by any route: a pass
+      // in the header, a pass on the account, or an admin looking at their own
+      // product. The client used to work this out for itself from the pass
+      // token alone, which meant the admin bypass added server-side was
+      // invisible to the UI -- the API would have answered, but the paywall
+      // went up before anything was asked.
+      access: hasAccess(req),
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
       // Whether more of Mila's time can be bought at all. Without it a visitor
       // who runs out is told no with nowhere to go, which is worse than not

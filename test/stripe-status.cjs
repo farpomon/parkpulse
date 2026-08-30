@@ -225,11 +225,15 @@ const db = require('../db.js');
       setTimeout(async () => {
         const admin=sess('boss@example.com'), punter=sess('punter@example.com');
         const get=(s)=>fetch('http://127.0.0.1:9665/api/waits/epcot',{headers:{'x-session':s}}).then(r=>r.status);
+        const cfg=(s)=>fetch('http://127.0.0.1:9665/api/config',s?{headers:{'x-session':s}}:undefined).then(r=>r.json());
         console.log(JSON.stringify({
           anon: await fetch('http://127.0.0.1:9665/api/waits/epcot').then(r=>r.status),
           punter: await get(punter),
           admin: await get(admin),
           freeParkAnon: await fetch('http://127.0.0.1:9665/api/waits/magic-kingdom').then(r=>r.status),
+          cfgAnon: (await cfg(null)).access,
+          cfgPunter: (await cfg(punter)).access,
+          cfgAdmin: (await cfg(admin)).access,
         }));
         process.exit(0);
       }, 3000);
@@ -240,6 +244,15 @@ const db = require('../db.js');
     check('and to a signed-in account with no pass', r.punter === 402, JSON.stringify(r));
     check('but open to an admin', r.admin === 200, JSON.stringify(r));
     check('and the free park stays free to everyone', r.freeParkAnon === 200, JSON.stringify(r));
+
+    // ...and the UI has to be told, or it puts the paywall up before it ever
+    // asks. /api/config is the only thing the boot reads, and it was fetched
+    // without the session header -- so it answered "no access" to a signed-in
+    // pass holder and to an admin alike, and Mila showed a sales pitch to the
+    // person who owns her.
+    check('config tells an anonymous caller they are outside', r.cfgAnon === false, JSON.stringify(r.cfgAnon));
+    check('a signed-in account with no pass, likewise', r.cfgPunter === false, JSON.stringify(r.cfgPunter));
+    check('and an admin that they are inside', r.cfgAdmin === true, JSON.stringify(r.cfgAdmin));
   }
 
   console.log(fail ? `\n${fail} failed` : '\nall good');
