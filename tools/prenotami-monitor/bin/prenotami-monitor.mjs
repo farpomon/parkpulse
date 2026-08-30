@@ -12,7 +12,7 @@ import { loadEnvFile, loadConfig } from '../src/config.mjs';
 import { createLogger } from '../src/log.mjs';
 import { checkOnce, watch } from '../src/monitor.mjs';
 import { Session } from '../src/session.mjs';
-import { notifyAll, configuredChannels } from '../src/notify.mjs';
+import { notifyAll, configuredChannels, validateChannels } from '../src/notify.mjs';
 
 const USAGE = `
 prenotami-monitor — watch prenotami.esteri.it for an open appointment slot
@@ -36,6 +36,8 @@ async function main() {
   loadEnvFile();
   const config = loadConfig();
   const logger = createLogger(config);
+
+  validateChannels(config, logger);
 
   const channels = configuredChannels(config);
   logger.info(

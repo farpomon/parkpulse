@@ -122,6 +122,7 @@ export async function attemptBooking(page, config, logger) {
     earliest: booking.earliest,
     latest: booking.latest,
     weekdays: booking.weekdays,
+    blackouts: booking.blackouts,
   };
 
   const candidates = await extractCandidateDates(page);

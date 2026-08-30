@@ -14,10 +14,51 @@ export function parseIsoDate(iso) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// Dates you cannot attend, as "YYYY-MM" for a whole month, "YYYY-MM-DD" for one
+// day, or "YYYY-MM-DD..YYYY-MM-DD" for a span. Comma-separated.
+//
+// This exists because a window cannot say "any time except December". Narrowing
+// LATEST to November would also discard every date after it, which is a
+// different instruction and a worse one.
+export function parseBlackouts(raw) {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const span = entry.split('..').map((s) => s.trim());
+      if (span.length === 2 && span.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))) {
+        return span[0] <= span[1] ? { from: span[0], to: span[1] } : { from: span[1], to: span[0] };
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(entry)) return { from: entry, to: entry };
+      if (/^\d{4}-\d{2}$/.test(entry)) {
+        const [year, month] = entry.split('-').map(Number);
+        // Day 0 of the next month is the last day of this one.
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        return { from: `${entry}-01`, to: `${entry}-${String(lastDay).padStart(2, '0')}` };
+      }
+      throw new Error(
+        `Cannot read blackout "${entry}". Use YYYY-MM, YYYY-MM-DD, or ` +
+          'YYYY-MM-DD..YYYY-MM-DD, comma-separated.'
+      );
+    });
+}
+
+export function isBlackedOut(iso, blackouts = []) {
+  return blackouts.some((range) => iso >= range.from && iso <= range.to);
+}
+
+export function describeBlackouts(blackouts = []) {
+  return blackouts
+    .map((range) => (range.from === range.to ? range.from : `${range.from}..${range.to}`))
+    .join(', ');
+}
+
 // A candidate is { iso, label }. Guards come from .env.
 // Returns the earliest candidate clearing every guard, or null.
 export function chooseDate(candidates, guards = {}) {
-  const { earliest, latest, weekdays } = guards;
+  const { earliest, latest, weekdays, blackouts } = guards;
 
   // A window is mandatory when booking is armed (config.mjs enforces it). If it
   // is somehow missing here, take nothing rather than everything.
@@ -32,6 +73,7 @@ export function chooseDate(candidates, guards = {}) {
       if (weekdays?.length && !weekdays.includes(WEEKDAY_NAMES[candidate.date.getUTCDay()])) {
         return false;
       }
+      if (isBlackedOut(candidate.iso, blackouts)) return false;
       return true;
     })
     .sort((a, b) => a.iso.localeCompare(b.iso));
@@ -50,6 +92,7 @@ export function explainSkip(candidates, guards = {}) {
     guards.earliest ? `on or after ${guards.earliest}` : null,
     guards.latest ? `on or before ${guards.latest}` : null,
     guards.weekdays?.length ? `on a ${guards.weekdays.join('/')}` : null,
+    guards.blackouts?.length ? `and not during ${describeBlackouts(guards.blackouts)}` : null,
   ]
     .filter(Boolean)
     .join(', ');

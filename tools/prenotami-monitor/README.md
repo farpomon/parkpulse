@@ -124,10 +124,45 @@ Configure at least one in `.env`, or alerts are console-only:
 |---|---|---|
 | **Telegram** | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Best choice. Reliable push to your phone. |
 | **ntfy** | `NTFY_TOPIC` | No account needed. Install the ntfy app, subscribe to your topic. |
-| **Webhook** | `WEBHOOK_URL` | Slack, Discord, Zapier, anything that takes a POST. |
+| **Discord** | `DISCORD_WEBHOOK_URL` | Alerts as embeds in a channel. See below. |
+| **Webhook** | `WEBHOOK_URL` | Slack, Zapier, anything else that takes a POST. |
 | **Desktop** | `PRENOTAMI_DESKTOP_NOTIFY=true` | Only useful if you are at that machine. |
 
 All configured channels fire; one failing does not stop the others.
+
+### Connecting Discord
+
+1. In Discord, open the server you want alerts in. You need **Manage Webhooks**
+   there, so use a server you own — a private one with just you is fine.
+2. **Server Settings → Integrations → Webhooks → New Webhook**.
+3. Pick the channel it posts to, name it something like `prenotami`, then
+   **Copy Webhook URL**.
+4. Put it in `.env`:
+
+```bash
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/123456789/AbCd-EfGh...
+DISCORD_MENTION=@here      # optional; only fires on urgent alerts
+```
+
+5. `npm run test-notify` — a card should appear in the channel within a second.
+
+Alerts arrive as embeds: green for something you must act on (a slot opened, a
+booking went through), grey for routine news. The title links straight to the
+booking page.
+
+`DISCORD_MENTION` pings only on the urgent ones, so a daily heartbeat never
+wakes you. Set it to `@here`, `@everyone`, or a role as `<@&ROLE_ID>`. Leave it
+empty and nothing is ever pinged.
+
+Two things worth knowing. **Anyone holding that URL can post to the channel** —
+it carries no other permissions, but treat it as a secret; `.env` is gitignored
+for this reason. And **Discord is not a paging system**: mobile notifications
+can be delayed or muted by Do Not Disturb. If catching a slot inside five
+minutes matters, run Telegram or ntfy alongside it — every configured channel
+fires on every alert.
+
+Do not put a Discord URL in `WEBHOOK_URL`. Discord rejects that payload shape
+with a 400 and no other symptom; the monitor warns at startup if you do.
 
 Alerts are deduplicated — an open slot alerts once, then again after 30 minutes
 if it is still open. A slot that closes and reopens alerts again immediately.
@@ -169,6 +204,28 @@ a booker with no window takes whatever the consulate offers first — including 
 date you cannot travel to. A slot outside your window gets you a **high-priority
 alert instead of a booking**, so you can still take it by hand.
 
+### Dates you cannot attend
+
+For a stretch inside the window — a trip, a holiday — use a blackout rather than
+moving the window:
+
+```bash
+PRENOTAMI_BOOK_BLACKOUT=2026-12                      # all of December 2026
+PRENOTAMI_BOOK_BLACKOUT=2026-12,2027-03-05           # and one day in March
+PRENOTAMI_BOOK_BLACKOUT=2026-12-01..2026-12-14       # or an exact span
+```
+
+`YYYY-MM` for a month, `YYYY-MM-DD` for a day, `YYYY-MM-DD..YYYY-MM-DD` for a
+span, comma-separated. Both ends of a range are inclusive.
+
+This is not the same as narrowing `PRENOTAMI_BOOK_LATEST`. Pulling the window
+back to November to avoid December would also discard January and everything
+after it — a different instruction, and a worse one. A blackout takes out the
+middle and leaves the rest bookable.
+
+A malformed blackout is an error, not a warning. Silently ignoring one is how
+you end up with an appointment on a day you are out of the country.
+
 On success it books once, writes a flag to `data/state.json`, and stops. On
 restart it sees that flag and refuses to run — otherwise the service files,
 which restart on exit, would book you a second appointment.
@@ -179,7 +236,7 @@ which restart on exit, would book you a second appointment.
 |---|---|
 | A CAPTCHA or Cloudflare check appears | Stops. Does not attempt to answer or evade it. Alerts you. |
 | The form has a required field your profile did not fill | Stops and names the field. It will not invent a value on a government form. |
-| A date is offered outside your window | Alerts you, urgently, and books nothing. |
+| A date is offered outside your window, or inside a blackout | Alerts you, urgently, and books nothing. |
 | The submit button cannot be found | Stops and alerts, rather than clicking something hopeful. |
 
 Required consent checkboxes *are* ticked, and the exact text of every one is
@@ -239,8 +296,9 @@ If you start getting `challenge` outcomes, run once with
 ## Tests
 
 ```bash
-npm test            # 57 unit tests, no browser needed
+npm test            # 69 unit tests, no browser needed
 npm run test:browser   # drives the booking flow against a fake page
+npm run test:discord   # posts real alerts at a Discord-shaped server
 ```
 
 `npm test` covers what can be decided without a browser: how page text is
@@ -257,6 +315,11 @@ submit during a dry run. Run it after any change to `src/booking.mjs` or
 The fixture is this project's best understanding of prenotami's markup, not a
 capture of it, so passing means the logic is sound — not that the selectors
 match the live site. Only a dry run against your own account tells you that.
+
+`npm run test:discord` posts every alert type at a local server that enforces
+Discord's documented webhook constraints — content and embed length limits,
+colour range, timestamp format — so a payload that would 400 in production fails
+here instead. Same caveat: those are the documented rules, not a live capture.
 
 ## Layout
 

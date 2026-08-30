@@ -6,7 +6,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { parseWeekdays } from './dates.mjs';
+import { parseWeekdays, parseBlackouts } from './dates.mjs';
 import { parseTimeOfDay } from './schedule.mjs';
 import { fileURLToPath } from 'node:url';
 
@@ -89,7 +89,9 @@ function bookingConfig(env) {
   const earliest = env.PRENOTAMI_BOOK_EARLIEST?.trim() || null;
   const latest = env.PRENOTAMI_BOOK_LATEST?.trim() || null;
 
-  if (!enabled) return { enabled: false, dryRun: true, earliest, latest, weekdays: [] };
+  if (!enabled) {
+    return { enabled: false, dryRun: true, earliest, latest, weekdays: [], blackouts: [] };
+  }
 
   const iso = /^\d{4}-\d{2}-\d{2}$/;
   if (!iso.test(earliest || '') || !iso.test(latest || '')) {
@@ -105,6 +107,10 @@ function bookingConfig(env) {
     );
   }
 
+  // Throws on a malformed entry rather than silently ignoring it: a blackout
+  // that quietly fails to parse books you an appointment you cannot attend.
+  const blackouts = parseBlackouts(env.PRENOTAMI_BOOK_BLACKOUT);
+
   return {
     enabled: true,
     // Stops before the final submit and screenshots what it would have taken.
@@ -112,6 +118,7 @@ function bookingConfig(env) {
     earliest,
     latest,
     weekdays: parseWeekdays(env.PRENOTAMI_BOOK_WEEKDAYS),
+    blackouts,
   };
 }
 
@@ -211,6 +218,8 @@ export function loadConfig(env = process.env) {
       telegramChatId: env.TELEGRAM_CHAT_ID?.trim() || null,
       ntfyTopic: env.NTFY_TOPIC?.trim() || null,
       ntfyServer: (env.NTFY_SERVER || 'https://ntfy.sh').replace(/\/$/, ''),
+      discordWebhookUrl: env.DISCORD_WEBHOOK_URL?.trim() || null,
+      discordMention: env.DISCORD_MENTION?.trim() || null,
       webhookUrl: env.WEBHOOK_URL?.trim() || null,
       desktop: bool(env, 'PRENOTAMI_DESKTOP_NOTIFY', false),
     },

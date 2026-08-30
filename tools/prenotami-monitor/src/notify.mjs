@@ -49,6 +49,31 @@ const CHANNELS = {
     return true;
   },
 
+  // Discord webhooks take their own payload shape -- a bare {title, body} POST
+  // is rejected with a 400. Alerts go as an embed so the colour carries urgency
+  // at a glance and the title is a clickable link to the booking page.
+  async discord({ notify }, { title, body, url, priority }) {
+    if (!notify.discordWebhookUrl) return false;
+
+    const payload = {
+      // Only a message's content pings anyone; text inside an embed never does.
+      content: priority === 'high' && notify.discordMention ? notify.discordMention : undefined,
+      embeds: [
+        {
+          title: title.slice(0, 256),
+          description: body.slice(0, 4096),
+          url: url || undefined,
+          color: priority === 'high' ? 0x2ecc71 : 0x95a5a6,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      allowed_mentions: { parse: notify.discordMention ? ['everyone', 'roles'] : [] },
+    };
+
+    await postJson(notify.discordWebhookUrl, payload);
+    return true;
+  },
+
   async webhook({ notify }, payload) {
     if (!notify.webhookUrl) return false;
     await postJson(notify.webhookUrl, payload);
@@ -72,11 +97,24 @@ const CHANNELS = {
   },
 };
 
+// A Discord URL in the generic webhook slot fails on every alert with a 400 and
+// no other symptom, so it is worth catching at startup rather than at 3am.
+export function validateChannels(config, logger) {
+  const { webhookUrl } = config.notify;
+  if (webhookUrl && /discord(app)?\.com\/api\/webhooks/i.test(webhookUrl)) {
+    logger.warn(
+      'WEBHOOK_URL points at Discord. Discord rejects the generic payload — ' +
+        'move that URL to DISCORD_WEBHOOK_URL instead.'
+    );
+  }
+}
+
 export function configuredChannels(config) {
   const { notify } = config;
   const names = [];
   if (notify.telegramToken && notify.telegramChatId) names.push('telegram');
   if (notify.ntfyTopic) names.push('ntfy');
+  if (notify.discordWebhookUrl) names.push('discord');
   if (notify.webhookUrl) names.push('webhook');
   if (notify.desktop) names.push('desktop');
   return names;
