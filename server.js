@@ -1815,8 +1815,8 @@ function recordUsage(feature, model, usage, billTo) {
 // operator must not be able to spend the product's whole day) were true only
 // by coincidence and untestable either way.
 const AI_DEFAULTS = {
-  globalDailyUsd: 150,   // the wall: everything, everyone, one day
-  alertUsd: 75,          // the warning, at half the wall
+  globalDailyUsd: 50,    // the wall: everything, everyone, one day
+  alertUsd: 25,          // the warning, at half the wall
   freeUsd: 0.20,
   compUsd: 0.90,         // a guest, matched to Trip Pass on purpose
   devUsd: 25.00,         // the operator
@@ -1839,14 +1839,14 @@ const AI_BUDGET_FREE = Number(process.env.AI_BUDGET_FREE || AI_DEFAULTS.freeUsd)
 // Everything, everyone, one day. The backstop that does not care how the spend
 // was distributed.
 //
-// $50 was set when nothing else had a floor under it. It is too tight now for a
-// reason worth writing down: the operator's own allowance is $25, so half the
-// product's daily ceiling belonged to one person testing it, and a busy
-// afternoon of checking the site could start turning paying visitors away.
-// $150 clears the arithmetic that actually exists -- the operator at $25, a
-// hundred guests and pass-holders at $0.90, and headroom for the catalogue
-// jobs -- while still bounding a runaway to a survivable day. The spend alert
-// below fires at half of it, so a bad day is an email long before it is a wall.
+// Held at $50 deliberately while the product is pre-revenue: nothing is being
+// sold yet, so a ceiling that bounds a bad day is worth more than one that
+// never gets in the way. One consequence is worth knowing rather than
+// discovering from a support message: the operator's own allowance is $25, so
+// half of this belongs to one person testing the site, and a hard afternoon of
+// checking things can crowd out real visitors. Raise this -- or lower devUsd --
+// when that starts happening, and move alertUsd with it or the warning stops
+// being one.
 const AI_GLOBAL_DAILY_USD = Number(process.env.AI_GLOBAL_DAILY_USD || AI_DEFAULTS.globalDailyUsd);
 
 function aiBudgetFor(user) {
