@@ -55,6 +55,10 @@ const PRO_GATE = process.env.PRO_GATE === 'on';
 // on /terms itself, so the recorded version and the text a reader saw cannot
 // drift apart -- a stored "v1" nobody can map back to a particular wording
 // proves nothing later.
+// The exact sentence a marketing opt-in is consent TO. Stored alongside the
+// answer, because consent is to a particular wording and wordings change --
+// "they ticked a box once" is not a record, "they ticked THIS on THAT day" is.
+const MARKETING_WORDING = 'Send me occasional news about ParkPulse — new parks, features and offers. You can stop any time.';
 const TERMS_VERSION = (() => {
   try {
     const m = fs.readFileSync(path.join(PUBLIC_DIR, 'terms.html'), 'utf8').match(/class="date">Effective ([^<]+)</);
@@ -3410,6 +3414,7 @@ async function stripePriceCheck() {
       // The Terms the signup box is currently agreeing to, so the page and the
       // recorded consent name the same wording.
       termsVersion: TERMS_VERSION,
+      marketingWording: MARKETING_WORDING,
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
       // Whether more of Mila's time can be bought at all. Without it a visitor
       // who runs out is told no with nowhere to go, which is worse than not
@@ -3439,6 +3444,7 @@ async function stripePriceCheck() {
       admin: ADMIN_EMAILS.has(s.email),
       devices: db.sessions.devices(s.email).length,
       eveningMail: s.user.evening_mail !== 0,
+      marketing: s.user.marketing_ok === 1,
       plan: active ? s.user.plan : null,
       exp: active ? s.user.plan_exp : null,
       passToken: active ? signPass(s.user.plan, s.user.plan_exp) : null,
@@ -4464,6 +4470,10 @@ ${sections}
           // matters later is the version they agreed to at the time, not the
           // one current when they happened to retry.
           try { db.users.acceptTerms(email, TERMS_VERSION); } catch {}
+          // Separate from the terms, and a decline is recorded as firmly as an
+          // acceptance -- "never asked" and "asked and said no" are different
+          // facts, and only the first can be re-asked in good conscience.
+          try { db.users.setMarketing(email, parsed.marketing === true, MARKETING_WORDING); } catch {}
           startVerification(email);
           return sendJson(res, 200, { pending: true, email, ...(asked.profane && { nameNote: NAME_NOTE }) });
         }
@@ -5162,6 +5172,15 @@ ${sections}
       }
 
       // Night-before plan emails on or off, per account.
+      if (url.pathname === '/api/account/marketing') {
+        const s2 = sessionUser(req);
+        if (!s2) return sendJson(res, 401, { error: 'not logged in' });
+        // Withdrawing is recorded exactly like giving: CASL cares that you can
+        // show when someone stopped consenting, not only when they started.
+        db.users.setMarketing(s2.email, parsed.on === true, MARKETING_WORDING);
+        return sendJson(res, 200, { ok: true, on: parsed.on === true });
+      }
+
       if (url.pathname === '/api/plans/evening-mail') {
         const s2 = sessionUser(req);
         if (!s2) return sendJson(res, 401, { error: 'not logged in' });

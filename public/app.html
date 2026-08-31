@@ -213,6 +213,8 @@
   .acct-terms input { flex: 0 0 auto; width: 1.05rem; height: 1.05rem; margin-top: .1rem;
     accent-color: var(--brand); }
   .acct-terms a { color: var(--brand); font-weight: 700; }
+  .acct-terms.optin { margin-top: -.5rem; }
+  .acct-terms.optin i { font-style: normal; opacity: .75; }
   .btn.needs-consent { opacity: .55; }
   .hint.err { color: var(--red); }
   .pwwrap input { padding-inline-end: 2.8rem; }
@@ -1327,6 +1329,14 @@
         <input type="checkbox" id="acct-terms">
         <span id="acct-terms-lbl"></span>
       </label>
+      <!-- Commercial email, asked separately and never pre-ticked. Bundling it
+           into the terms box is exactly what CASL does not accept, and leaving
+           it ticked by default is not consent in any of the regimes that
+           matter. Ticking nothing here still creates the account. -->
+      <label class="acct-terms optin" id="acct-mkt-wrap" style="display:none">
+        <input type="checkbox" id="acct-mkt">
+        <span><span id="acct-mkt-lbl"></span> <i id="acct-mkt-opt"></i></span>
+      </label>
       <p class="err" id="acct-err" aria-live="polite"></p>
       <button class="btn wide" type="submit" id="acct-submit">Log in</button>
     </form>
@@ -1354,6 +1364,13 @@
     <label style="display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;font-size:.9rem;color:var(--muted)">
       <input type="checkbox" id="eve-mail" checked style="width:1.1rem;height:1.1rem;accent-color:var(--brand)">
       <span id="eve-mail-lbl" data-i18n="🌙 Email me each plan the evening before">🌙 Email me each plan the evening before</span>
+    </label>
+    <!-- Withdrawal has to be as easy as consent, and reachable without an
+         email in hand: someone who never opens the newsletter still has to be
+         able to stop it. -->
+    <label style="display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;font-size:.9rem;color:var(--muted)">
+      <input type="checkbox" id="mkt-mail" style="width:1.1rem;height:1.1rem;accent-color:var(--brand)">
+      <span id="mkt-mail-lbl" data-i18n="📣 Occasional news about ParkPulse — new parks, features and offers">📣 Occasional news about ParkPulse — new parks, features and offers</span>
     </label>
     <button class="btn wide" id="acct-logout">Log out</button>
     <button class="btn wide" id="acct-logout-all" data-i18n="Log out everywhere else" style="margin-top:.5rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">Log out everywhere else</button>
@@ -6139,6 +6156,9 @@
 
   // --- Account sheet ---
   let acctMode = 'login';
+  // The exact sentence the opt-in is consent to, served alongside it so the
+  // wording shown and the wording recorded cannot drift apart.
+  let marketingWording = '';
   // Stable per-browser device id — the unit the 5-device account cap counts.
   // Where this browser first arrived from, remembered once and never
   // overwritten. Last-touch would credit whatever they typed into the address
@@ -6321,6 +6341,7 @@
           ? tr('Active on 1 device (max 5)')
           : trf('Active on {n} devices (max 5)', { n: d.devices });
         if (d) $('eve-mail').checked = d.eveningMail !== false;
+        if (d) $('mkt-mail').checked = d.marketing === true;
       }).catch(() => {});
       renderMyPlans();
     }
@@ -6521,6 +6542,10 @@
     api('/api/plans/evening-mail', { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ on: e.target.checked }) }).catch(() => {});
   });
+  $('mkt-mail').addEventListener('change', (e) => {
+    api('/api/account/marketing', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ on: e.target.checked }) }).catch(() => {});
+  });
   // The button stays inert until the box is ticked. Disabling it outright
   // would leave a reader tapping a dead control with no reason given, so it
   // stays pressable and says what is missing.
@@ -6577,6 +6602,10 @@
     $('acct-pw2').value = '';
     $('acct-terms-wrap').style.display = login ? 'none' : '';
     $('acct-terms').checked = false;
+    $('acct-mkt-wrap').style.display = login ? 'none' : '';
+    $('acct-mkt').checked = false;
+    $('acct-mkt-lbl').textContent = tr(marketingWording || 'Send me occasional news about ParkPulse — new parks, features and offers. You can stop any time.');
+    $('acct-mkt-opt').textContent = tr('(optional)');
     // The two documents, linked, inside the sentence being agreed to -- not a
     // reference to something elsewhere on the page.
     $('acct-terms-lbl').innerHTML = trf('I have read and accept the {terms} and the {privacy}.', {
@@ -6627,7 +6656,7 @@
           // Only on signup: this is where the account is born, first-touch is
           // stamped once and never revised, and the consent is recorded
           // against the version of the Terms this page showed.
-          ...(acctMode === 'signup' && { name: $('acct-name').value, src: firstTouch, terms: true }) }),
+          ...(acctMode === 'signup' && { name: $('acct-name').value, src: firstTouch, terms: true, marketing: $('acct-mkt').checked }) }),
       });
       const data = await res.json();
       if (!res.ok) { $('acct-err').textContent = data.error || tr('Something went wrong.'); return; }
@@ -7013,6 +7042,7 @@
       pfIndex = null;   // parks may have arrived or changed; re-index on next search
       pushKey = c.pushKey || '';
       consultantOn = Boolean(c.consultant);
+      marketingWording = c.marketingWording || '';
       whatsappOn = Boolean(c.whatsapp);
       // The pre-launch strip, if the server is still flying it. Written here
       // rather than in the markup so the sentence goes through tr() and lands

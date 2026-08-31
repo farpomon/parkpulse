@@ -326,6 +326,65 @@ const db = require('../db.js');
       String(db.users.get('older@example.com').terms_at));
   }
 
+  console.log('\n[commercial email is asked for separately]');
+  {
+    const signup = (body) => fetch(`${B}/api/auth/signup`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const pw = { password: 'longenoughpw', device: 'd1', name: 'Ana', terms: true };
+
+    // Accepting the contract is not agreeing to be marketed at. Bundling the
+    // two is precisely what CASL does not accept, so the terms box alone must
+    // leave the marketing flag off.
+    await signup({ email: 'mk-no@example.com', ...pw });
+    const declined = db.users.get('mk-no@example.com');
+    check('the terms box alone does not opt anyone in', declined.marketing_ok === 0, String(declined.marketing_ok));
+    // Declining is a recorded fact, not an absence of one: "never asked" and
+    // "asked and said no" are different, and only the first can be re-asked.
+    check('and the decline is recorded, not merely absent', Boolean(declined.marketing_at), String(declined.marketing_at));
+
+    await signup({ email: 'mk-yes@example.com', ...pw, marketing: true });
+    const opted = db.users.get('mk-yes@example.com');
+    check('ticking it opts in', opted.marketing_ok === 1, String(opted.marketing_ok));
+    check('with the moment recorded', Boolean(opted.marketing_at) && !Number.isNaN(Date.parse(opted.marketing_at)));
+    // Consent is to a sentence, and sentences get reworded. Storing which one
+    // they saw is what makes the record worth anything later.
+    check('and the wording they agreed to', /ParkPulse/.test(opted.marketing_wording || ''), String(opted.marketing_wording).slice(0, 40));
+
+    // An account that predates the box has never been asked -- null, not 0.
+    db.users.create('mk-old@example.com', 's', 'x', 1);
+    check('accounts never asked are null, not a decline', db.users.get('mk-old@example.com').marketing_ok == null);
+
+    // Only lawfully-mailable accounts appear in the list -- and an address
+    // nobody has confirmed is not one of them, whatever box was ticked.
+    check('an unconfirmed address is not mailable yet', !db.users.marketingList().some((u) => u.email === 'mk-yes@example.com'));
+    db.users.markVerified('mk-yes@example.com');
+    const list = db.users.marketingList().map((u) => u.email);
+    check('the sendable list holds only those who opted in', list.includes('mk-yes@example.com'), JSON.stringify(list));
+    check('and excludes the ones who did not', !list.includes('mk-no@example.com') && !list.includes('mk-old@example.com'), JSON.stringify(list));
+
+    // Withdrawal has to be as easy as consent, and equally provable.
+    const sid = crypto.randomBytes(16).toString('hex');
+    db.sessions.create(sid, 'mk-yes@example.com', 'd', 't');
+    const body = Buffer.from(JSON.stringify({ sid, email: 'mk-yes@example.com', exp: Date.now() + 864e5 })).toString('base64url');
+    const tok = body + '.' + crypto.createHmac('sha256', process.env.PASS_SECRET).update(body).digest('base64url');
+    const was = db.users.get('mk-yes@example.com').marketing_at;
+    await new Promise((r) => setTimeout(r, 15));
+    const off = await fetch(`${B}/api/account/marketing`, {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-session': tok }, body: JSON.stringify({ on: false }),
+    });
+    check('it can be withdrawn from the account', off.status === 200, String(off.status));
+    const after = db.users.get('mk-yes@example.com');
+    check('the withdrawal takes effect', after.marketing_ok === 0);
+    check('and is stamped with its own moment', after.marketing_at !== was);
+    check('so the list drops them', !db.users.marketingList().some((u) => u.email === 'mk-yes@example.com'));
+
+    const anon = await fetch(`${B}/api/account/marketing`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on: true }),
+    });
+    check('and a stranger cannot set it for somebody', anon.status === 401, String(anon.status));
+  }
+
   console.log(fail ? `\n=== ${fail} failures ===` : '\n=== they sign in, and only as themselves ===');
   provider.close();
   process.exit(fail ? 1 : 0);

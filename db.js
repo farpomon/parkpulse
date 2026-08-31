@@ -246,6 +246,14 @@ for (const ddl of [
   // is that THIS person accepted THAT text on THAT date. terms_at is null for
   // accounts created before the box existed -- they are not retro-consented,
   // because that would be a fiction.
+  // Commercial email, kept apart from the contract on purpose. Canada's CASL
+  // wants EXPRESS consent -- separately asked, never pre-ticked, never bundled
+  // into agreeing to the terms -- and it wants proof: when it was given, and
+  // what the person was actually shown when they gave it. Null means never
+  // asked, 0 means asked and declined; the two are different facts.
+  "ALTER TABLE users ADD COLUMN marketing_ok INTEGER",
+  "ALTER TABLE users ADD COLUMN marketing_at TEXT",
+  "ALTER TABLE users ADD COLUMN marketing_wording TEXT",
   "ALTER TABLE users ADD COLUMN terms_at TEXT",
   "ALTER TABLE users ADD COLUMN terms_version TEXT",
   "ALTER TABLE users ADD COLUMN signup_source TEXT",
@@ -424,6 +432,15 @@ const users = {
     db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL, verified = 1 WHERE email = ?').run(salt, hash, email),
   // Password change that does NOT vouch for the email — used when an
   // unverified signup retries; the code check still gates verification.
+  // The wording is stored with the answer because consent is to a particular
+  // sentence, and that sentence will be reworded eventually. Withdrawal is
+  // recorded the same way -- an unsubscribe is a fact to be able to prove too.
+  setMarketing: (email, on, wording) =>
+    db.prepare('UPDATE users SET marketing_ok = ?, marketing_at = ?, marketing_wording = ? WHERE email = ?')
+      .run(on ? 1 : 0, new Date().toISOString(), wording || null, email).changes,
+  // Everyone who may lawfully be sent a commercial message right now.
+  marketingList: () =>
+    db.prepare('SELECT email, name FROM users WHERE marketing_ok = 1 AND verified = 1 AND delete_at IS NULL').all(),
   acceptTerms: (email, version) =>
     db.prepare('UPDATE users SET terms_at = ?, terms_version = ? WHERE email = ? AND terms_at IS NULL')
       .run(new Date().toISOString(), version, email).changes,
