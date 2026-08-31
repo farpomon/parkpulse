@@ -1807,20 +1807,47 @@ function recordUsage(feature, model, usage, billTo) {
 // budget is in dollars, and it scales with the pass, because a day-tripper
 // with one day of access is worth being generous to and an annual holder is
 // the same person for three hundred days.
+// The money numbers, in one literal object so they can be read together and
+// checked against each other. They were scattered across two hundred lines --
+// a per-plan table here, an alert threshold there, a global backstop in
+// between -- and the relationships that matter between them (a guest must not
+// be worse off than a customer; the warning must arrive before the wall; one
+// operator must not be able to spend the product's whole day) were true only
+// by coincidence and untestable either way.
+const AI_DEFAULTS = {
+  globalDailyUsd: 150,   // the wall: everything, everyone, one day
+  alertUsd: 75,          // the warning, at half the wall
+  freeUsd: 0.20,
+  compUsd: 0.90,         // a guest, matched to Trip Pass on purpose
+  devUsd: 25.00,         // the operator
+};
+
 const AI_BUDGET_USD = Object.assign(Object.create(null), {
   'day-pass': 2.50, 'trip-pass': 0.90, 'season-pass': 0.45, 'year-pass': 0.35,
   // Retired plans, so somebody mid-pass keeps the allowance they bought.
   'week-pass': 1.00, 'month-pass': 0.50, 'half-year-pass': 0.40, 'pro-annual': 0.35,
-  'comp': 0.50, 'dev': 25.00,
+  // A guest is somebody being shown the product on purpose. Giving them half
+  // a paying customer's allowance meant the invitation ran out first, which is
+  // the opposite of what an invitation is for -- so it matches Trip Pass.
+  'comp': AI_DEFAULTS.compUsd, 'dev': AI_DEFAULTS.devUsd,
 }, (() => {
   // One env var, so a budget can be moved without a deploy of the table.
   try { return JSON.parse(process.env.AI_BUDGETS || '{}'); } catch { return {}; }
 })());
 // No pass: the single free plan review a day, and nothing else.
-const AI_BUDGET_FREE = Number(process.env.AI_BUDGET_FREE || 0.20);
+const AI_BUDGET_FREE = Number(process.env.AI_BUDGET_FREE || AI_DEFAULTS.freeUsd);
 // Everything, everyone, one day. The backstop that does not care how the spend
 // was distributed.
-const AI_GLOBAL_DAILY_USD = Number(process.env.AI_GLOBAL_DAILY_USD || 50);
+//
+// $50 was set when nothing else had a floor under it. It is too tight now for a
+// reason worth writing down: the operator's own allowance is $25, so half the
+// product's daily ceiling belonged to one person testing it, and a busy
+// afternoon of checking the site could start turning paying visitors away.
+// $150 clears the arithmetic that actually exists -- the operator at $25, a
+// hundred guests and pass-holders at $0.90, and headroom for the catalogue
+// jobs -- while still bounding a runaway to a survivable day. The spend alert
+// below fires at half of it, so a bad day is an email long before it is a wall.
+const AI_GLOBAL_DAILY_USD = Number(process.env.AI_GLOBAL_DAILY_USD || AI_DEFAULTS.globalDailyUsd);
 
 function aiBudgetFor(user) {
   // The admin bypass was only ever half-built. hasAccess() waves an operator
@@ -2016,7 +2043,11 @@ async function sendAiCostEmail(day) {
 // How many written lines one account can buy in half a day. The client only
 // asks when the day actually changed, which is far fewer; this is the backstop.
 const LIVE_NUDGE_CAP = Number(process.env.LIVE_NUDGE_CAP || 12);
-const AI_ALERT_USD = Number(process.env.AI_ALERT_USD || 25);
+// Deliberately about HALF of AI_GLOBAL_DAILY_USD: the email is the warning and
+// the cap is the wall, and a warning that arrives at the wall is not a warning.
+// Move one and move the other -- an alert too close to the ceiling never fires
+// in time, and one too far below it fires every day until nobody reads it.
+const AI_ALERT_USD = Number(process.env.AI_ALERT_USD || AI_DEFAULTS.alertUsd);
 const AI_ALERT_MULTIPLE = Number(process.env.AI_ALERT_MULTIPLE || 4);
 // Below this the multiple is meaningless: 4x of eleven cents is not news.
 const AI_ALERT_FLOOR_USD = Number(process.env.AI_ALERT_FLOOR_USD || 5);
@@ -5392,7 +5423,7 @@ server.listen(PORT, bootBanner);
 // otherwise only runs on a five-minute timer, and an alert that quietly never
 // fires is worse than no alert at all -- it is the same silence, with the
 // belief that somebody is watching.
-module.exports = { _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
+module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every

@@ -107,6 +107,50 @@ function tokenFor(email) {
     check('and credit never goes negative', (db.users.spendAiCredit(ME, 999), db.users.get(ME).ai_credit_usd === 0), String(db.users.get(ME).ai_credit_usd));
   }
 
+  console.log('\n[who gets what, in one table]');
+  {
+    // These are money, and they are easy to change by accident: they live in
+    // one object beside the retired plans and nothing else reads them aloud.
+    // Reading the whole table back in one place is what makes a wrong number
+    // obvious rather than discoverable months later from a bill.
+    const seen = {};
+    for (const [who, plan, want] of [
+      ['an invited guest', 'comp', 0.90],
+      ['a Trip Pass', 'trip-pass', 0.90],
+      ['a Day Pass', 'day-pass', 2.50],
+      ['a Season Pass', 'season-pass', 0.45],
+      ['a Year Pass', 'year-pass', 0.35],
+    ]) {
+      const e = `tbl-${plan}@test.dev`;
+      db.users.create(e, 's', 'x', 1); db.users.markVerified(e);
+      db.users.grant(e, plan, Date.now() + 30 * 86400000);
+      const b = await fetch(`${B}/api/mila/budget`, { headers: { 'x-session': tokenFor(e) } }).then((r) => r.json());
+      seen[plan] = b.budget;
+      check(`${who}: $${want.toFixed(2)}/day`, b.budget === want, JSON.stringify(b));
+    }
+    // The one that matters most: an invitation must not run out before the
+    // thing it is inviting somebody to try.
+    check('a guest is never worse off than a paying visitor', seen.comp >= seen['trip-pass'],
+      `comp ${seen.comp} vs trip-pass ${seen['trip-pass']}`);
+  }
+
+  console.log('\n[the warning arrives before the wall]');
+  {
+    // The alert email is the warning and the global cap is the wall. Raising
+    // the cap without raising the alert leaves a warning that fires every day
+    // until nobody reads it; raising the alert without the cap leaves one that
+    // arrives too late to do anything with. They move together or not at all.
+    // The DEFAULTS, not this run's env overrides -- the relationship has to
+    // hold for the numbers that actually ship.
+    const { _defaults } = require('../server.js');
+    check('the alert fires below the hard cap', _defaults.alertUsd < _defaults.globalDailyUsd,
+      JSON.stringify(_defaults));
+    check('and not so far below it that it cries wolf', _defaults.alertUsd >= _defaults.globalDailyUsd / 3,
+      JSON.stringify(_defaults));
+    check('the operator alone cannot spend the product\'s whole day',
+      _defaults.devUsd < _defaults.globalDailyUsd, JSON.stringify(_defaults));
+  }
+
   console.log('\n[the operator is not a stranger]');
   {
     // Reported from production: the owner of the site, signed in as himself,
