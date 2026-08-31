@@ -455,6 +455,10 @@
   .planai-role img { border-radius: 50%; flex: 0 0 auto; margin-top: .12rem; }
   .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
   .planai-off { color: var(--muted); font-size: .92rem; margin: 0; }
+  /* Mila's own suggestion on a day she could not fill -- set apart from the
+     explanation above it, because one is the problem and the other is a
+     proposal the reader can take in a tap. */
+  .fillsug { margin: .55rem 0 .7rem; }
   /* Her read of this same plan, replayed because she could not be reached.
      Set apart from her prose below it so nobody mistakes the label for
      something she said. */
@@ -3402,7 +3406,12 @@
 
   // Why the day came back empty, in the visitor's terms, with the one action
   // that fixes it. Used by every path in buildPlan that cannot produce stops.
-  function explainEmptyPlan() {
+  // `stage` says which of the two dead ends we came from, because they are not
+  // the same failure and were being reported as if they were. 'nothing-picked'
+  // fires BEFORE the schedule loop runs at all -- there was nothing to place --
+  // so blaming the arrival and departure times, as this used to, sends the
+  // reader off to fiddle with a clock that was never the problem.
+  function explainEmptyPlan(stage = 'no-steps') {
     const doneSet = new Set(doneOrder);
     const usable = rides.filter((r) => !doneSet.has(r.name));
     const doneAll = rides.length > 0 && !usable.length;
@@ -3414,26 +3423,54 @@
     const pickedUsable = usable.filter((r) => pickedNames.has(r.name));
     const closedLong = !doneAll && !filtered && pickedUsable.length > 0
       && pickedUsable.every((r) => shutLong.has(r.name) && !r.open);
-    const tooShort = !doneAll && !filtered && !closedLong;
+    // Nothing was left to schedule: either none were ticked, or the ones that
+    // were have all been ridden already.
+    const nonePicked = stage === 'nothing-picked' && !doneAll && !filtered && !closedLong;
+    // The usual reason nothing could be picked: the feed says the whole park
+    // is shut. Naming it beats guessing at the visitor's clock.
+    const nothingOpen = usable.length > 0 && !usable.some((r) => r.open);
+    const tooShort = !doneAll && !filtered && !closedLong && !nonePicked;
     const why = doneAll
       ? tr('You have already ticked off every attraction here — nothing left to queue for!')
       : filtered
         ? tr('Your current filters rule out every attraction in this park.')
         : closedLong
           ? tr("The attraction(s) you picked are closed long-term — Mila won't route you to a wall.")
-          : tr('Nothing fits between your arrival and departure times yet.');
+          : nonePicked
+            ? (pickedNames.size
+                ? tr('Everything you picked is already ticked off, so there is nothing left to queue for.')
+                : nothingOpen
+                  ? tr('Every attraction here is showing as closed right now, so there is nothing to queue for.')
+                  : tr('Nothing is picked yet, so there is nothing for Mila to put in order.'))
+            : tr('Nothing fits between your arrival and departure times yet.');
     const fix = doneAll
       ? tr('Untick a few in Park attractions to ride them again, or try another park.')
       : filtered
         ? tr('Widen them and Mila will fill the day.')
         : closedLong
           ? tr('Pick something else in Park attractions and plan again, or try another park.')
-          : tr('Try arriving earlier or leaving later, then plan again.');
+          : nonePicked
+            ? (pickedNames.size || nothingOpen
+                ? tr('Plan a day further ahead, or try another park.')
+                : tr('Tick the ones your group wants in Park attractions, then plan again.'))
+            : tr('Try arriving earlier or leaving later, then plan again.');
     $('plan-out').innerHTML = `<div class="plan">
       <button class="plan-x" id="plan-clear" aria-label="${tr('Dismiss plan')}">✕</button>
       <h2>${tr("Mila couldn't fill this day")}</h2>
       <p class="fillnote"><img class="mila-mini" src="/img/mila/mila-thinking-160.webp" alt="">${why} ${fix}</p>
-      ${filtered ? `<button class="btn wide" id="plan-relax">${tr('Clear filters and plan again')}</button>` : ''}</div>`;
+      ${filtered ? `<button class="btn wide" id="plan-relax">${tr('Clear filters and plan again')}</button>` : ''}
+      ${consultantOn ? `<button class="btn wide ghost2" id="plan-ask-mila">${tr('Ask Mila what to change')}</button>` : ''}</div>`;
+    // Mila stays reachable from the dead end. A day she could not fill is
+    // exactly the moment somebody wants to ask her why, and this card used to
+    // be the one place in the plan pane with no way to reach her at all.
+    const askM = document.getElementById('plan-ask-mila');
+    if (askM) askM.addEventListener('click', () => {
+      if (!window.ParkPulseChat) return toast(tr("Mila isn't available right now."));
+      const p = parks[current] || { open: 9, close: 21 };
+      ParkPulseChat.ask(`${tr("You couldn't fill this day for me at")} ${parks[current].name}${planningAhead() ? ` (${plannedDayName()})` : ''}. `
+        + `${tr('I arrive at')} ${hourLabel(+$('start-hour').value || p.open)} ${tr('and leave at')} ${hourLabel(+$('end-hour').value)}. `
+        + tr('What hours should I use, and what else would you change?'));
+    });
     const relax = document.getElementById('plan-relax');
     if (relax) relax.addEventListener('click', () => { resetFilters(); renderRides(); $('plan-day').click(); });
     const x = document.getElementById('plan-clear');
@@ -3532,7 +3569,7 @@
     // Nothing to route. This bare `return` is where every silent "Plan it for
     // me" failure ended: no stops, no message, an untouched pane, and a button
     // that looked broken. Name the reason instead, and offer the way out.
-    if (!remaining.length) { explainEmptyPlan(); return; }
+    if (!remaining.length) { explainEmptyPlan('nothing-picked'); return; }
     const standbyNow = remaining.reduce((s, r) => s + r.wait, 0);
     let lunchDone = !$('lunch').checked;
     // Land clustering: switching lands costs real walking time, so a slightly
@@ -4832,7 +4869,13 @@
       const doneSet = new Set(doneOrder);
       // Same rule as buildPlan: a closed park still has a day worth planning.
       const shut = parkClosedNow();
-      const eligible = (f) => rides.filter((r) => (r.open || shut) && !doneSet.has(r.name) && f(r));
+      // What is open RIGHT NOW says nothing about a day that has not arrived.
+      // Planning next Saturday in the evening, with the park shut and every
+      // ride reading closed, picked nothing at all -- and the day came back
+      // "Mila couldn't fill this day", blaming arrival and departure times
+      // that were never the problem. buildPlan's own `plannable()` already
+      // makes this exception; the picker that feeds it did not.
+      const eligible = (f) => rides.filter((r) => (r.open || shut || planDate) && !doneSet.has(r.name) && f(r));
       // The wizard turns "we like thrill rides" into a hard filter (fVibe) and
       // strict mode into an age cap. On a park whose tags match neither, that
       // excluded every ride -- and the day came back empty with nothing said.
