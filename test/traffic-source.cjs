@@ -87,7 +87,7 @@ const visit = (path, headers = {}) => fetch(B + path, { headers: { 'user-agent':
     const email = 'attributed@test.dev';
     const res = await fetch(`${B}/api/auth/signup`, {
       method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': HUMAN },
-      body: JSON.stringify({ email, password: 'longenoughpw', device: 'd1', name: 'Ana',
+      body: JSON.stringify({ email, password: 'longenoughpw', device: 'd1', name: 'Ana', terms: true,
         src: { source: 'Reddit', medium: 'Social', campaign: 'r/WaltDisneyWorld' } }),
     });
     check('signup goes through', res.status === 200, String(res.status));

@@ -287,6 +287,45 @@ const db = require('../db.js');
     check('and gone after', !db.identities.get('google', 'sub-carol'));
   }
 
+  console.log('\n[the terms box is consent, not decoration]');
+  {
+    const signup = (body) => fetch(`${B}/api/auth/signup`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const pw = { password: 'longenoughpw', device: 'd1', name: 'Ana' };
+
+    // Enforced on the server as well as the page: this endpoint is reachable
+    // without the form, and a tick only the browser checks is a rendering
+    // choice rather than agreement.
+    let r = await signup({ email: 'consent1@example.com', ...pw });
+    check('signup without the box is refused', r.status === 400, String(r.status));
+    check('and no account is left behind', !db.users.get('consent1@example.com'));
+
+    r = await signup({ email: 'consent1@example.com', ...pw, terms: true });
+    check('with the box it goes through', r.status === 200, String(r.status));
+
+    const u = db.users.get('consent1@example.com');
+    check('the moment is recorded', Boolean(u.terms_at) && !Number.isNaN(Date.parse(u.terms_at)), String(u.terms_at));
+    // A stored "v1" nobody can map back to a wording proves nothing later, so
+    // the version is the effective date printed on the Terms themselves.
+    check('and which version they agreed to', Boolean(u.terms_version) && u.terms_version !== 'unversioned', String(u.terms_version));
+    const termsHtml = require('node:fs').readFileSync(__dirname + '/../public/terms.html', 'utf8');
+    check('taken from the Terms page itself', termsHtml.includes('Effective ' + u.terms_version), String(u.terms_version));
+
+    // An unverified signup can be retried; the consent already given is not
+    // rewritten to whatever version happens to be current on the retry.
+    const first = u.terms_at;
+    await new Promise((res) => setTimeout(res, 15));
+    await signup({ email: 'consent1@example.com', ...pw, terms: true });
+    check('a retry does not overwrite the original consent', db.users.get('consent1@example.com').terms_at === first);
+
+    // Nobody is retro-consented: an account made before the box existed keeps
+    // a null, because back-filling agreement nobody gave would be a fiction.
+    db.users.create('older@example.com', 's', 'x', 1);
+    check('accounts predating the box are not back-filled', db.users.get('older@example.com').terms_at == null,
+      String(db.users.get('older@example.com').terms_at));
+  }
+
   console.log(fail ? `\n=== ${fail} failures ===` : '\n=== they sign in, and only as themselves ===');
   provider.close();
   process.exit(fail ? 1 : 0);
