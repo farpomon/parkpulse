@@ -3425,6 +3425,17 @@ async function stripePriceCheck() {
         ...rev,
         margin: { today: margin(rev.today, ai.today), week: margin(rev.week, ai.week), month: margin(rev.month, ai.month) },
       },
+      // Can Mila answer at all, and is there budget left for her to do it?
+      // The two are separate failures that look identical to a reader.
+      mila: {
+        ...(await milaStatus()),
+        spentToday: Math.round((db.aiusage.totalOn(etNow().date) || 0) * 100) / 100,
+        dailyCap: AI_GLOBAL_DAILY_USD,
+        // Answering, but not on the tier she is supposed to. The probe above
+        // can pass and this still be set: a tier that fails intermittently
+        // answers the eight-token ping and drops a real conversation.
+        fallback: lastFallback && Date.now() - lastFallback.at < 6 * 60 * 60 * 1000 ? lastFallback : null,
+      },
       health: {
         parks,
         // Only parks actually asked for since boot have a verdict; the rest
@@ -3477,17 +3488,6 @@ async function stripePriceCheck() {
       proGate: PRO_GATE,
       freePark: FREE_PARK,
       planCount: PLAN_CATALOG.length,
-      // Can Mila answer at all, and is there budget left for her to do it?
-      // The two are separate failures that look identical to a reader.
-      mila: {
-        ...(await milaStatus()),
-        spentToday: Math.round((db.aiusage.totalOn(etNow().date) || 0) * 100) / 100,
-        dailyCap: AI_GLOBAL_DAILY_USD,
-        // Answering, but not on the tier she is supposed to. The probe above
-        // can pass and this still be set: a tier that fails intermittently
-        // answers the eight-token ping and drops a real conversation.
-        fallback: lastFallback && Date.now() - lastFallback.at < 6 * 60 * 60 * 1000 ? lastFallback : null,
-      },
       stripe: await stripeStatus(),
       pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
