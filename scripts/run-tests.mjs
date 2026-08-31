@@ -41,6 +41,7 @@ const OWN_SERVER = [
   ['adminops', 'test/admin-ops.cjs'],
   ['livestrip', 'test/live-strip.cjs'],
   ['milabudget', 'test/mila-budget.cjs'],
+  ['milafall', 'test/mila-fallback.cjs'],
   ['dining', 'test/dining-guide.cjs'],
   ['traffic', 'test/traffic-source.cjs'],
   ['soon', 'test/coming-soon.cjs'],
@@ -82,7 +83,7 @@ async function waitForServer(ms = 30000) {
 // from something else takes one and the failure that follows says only
 // EADDRINUSE, three hundred lines up from the summary -- so say it here,
 // before anything runs, and name the port.
-const OWN_PORTS = { adminai: 9691, adminops: 9689, livestrip: 9687, milabudget: 9685, dining: 9681, traffic: 9675, soon: 9671, soonoff: 9670, stripe: 9667, stripenokey: 9666, gateon: 9665, oauth: 9693, cache: null, card: null, emaillinks: 9698 };
+const OWN_PORTS = { adminai: 9691, adminops: 9689, livestrip: 9687, milabudget: 9685, milafall: 9661, dining: 9681, traffic: 9675, soon: 9671, soonoff: 9670, stripe: 9667, stripenokey: 9666, gateon: 9665, oauth: 9693, cache: null, card: null, emaillinks: 9698 };
 async function portFree(port) {
   try {
     await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(700) });

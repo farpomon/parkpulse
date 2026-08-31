@@ -215,6 +215,12 @@ await visit('plan · Mila out of budget', async () => {
     error: 'Mila is having a little rest — everything else still works. Try her again shortly.',
     milaRest: 'global', spent: 50, budget: 50 }) }));
 }, 3000);
+// Her read of the same plan, replayed because she could not be reached. The
+// label is the only part of it we write, and it is the part a reader needs.
+await visit('plan · Mila replayed read', async () => {
+  await rebuildWith((r) => r.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' },
+    body: 'event: stale\ndata: {"at":1}\n\nevent: delta\ndata: {"text":"Um comentario da Mila."}\n\nevent: done\ndata: {}\n\n' }));
+}, 3000);
 await visit('plan · Mila upstream failure', async () => {
   await rebuildWith((r) => r.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' },
     body: `event: error\ndata: ${JSON.stringify({ error: "Mila's key isn't being accepted right now — the operator has been told." })}\n\n` }));

@@ -51,6 +51,9 @@
   .meter { height: 6px; border-radius: 4px; background: var(--brand); opacity: .8; min-width: 2px; }
   .ok { color: var(--good); font-weight: 700; }
   .no { color: var(--bad); font-weight: 700; }
+  /* Working, but not the way it is supposed to -- its own state, because
+     reading it as green loses the whole point of saying it. */
+  .warn { color: #b26a00; font-weight: 700; }
   .muted { color: var(--muted); }
   .fb { display: flex; gap: 1.5rem; font-size: 1.05rem; font-weight: 800; }
   .quote { border-left: 3px solid var(--border); margin: .5rem 0; padding: .1rem .7rem; font-size: .85rem; color: var(--muted); }
@@ -377,8 +380,15 @@ function renderOps(d) {
     ? `<span class="no">\u25cf</span> <b>Mila cannot answer</b> \u2014 ${esc(mi.reason || 'unknown')}. ${esc(mi.detail || '')}`
     : capLeft <= 0
       ? `<span class="no">\u25cf</span> Mila is answering, but <b>today's ${usd(mi.dailyCap)} cap is spent</b> (${usd(mi.spentToday)}) \u2014 she is turning everyone away until midnight ET.`
-      : `<span class="ok">\u25cf</span> Mila answering \u00b7 ${esc(mi.model || '')} in ${mi.ms}ms \u00b7 `
-        + `${usd(mi.spentToday)} of ${usd(mi.dailyCap)} spent today`;
+      : mi.fallback
+        // She is answering, but not on the tier she is meant to. The probe
+        // above can pass and this still be set: a tier that fails now and
+        // then will answer an eight-token ping and drop a real conversation.
+        ? `<span class="warn">\u25cf</span> Mila answering <b>on the backup tier</b> \u2014 `
+          + `${esc(mi.fallback.from)} returned ${esc(String(mi.fallback.status || 'an error'))}, answered on ${esc(mi.fallback.to)}. `
+          + `${esc(mi.fallback.detail || '')}`
+        : `<span class="ok">\u25cf</span> Mila answering \u00b7 ${esc(mi.model || '')} in ${mi.ms}ms \u00b7 `
+          + `${usd(mi.spentToday)} of ${usd(mi.dailyCap)} spent today`;
 
   // The pre-launch strip, said out loud. Everyone who works on the site
   // dismissed it on day one and stops seeing it, so the only place it can be

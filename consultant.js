@@ -578,11 +578,20 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
 
   let continuations = 0;
   let continuing = false; // true while resuming a max_tokens cut — no separator
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
+  // The tier this conversation is actually running on. It starts on MODEL and
+  // drops to CATALOG_MODEL once, if the top tier will not answer at all.
+  let activeModel = MODEL;
+  let fellBack = false;
+
+  const runTurn = async (model) => {
     const stream = client.beta.messages.stream({
-      model: MODEL,
+      model,
       max_tokens: 3000,
       output_config: { effort: 'medium' },
+      // Server-side fallback covers POLICY REFUSALS -- a prompt the top tier
+      // declines is retried on a substitute. It is not an availability
+      // mechanism and does nothing for the failures below, which is why they
+      // are handled here as well.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       system: [{ type: 'text', text: systemPrompt(), cache_control: { type: 'ephemeral' } }],
@@ -601,7 +610,30 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
         send('delta', { text: ev.delta.text });
       }
     }
-    const msg = await stream.finalMessage();
+    return stream.finalMessage();
+  };
+
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
+    let msg;
+    try {
+      msg = await runTurn(activeModel);
+    } catch (err) {
+      // Drop a tier rather than hand back an apology -- but only for the
+      // failures a DIFFERENT MODEL can actually survive. A rejected key, an
+      // empty balance or a malformed request will fail exactly the same way
+      // one tier down, so retrying those would buy a second failure and a
+      // second delay. Capacity, an upstream wobble, and a tier this key is
+      // not entitled to are the three that a substitute answers.
+      const status = err?.status || err?.statusCode || null;
+      const survivable = status === 404 || status === 408 || status === 429 || status >= 500;
+      // And only before a single word of this turn has reached the reader:
+      // retrying after that would repeat text they have already seen.
+      if (fellBack || turnEmitted || !survivable) throw err;
+      fellBack = true;
+      activeModel = CATALOG_MODEL;
+      try { if (deps && deps.noteFallback) deps.noteFallback(MODEL, CATALOG_MODEL, status, err.message); } catch {}
+      msg = await runTurn(activeModel);
+    }
     noteUsage('advisor', msg, email);
     continuing = false;
 

@@ -1193,6 +1193,12 @@ function planAdviceSig(parts) {
 // barely moves inside a day.
 const ADVICE_TTL_TODAY = 15 * 60 * 1000;
 const ADVICE_TTL_FUTURE = 12 * 60 * 60 * 1000;
+// How far back the FAILURE path will reach for a read of the same plan. Longer
+// than either window above on purpose: the choice there is between fresh
+// advice and slightly older advice, and the answer is fresh. Here the choice
+// is between older advice and no advice, and the answer is different. Bounded
+// by the prune horizon, so nothing is served that the sweep has thrown away.
+const ADVICE_TTL_STALE = 24 * 60 * 60 * 1000;
 
 // One sanitizer for every place a client hands us a plan: the email endpoint,
 // the saved-plans store, and (indirectly) the night-before mailer that replays
@@ -3095,7 +3101,21 @@ consultant.init({
   tagsFor: (slug) => { try { return JSON.parse(db.ridetags.get(slug) || 'null'); } catch { return null; } },
   createAlert: (subscription, park, ride, threshold) => db.alerts.add(subscription, park, ride, threshold),
   saveMemory: (email, notes) => db.advisor.setMemory(email, notes),
+  // Mila dropped a tier to answer. The visitor got a real answer and does not
+  // need telling; the operator does, because a fallback that nobody sees is a
+  // top tier that has quietly stopped working -- and the bill changes shape
+  // underneath, since the spend report will start attributing 'advisor' to a
+  // model nobody chose.
+  noteFallback: (from, to, status, detail) => {
+    lastFallback = { at: Date.now(), from, to, status, detail: String(detail || '').slice(0, 160) };
+    console.log(`consultant fallback: ${from} -> ${to} after ${status ?? 'none'}: ${detail}`);
+    upstream.service('anthropic', false, `${from} unavailable (${status ?? 'none'}) — answered on ${to}`);
+  },
 });
+// The most recent tier drop, for the dashboard. Deliberately not persisted: it
+// is a "is this happening right now" signal, and the spend report is where the
+// durable record of which model answered already lives.
+let lastFallback = null;
 
 // Canonical host: when CANONICAL_HOST is set (e.g. www.parkpulse.fun), GET
 // traffic arriving on any other host — the Railway domains, the bare apex —
@@ -3405,6 +3425,10 @@ async function stripePriceCheck() {
         ...(await milaStatus()),
         spentToday: Math.round((db.aiusage.totalOn(etNow().date) || 0) * 100) / 100,
         dailyCap: AI_GLOBAL_DAILY_USD,
+        // Answering, but not on the tier she is supposed to. The probe above
+        // can pass and this still be set: a tier that fails intermittently
+        // answers the eight-token ping and drops a real conversation.
+        fallback: lastFallback && Date.now() - lastFallback.at < 6 * 60 * 60 * 1000 ? lastFallback : null,
       },
       stripe: await stripeStatus(),
       pricing: await stripePriceCheck(),
@@ -5121,7 +5145,34 @@ ${sections}
               : status === 404 ? "Mila can't reach her magic right now — the operator has been told."
               : status >= 500 ? 'Your magical fairy is having trouble — try again shortly.'
               : 'Your magical fairy is having a moment — try again shortly.';
-            send('error', { error: friendly });
+            // Before apologising: do we already have her read of THIS EXACT
+            // plan? The signature covers the park, the day, the party and the
+            // running order, so a hit is not "something she once said" -- it
+            // is her verdict on the very list on screen. Serving it beats an
+            // apology on every count: it is her own voice, in the reader's own
+            // language, and it costs nothing. Only the live wait numbers she
+            // quoted have moved on, which is why it is labelled rather than
+            // passed off as fresh, and why the window is hours and not days.
+            //
+            // Nothing may have been streamed yet -- half an answer followed by
+            // a different whole one is worse than either.
+            const stale = !replyText.trim() && adviceSig
+              ? (() => { try { return db.planadvice.get(adviceSig, ADVICE_TTL_STALE); } catch { return null; } })()
+              : null;
+            if (stale) {
+              // `stale` first, so the client can label it before a word of her
+              // prose arrives.
+              send('stale', { at: Date.now() });
+              send('delta', { text: stale.text });
+              for (const a of stale.actions) send('action', a);
+              send('done', {});
+            } else {
+              send('error', { error: friendly });
+              // A free wish buys ONE answer a day. Spending it on an apology
+              // takes the day's magic and gives nothing back, so an ask that
+              // produced no answer at all is not charged for.
+              if (freeWish) { try { db.kv.del(freeWish.key); } catch {} }
+            }
           }
           // Bank the review so the next identical ask is free. Only when every
           // action was side-effect-free: a turn that created a wait alert must
@@ -5331,6 +5382,7 @@ server.listen(PORT, bootBanner);
 // belief that somebody is watching.
 module.exports = { _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
+  _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.
   _clearStripeStatusCache: () => { stripeStatusCache = { at: 0, val: null }; } };

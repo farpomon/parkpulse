@@ -455,6 +455,11 @@
   .planai-role img { border-radius: 50%; flex: 0 0 auto; margin-top: .12rem; }
   .planai-b p { margin: 0 0 .55rem; } .planai-b p:last-child { margin-bottom: 0; }
   .planai-off { color: var(--muted); font-size: .92rem; margin: 0; }
+  /* Her read of this same plan, replayed because she could not be reached.
+     Set apart from her prose below it so nobody mistakes the label for
+     something she said. */
+  .planai-stale { color: var(--muted); font-size: .86rem; margin: 0 0 .7rem; padding: 0 0 .6rem;
+    border-bottom: 1px solid var(--border); }
   /* Offering Mila rather than reporting a failure -- same size as the
      unavailable message, but in body colour, because nothing is wrong. */
   .planai-recheck { color: var(--ink); font-size: .92rem; margin: 0; }
@@ -3135,6 +3140,12 @@
       }
 
       state.textContent = '';
+      // Set when the server tells us this is her read of the SAME plan from
+      // earlier, served because she could not be reached now. Her prose is
+      // genuine and matches the list on screen; only the live minutes she
+      // quoted have moved on, so it is labelled rather than passed off as
+      // fresh.
+      let staleHtml = '';
       body.innerHTML = planIntroHtml + '<p></p>';
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -3153,7 +3164,10 @@
           }
           if (!data) continue;
           let payload; try { payload = JSON.parse(data); } catch { continue; }
-          if (ev === 'delta' && payload.text) { aiPlanText += payload.text; body.innerHTML = planIntroHtml + mdLite(aiPlanText); }
+          if (ev === 'delta' && payload.text) { aiPlanText += payload.text; body.innerHTML = planIntroHtml + staleHtml + mdLite(aiPlanText); }
+          else if (ev === 'stale') {
+            staleHtml = `<p class="planai-stale"><img class="mila-mini" src="/img/mila/mila-nervous-160.webp" alt=""> ${esc(tr("Mila couldn't be reached just now — this is her read of this exact plan, from earlier. The live waits may have moved since."))}</p>`;
+          }
           else if (ev === 'action') actions.push(payload);
           // The server reports its own failures as an SSE error event. This
           // used to be dropped on the floor, the panel hid itself, and an
@@ -3163,7 +3177,10 @@
         }
       }
       if (!aiPlanText.trim()) return fail(tr("Mila couldn't be reached — the plan below still stands."));
-      cacheAdvice(aiPlanKey, aiPlanText);
+      // A replayed read is not banked again: the next build should go back to
+      // the server and find out whether she is answering yet, rather than keep
+      // handing back the same old words with the label quietly dropped.
+      if (!staleHtml) cacheAdvice(aiPlanKey, aiPlanText);
       $('planbase-h').style.display = '';
       setPlanCredit(planAdopted);
       const proposal = actions.find((a) => a.type === 'plan' && Array.isArray(a.rides) && a.rides.length);

@@ -166,6 +166,19 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
     const feats = db.aiusage.byFeature(today, today).map((r) => r.feature);
     check('the probe bills itself like any other call', feats.includes('health-ping'), JSON.stringify(feats));
+
+    // Answering, but a tier down. The probe above can pass while this is true
+    // -- a tier that fails intermittently answers an eight-token ping and
+    // drops a real conversation -- so it is its own line, not a shade of green.
+    aiMode = 'ok'; server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('no fallback is claimed when there has not been one', !m.fallback, JSON.stringify(m.fallback));
+    server._noteFallbackForTest('claude-opus-5', 'claude-sonnet-5', 404, 'model not found');
+    server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('a tier drop is reported even though she is answering',
+      m.ok === true && m.fallback && m.fallback.to === 'claude-sonnet-5' && m.fallback.status === 404,
+      JSON.stringify(m.fallback));
   }
 
   console.log(`\n=== ${fail ? fail + ' failed' : 'the dashboard says what the AI costs'} ===`);
