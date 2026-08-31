@@ -495,7 +495,7 @@
   "Tap to change your group": "আপনার দল বদলাতে ট্যাপ করুন",
   "Tell Mila 'go!' and she'll conjure your best day ever — every ride in the right order, every crowd politely avoided.": "মিলাকে বলুন \"চলো!\", ও আপনার সেরা দিনটা হাজির করবে — প্রতিটা রাইড ঠিক ক্রমে, প্রতিটা ভিড় ভদ্রভাবে এড়িয়ে।",
   "Tell me who you are, and I'll remember your whole crew ✨": "বলুন আপনি কে, আমি আপনাদের গোটা দলটাই মনে রাখব ✨",
-  "Terms": "শর্তাবলী",
+  "Terms": "শর্তাবলি",
   "Text your magical fairy — she knows your park, group and plan.": "আপনার জাদুকরী পরীকে মেসেজ করুন — সে আপনার পার্ক, দল ও পরিকল্পনা জানে।",
   "Thanks — I'll do better.": "ধন্যবাদ — আরও ভালো করব।",
   "Thanks — that helps everyone here.": "ধন্যবাদ — এতে এখানকার সবার উপকার হয়।",
@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "হোটেলের অতিথিরা ১৫ মিনিট আগে ঢোকেন — কাজে লাগান।",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park}-এ Lightning Lane / Premier Access সেদিনই পার্ক অ্যাপে কেনা হয় — আগাম কোনো উইন্ডো নেই। টাকা দেওয়ার আগে সেই সকালের লাইভ মতামত দেখুন।",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} লাইন এড়ানোর সুবিধা সেদিনই বিক্রি করে (অ্যাপ বা গেটে) — আগাম বুকিং লাগে না।",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "রিসোর্টের হোটেলে থাকা অতিথিরা সাধারণত আগে ঢোকেন: প্রথম ঘণ্টাটা বড় রাইডে দিন, তাহলে পাসের দরকারই না-ও হতে পারে।"
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "রিসোর্টের হোটেলে থাকা অতিথিরা সাধারণত আগে ঢোকেন: প্রথম ঘণ্টাটা বড় রাইডে দিন, তাহলে পাসের দরকারই না-ও হতে পারে।",
+  "Re-enter password": "পাসওয়ার্ড আবার লিখুন",
+  "Those two passwords do not match.": "দুটি পাসওয়ার্ড মিলছে না।",
+  "I have read and accept the {terms} and the {privacy}.": "আমি {terms} ও {privacy} পড়েছি এবং মেনে নিচ্ছি।",
+  "Privacy Policy": "গোপনীয়তা নীতি",
+  "Please accept the Terms and Privacy Policy to continue.": "চালিয়ে যেতে শর্তাবলি ও গোপনীয়তা নীতি মেনে নিন।",
+  "please accept the terms to create an account": "অ্যাকাউন্ট তৈরি করতে শর্তাবলি মেনে নিন",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "এটি প্রকাশ্য তথ্য থেকে তৈরি একটি পরিকল্পনা সহায়ক, যা ভুল বা পুরনো হতে পারে। সময়, উচ্চতার নিয়ম, বন্ধ থাকা ও দাম বিনা নোটিশে বদলায় — যাওয়ার আগে আপনি যার উপর নির্ভর করছেন তা পার্কের নিজস্ব অ্যাপে যাচাই করুন।"
 }

@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "Otel misafirleri 15 dakika erken giriyor — bunu kullanın.",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} içinde Lightning Lane / Premier Access aynı gün park uygulamasından alınır — önceden pencere yok. Ödemeden önce o sabahki canlı değerlendirmeye bakın.",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} sıra atlamayı aynı gün satıyor (uygulama ya da gişe) — önceden rezervasyon gerekmiyor.",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Tesis içi otel misafirleri genelde erken girer: o ilk saati gözde ünitelere ayırın, pass'a hiç ihtiyacınız olmayabilir."
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Tesis içi otel misafirleri genelde erken girer: o ilk saati gözde ünitelere ayırın, pass'a hiç ihtiyacınız olmayabilir.",
+  "Re-enter password": "Şifreyi tekrar girin",
+  "Those two passwords do not match.": "İki şifre birbirini tutmuyor.",
+  "I have read and accept the {terms} and the {privacy}.": "{terms} ve {privacy} belgelerini okudum ve kabul ediyorum.",
+  "Privacy Policy": "Gizlilik Politikası",
+  "Please accept the Terms and Privacy Policy to continue.": "Devam etmek için Koşulları ve Gizlilik Politikasını kabul edin.",
+  "please accept the terms to create an account": "hesap oluşturmak için koşulları kabul edin",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "Kamuya açık bilgilerden derlenmiş bir planlama yardımcısıdır; bu bilgiler yanlış ya da güncelliğini yitirmiş olabilir. Saatler, boy sınırları, kapanışlar ve fiyatlar haber verilmeden değişir — gitmeden önce güvendiğiniz her şeyi parkın kendi uygulamasından doğrulayın."
 }

@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "హోటల్ అతిథులు 15 నిమిషాలు ముందుగా ప్రవేశిస్తారు — దాన్ని వాడుకోండి.",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park}లో Lightning Lane / Premier Access ఆ రోజే పార్క్ యాప్‌లో కొంటారు — ముందస్తు విండో లేదు. చెల్లించే ముందు ఆ ఉదయపు లైవ్ అంచనా చూడండి.",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} వరుస తప్పించే సదుపాయాన్ని ఆ రోజే అమ్ముతుంది (యాప్ లేదా గేటు) — ముందస్తు బుకింగ్ అవసరం లేదు.",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ఆన్-సైట్ హోటల్ అతిథులకు సాధారణంగా ముందస్తు ప్రవేశం ఉంటుంది: ఆ మొదటి గంటను ప్రధాన రైడ్‌లకు వెచ్చిస్తే పాస్ అవసరమే ఉండకపోవచ్చు."
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ఆన్-సైట్ హోటల్ అతిథులకు సాధారణంగా ముందస్తు ప్రవేశం ఉంటుంది: ఆ మొదటి గంటను ప్రధాన రైడ్‌లకు వెచ్చిస్తే పాస్ అవసరమే ఉండకపోవచ్చు.",
+  "Re-enter password": "పాస్‌వర్డ్‌ను మళ్లీ నమోదు చేయండి",
+  "Those two passwords do not match.": "ఆ రెండు పాస్‌వర్డ్‌లు సరిపోలడం లేదు.",
+  "I have read and accept the {terms} and the {privacy}.": "నేను {terms} మరియు {privacy} చదివి అంగీకరిస్తున్నాను.",
+  "Privacy Policy": "గోప్యతా విధానం",
+  "Please accept the Terms and Privacy Policy to continue.": "కొనసాగించడానికి నిబంధనలు, గోప్యతా విధానాన్ని అంగీకరించండి.",
+  "please accept the terms to create an account": "ఖాతా సృష్టించడానికి నిబంధనలను అంగీకరించండి",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "ఇది బహిరంగ సమాచారంతో రూపొందిన ప్రణాళిక సహాయకం; అది తప్పు కావచ్చు లేదా పాతది కావచ్చు. వేళలు, ఎత్తు పరిమితులు, మూసివేతలు, ధరలు నోటీసు లేకుండా మారతాయి — బయలుదేరే ముందు మీరు ఆధారపడే దేన్నైనా పార్క్ సొంత యాప్‌లో నిర్ధారించుకోండి."
 }

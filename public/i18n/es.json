@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "Los huéspedes del hotel entran 15 minutos antes: aprovéchalo.",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "En {park}, el Lightning Lane / Premier Access se compra el mismo día en la app del parque: no hay ventana anticipada. Mira el veredicto en vivo esa mañana antes de pagar.",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} vende el salta-colas el mismo día (app o taquilla): no hace falta reservar con antelación.",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Los huéspedes del complejo suelen entrar antes: dedica esa primera hora a las grandes atracciones y quizá no necesites el pase."
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Los huéspedes del complejo suelen entrar antes: dedica esa primera hora a las grandes atracciones y quizá no necesites el pase.",
+  "Re-enter password": "Repite la contraseña",
+  "Those two passwords do not match.": "Esas dos contraseñas no coinciden.",
+  "I have read and accept the {terms} and the {privacy}.": "He leído y acepto los {terms} y la {privacy}.",
+  "Privacy Policy": "Política de Privacidad",
+  "Please accept the Terms and Privacy Policy to continue.": "Acepta los Términos y la Política de Privacidad para continuar.",
+  "please accept the terms to create an account": "acepta los términos para crear una cuenta",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "Una ayuda de planificación creada con información pública, que puede estar equivocada o desactualizada. Horarios, alturas mínimas, cierres y precios cambian sin aviso: confirma en la app oficial del parque todo aquello de lo que dependas antes de ir."
 }

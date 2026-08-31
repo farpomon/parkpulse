@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "होटल के मेहमान 15 मिनट पहले प्रवेश करते हैं — इसका फ़ायदा उठाइए।",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} में Lightning Lane / Premier Access उसी दिन पार्क ऐप में खरीदा जाता है — पहले से कोई विंडो नहीं। पैसे देने से पहले उस सुबह की लाइव राय देख लें।",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} लाइन-स्किप उसी दिन बेचता है (ऐप या गेट पर) — पहले से बुकिंग की ज़रूरत नहीं।",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ऑन-साइट होटल के मेहमानों को आमतौर पर जल्दी प्रवेश मिलता है: वह पहला घंटा बड़ी राइड पर लगाइए और शायद पास की ज़रूरत ही न पड़े।"
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ऑन-साइट होटल के मेहमानों को आमतौर पर जल्दी प्रवेश मिलता है: वह पहला घंटा बड़ी राइड पर लगाइए और शायद पास की ज़रूरत ही न पड़े।",
+  "Re-enter password": "पासवर्ड दोबारा डालें",
+  "Those two passwords do not match.": "ये दोनों पासवर्ड मेल नहीं खाते।",
+  "I have read and accept the {terms} and the {privacy}.": "मैंने {terms} और {privacy} पढ़ी है और स्वीकार करता/करती हूँ।",
+  "Privacy Policy": "गोपनीयता नीति",
+  "Please accept the Terms and Privacy Policy to continue.": "जारी रखने के लिए शर्तें और गोपनीयता नीति स्वीकार करें।",
+  "please accept the terms to create an account": "खाता बनाने के लिए शर्तें स्वीकार करें",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "यह सार्वजनिक जानकारी से बना एक योजना सहायक है, जो गलत या पुरानी हो सकती है। समय, ऊँचाई सीमा, बंदी और कीमतें बिना सूचना बदलती हैं — जाने से पहले जिस पर भी आप निर्भर हैं उसे पार्क के अपने ऐप में पुष्टि कर लें।"
 }

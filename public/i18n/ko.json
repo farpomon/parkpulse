@@ -495,7 +495,7 @@
   "Tap to change your group": "탭해서 일행 바꾸기",
   "Tell Mila 'go!' and she'll conjure your best day ever — every ride in the right order, every crowd politely avoided.": "밀라에게 \"출발!\"이라고 하면 최고의 하루를 불러냅니다. 모든 어트랙션을 알맞은 순서로, 모든 인파는 정중히 피해서요.",
   "Tell me who you are, and I'll remember your whole crew ✨": "누구신지 알려주시면 일행 모두를 기억할게요 ✨",
-  "Terms": "약관",
+  "Terms": "이용약관",
   "Text your magical fairy — she knows your park, group and plan.": "마법 요정에게 문자하세요 — 파크, 일행, 일정을 알고 있어요.",
   "Thanks — I'll do better.": "감사합니다 — 더 잘하겠습니다.",
   "Thanks — that helps everyone here.": "고맙습니다. 여기 계신 모두에게 도움이 됩니다.",
@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "호텔 투숙객은 15분 일찍 입장해요 — 꼭 활용하세요.",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park}의 라이트닝 레인 / 프리미어 액세스는 당일 파크 앱에서 구매해요 — 사전 예약 창구는 없습니다. 결제 전에 그날 아침 실시간 판단을 확인하세요.",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park}는 대기열 건너뛰기를 당일 판매해요 (앱 또는 매표소) — 사전 예약이 필요 없습니다.",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "리조트 내 투숙객은 대개 조기 입장이 가능해요: 그 첫 한 시간을 인기 어트랙션에 쓰면 패스가 아예 필요 없을 수도 있어요."
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "리조트 내 투숙객은 대개 조기 입장이 가능해요: 그 첫 한 시간을 인기 어트랙션에 쓰면 패스가 아예 필요 없을 수도 있어요.",
+  "Re-enter password": "비밀번호 다시 입력",
+  "Those two passwords do not match.": "두 비밀번호가 일치하지 않습니다.",
+  "I have read and accept the {terms} and the {privacy}.": "{terms} 및 {privacy}을(를) 읽고 동의합니다.",
+  "Privacy Policy": "개인정보 처리방침",
+  "Please accept the Terms and Privacy Policy to continue.": "계속하려면 이용약관과 개인정보 처리방침에 동의해 주세요.",
+  "please accept the terms to create an account": "계정을 만들려면 약관에 동의해 주세요",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "공개된 정보로 만든 계획 보조 도구이며, 내용이 틀리거나 오래되었을 수 있어요. 운영 시간, 키 제한, 운휴, 가격은 예고 없이 바뀝니다 — 의지하는 사항은 출발 전 파크 공식 앱에서 확인하세요."
 }

@@ -208,6 +208,13 @@
   .sheet .err { color: var(--red); font-size: .85rem; min-height: 1.2em; margin: 0 0 .4rem; }
   .sheet .hint { color: var(--muted); font-size: .82rem; margin: -.2rem 0 .6rem; }
   .pwwrap { position: relative; }
+  .acct-terms { display: flex; align-items: flex-start; gap: .55rem; margin: .1rem 0 .8rem;
+    font-size: .84rem; line-height: 1.4; color: var(--muted); cursor: pointer; }
+  .acct-terms input { flex: 0 0 auto; width: 1.05rem; height: 1.05rem; margin-top: .1rem;
+    accent-color: var(--brand); }
+  .acct-terms a { color: var(--brand); font-weight: 700; }
+  .btn.needs-consent { opacity: .55; }
+  .hint.err { color: var(--red); }
   .pwwrap input { padding-inline-end: 2.8rem; }
   .pweye { position: absolute; inset-inline-end: .3rem; top: .32rem; border: 0; background: none; font-size: 1.1rem; padding: .35rem .5rem; cursor: pointer; opacity: .55; }
   .pweye.on { opacity: 1; }
@@ -370,6 +377,9 @@
   .pip-av { border-radius: 50%; border: 1.5px solid var(--border); flex: 0 0 auto; }
   /* The row holds the avatar; the span holds only text, so the credit can be
      retexted with textContent without wiping the image out of it. */
+  .plandisc { margin: 1rem 0 0; padding-top: .7rem; border-top: 1px solid var(--border);
+    font-size: .72rem; line-height: 1.45; color: var(--muted); }
+  .plandisc a { color: var(--muted); text-decoration: underline; }
   .planby-row { display: flex; align-items: center; gap: .35rem; font-size: .76rem; color: var(--muted);
     margin: -.15rem 0 .5rem; }
   .planby { min-width: 0; }
@@ -1303,6 +1313,20 @@
         <button type="button" class="pweye" id="acct-pw-eye" aria-label="Show or hide password">👁</button>
       </div>
       <p class="hint" id="acct-pw-hint" style="display:none">At least 8 characters.</p>
+      <!-- Signup only: typing a password you cannot see, once, is how people
+           lock themselves out of an account they just made. -->
+      <div class="pwwrap" id="acct-pw2-wrap" style="display:none">
+        <input type="password" id="acct-pw2" placeholder="Re-enter password" data-i18n-attr="placeholder"
+          autocomplete="new-password" minlength="8" enterkeyhint="go">
+      </div>
+      <p class="hint err" id="acct-pw2-hint" style="display:none" aria-live="polite"></p>
+      <!-- Clickwrap: an unticked box the reader has to act on, with the two
+           documents one tap away. The server records which version was
+           accepted and when; a tick with no such record proves little. -->
+      <label class="acct-terms" id="acct-terms-wrap" style="display:none">
+        <input type="checkbox" id="acct-terms">
+        <span id="acct-terms-lbl"></span>
+      </label>
       <p class="err" id="acct-err" aria-live="polite"></p>
       <button class="btn wide" type="submit" id="acct-submit">Log in</button>
     </form>
@@ -3771,6 +3795,10 @@
         <div class="mc-t"><b>${tr('That was your free wish')} ✨</b>${tr('With a pass, every day looks like this — every park, unlimited plans, me by your side till the fireworks.')}</div>
         <button class="btn" id="delight-pass">${tr('Find my pass')} ✨</button>
       </div>` : ''}
+      <!-- At the point of reliance, not buried in a document nobody opens.
+           This is where a reader forms the belief that the times are firm, so
+           it is where the correction belongs. -->
+      <p class="plandisc">${tr('A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.')} <a href="/terms" target="_blank" rel="noopener">${tr('Terms')}</a></p>
     </div>`;
     // The on-the-day choice: either button rebuilds the tail with that
     // finale, for today only — the saved preference stays 'ask'.
@@ -6493,6 +6521,29 @@
     api('/api/plans/evening-mail', { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ on: e.target.checked }) }).catch(() => {});
   });
+  // The button stays inert until the box is ticked. Disabling it outright
+  // would leave a reader tapping a dead control with no reason given, so it
+  // stays pressable and says what is missing.
+  function syncAcctSubmit() {
+    const ok = acctMode === 'login' || $('acct-terms').checked;
+    $('acct-submit').classList.toggle('needs-consent', !ok);
+    return ok;
+  }
+  $('acct-terms').addEventListener('change', () => { syncAcctSubmit(); $('acct-err').textContent = ''; });
+  // Told while typing, not on submit: finding out at the end that the two do
+  // not match means retyping both.
+  const pwMatch = () => {
+    if (acctMode === 'login') return true;
+    const a = $('acct-pw').value, b = $('acct-pw2').value;
+    const hint = $('acct-pw2-hint');
+    if (!b) { hint.style.display = 'none'; return false; }
+    const same = a === b;
+    hint.style.display = same ? 'none' : '';
+    hint.textContent = same ? '' : tr('Those two passwords do not match.');
+    return same;
+  };
+  $('acct-pw2').addEventListener('input', pwMatch);
+  $('acct-pw').addEventListener('input', () => { if ($('acct-pw2').value) pwMatch(); });
   $('acct-cancel').addEventListener('click', closeAcct);
   $('acct-forgot').addEventListener('click', async () => {
     const email = $('acct-email').value.trim();
@@ -6520,6 +6571,19 @@
     $('acct-name').style.display = login ? 'none' : '';
     $('acct-name-hint').style.display = login ? 'none' : '';
     $('acct-pw-hint').style.display = login ? 'none' : '';
+    $('acct-pw2-wrap').style.display = login ? 'none' : '';
+    $('acct-pw2').required = !login;
+    $('acct-pw2-hint').style.display = 'none';
+    $('acct-pw2').value = '';
+    $('acct-terms-wrap').style.display = login ? 'none' : '';
+    $('acct-terms').checked = false;
+    // The two documents, linked, inside the sentence being agreed to -- not a
+    // reference to something elsewhere on the page.
+    $('acct-terms-lbl').innerHTML = trf('I have read and accept the {terms} and the {privacy}.', {
+      terms: `<a href="/terms" target="_blank" rel="noopener">${tr('Terms')}</a>`,
+      privacy: `<a href="/privacy" target="_blank" rel="noopener">${tr('Privacy Policy')}</a>`,
+    });
+    syncAcctSubmit();
     $('acct-forgot').parentElement.style.display = login ? '' : 'none';
     $('acct-err').textContent = '';
     const am = document.getElementById('acct-mila-txt');
@@ -6541,6 +6605,18 @@
   $('acct-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('acct-err').textContent = '';
+    if (acctMode === 'signup') {
+      if (!syncAcctSubmit()) {
+        $('acct-err').textContent = tr('Please accept the Terms and Privacy Policy to continue.');
+        $('acct-terms').focus();
+        return;
+      }
+      if (!pwMatch()) {
+        $('acct-err').textContent = tr('Those two passwords do not match.');
+        $('acct-pw2').focus();
+        return;
+      }
+    }
     $('acct-submit').disabled = true;
     $('acct-submit').textContent = acctMode === 'login' ? tr('Logging in…') : tr('Creating account…');
     try {
@@ -6548,9 +6624,10 @@
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: $('acct-email').value, password: $('acct-pw').value, device: deviceId,
-          // Only on signup: this is where the account is born, and first-touch
-          // is stamped once and never revised.
-          ...(acctMode === 'signup' && { name: $('acct-name').value, src: firstTouch }) }),
+          // Only on signup: this is where the account is born, first-touch is
+          // stamped once and never revised, and the consent is recorded
+          // against the version of the Terms this page showed.
+          ...(acctMode === 'signup' && { name: $('acct-name').value, src: firstTouch, terms: true }) }),
       });
       const data = await res.json();
       if (!res.ok) { $('acct-err').textContent = data.error || tr('Something went wrong.'); return; }

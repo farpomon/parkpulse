@@ -241,6 +241,13 @@ for (const ddl of [
   // and carried through to signup. Last-touch would credit whatever they typed
   // into the address bar on the day they finally paid; first-touch credits
   // whatever actually found them.
+  // What the account agreed to, and when. A ticked box with no record of which
+  // version was ticked is most of the way to worthless: the enforceable fact
+  // is that THIS person accepted THAT text on THAT date. terms_at is null for
+  // accounts created before the box existed -- they are not retro-consented,
+  // because that would be a fiction.
+  "ALTER TABLE users ADD COLUMN terms_at TEXT",
+  "ALTER TABLE users ADD COLUMN terms_version TEXT",
   "ALTER TABLE users ADD COLUMN signup_source TEXT",
   "ALTER TABLE users ADD COLUMN signup_medium TEXT",
   "ALTER TABLE users ADD COLUMN signup_campaign TEXT",
@@ -417,6 +424,9 @@ const users = {
     db.prepare('UPDATE users SET salt = ?, hash = ?, reset_token = NULL, reset_exp = NULL, verified = 1 WHERE email = ?').run(salt, hash, email),
   // Password change that does NOT vouch for the email — used when an
   // unverified signup retries; the code check still gates verification.
+  acceptTerms: (email, version) =>
+    db.prepare('UPDATE users SET terms_at = ?, terms_version = ? WHERE email = ? AND terms_at IS NULL')
+      .run(new Date().toISOString(), version, email).changes,
   setName: (email, name) => db.prepare('UPDATE users SET name = ? WHERE email = ?').run(name, email),
   setPassword: (email, salt, hash) =>
     db.prepare('UPDATE users SET salt = ?, hash = ? WHERE email = ?').run(salt, hash, email),

@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "ホテル宿泊者は15分早く入園できます — 活用を。",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} のライトニング・レーン／プレミアアクセスは当日、パークのアプリで購入します — 事前枠はありません。支払う前にその朝のライブ判定を確認して。",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} は当日、列をスキップする商品をアプリまたはゲートで販売します — 事前予約は不要です。",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "オンサイト宿泊者はたいてい早く入れます。その最初の1時間を人気アトラクションに使えば、パスは要らないかもしれません。"
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "オンサイト宿泊者はたいてい早く入れます。その最初の1時間を人気アトラクションに使えば、パスは要らないかもしれません。",
+  "Re-enter password": "パスワードを再入力",
+  "Those two passwords do not match.": "2つのパスワードが一致しません。",
+  "I have read and accept the {terms} and the {privacy}.": "{terms}と{privacy}を読み、同意します。",
+  "Privacy Policy": "プライバシーポリシー",
+  "Please accept the Terms and Privacy Policy to continue.": "続けるには、利用規約とプライバシーポリシーに同意してください。",
+  "please accept the terms to create an account": "アカウント作成には利用規約への同意が必要です",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "公開情報から組み立てた計画の補助であり、内容が誤っていたり古かったりすることがあります。営業時間、身長制限、休止、価格は予告なく変わります — 頼りにすることは出発前にパーク公式アプリでご確認を。"
 }

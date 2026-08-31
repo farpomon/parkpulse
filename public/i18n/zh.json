@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "酒店住客可提前 15 分钟入园——好好利用。",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "在 {park}，Lightning Lane / Premier Access 当天在乐园 App 购买——没有提前预约窗口。付钱前先看当天早上的实时判断。",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} 当天出售快速通行（App 或门口）——无需提前预订。",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "园区内住客通常可提前入园：把第一个小时用在热门项目上，也许根本不需要买通行证。"
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "园区内住客通常可提前入园：把第一个小时用在热门项目上，也许根本不需要买通行证。",
+  "Re-enter password": "再次输入密码",
+  "Those two passwords do not match.": "两次输入的密码不一致。",
+  "I have read and accept the {terms} and the {privacy}.": "我已阅读并接受{terms}和{privacy}。",
+  "Privacy Policy": "隐私政策",
+  "Please accept the Terms and Privacy Policy to continue.": "请接受条款和隐私政策后继续。",
+  "please accept the terms to create an account": "请接受条款以创建账户",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "这是依据公开信息生成的规划辅助，信息可能有误或过时。开放时间、身高限制、临时关闭和价格都可能随时变动——出发前请在乐园官方 App 中确认你所依赖的一切。"
 }

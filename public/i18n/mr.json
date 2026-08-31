@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "हॉटेलचे पाहुणे १५ मिनिटे आधी प्रवेश करतात — त्याचा वापर करा.",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} मध्ये Lightning Lane / Premier Access त्याच दिवशी पार्क अ‍ॅपमध्ये घेतले जाते — आगाऊ विंडो नाही. पैसे देण्याआधी त्या सकाळचे थेट मत पहा.",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} रांग टाळण्याची सोय त्याच दिवशी विकते (अ‍ॅप किंवा गेट) — आगाऊ बुकिंगची गरज नाही.",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ऑन-साइट हॉटेलच्या पाहुण्यांना सहसा लवकर प्रवेश मिळतो: तो पहिला तास मोठ्या राइडवर घालवा, मग पासची गरजच भासणार नाही."
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ऑन-साइट हॉटेलच्या पाहुण्यांना सहसा लवकर प्रवेश मिळतो: तो पहिला तास मोठ्या राइडवर घालवा, मग पासची गरजच भासणार नाही.",
+  "Re-enter password": "पासवर्ड पुन्हा टाका",
+  "Those two passwords do not match.": "हे दोन पासवर्ड जुळत नाहीत.",
+  "I have read and accept the {terms} and the {privacy}.": "मी {terms} आणि {privacy} वाचली आहे व स्वीकारतो/स्वीकारते.",
+  "Privacy Policy": "गोपनीयता धोरण",
+  "Please accept the Terms and Privacy Policy to continue.": "पुढे जाण्यासाठी अटी आणि गोपनीयता धोरण स्वीकारा.",
+  "please accept the terms to create an account": "खाते तयार करण्यासाठी अटी स्वीकारा",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "हे सार्वजनिक माहितीवरून तयार केलेले नियोजन साधन आहे, जे चुकीचे किंवा जुने असू शकते. वेळा, उंचीच्या मर्यादा, बंद असणे आणि किमती पूर्वसूचनेशिवाय बदलतात — जाण्यापूर्वी तुम्ही ज्यावर अवलंबून आहात ते पार्कच्या स्वतःच्या अ‍ॅपमध्ये तपासा."
 }

@@ -51,6 +51,16 @@ const PAYMENT_LINK = process.env.PAYMENT_LINK || '';
 // Launch-preview switch: everything is free until PRO_GATE=on is set in the
 // hosting env, which re-locks Pro features (all parks, planner, alerts).
 const PRO_GATE = process.env.PRO_GATE === 'on';
+// Which Terms a signup is agreeing to. Taken from the effective date printed
+// on /terms itself, so the recorded version and the text a reader saw cannot
+// drift apart -- a stored "v1" nobody can map back to a particular wording
+// proves nothing later.
+const TERMS_VERSION = (() => {
+  try {
+    const m = fs.readFileSync(path.join(PUBLIC_DIR, 'terms.html'), 'utf8').match(/class="date">Effective ([^<]+)</);
+    return m ? m[1].trim() : 'unversioned';
+  } catch { return 'unversioned'; }
+})();
 const FREE_PARK = 'magic-kingdom';
 
 // --- Passes & Stripe checkout ------------------------------------------------
@@ -3397,6 +3407,9 @@ async function stripePriceCheck() {
       // invisible to the UI -- the API would have answered, but the paywall
       // went up before anything was asked.
       access: hasAccess(req),
+      // The Terms the signup box is currently agreeing to, so the page and the
+      // recorded consent name the same wording.
+      termsVersion: TERMS_VERSION,
       whatsapp: WA_ENABLED && Boolean(WA_NUMBER),
       // Whether more of Mila's time can be bought at all. Without it a visitor
       // who runs out is told no with nowhere to go, which is worse than not
@@ -4428,6 +4441,10 @@ ${sections}
 
         if (url.pathname === '/api/auth/signup') {
           if (password.length < 8) return sendJson(res, 400, { error: 'password must be at least 8 characters' });
+          // Checked here as well as in the browser. A tick only the page
+          // enforces is a rendering choice, not consent -- and this endpoint is
+          // reachable without the page.
+          if (parsed.terms !== true) return sendJson(res, 400, { error: 'please accept the terms to create an account' });
           const existing = db.users.get(email);
           if (existing && existing.verified) return sendJson(res, 409, { error: 'account already exists — log in instead' });
           const salt = crypto.randomBytes(16).toString('hex');
@@ -4443,6 +4460,10 @@ ${sections}
           const ft = firstTouchOf(parsed.src);
           if (ft) { try { db.admin.attribute(email, ft.source, ft.medium, ft.campaign); } catch {} }
           db.users.setName(email, asked.name);
+          // Written once, on first acceptance, and never overwritten: what
+          // matters later is the version they agreed to at the time, not the
+          // one current when they happened to retry.
+          try { db.users.acceptTerms(email, TERMS_VERSION); } catch {}
           startVerification(email);
           return sendJson(res, 200, { pending: true, email, ...(asked.profane && { nameNote: NAME_NOTE }) });
         }

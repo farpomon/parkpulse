@@ -897,7 +897,7 @@
   "active until {date}": "ativo até {date}",
   "Active on 1 device (max 5)": "Ativa em 1 dispositivo (máx. 5)",
   "Active on {n} devices (max 5)": "Ativa em {n} dispositivos (máx. 5)",
-  "Confirm your password": "Confirma a tua palavra-passe",
+  "Confirm your password": "Confirma a tua senha",
   "1 adult": "1 adulto",
   "{n} adults": "{n} adultos",
   "1 child": "1 criança",
@@ -928,5 +928,12 @@
   "Hotel guests enter 15 minutes early — use it.": "Os hóspedes do hotel entram 15 minutos mais cedo — aproveita.",
   "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "No {park}, o Lightning Lane / Premier Access compra-se no próprio dia na app do parque — não há janela antecipada. Vê o veredito ao vivo nessa manhã antes de pagar.",
   "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "O {park} vende o corta-filas no próprio dia (app ou bilheteira) — não é preciso reservar antes.",
-  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Quem fica nos hotéis do complexo costuma entrar mais cedo: gasta essa primeira hora nas atrações principais e talvez nem precises do passe."
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Quem fica nos hotéis do complexo costuma entrar mais cedo: gasta essa primeira hora nas atrações principais e talvez nem precises do passe.",
+  "Re-enter password": "Repete a senha",
+  "Those two passwords do not match.": "Essas duas palavras-passe não coincidem.",
+  "I have read and accept the {terms} and the {privacy}.": "Li e aceito os {terms} e a {privacy}.",
+  "Privacy Policy": "Política de Privacidade",
+  "Please accept the Terms and Privacy Policy to continue.": "Aceita os Termos e a Política de Privacidade para continuar.",
+  "please accept the terms to create an account": "aceita os termos para criar uma conta",
+  "A planning aid built from public information, which can be wrong or out of date. Hours, ride heights, closures and prices change without notice — confirm anything you rely on with the park’s own app before you go.": "Uma ajuda de planeamento construída com informação pública, que pode estar errada ou desatualizada. Horários, alturas mínimas, encerramentos e preços mudam sem aviso — confirma na app do próprio parque tudo aquilo de que dependas antes de ires."
 }
