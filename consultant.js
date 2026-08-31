@@ -901,4 +901,25 @@ async function rideTags(parkName, rideNames) {
   return out;
 }
 
-module.exports = { enabled, init, consult, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+// Is the model actually answering? Asked on purpose, because every other
+// signal we have is indirect: a key that has been revoked, a balance that has
+// run out and a model that is simply slow all look identical from outside
+// until somebody's question fails. Deliberately tiny -- a handful of tokens on
+// the cheap tier -- and the caller caches it, so the cost of knowing is a
+// rounding error against the cost of not knowing.
+async function ping() {
+  const started = Date.now();
+  const msg = await client.beta.messages.create({
+    model: CATALOG_MODEL,
+    max_tokens: 8,
+    system: 'Reply with the single word: ok',
+    messages: [{ role: 'user', content: 'ping' }],
+  }, { timeout: 20000, maxRetries: 0 });
+  // Billed like anything else: a health check that hid its own cost would be
+  // lying in the one report that exists to show costs.
+  noteUsage('health-ping', msg);
+  const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+  return { model: msg.model || CATALOG_MODEL, ms: Date.now() - started, replied: Boolean(text) };
+}
+
+module.exports = { enabled, init, consult, ping, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

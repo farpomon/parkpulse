@@ -136,6 +136,7 @@
     </div>
     <div class="card" id="health-card">
       <p id="coming-soon" style="font-size:.85rem;margin:0 0 .9rem"></p>
+      <p id="mila-status" style="font-size:.85rem;margin:0 0 .9rem"></p>
       <h2>Upstream health</h2>
       <div id="health-services"></div>
       <p class="muted" style="font-size:.8rem;margin:.9rem 0 .3rem" id="health-summary"></p>
@@ -366,6 +367,18 @@ function renderOps(d) {
   $('rev-note').innerHTML = `Counts the ${nPlans || ''} catalogue plan${nPlans === 1 ? '' : 's'} only.`.replace('  ', ' ')
     + (comped ? ` <b>${comped}</b> non-revenue pass${comped === 1 ? '' : 'es'} (dev or a retired plan id) issued in the last 30 days are excluded from the money above.` : ' No dev or legacy passes issued in the last 30 days.')
     + ' Invited comps are never recorded as passes at all.';
+
+  // Can Mila answer? Asked of the model itself every ten minutes, because a
+  // key that is set is not a key that is accepted, and her failures used to go
+  // to a console nobody reads.
+  const mi = d.mila || {};
+  const capLeft = (mi.dailyCap || 0) - (mi.spentToday || 0);
+  $('mila-status').innerHTML = !mi.ok
+    ? `<span class="no">\u25cf</span> <b>Mila cannot answer</b> \u2014 ${esc(mi.reason || 'unknown')}. ${esc(mi.detail || '')}`
+    : capLeft <= 0
+      ? `<span class="no">\u25cf</span> Mila is answering, but <b>today's ${usd(mi.dailyCap)} cap is spent</b> (${usd(mi.spentToday)}) \u2014 she is turning everyone away until midnight ET.`
+      : `<span class="ok">\u25cf</span> Mila answering \u00b7 ${esc(mi.model || '')} in ${mi.ms}ms \u00b7 `
+        + `${usd(mi.spentToday)} of ${usd(mi.dailyCap)} spent today`;
 
   // The pre-launch strip, said out loud. Everyone who works on the site
   // dismissed it on day one and stops seeing it, so the only place it can be

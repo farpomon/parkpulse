@@ -3214,6 +3214,34 @@ const server = http.createServer(async (req, res) => {
 // the label and not the charge, and nothing anywhere would have said so. Read
 // once an hour, because it changes about never.
 let stripePriceCache = { at: 0, rows: null };
+let milaPingCache = { at: 0, val: null };
+// Whether Mila can actually answer, asked rather than inferred. Everything
+// else we hold is indirect: a key being present is not a key being accepted,
+// and an empty error log is not the same as a working advisor -- until this,
+// her failures were logged to the console and nowhere a person would look.
+// Cached for ten minutes, so the dashboard costs a few tokens an hour.
+async function milaStatus() {
+  if (!consultant.enabled()) return { ok: false, reason: 'no key', detail: 'ANTHROPIC_API_KEY is not set — Mila cannot answer anyone.' };
+  if (milaPingCache.val && Date.now() - milaPingCache.at < 600000) return milaPingCache.val;
+  let out;
+  try {
+    const r = await consultant.ping();
+    out = { ok: true, model: r.model, ms: r.ms };
+  } catch (err) {
+    const status = err.status || err.statusCode || null;
+    out = {
+      ok: false,
+      reason: status === 401 || status === 403 ? 'key rejected'
+        : status === 429 ? 'rate limited'
+        : status === 400 && /credit|balance|quota/i.test(err.message || '') ? 'out of credit'
+        : status >= 500 ? 'upstream down' : 'failed',
+      detail: String(err.message).slice(0, 160),
+    };
+  }
+  milaPingCache = { at: Date.now(), val: out };
+  return out;
+}
+
 let stripeStatusCache = { at: 0, val: null };
 // Is Stripe actually answering?
 //
@@ -3366,6 +3394,13 @@ async function stripePriceCheck() {
       proGate: PRO_GATE,
       freePark: FREE_PARK,
       planCount: PLAN_CATALOG.length,
+      // Can Mila answer at all, and is there budget left for her to do it?
+      // The two are separate failures that look identical to a reader.
+      mila: {
+        ...(await milaStatus()),
+        spentToday: Math.round((db.aiusage.totalOn(etNow().date) || 0) * 100) / 100,
+        dailyCap: AI_GLOBAL_DAILY_USD,
+      },
       stripe: await stripeStatus(),
       pricing: await stripePriceCheck(),
       budgets: { free: AI_BUDGET_FREE, byPlan: { ...AI_BUDGET_USD }, globalDaily: AI_GLOBAL_DAILY_USD, spentToday: db.aiusage.totalOn(etNow().date) },
@@ -5068,6 +5103,10 @@ ${sections}
             // "having a moment" told nobody anything.
             const status = err.status || err.statusCode || null;
             console.log(`consultant error: status=${status ?? 'none'} type=${err.type || err.name || 'unknown'} msg=${err.message}`);
+            // The catalogue jobs reported their failures here and the advisor
+            // never did, so Mila could be failing every question while the
+            // health panel showed nothing at all.
+            upstream.service('anthropic', false, `${status ?? 'none'}: ${err.message}`);
             const friendly = err.code === 'bad_request' ? 'invalid messages'
               : status === 401 || status === 403 ? "Mila's key isn't being accepted right now — the operator has been told."
               : status === 429 ? 'Mila is at her limit for the moment — try again shortly.'
@@ -5283,6 +5322,7 @@ server.listen(PORT, bootBanner);
 // fires is worse than no alert at all -- it is the same silence, with the
 // belief that somebody is watching.
 module.exports = { _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
+  _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.
   _clearStripeStatusCache: () => { stripeStatusCache = { at: 0, val: null }; } };

@@ -18,7 +18,13 @@ let fail = 0;
 const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== undefined ? ' — ' + d : ''}`); } else console.log(`  ok   ${l}`); };
 
 const consultant = require('../consultant.js');
-consultant._setClient({ beta: { messages: { create: async () => ({ model: 'x', stop_reason: 'end_turn', content: [{ type: 'text', text: '.' }], usage: {} }) } } });
+let aiMode = 'ok';                       // steered per case below
+consultant._setClient({ beta: { messages: { create: async () => {
+  if (aiMode === 'ok') return { model: 'claude-sonnet-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 9, output_tokens: 2 } };
+  const e = new Error(aiMode === 'key' ? 'invalid x-api-key' : aiMode === 'credit' ? 'your credit balance is too low' : 'upstream exploded');
+  e.status = aiMode === 'key' ? 401 : aiMode === 'credit' ? 400 : 503;
+  throw e;
+} } } });
 const db = require('../db.js');
 
 const B = 'http://127.0.0.1:9691';
@@ -106,6 +112,43 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     // drew a chart ending on their tomorrow for anyone east of New York.
     check('the chart is anchored on the report day, not the browser clock',
       !/for \(let i = 13; i >= 0; i--\) \{\s*const day = new Date\(Date\.now\(\)/.test(html), 'Date.now() drives the AI chart');
+  }
+
+  console.log('\n[whether Mila can actually answer]');
+  {
+    // Every other signal is indirect: a key being SET is not a key being
+    // accepted, and an empty error log is not a working advisor. So the
+    // dashboard asks the model, and reports what came back.
+    const server = require('../server.js');
+    const ops = () => fetch(B + '/api/admin/ops', { headers: { 'x-session': session } }).then((r) => r.json());
+
+    aiMode = 'ok'; server._clearMilaPingCache();
+    let m = (await ops()).mila;
+    check('a working model reports answering', m.ok === true, JSON.stringify(m));
+    check('and names the model that answered', /sonnet/.test(m.model || ''), String(m.model));
+    check('with today\'s spend against the cap', typeof m.spentToday === 'number' && m.dailyCap > 0, JSON.stringify({ s: m.spentToday, c: m.dailyCap }));
+
+    // The three failures that look identical to a reader and are not:
+    // a revoked key, an empty balance, and an upstream that fell over.
+    aiMode = 'key'; server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('a rejected key is named as such', m.ok === false && m.reason === 'key rejected', JSON.stringify(m));
+
+    aiMode = 'credit'; server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('an empty balance is told apart from it', m.ok === false && m.reason === 'out of credit', JSON.stringify(m));
+
+    aiMode = 'down'; server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('and an upstream failure from both', m.ok === false && m.reason === 'upstream down', JSON.stringify(m));
+
+    // Asking costs money, so it is billed like anything else -- a health check
+    // that hid its own cost would be lying in the one report meant to show costs.
+    aiMode = 'ok'; server._clearMilaPingCache();
+    await ops();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+    const feats = db.aiusage.byFeature(today, today).map((r) => r.feature);
+    check('the probe bills itself like any other call', feats.includes('health-ping'), JSON.stringify(feats));
   }
 
   console.log(`\n=== ${fail ? fail + ' failed' : 'the dashboard says what the AI costs'} ===`);
