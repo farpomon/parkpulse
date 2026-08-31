@@ -1861,11 +1861,36 @@
     if (!$('plan-out').querySelector('.plan')) buildPlan({ quiet: true });
   }
 
+  // "Now" is only an answer for today, and on any other day it was not merely
+  // wrong -- it was NaN. buildPlan reads the arrival as +value for a day that
+  // is not today, so a leftover "now" made the start time Not-a-Number: every
+  // comparison against it is false, the loop placed nothing, the "end must be
+  // after start" guard did not fire either, and the visitor got "Mila couldn't
+  // fill this day -- nothing fits between your arrival and departure times".
+  // Picking a future date and leaving the arrival alone was enough to do it.
+  //
+  // So the option only exists on the day it means something.
+  function renderArrivalOptions() {
+    const p = parks[current] || { open: 9, close: 21 };
+    const sel = $('start-hour');
+    if (!sel) return;
+    const had = sel.value;
+    const today = !planDate;
+    const hours = [];
+    for (let h = p.open; h <= p.close; h++) hours.push(h);
+    sel.innerHTML = (today ? `<option value="now">${tr('Now')}</option>` : '')
+      + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+    // Today starts now; any other day starts at the gates -- unless they had
+    // already named an hour, which survives a move between two future days.
+    const kept = had && had !== 'now' && [...sel.options].some((o) => o.value === had);
+    sel.value = today ? 'now' : (kept ? had : String(p.open));
+  }
+
   function setupPlanner() {
     const p = parks[current] || { open: 9, close: 21 };
     const hours = [];
     for (let h = p.open; h <= p.close; h++) hours.push(h);
-    $('start-hour').innerHTML = `<option value="now">${tr('Now')}</option>` + hours.slice(0, -1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+    renderArrivalOptions();
     $('end-hour').innerHTML = hours.slice(1).map((h) => `<option value="${h}">${hourLabel(h)}</option>`).join('');
     $('end-hour').value = String(p.close);
     if (p.show) {
@@ -3053,7 +3078,12 @@
     if (aiPlanAbort) aiPlanAbort.abort();
 
     box.style.display = '';
-    $('planai-state').textContent = tr('reading today…');
+    // The status line said "today" whatever day was being planned, directly
+    // under a skip-pass card that gets this right -- so the two cards
+    // contradicted each other on screen.
+    $('planai-state').textContent = planningAhead()
+      ? trf('reading {day}…', { day: plannedDayName() })
+      : tr('reading today…');
     $('planai-body').innerHTML = '<div class="planai-sk"></div><div class="planai-sk"></div><div class="planai-sk short"></div>';
     $('planai-act').innerHTML = '';
 
@@ -3517,9 +3547,14 @@
     // Planning a future day: use THAT day's expected crowds, and drop the
     // live-wait anchor — today's queues say nothing about next Saturday.
     const planDay = planDate ? (lastForecast?.days || []).find((d) => d.date === planDate) : (lastForecast?.days || [])[0];
-    let t = ($('start-hour').value === 'now' && !futureDay)
+    const arriveRaw = $('start-hour').value;
+    let t = (arriveRaw === 'now' && !futureDay)
       ? (() => { const n = parkNow(); return n.hour + Math.ceil(n.minute / 30) * 0.5; })()
-      : +$('start-hour').value;
+      // "now" on a day that is not today is meaningless, and +'now' is NaN --
+      // which silently scheduled nothing at all. The picker no longer offers
+      // it, and this makes certain no other path can reintroduce it.
+      : (arriveRaw === 'now' ? p.open : +arriveRaw);
+    if (!Number.isFinite(t)) t = p.open;
     if (t < p.open) t = p.open;
     let end = +$('end-hour').value;
     // A hard-ticket night ends the day early whether or not the planner knows
@@ -4221,9 +4256,9 @@
     // and "Remove it" then cleared the wrong day's key.
     loadLl();
     renderWeather(); // the card follows the day being planned
-    // A future day has no "now" — start at opening unless they choose otherwise.
-    if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
-    if (!planDate) $('start-hour').value = 'now';
+    // A future day has no "now" — the option is not even offered, and the day
+    // starts at the gates unless they have already named an hour.
+    renderArrivalOptions();
     renderSkip();
     // The rest of the board is written in the mode just chosen: the crowd line
     // reports that day's forecast rather than this hour, and every ride's wait
@@ -5247,7 +5282,7 @@
         const ask2 = document.getElementById('dine-ask2');
         if (ask2) ask2.addEventListener('click', (e) => {
           e.preventDefault();
-          if (window.ParkPulseChat) ParkPulseChat.ask(`Where should we eat at ${parks[current].name} today, and what needs a reservation?`);
+          if (window.ParkPulseChat) ParkPulseChat.ask(`Where should we eat at ${parks[current].name} ${planningAhead() ? `on ${plannedDayName()}` : 'today'}, and what needs a reservation?`);
         });
         return;
       }
@@ -5271,11 +5306,11 @@
             <div class="dine-blurb">${esc(r.blurb)}</div>
           </span>
         </div>`).join('')}
-      <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 ${esc(tr('Ask Mila for a dining plan for today'))}</a></p>`;
+      <p class="dine-note" style="text-align:center"><a href="#" id="dine-ask" style="color:var(--brand);font-weight:800">💬 ${esc(planningAhead() ? trf('Ask Mila for a dining plan for {day}', { day: plannedDayName() }) : tr('Ask Mila for a dining plan for today'))}</a></p>`;
     const ask = document.getElementById('dine-ask');
     if (ask) ask.addEventListener('click', (e) => {
       e.preventDefault();
-      if (window.ParkPulseChat) ParkPulseChat.ask(`Plan our meals at ${parks[current].name} today — what needs a reservation, what's best for kids, and when should we eat to dodge the rush?`);
+      if (window.ParkPulseChat) ParkPulseChat.ask(`Plan our meals at ${parks[current].name} ${planningAhead() ? `on ${plannedDayName()}` : 'today'} — what needs a reservation, what's best for kids, and when should we eat to dodge the rush?`);
     });
   }
 
@@ -6396,10 +6431,8 @@
     }
     planDate = date > parkDay() ? date : null;
     renderDayOptions();
-    // Mirror the Day dropdown's handler: a future day has no "now", and an
-    // arrival of "now" outside park hours collapses the plan to nothing.
-    if (planDate && $('start-hour').value === 'now') $('start-hour').value = String(parks[current]?.open ?? 9);
-    if (!planDate) $('start-hour').value = 'now';
+    // Mirror the Day dropdown's handler.
+    renderArrivalOptions();
     pickedNames.clear();
     for (const st of saved.stops) if (st.name) pickedNames.add(st.name);
     buildPlan({ quiet: true });

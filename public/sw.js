@@ -1,7 +1,7 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v146';
+const CACHE = 'parkpulse-v147';
 const TILES = 'pp-tiles-v1'; // OSM map tiles, capped, survives app-cache bumps
 const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json', '/chat-widget.js', '/i18n.js', '/vendor/leaflet.js', '/vendor/leaflet.css'];
 

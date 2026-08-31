@@ -51,6 +51,12 @@ async function open(query, keep = false) {
     park: localStorage.getItem('pp-park'),
     url: location.pathname + location.search,
     startHour: document.getElementById('start-hour')?.value,
+    // Whether "Now" is even on offer. Leaving it selectable on a day that is
+    // not today was not a cosmetic slip: buildPlan reads the arrival as
+    // +value, so "now" became NaN, nothing was scheduled, and the reader got
+    // "Mila couldn't fill this day -- nothing fits between your arrival and
+    // departure times". Choosing a date and touching nothing else did it.
+    hasNow: [...(document.getElementById('start-hour')?.options || [])].some((o) => o.value === 'now'),
   }));
   if (keep) return { state, errs, page, ctx };
   await ctx.close();
@@ -64,6 +70,7 @@ console.log(`\n[a link for ${TARGET}]`);
   check('the day picker offers it', state.options.includes(TARGET), state.options.join(', '));
   check('and it is the day being planned', state.day === TARGET, `picker shows "${state.day}"`);
   check('a future day opens at the gates, not "now"', state.startHour !== 'now', state.startHour);
+  check('and "now" is not even offered on a day that is not today', state.hasNow === false, String(state.hasNow));
   check('both params are cleaned off the address bar', state.url === '/app', state.url);
   check('no page errors', errs.length === 0, errs[0]);
 }
