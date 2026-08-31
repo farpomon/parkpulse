@@ -4053,8 +4053,7 @@
       if (chatCtl) chatCtl.reset();
       // Leaving a park is not losing your work there: picks and the plan are
       // stashed per park and come back — rebuilt locally, advisor text from
-      // cache — when the user returns. The board itself always shows the park
-      // just chosen, so a switch made from the Plan pane lands on attractions.
+      // cache — when the user returns.
       savePicks(plannerPark);
       if ($('plan-out').querySelector('.plan')) rememberPlanDay(plannerPark, planDate);
       $('plan-out').innerHTML = '';
@@ -4063,7 +4062,14 @@
       // trip, not to the park. Clearing it here meant that comparing two parks
       // for the Tuesday of a holiday put the reader back on today, twice, and
       // the board they were comparing was then describing the wrong day.
-      if (document.body.classList.contains('pane-plan')) setViewMode('rides');
+      //
+      // The tab survives for the same reason. Switching parks used to throw a
+      // reader out of Plan and onto attractions -- alone among the tabs, since
+      // dining and the map both stay put -- so the one comparison people
+      // actually make, the same day at two parks, could not be made without
+      // navigating back every time. Which park is showing and which tab is
+      // open are two different questions, and choosing a park is not an answer
+      // to the second.
     }
     if (plannerPark !== current) { setupPlanner(); restorePicks(current); loadLl(); plannerPark = current; }
     if (!opts.silent) {
@@ -5181,7 +5187,14 @@
           throw new Error('timeout');
         }
         if (!r.ok) throw new Error();
-        diningCache[key] = await r.json();
+        // A 200 is not a guide. Everything below reads d.list without asking,
+        // so a well-formed-looking response with nothing in it took the whole
+        // tab down with an uncaught error and a blank panel -- past the catch
+        // that exists precisely to offer a retry. Treat a wrong shape as the
+        // failure it is.
+        const guide = await r.json();
+        if (!guide || !Array.isArray(guide.list)) throw new Error('malformed guide');
+        diningCache[key] = guide;
       } catch {
         el.innerHTML = `<div class="state">${tr('Dining guide unavailable right now.')}<br>
           <a href="#" id="dine-retry" style="color:var(--brand);font-weight:800">${tr('Try again')}</a>

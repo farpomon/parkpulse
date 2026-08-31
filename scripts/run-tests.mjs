@@ -25,6 +25,7 @@ const DB = `/tmp/pp-suite-${process.pid}.db`;
 const SHARED_SERVER = [
   ['projected', 'test/projected-waits.mjs'],
   ['datelink', 'test/plan-date-link.mjs'],
+  ['tabkeep', 'test/tab-persists.mjs'],
   ['grouplabel', 'test/group-label.mjs'],
   ['parksearch', 'test/park-search.mjs'],
   ['picker', 'test/park-picker.mjs'],
