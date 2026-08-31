@@ -728,8 +728,13 @@ async function diningGuide(parkName, group, lang) {
     model: CATALOG_MODEL,
     max_tokens: 1500,
     output_config: { effort: 'low' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
+    // No `fallbacks` here on purpose. Server-side refusal fallback is an
+    // advisor-tier feature, and it was being sent to the catalogue tier as
+    // well -- where it buys nothing (a strict-JSON guide that gets declined
+    // should fail and be retried, not be re-run on a substitute) and where an
+    // unsupported parameter fails the call outright. Every catalogue job that
+    // sent it is one that stopped working; the one that never sent it kept
+    // working. Whatever the upstream verdict, this does not belong here.
     system: 'You produce dining guides for a theme-park app as STRICT JSON — no markdown, no code fences, no commentary. Output a JSON array of 5-8 objects: {"name": string, "type": "table"|"quick"|"character", "price": "$"|"$$"|"$$$", "blurb": string (one short sentence: cuisine + why it stands out), "mustBook": boolean (true only if reservations are genuinely hard to get)}. Include ONLY restaurants you are confident actually exist at this specific park — fewer correct entries beat more invented ones. Blurbs in the requested language; names in their official form.',
     messages: [{ role: 'user', content: `Park: ${parkName} (${group}). Language for blurbs: ${lang || 'English'}.` }],
   }, { timeout: 90000, maxRetries: 1 }); // a hung call must fail, not pin the job
@@ -901,8 +906,7 @@ async function rideTags(parkName, rideNames) {
     model: CATALOG_MODEL,
     max_tokens: 4000,
     output_config: { effort: 'low' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
+    // Same as the dining guide above: no refusal fallback on the catalogue tier.
     system: 'You classify theme-park attractions for a family app as STRICT JSON — no markdown, no commentary. Output a JSON array with one object per input attraction, same names verbatim: {"name": string, "vibe": "gentle"|"family"|"thrill"|"water"|"show", "minAge": 0|3|7|12, "sr": boolean, "land": string, "in": "indoor"|"outdoor"|"covered", "hmin": number|null, "rs": boolean, "dur": number, "load": "fast"|"medium"|"slow", "seat": string}. vibe: gentle = slow/calm (carousels, dark rides, boats); family = moderate excitement everyone rides; thrill = coasters/drops/intense; water = gets you wet; show = theater/entertainment. minAge = youngest age that genuinely enjoys it (0 anyone, 3 preschool, 7 school age, 12 teens+). sr = true ONLY if this specific attraction genuinely operates a single-rider line (e.g. VelociCoaster, Smugglers Run, Test Track, Expedition Everest, Rock \'n\' Roller Coaster); when unsure, false. land = the themed area of this park the attraction sits in, in the park\'s own naming (e.g. \'Fantasyland\', \'The Wizarding World of Harry Potter — Diagon Alley\', \'Frontier Town\'); use an empty string only if you genuinely do not know which area it is in. in = where the ride itself happens: indoor = fully enclosed and climate-controlled (dark rides, indoor coasters, theaters); outdoor = exposed to sun and rain; covered = under a roof or canopy but not climate-controlled, or an outdoor ride whose queue is mostly sheltered. This drives hot-hour and rain routing, so classify by the RIDE experience, not the queue alone. hmin = the official posted MINIMUM HEIGHT in centimeters to board at all (riding accompanied by an adult counts; ignore any taller ride-alone threshold). Use 0 when the attraction has no height requirement. Use null when you are not confident of the exact posted figure -- a parent will filter rides by this number, so a guess that is too low is worse than an honest null. NEVER round down. rs = true if the park operates rider switch / child swap at this attraction. dur = the duration of the ride itself in whole minutes (the experience, not the queue). load = how fast the queue moves for its length: fast (continuous loaders, omnimovers, big trains), medium, or slow (low capacity, long cycles). seat = the seating in a few words (e.g. \'2-across coaster car\', \'log flume bench\', \'theater seats\'). If you do not know a specific attraction, infer conservatively from its name.',
     messages: [{ role: 'user', content: `Park: ${parkName}. Attractions:\n${rideNames.map((n) => `- ${n}`).join('\n')}` }],
   });

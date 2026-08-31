@@ -23,8 +23,10 @@ const GUIDE = [
   { name: 'Be Our Guest', type: 'table', price: '$$$', blurb: 'Beast’s castle, and the only one worth the queue.', mustBook: true },
   { name: 'Columbia Harbour House', type: 'quick', price: '$', blurb: 'Upstairs is the quietest room in the park.', mustBook: false },
 ];
-consultant._setClient({ beta: { messages: { create: async () => {
+const sent = [];
+consultant._setClient({ beta: { messages: { create: async (args) => {
   calls++;
+  sent.push(args);
   if (mode === 'throw') throw new Error('invalid x-api-key');
   if (mode === 'empty') return { model: 'claude-sonnet-5', stop_reason: 'end_turn', content: [{ type: 'text', text: '[]' }], usage: { input_tokens: 10, output_tokens: 2 } };
   return { model: 'claude-sonnet-5', stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(GUIDE) }], usage: { input_tokens: 100, output_tokens: 60 } };
@@ -97,6 +99,29 @@ const settle = () => new Promise((r) => setTimeout(r, 350));
     const res = await get('epcot', 'en');
     check('a park that works still works', res.status === 200, String(res.status));
     check('after exactly one generation', calls === 1, `${calls} calls`);
+  }
+
+  console.log('\n[what the catalogue tier is actually asked for]');
+  {
+    // Reported from production: the dining guide failed on every park while
+    // Mila answered normally. The advisor and the catalogue run on DIFFERENT
+    // models, and this call was sending the advisor's server-side refusal
+    // fallback to the catalogue one -- a parameter that buys nothing here (a
+    // declined strict-JSON guide should fail and be retried, not be re-run on
+    // a substitute) and that fails the whole call if the tier will not take
+    // it. Every catalogue job that sent it broke; the one that never sent it
+    // kept working.
+    mode = 'ok';
+    calls = 0; sent.length = 0;
+    // A language nothing has generated yet, or the cache answers and this
+    // block asserts about a call that never happened.
+    await fetch(`${B}/api/dining/magic-kingdom?lang=fr`).catch(() => {});
+    for (let i = 0; i < 30 && !sent.length; i++) await new Promise((r) => setTimeout(r, 100));
+    check('a generation actually ran', sent.length > 0, `calls=${calls}`);
+    const args = sent[0] || {};
+    check('the guide is asked for on the catalogue tier', args.model === consultant.models.catalogue, String(args.model));
+    check('and without the advisor tier\'s refusal fallback', args.fallbacks === undefined, JSON.stringify(args.fallbacks));
+    check('nor its beta flag', args.betas === undefined, JSON.stringify(args.betas));
   }
 
   console.log(`\n=== ${fail ? fail + ' failed' : 'a guide that cannot be written is asked for once, not twenty-two times'} ===`);
