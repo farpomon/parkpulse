@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "Posso pianificare questo giorno in un battito di ciglia. Procedo?",
   "See passes — one-time, from ${price}": "Vedi i pass — pagamento unico, da ${price}",
   "Too far out to plan": "Ancora troppo lontano",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Posso tracciare una giornata fino a {n} giorni prima. Il tuo viaggio è salvato: sarò pronta più vicino alla data."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Posso tracciare una giornata fino a {n} giorni prima. Il tuo viaggio è salvato: sarò pronta più vicino alla data.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Le prenotazioni Lightning Lane aprono il {when} alle 7:00 ET — 7 giorni prima del check-in e coprono tutto il soggiorno. Metti una sveglia: le attrazioni di punta si esauriscono in pochi minuti.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "Chi alloggia fuori prenota Lightning Lane 3 giorni prima di ogni giornata al parco, alle 7:00 ET — la tua prima finestra è il {when}. Chi sta dentro ha 7 giorni di vantaggio: prendi l'attrazione imperdibile appena si apre la tua.",
+  "({n} days away)": "(fra {n} giorni)",
+  "(1 day away)": "(fra 1 giorno)",
+  "(that’s today!)": "(è oggi!)",
+  "Rules and prices change — confirm in the park’s official app.": "Regole e prezzi cambiano: conferma nell'app ufficiale del parco.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "Alloggi all'Hard Rock, al Royal Pacific o al Portofino Bay? L'Unlimited Express Pass è incluso gratis nella camera: non comprarlo a parte. Gli altri hotel del resort danno solo l'ingresso anticipato.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "L'Express Pass ha un prezzo per data: comprarlo online qualche giorno prima costa di solito meno che all'ingresso. Guarda prima il verdetto live: nei giorni scarichi un buon piano lo sostituisce.",
+  "Premier Access is bought day-of in the official app, per ride.": "Il Premier Access si compra il giorno stesso nell'app ufficiale, attrazione per attrazione.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "Ospiti degli hotel Disney: usate l'Extra Magic Time all'apertura per le grandi attrazioni invece di pagare.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Il Premier Access si vende il giorno stesso nell'app ufficiale: compra l'attrazione imperdibile appena entri, può esaurirsi a metà mattina.",
+  "Hotel guests enter 15 minutes early — use it.": "Gli ospiti dell'hotel entrano 15 minuti prima: sfruttalo.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "A {park} il Lightning Lane / Premier Access si compra il giorno stesso nell'app del parco: nessuna finestra anticipata. Guarda il verdetto live quella mattina prima di pagare.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} vende il salta-fila il giorno stesso (app o biglietteria): non serve prenotare in anticipo.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Chi alloggia nel resort di solito entra prima: dedica quella prima ora alle attrazioni di punta e forse il pass non ti servirà."
 }

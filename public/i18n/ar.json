@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "أستطيع تخطيط هذا اليوم في لمح البصر. أفعل؟",
   "See passes — one-time, from ${price}": "شاهد التذاكر — دفعة واحدة، ابتداءً من ${price}",
   "Too far out to plan": "أبعد من أن يُخطَّط الآن",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "أستطيع رسم يوم قبل {n} يومًا على الأكثر. رحلتك محفوظة — سأكون جاهزة مع اقتراب الموعد."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "أستطيع رسم يوم قبل {n} يومًا على الأكثر. رحلتك محفوظة — سأكون جاهزة مع اقتراب الموعد.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "يفتح حجز Lightning Lane في {when} الساعة 7:00 صباحًا بتوقيت شرق أمريكا — قبل 7 أيام من تسجيل الوصول، ويغطي إقامتك كاملة. اضبط منبهًا: الألعاب الكبرى تنفد خلال دقائق.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "نزلاء خارج المنتجع يحجزون Lightning Lane قبل 3 أيام من كل يوم زيارة، الساعة 7:00 صباحًا ET — نافذتك الأولى هي {when}. نزلاء الفنادق الداخلية يسبقونك بـ7 أيام، فاحجز لعبتك الأهم لحظة فتح نافذتك.",
+  "({n} days away)": "(بعد {n} يومًا)",
+  "(1 day away)": "(بعد يوم واحد)",
+  "(that’s today!)": "(هذا اليوم!)",
+  "Rules and prices change — confirm in the park’s official app.": "القواعد والأسعار تتغير — تأكد من تطبيق المدينة الترفيهية الرسمي.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "تقيم في Hard Rock أو Royal Pacific أو Portofino Bay؟ تذكرة Unlimited Express مشمولة مجانًا مع الغرفة — لا تشترها بشكل منفصل. الفنادق الأخرى داخل المنتجع تمنح دخولًا مبكرًا فقط.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "سعر Express Pass يختلف حسب التاريخ — الشراء عبر الإنترنت قبل أيام عادةً أرخص من البوابة. راجع الحكم المباشر أولًا: في الأيام الهادئة تكفي خطة ذكية.",
+  "Premier Access is bought day-of in the official app, per ride.": "يُشترى Premier Access في اليوم نفسه من التطبيق الرسمي، لكل لعبة على حدة.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "نزلاء فنادق ديزني: استخدموا Extra Magic Time عند الافتتاح للألعاب الكبرى بدل الدفع.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "يُباع Premier Access في اليوم نفسه عبر التطبيق الرسمي — اشترِ لعبتك الأهم لحظة دخولك؛ قد ينفد بحلول منتصف الصباح.",
+  "Hotel guests enter 15 minutes early — use it.": "نزلاء الفندق يدخلون قبل 15 دقيقة — استفد من ذلك.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "في {park} يُشترى Lightning Lane / Premier Access في اليوم نفسه من تطبيق المدينة — لا توجد نافذة مسبقة. راجع الحكم المباشر ذلك الصباح قبل الدفع.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "يبيع {park} تخطي الطابور في اليوم نفسه (عبر التطبيق أو البوابة) — لا حاجة للحجز المسبق.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "نزلاء فنادق المنتجع عادةً يدخلون مبكرًا: اقضِ تلك الساعة الأولى على الألعاب الكبرى وقد لا تحتاج التذكرة أصلًا."
 }

@@ -4863,34 +4863,42 @@
   // When-to-buy advice for the destination's skip product: booking windows
   // (Disney World), included-free hotel perks (Universal Orlando premium
   // hotels), and day-of rules everywhere else. Dates come from the saved trip.
+  // Every line here was authored in English and never passed through tr(), so
+  // a Portuguese reader got a Portuguese date inside an English sentence. It
+  // renders only when a saved trip has a booking window ahead of it, which is
+  // why no audit had ever seen it.
   function bookAdvice(trip) {
     if (!trip || !trip.start || !trip.dest) return '';
     const g = trip.dest, onsite = !!trip.onsite;
-    const fmt = (d) => d.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const fmt = (d) => `<b>${d.toLocaleDateString(window.PP_LANG || undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</b>`;
     const start = new Date(trip.start + 'T12:00:00');
     let msg = '';
     if (g === 'Walt Disney World') {
       const open = new Date(start.getTime() - (onsite ? 7 : 3) * 86400000);
       msg = onsite
-        ? `🎟 Lightning Lane booking opens <b>${fmt(open)} at 7:00 AM ET</b> — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.`
-        : `🎟 Off-site guests book Lightning Lane <b>3 days before each park day</b> at 7:00 AM ET — your first window is ${fmt(open)}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.`;
+        ? '🎟 ' + trf('Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.', { when: fmt(open) })
+        : '🎟 ' + trf('Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.', { when: fmt(open) });
       const dt = Math.ceil((open - new Date()) / 86400000);
-      if (dt > 0) msg += ` <b>(${dt} day${dt > 1 ? 's' : ''} away)</b>`;
-      else if (dt === 0) msg += ' <b>(that’s today!)</b>';
+      if (dt > 1) msg += ` <b>${trf('({n} days away)', { n: dt })}</b>`;
+      else if (dt === 1) msg += ` <b>${tr('(1 day away)')}</b>`;
+      else if (dt === 0) msg += ` <b>${tr('(that’s today!)')}</b>`;
     } else if (g === 'Universal Orlando') {
-      msg = onsite
-        ? '🎟 Staying at Hard Rock, Royal Pacific or Portofino Bay? <b>Unlimited Express Pass is included free</b> with your room — don’t buy it separately. Other on-site hotels get early park admission only.'
-        : '🎟 Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.';
+      msg = '🎟 ' + (onsite
+        ? tr('Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.')
+        : tr('Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.'));
     } else if (/Disneyland Paris/.test(g)) {
-      msg = `🎟 Premier Access is bought day-of in the official app, per ride.${onsite ? ' Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.' : ''}`;
+      msg = '🎟 ' + tr('Premier Access is bought day-of in the official app, per ride.')
+        + (onsite ? ' ' + tr('Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.') : '');
     } else if (/Tokyo/.test(g)) {
-      msg = `🎟 Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.${onsite ? ' Hotel guests enter 15 minutes early — use it.' : ''}`;
+      msg = '🎟 ' + tr('Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.')
+        + (onsite ? ' ' + tr('Hotel guests enter 15 minutes early — use it.') : '');
     } else if (/Disneyland|Hong Kong|Shanghai/.test(g)) {
-      msg = `🎟 Lightning Lane / Premier Access at ${g} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.`;
+      msg = '🎟 ' + trf('Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.', { park: g });
     } else {
-      msg = `🎟 ${g} sells line-skipping day-of (app or gate) — no advance booking needed.${onsite ? ' On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.' : ''}`;
+      msg = '🎟 ' + trf('{park} sells line-skipping day-of (app or gate) — no advance booking needed.', { park: g })
+        + (onsite ? ' ' + tr('On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.') : '');
     }
-    msg += ' <i>Rules and prices change — confirm in the park’s official app.</i>';
+    msg += ` <i>${tr('Rules and prices change — confirm in the park’s official app.')}</i>`;
     return `<div style="background:var(--brand-soft);border-radius:10px;padding:.55rem .7rem;margin:.6rem 0 0;font-size:.82rem;line-height:1.45">${msg}</div>`;
   }
 

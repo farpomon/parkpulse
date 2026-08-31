@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "हा दिवस मी डोळ्याचे पाते लवते तोवर आखू शकते. आखू का?",
   "See passes — one-time, from ${price}": "पास पहा — एकदाच शुल्क, ${price} पासून",
   "Too far out to plan": "आखण्यासाठी अजून खूप लांब",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "मी एखादा दिवस जास्तीत जास्त {n} दिवस आधी आखू शकते. तुमचा प्रवास जतन झाला आहे — तारीख जवळ आल्यावर मी तयार असेन."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "मी एखादा दिवस जास्तीत जास्त {n} दिवस आधी आखू शकते. तुमचा प्रवास जतन झाला आहे — तारीख जवळ आल्यावर मी तयार असेन.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Lightning Lane चे बुकिंग {when} रोजी सकाळी ७:०० ET ला उघडते — चेक-इनच्या ७ दिवस आधी, तुमच्या संपूर्ण मुक्कामासाठी. गजर लावा: प्रमुख राइड मिनिटांत संपतात.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "बाहेर राहणारे पाहुणे प्रत्येक पार्क दिवसाच्या ३ दिवस आधी सकाळी ७:०० ET ला Lightning Lane बुक करतात — तुमची पहिली विंडो {when} आहे. आत राहणाऱ्यांना ७ दिवसांची आघाडी असते, म्हणून विंडो उघडताच तुमची अत्यावश्यक राइड पकडा.",
+  "({n} days away)": "({n} दिवस बाकी)",
+  "(1 day away)": "(१ दिवस बाकी)",
+  "(that’s today!)": "(तो आजच आहे!)",
+  "Rules and prices change — confirm in the park’s official app.": "नियम आणि किमती बदलतात — पार्कच्या अधिकृत अ‍ॅपमध्ये खात्री करा.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "Hard Rock, Royal Pacific किंवा Portofino Bay मध्ये राहताय? Unlimited Express Pass खोलीसोबत मोफत मिळतो — वेगळा घेऊ नका. इतर ऑन-साइट हॉटेल फक्त लवकर प्रवेश देतात.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "Express Pass ची किंमत तारखेनुसार बदलते — काही दिवस आधी ऑनलाइन घेणे गेटपेक्षा सहसा स्वस्त असते. आधी थेट मत पहा: गर्दी कमी असलेल्या दिवशी चांगली योजना पुरेशी असते.",
+  "Premier Access is bought day-of in the official app, per ride.": "Premier Access त्याच दिवशी अधिकृत अ‍ॅपमध्ये, प्रत्येक राइडसाठी विकत घेतले जाते.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "डिस्ने हॉटेलचे पाहुणे: पैसे देण्याऐवजी उघडण्याच्या वेळी Extra Magic Time मोठ्या राइडसाठी वापरा.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Premier Access त्याच दिवशी अधिकृत अ‍ॅपमध्ये विकले जाते — प्रवेश स्कॅन करताच तुमची अत्यावश्यक राइड घ्या; सकाळ अर्धी होईपर्यंत संपू शकते.",
+  "Hotel guests enter 15 minutes early — use it.": "हॉटेलचे पाहुणे १५ मिनिटे आधी प्रवेश करतात — त्याचा वापर करा.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} मध्ये Lightning Lane / Premier Access त्याच दिवशी पार्क अ‍ॅपमध्ये घेतले जाते — आगाऊ विंडो नाही. पैसे देण्याआधी त्या सकाळचे थेट मत पहा.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} रांग टाळण्याची सोय त्याच दिवशी विकते (अ‍ॅप किंवा गेट) — आगाऊ बुकिंगची गरज नाही.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "ऑन-साइट हॉटेलच्या पाहुण्यांना सहसा लवकर प्रवेश मिळतो: तो पहिला तास मोठ्या राइडवर घालवा, मग पासची गरजच भासणार नाही."
 }

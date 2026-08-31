@@ -218,7 +218,33 @@ await visit('the pass gate', async () => {
 await page.evaluate(() => { document.body.classList.remove('gated-hard'); });
 await visit('language sheet', async () => { await page.evaluate(() => document.getElementById('lang-lbl')?.scrollIntoView()); });
 await closeOverlays();
-await visit('trip sheet', async () => { await page.evaluate(() => document.getElementById('trip-sheet')?.classList.add('open')); });
+// The trip sheet, WITH a saved trip in it. Opening the empty sheet showed the
+// form and nothing else -- the booking-window advice only renders once a trip
+// exists with a window still ahead of it, which is how a whole screen of
+// English copy (every destination's line-skipping rules) went unaudited. A
+// trip far enough out that the window has not passed is what makes it render.
+await visit('trip sheet', async () => {
+  await page.evaluate(() => {
+    const soon = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+    try { localStorage.setItem('pp-trip', JSON.stringify({ dest: 'Walt Disney World', start: soon, days: 3, onsite: true, plan: [
+      { date: soon, park: 'magic-kingdom', level: 2 },
+    ] })); } catch {}
+  });
+  await page.evaluate(() => { try { openTripSheet(); } catch { document.getElementById('trip-sheet')?.classList.add('open'); } });
+});
+// The same advice for a visitor who is NOT in a resort hotel: a different
+// sentence entirely, and just as English before this.
+await visit('trip sheet · off-site', async () => {
+  await page.evaluate(() => {
+    const soon = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+    try { localStorage.setItem('pp-trip', JSON.stringify({ dest: 'Walt Disney World', start: soon, days: 3, onsite: false, plan: [
+      { date: soon, park: 'magic-kingdom', level: 2 },
+    ] })); } catch {}
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2500);
+  await page.evaluate(() => { try { openTripSheet(); } catch { document.getElementById('trip-sheet')?.classList.add('open'); } });
+});
 await closeOverlays();
 await visit('chat', async () => {
   await page.evaluate(() => document.querySelector('.tabbar button[data-tab="mila"], #mila-tab, .tabbar button:nth-child(3)')?.click());

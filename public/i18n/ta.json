@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "இந்த நாளை ஒரு கண் இமைப்பில் திட்டமிடுவேன். செய்யவா?",
   "See passes — one-time, from ${price}": "பாஸ்களைப் பார் — ஒரே கட்டணம், ${price} முதல்",
   "Too far out to plan": "திட்டமிட இன்னும் தொலைவில்",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "ஒரு நாளை அதிகபட்சம் {n} நாட்கள் முன்பே வரையமுடியும். உங்கள் பயணம் சேமிக்கப்பட்டது — நேரம் நெருங்கும்போது தயாராக இருப்பேன்."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "ஒரு நாளை அதிகபட்சம் {n} நாட்கள் முன்பே வரையமுடியும். உங்கள் பயணம் சேமிக்கப்பட்டது — நேரம் நெருங்கும்போது தயாராக இருப்பேன்.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Lightning Lane முன்பதிவு {when} அன்று காலை 7:00 ET-க்குத் திறக்கிறது — செக்-இன்னுக்கு 7 நாட்கள் முன்பு, உங்கள் முழு தங்கலையும் உள்ளடக்கி. அலாரம் வையுங்கள்: முக்கியச் சவாரிகள் நிமிடங்களில் தீர்ந்துவிடும்.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "வளாகத்திற்கு வெளியே தங்குபவர்கள் ஒவ்வொரு பூங்கா நாளுக்கும் 3 நாட்கள் முன்பு காலை 7:00 ET-க்கு Lightning Lane பதிவு செய்வர் — உங்கள் முதல் சாளரம் {when}. உள்ளே தங்குபவர்களுக்கு 7 நாட்கள் முன்னுரிமை, எனவே சாளரம் திறந்த நொடியில் கட்டாயச் சவாரியைப் பிடியுங்கள்.",
+  "({n} days away)": "({n} நாட்கள் உள்ளன)",
+  "(1 day away)": "(1 நாள் உள்ளது)",
+  "(that’s today!)": "(அது இன்றுதான்!)",
+  "Rules and prices change — confirm in the park’s official app.": "விதிகளும் விலைகளும் மாறும் — பூங்காவின் அதிகாரப்பூர்வ செயலியில் உறுதிசெய்யவும்.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "Hard Rock, Royal Pacific அல்லது Portofino Bay-இல் தங்குகிறீர்களா? Unlimited Express Pass அறையுடன் இலவசமாக வருகிறது — தனியாக வாங்க வேண்டாம். மற்ற வளாக ஹோட்டல்கள் முன்கூட்டிய நுழைவு மட்டுமே தரும்.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "Express Pass விலை தேதிக்குத் தேதி மாறும் — சில நாட்கள் முன்பே ஆன்லைனில் வாங்குவது நுழைவாயிலைவிட பொதுவாக மலிவு. முதலில் நேரலைத் தீர்ப்பைப் பாருங்கள்: கூட்டம் குறைந்த நாட்களில் நல்ல திட்டமே போதும்.",
+  "Premier Access is bought day-of in the official app, per ride.": "Premier Access அன்றைய தினமே அதிகாரப்பூர்வ செயலியில், சவாரிக்கு ஒன்றாக வாங்கப்படுகிறது.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "டிஸ்னி ஹோட்டல் விருந்தினர்: பணம் கொடுப்பதற்குப் பதிலாக திறக்கும் நேரத்தில் Extra Magic Time-ஐ முக்கியச் சவாரிகளுக்குப் பயன்படுத்துங்கள்.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Premier Access அன்றைய தினமே அதிகாரப்பூர்வ செயலியில் விற்கப்படுகிறது — நுழைவில் ஸ்கேன் செய்த நொடியில் கட்டாயச் சவாரியை வாங்குங்கள்; காலை நடுவிலேயே தீர்ந்துவிடலாம்.",
+  "Hotel guests enter 15 minutes early — use it.": "ஹோட்டல் விருந்தினர் 15 நிமிடம் முன்பே நுழைவர் — அதைப் பயன்படுத்துங்கள்.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park}-இல் Lightning Lane / Premier Access அன்றைய தினமே பூங்கா செயலியில் வாங்கப்படுகிறது — முன்கூட்டிய சாளரம் இல்லை. பணம் செலுத்தும் முன் அன்று காலை நேரலைத் தீர்ப்பைப் பாருங்கள்.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} வரிசைத் தவிர்ப்பை அன்றைய தினமே விற்கிறது (செயலி அல்லது நுழைவாயில்) — முன்பதிவு தேவையில்லை.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "வளாக ஹோட்டல் விருந்தினர் பொதுவாக முன்கூட்டியே நுழைவர்: அந்த முதல் மணி நேரத்தை முக்கியச் சவாரிகளுக்குச் செலவிட்டால் பாஸே தேவைப்படாமல் போகலாம்."
 }

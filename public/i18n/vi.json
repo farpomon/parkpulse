@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "Tôi có thể lên kế hoạch ngày này trong chớp mắt. Làm nhé?",
   "See passes — one-time, from ${price}": "Xem pass — trả một lần, từ ${price}",
   "Too far out to plan": "Còn quá xa để lên kế hoạch",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Tôi có thể vạch một ngày trước tối đa {n} ngày. Chuyến đi đã được lưu — gần đến ngày tôi sẽ sẵn sàng."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Tôi có thể vạch một ngày trước tối đa {n} ngày. Chuyến đi đã được lưu — gần đến ngày tôi sẽ sẵn sàng.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Đặt Lightning Lane mở vào {when} lúc 7:00 sáng giờ ET — 7 ngày trước khi nhận phòng, cho toàn bộ kỳ nghỉ. Đặt báo thức: các trò đinh hết chỗ trong vài phút.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "Khách ở ngoài khu nghỉ đặt Lightning Lane trước mỗi ngày vào công viên 3 ngày, lúc 7:00 sáng ET — khung đầu tiên của bạn là {when}. Khách ở trong khu được sớm hơn 7 ngày, nên hãy giành trò nhất định phải chơi ngay khi khung mở.",
+  "({n} days away)": "(còn {n} ngày)",
+  "(1 day away)": "(còn 1 ngày)",
+  "(that’s today!)": "(chính là hôm nay!)",
+  "Rules and prices change — confirm in the park’s official app.": "Quy định và giá thay đổi — hãy xác nhận trong ứng dụng chính thức của công viên.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "Ở Hard Rock, Royal Pacific hay Portofino Bay? Unlimited Express Pass đã kèm miễn phí trong phòng — đừng mua riêng. Các khách sạn khác trong khu chỉ cho vào sớm.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "Express Pass tính giá theo ngày — mua trực tuyến trước vài ngày thường rẻ hơn mua tại cổng. Hãy xem đánh giá trực tiếp trước: ngày vắng, một kế hoạch tốt là đủ.",
+  "Premier Access is bought day-of in the official app, per ride.": "Premier Access mua trong ngày trên ứng dụng chính thức, theo từng trò.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "Khách khách sạn Disney: dùng Extra Magic Time lúc mở cửa cho các trò đinh thay vì trả tiền.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Premier Access bán trong ngày trên ứng dụng chính thức — mua trò nhất định phải chơi ngay khi quét vào; có thể hết trước giữa buổi sáng.",
+  "Hotel guests enter 15 minutes early — use it.": "Khách khách sạn vào sớm 15 phút — hãy tận dụng.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "Tại {park}, Lightning Lane / Premier Access mua trong ngày trên ứng dụng công viên — không có khung đặt trước. Hãy xem đánh giá trực tiếp sáng hôm đó trước khi trả tiền.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} bán vé bỏ qua hàng chờ ngay trong ngày (ứng dụng hoặc cổng) — không cần đặt trước.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Khách khách sạn trong khu thường được vào sớm: dành giờ đầu tiên cho các trò đinh và có khi bạn chẳng cần pass."
 }

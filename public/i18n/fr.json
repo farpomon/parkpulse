@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "Je peux planifier cette journée en un clin d'œil. J'y vais ?",
   "See passes — one-time, from ${price}": "Voir les pass — paiement unique, à partir de ${price}",
   "Too far out to plan": "Encore trop loin",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Je peux organiser une journée jusqu'à {n} jours à l'avance. Votre voyage est enregistré — je serai prête le moment venu."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Je peux organiser une journée jusqu'à {n} jours à l'avance. Votre voyage est enregistré — je serai prête le moment venu.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Les réservations Lightning Lane ouvrent le {when} à 7h00 ET — 7 jours avant l'arrivée, pour tout votre séjour. Mettez une alarme : les attractions phares partent en quelques minutes.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "Les visiteurs hors site réservent Lightning Lane 3 jours avant chaque journée de parc, à 7h00 ET — votre première fenêtre est le {when}. Les clients des hôtels Disney ont 7 jours d'avance : réservez votre incontournable dès l'ouverture de la vôtre.",
+  "({n} days away)": "(dans {n} jours)",
+  "(1 day away)": "(dans 1 jour)",
+  "(that’s today!)": "(c'est aujourd'hui !)",
+  "Rules and prices change — confirm in the park’s official app.": "Les règles et les tarifs changent — vérifiez dans l'application officielle du parc.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "Vous logez au Hard Rock, au Royal Pacific ou au Portofino Bay ? L'Unlimited Express Pass est offert avec la chambre — ne l'achetez pas séparément. Les autres hôtels du complexe donnent seulement l'entrée anticipée.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "L'Express Pass est tarifé par date — l'acheter en ligne quelques jours avant revient souvent moins cher qu'à l'entrée. Regardez d'abord le verdict en direct : les jours calmes, un bon plan le remplace.",
+  "Premier Access is bought day-of in the official app, per ride.": "Le Premier Access s'achète le jour même dans l'application officielle, attraction par attraction.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "Clients des hôtels Disney : profitez de l'Extra Magic Time à l'ouverture pour les grosses attractions plutôt que de payer.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Le Premier Access se vend le jour même dans l'application officielle — achetez votre incontournable dès votre entrée ; il peut être épuisé en milieu de matinée.",
+  "Hotel guests enter 15 minutes early — use it.": "Les clients de l'hôtel entrent 15 minutes plus tôt — profitez-en.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "À {park}, le Lightning Lane / Premier Access s'achète le jour même dans l'appli du parc — pas de fenêtre à l'avance. Regardez le verdict en direct ce matin-là avant de payer.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} vend le coupe-file le jour même (appli ou guichet) — pas besoin de réserver à l'avance.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Les clients des hôtels du complexe entrent souvent plus tôt : consacrez cette première heure aux grosses attractions et le pass deviendra peut-être inutile."
 }

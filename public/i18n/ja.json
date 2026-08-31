@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "この日ならまばたきの間にプランできます。やりましょうか？",
   "See passes — one-time, from ${price}": "パスを見る — 買い切り、${price} から",
   "Too far out to plan": "まだ先すぎます",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "プランを組めるのは{n}日先までです。旅程は保存しました — 近づいたら準備できます。"
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "プランを組めるのは{n}日先までです。旅程は保存しました — 近づいたら準備できます。",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "ライトニング・レーンの予約は {when} 東部時間 7:00 に開きます — チェックインの7日前で、滞在全日程が対象です。アラームを：人気アトラクションは数分で売り切れます。",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "パーク外に宿泊の方は各パーク日の3日前、東部時間7:00にライトニング・レーンを予約します — 最初の枠は {when} です。オンサイト客は7日先行するので、枠が開いた瞬間に絶対乗りたいものを押さえて。",
+  "({n} days away)": "（あと{n}日）",
+  "(1 day away)": "（あと1日）",
+  "(that’s today!)": "（今日です！）",
+  "Rules and prices change — confirm in the park’s official app.": "ルールや価格は変わります — パーク公式アプリでご確認を。",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "ハードロック／ロイヤルパシフィック／ポルトフィーノベイに宿泊なら、Unlimited Express Pass は客室に無料で付きます — 別途購入は不要です。他のオンサイトホテルは早期入園のみ。",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "エクスプレス・パスは日付ごとの価格 — 数日前にオンラインで買うほうがゲートより安いのが普通です。まずライブの判定を：空いた日なら良いプランで代用できます。",
+  "Premier Access is bought day-of in the official app, per ride.": "プレミアアクセスは当日、公式アプリでアトラクションごとに購入します。",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "ディズニーホテル宿泊者は、開園時のエクストラ・マジック・タイムで人気アトラクションへ。課金は不要です。",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "プレミアアクセスは当日、公式アプリで販売 — 入園スキャンの直後に絶対乗りたいものを購入して。午前半ばには売り切れることもあります。",
+  "Hotel guests enter 15 minutes early — use it.": "ホテル宿泊者は15分早く入園できます — 活用を。",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} のライトニング・レーン／プレミアアクセスは当日、パークのアプリで購入します — 事前枠はありません。支払う前にその朝のライブ判定を確認して。",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} は当日、列をスキップする商品をアプリまたはゲートで販売します — 事前予約は不要です。",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "オンサイト宿泊者はたいてい早く入れます。その最初の1時間を人気アトラクションに使えば、パスは要らないかもしれません。"
 }

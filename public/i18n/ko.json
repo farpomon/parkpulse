@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "이 날은 눈 깜짝할 사이에 계획할 수 있어요. 할까요?",
   "See passes — one-time, from ${price}": "패스 보기 — 1회 결제, ${price}부터",
   "Too far out to plan": "아직 너무 멀어요",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "하루 계획은 최대 {n}일 전까지 가능해요. 여행은 저장해 두었어요 — 날짜가 가까워지면 준비할게요."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "하루 계획은 최대 {n}일 전까지 가능해요. 여행은 저장해 두었어요 — 날짜가 가까워지면 준비할게요.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "라이트닝 레인 예약은 {when} 미 동부시간 오전 7시에 열려요 — 체크인 7일 전, 전체 숙박 기간이 대상입니다. 알람을 맞추세요: 인기 어트랙션은 몇 분이면 매진돼요.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "파크 외부 숙박객은 각 파크 방문일 3일 전 미 동부시간 오전 7시에 라이트닝 레인을 예약해요 — 첫 창구는 {when}입니다. 파크 내 숙박객은 7일 먼저 시작하니, 창구가 열리는 즉시 꼭 탈 것을 잡으세요.",
+  "({n} days away)": "({n}일 남음)",
+  "(1 day away)": "(1일 남음)",
+  "(that’s today!)": "(바로 오늘이에요!)",
+  "Rules and prices change — confirm in the park’s official app.": "규정과 가격은 바뀝니다 — 파크 공식 앱에서 확인하세요.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "하드록, 로열 퍼시픽, 포르토피노 베이에 묵으시나요? 무제한 익스프레스 패스가 객실에 무료로 포함돼요 — 따로 사지 마세요. 다른 리조트 내 호텔은 조기 입장만 제공합니다.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "익스프레스 패스는 날짜별 가격이에요 — 며칠 전 온라인 구매가 현장보다 대개 저렴합니다. 실시간 판단을 먼저 보세요: 한산한 날엔 좋은 계획이 이를 대신합니다.",
+  "Premier Access is bought day-of in the official app, per ride.": "프리미어 액세스는 당일 공식 앱에서 놀이기구별로 구매해요.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "디즈니 호텔 투숙객: 개장 시 엑스트라 매직 타임으로 인기 어트랙션을 타세요 — 돈 쓸 필요 없어요.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "프리미어 액세스는 당일 공식 앱에서 판매돼요 — 입장 스캔 직후 꼭 탈 것을 구매하세요; 오전 중에 매진될 수 있어요.",
+  "Hotel guests enter 15 minutes early — use it.": "호텔 투숙객은 15분 일찍 입장해요 — 꼭 활용하세요.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park}의 라이트닝 레인 / 프리미어 액세스는 당일 파크 앱에서 구매해요 — 사전 예약 창구는 없습니다. 결제 전에 그날 아침 실시간 판단을 확인하세요.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park}는 대기열 건너뛰기를 당일 판매해요 (앱 또는 매표소) — 사전 예약이 필요 없습니다.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "리조트 내 투숙객은 대개 조기 입장이 가능해요: 그 첫 한 시간을 인기 어트랙션에 쓰면 패스가 아예 필요 없을 수도 있어요."
 }

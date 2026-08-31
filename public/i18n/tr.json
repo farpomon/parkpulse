@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "Bu günü göz açıp kapayıncaya kadar planlayabilirim. Yapayım mı?",
   "See passes — one-time, from ${price}": "Pasları gör — tek seferlik, ${price} başlangıç",
   "Too far out to plan": "Planlamak için çok uzak",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Bir günü en fazla {n} gün önceden planlayabilirim. Geziniz kayıtlı — tarih yaklaşınca hazır olacağım."
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "Bir günü en fazla {n} gün önceden planlayabilirim. Geziniz kayıtlı — tarih yaklaşınca hazır olacağım.",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Lightning Lane rezervasyonu {when} saat 07.00 ET'de açılıyor — girişten 7 gün önce ve tüm konaklamanızı kapsıyor. Alarm kurun: gözde üniteler dakikalar içinde tükeniyor.",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "Tesis dışında kalan misafirler her park günü için 3 gün önce, saat 07.00 ET'de Lightning Lane alır — ilk pencereniz {when}. Tesis içi misafirler 7 gün önde başlar; pencereniz açılır açılmaz vazgeçilmez üniteyi kapın.",
+  "({n} days away)": "({n} gün kaldı)",
+  "(1 day away)": "(1 gün kaldı)",
+  "(that’s today!)": "(bugün!)",
+  "Rules and prices change — confirm in the park’s official app.": "Kurallar ve fiyatlar değişir — parkın resmî uygulamasından teyit edin.",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "Hard Rock, Royal Pacific ya da Portofino Bay'de mi kalıyorsunuz? Unlimited Express Pass odaya ücretsiz dahil — ayrıca satın almayın. Tesisteki diğer oteller yalnızca erken giriş veriyor.",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "Express Pass fiyatı tarihe göre değişir — birkaç gün önce çevrimiçi almak genelde kapıdan ucuzdur. Önce canlı değerlendirmeye bakın: sakin günlerde iyi bir plan onun yerini tutar.",
+  "Premier Access is bought day-of in the official app, per ride.": "Premier Access aynı gün resmî uygulamadan, ünite başına satın alınır.",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "Disney oteli misafirleri: para vermek yerine açılıştaki Extra Magic Time'ı gözde üniteler için kullanın.",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Premier Access aynı gün resmî uygulamada satılır — girişte okuttuğunuz an vazgeçilmez ünitenizi alın; sabahın ortasında tükenebilir.",
+  "Hotel guests enter 15 minutes early — use it.": "Otel misafirleri 15 dakika erken giriyor — bunu kullanın.",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "{park} içinde Lightning Lane / Premier Access aynı gün park uygulamasından alınır — önceden pencere yok. Ödemeden önce o sabahki canlı değerlendirmeye bakın.",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} sıra atlamayı aynı gün satıyor (uygulama ya da gişe) — önceden rezervasyon gerekmiyor.",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "Tesis içi otel misafirleri genelde erken girer: o ilk saati gözde ünitelere ayırın, pass'a hiç ihtiyacınız olmayabilir."
 }

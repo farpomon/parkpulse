@@ -913,5 +913,20 @@
   "I can have this day planned in a blink. Shall I?": "我一眨眼就能把这天排好。要吗？",
   "See passes — one-time, from ${price}": "查看通行证 — 一次性付费，${price} 起",
   "Too far out to plan": "还太远，暂时排不了",
-  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "我最多可以提前 {n} 天规划某一天。你的行程已保存——临近时我就准备好了。"
+  "I can map a day up to {n} days ahead. Your trip is saved — I'll be ready nearer the time.": "我最多可以提前 {n} 天规划某一天。你的行程已保存——临近时我就准备好了。",
+  "Lightning Lane booking opens {when} at 7:00 AM ET — 7 days before check-in, covering your whole stay. Set an alarm: headliners sell out in minutes.": "Lightning Lane 预约将于 {when} 美东时间早上 7:00 开放——入住前 7 天，涵盖整个行程。设个闹钟：热门项目几分钟就会售罄。",
+  "Off-site guests book Lightning Lane 3 days before each park day at 7:00 AM ET — your first window is {when}. On-site guests get a 7-day head start, so grab your must-do ride the second your window opens.": "住在园区外的客人在每个入园日的前 3 天美东时间早上 7:00 预约 Lightning Lane——你的第一个时段是 {when}。园区内住客提前 7 天，所以窗口一开就立刻抢下必玩项目。",
+  "({n} days away)": "（还有 {n} 天）",
+  "(1 day away)": "（还有 1 天）",
+  "(that’s today!)": "（就是今天！）",
+  "Rules and prices change — confirm in the park’s official app.": "规则和价格会变——请在乐园官方 App 中确认。",
+  "Staying at Hard Rock, Royal Pacific or Portofino Bay? Unlimited Express Pass is included free with your room — don’t buy it separately. Other on-site hotels get early park admission only.": "住在 Hard Rock、Royal Pacific 或 Portofino Bay 吗？房费已含 Unlimited Express Pass——不用另外买。园区其他酒店只提供提前入园。",
+  "Express Pass is priced by date — buying online a few days ahead is usually cheaper than at the gate. Check the live verdict first: on light days a smart plan replaces it.": "Express Pass 按日期定价——提前几天在线购买通常比现场便宜。先看实时判断：人少的日子，一个好计划就够了。",
+  "Premier Access is bought day-of in the official app, per ride.": "Premier Access 当天在官方 App 中按项目购买。",
+  "Disney-hotel guests: use Extra Magic Time at opening for headliners instead of paying.": "迪士尼酒店住客：开园时用 Extra Magic Time 去玩大项目，不必花钱。",
+  "Premier Access sells day-of in the official app — buy your must-ride the moment you scan in; it can sell out by mid-morning.": "Premier Access 当天在官方 App 发售——扫码入园后立刻买下必玩项目，上午过半就可能售罄。",
+  "Hotel guests enter 15 minutes early — use it.": "酒店住客可提前 15 分钟入园——好好利用。",
+  "Lightning Lane / Premier Access at {park} is bought day-of in the park app — no advance window. Check the live verdict that morning before paying.": "在 {park}，Lightning Lane / Premier Access 当天在乐园 App 购买——没有提前预约窗口。付钱前先看当天早上的实时判断。",
+  "{park} sells line-skipping day-of (app or gate) — no advance booking needed.": "{park} 当天出售快速通行（App 或门口）——无需提前预订。",
+  "On-site hotel guests usually get early entry: spend that first hour on headliners and you may not need the pass at all.": "园区内住客通常可提前入园：把第一个小时用在热门项目上，也许根本不需要买通行证。"
 }
