@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ParkPulse | Live Wait Times, AI Day Planner &amp; Free Touring Plans</title>
-<meta name="description" content="Meet Mila, your AI park fairy: live wait times for 65 theme parks, your whole day planned in one tap, 500+ free touring plans, and a straight answer on whether skip-the-line passes are worth it. Free to start — no subscription, ever.">
+<meta name="description" content="Live wait times for 65 theme parks and your whole day planned in one tap — built around your child's height, the weather and your group's pace. Honest skip-the-line advice. Free to start.">
 <meta property="og:title" content="ParkPulse | Mila reads the lines so you don't stand in them">
 <meta property="og:description" content="Live waits at 65 parks, one-tap AI day plans, 500+ free touring plans, and honest skip-the-line advice — no subscription, ever.">
 <meta property="og:image" content="https://www.parkpulse.fun/og.png">
@@ -18,7 +18,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
  {"@type":"Organization","@id":"https://www.parkpulse.fun/#org","name":"ParkPulse","url":"https://www.parkpulse.fun/","logo":"https://www.parkpulse.fun/icon-512.png"},
- {"@type":"WebApplication","name":"ParkPulse","url":"https://www.parkpulse.fun/","applicationCategory":"TravelApplication","operatingSystem":"Any (web app)","browserRequirements":"Requires JavaScript","description":"Live wait times for 65 theme parks worldwide — Disney, Universal (including Universal Studios Japan), Six Flags, LEGOLAND, Europa-Park, Everland and more — with Mila, an AI day planner, 500+ free ready-made touring plans, crowd calendars, trip itineraries and wait-drop alerts.","featureList":["Live wait times for 65 theme parks, refreshed every minute","Mila — AI day planner that builds and re-times your whole day in one tap","500+ free ready-made touring plans for every kind of crew","Crowd calendars scoring every day four months out","Honest skip-the-line pass verdicts, park by park","Multi-park trip itineraries with plans emailed the night before","Wait-drop alerts on any ride"],"publisher":{"@id":"https://www.parkpulse.fun/#org"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"0","highPrice":"199.99","offerCount":5,"description":"Free tier included; one-time passes from $24.99 — no subscription."}}
+ {"@type":"WebApplication","name":"ParkPulse","url":"https://www.parkpulse.fun/","applicationCategory":"TravelApplication","operatingSystem":"Any (web app)","browserRequirements":"Requires JavaScript","description":"Live wait times for 65 theme parks worldwide — Disney, Universal (including Universal Studios Japan), Six Flags, LEGOLAND, Europa-Park, Everland and more — with Mila, an AI day planner, 500+ free ready-made touring plans, crowd calendars, trip itineraries and wait-drop alerts.","featureList":["Live wait times for 65 theme parks, refreshed every minute","Mila — AI day planner that builds and re-times your whole day in one tap","500+ free ready-made touring plans for every kind of crew","Crowd calendars scoring every day four months out","Honest skip-the-line pass verdicts, park by park","Multi-park trip itineraries with plans emailed the night before","Wait-drop alerts on any ride","Plans built around your child's height — rides they cannot board are filtered out","Weather-aware routing: water rides and air conditioning at the hot hour, indoors in the rain","Group pacing for older guests, toddlers and rider switch","Every step explains why it is there — projected wait, crowd curve and walking time"],"publisher":{"@id":"https://www.parkpulse.fun/#org"},"offers":{"@type":"AggregateOffer","priceCurrency":"USD","lowPrice":"0","highPrice":"199.99","offerCount":5,"description":"Free tier included; one-time passes from $24.99 — no subscription."}}
 ]}
 </script>
 <link rel="manifest" href="/manifest.json">
@@ -499,6 +499,26 @@
   /* Motion is the entire feature, so reduced motion removes it outright
      rather than freezing two characters mid-stride on the page. */
   @media (prefers-reduced-motion:reduce){ #sprites{display:none} }
+
+  /* "It plans for your family" — the two-family comparison. Built as real
+     text rather than a screenshot so it translates, reflows on a phone, and
+     is readable by a search engine. */
+  .fcard .funit { font-size: .42em; margin-left: .12em; letter-spacing: .02em; }
+  .twofam { max-width: 980px; margin: 34px auto 0; }
+  .twofam-head { text-align: center; font-weight: 700; margin: 0 0 14px; }
+  .twofam-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .twofam-grid { grid-template-columns: 1fr 1fr; } }
+  .famcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 18px 14px; box-shadow: var(--shadow); }
+  .famwho { margin: 0 0 12px; font-weight: 700; color: var(--brand); font-size: .95rem; }
+  .famplan { list-style: none; margin: 0; padding: 0; }
+  .famplan li { display: grid; grid-template-columns: 4.2rem 1fr; gap: 2px 10px; padding: 9px 0; border-top: 1px solid var(--border); }
+  .famplan li:first-child { border-top: 0; }
+  .famtime { grid-row: span 2; font-variant-numeric: tabular-nums; color: var(--muted); font-size: .88rem; padding-top: 2px; }
+  .famride { font-weight: 600; }
+  .famwhy { color: var(--muted); font-size: .86rem; }
+  .famnote { margin: 12px 0 0; padding-top: 11px; border-top: 1px solid var(--border); color: var(--muted); font-size: .86rem; }
+  .twofam-eg { text-align: center; color: var(--muted); font-size: .88rem; margin: 18px 0 0; }
+  .twofam-foot { max-width: 62ch; margin: 20px auto 0; text-align: center; color: var(--muted); font-size: .92rem; }
 </style>
 </head>
 <body>
@@ -653,6 +673,47 @@
   </div>
 </section>
 
+<section class="sec" id="family">
+  <h2>It plans for your family, not a family</h2>
+  <p class="lead">Same park, same Tuesday, two different days &mdash; because a five-year-old and a sixteen-year-old are not the same visitor.</p>
+  <div class="feat">
+    <div class="fcard"><div class="fnum">107<span class="funit">cm</span></div><h3>Rides she can&rsquo;t board never enter the plan</h3><p>Tell us your child&rsquo;s height once. Anything they&rsquo;d be turned away from is filtered out before the day is built &mdash; so you never queue forty minutes for a no.</p></div>
+    <div class="fcard"><div class="fnum">42<span class="funit">&deg;C</span></div><h3>The hot hour becomes the good hour</h3><p>When the afternoon peaks, the plan puts you on the water ride or somewhere air-conditioned &mdash; not in a sun-baked line. Rain does the same in reverse.</p></div>
+    <div class="fcard"><div class="fnum">+6<span class="funit">min</span></div><h3>Grandma sets the pace, not the app</h3><p>An older guest adds six minutes between every stop, builds a real sit-down into the afternoon, and moves gentler rides and shows up the order &mdash; without taking the thrills off anyone else&rsquo;s day.</p></div>
+  </div>
+
+  <div class="twofam">
+    <p class="twofam-head">One park. One Tuesday. Two families.</p>
+    <div class="twofam-grid">
+      <div class="famcard">
+        <p class="famwho">Two adults &middot; a 5-year-old at 107&nbsp;cm &middot; Grandma</p>
+        <ol class="famplan">
+          <li><span class="famtime">9:00</span><span class="famride">Seven Dwarfs Mine Train</span><span class="famwhy">first hour is the emptiest the park gets</span></li>
+          <li><span class="famtime">9:45</span><span class="famride">Peter Pan&rsquo;s Flight</span><span class="famwhy">same land, no walk</span></li>
+          <li><span class="famtime">11:20</span><span class="famride">Carousel of Progress</span><span class="famwhy">indoors, and everybody sits down</span></li>
+          <li><span class="famtime">13:00</span><span class="famride">Lunch, early</span><span class="famwhy">ahead of the rush, air conditioning through the heat</span></li>
+          <li><span class="famtime">14:30</span><span class="famride">Slow lap</span><span class="famwhy">shade and shops while it is 42&deg;</span></li>
+        </ol>
+        <p class="famnote">Space Mountain and TRON are not in this day. She is 107&nbsp;cm.</p>
+      </div>
+      <div class="famcard">
+        <p class="famwho">Two adults &middot; 13 and 16</p>
+        <ol class="famplan">
+          <li><span class="famtime">9:00</span><span class="famride">TRON Lightcycle / Run</span><span class="famwhy">headliner while the queue is still short</span></li>
+          <li><span class="famtime">9:50</span><span class="famride">Space Mountain</span><span class="famwhy">same corner of the park</span></li>
+          <li><span class="famtime">11:15</span><span class="famride">Big Thunder Mountain</span><span class="famwhy">before the midday peak</span></li>
+          <li><span class="famtime">13:30</span><span class="famride">The water ride</span><span class="famwhy">the hot hour is the best hour for it</span></li>
+          <li><span class="famtime">15:00</span><span class="famride">Haunted Mansion</span><span class="famwhy">indoors while the sun is worst</span></li>
+        </ol>
+        <p class="famnote">Nothing filtered out. A different day entirely.</p>
+      </div>
+    </div>
+    <p class="twofam-eg"><i>usually 105 min &middot; ~75 min at 7:00&nbsp;PM &middot; walk to Frontierland</i></p>
+    <p class="twofam-foot">Every line says why it is there. A plan you can argue with is a plan you can trust.</p>
+  </div>
+  <p class="note" style="max-width:64ch;margin:22px auto 0;text-align:center">An illustration, not a promise. Heights, hours and closures change without notice &mdash; ParkPulse always tells you to confirm anything you are relying on in the park&rsquo;s own app before you go.</p>
+</section>
+
 <section class="sec" id="languages">
   <h2>The whole day, in your language</h2>
   <p class="lead">Twenty languages &mdash; and not just the buttons. Mila and Pip switch with you: she plans your day, answers your questions and writes your evening plan email in the language you choose, and he mutters his arithmetic in it too.</p>
@@ -747,7 +808,13 @@
     <details><summary>Which parks does ParkPulse cover?</summary>
       <p>65 parks across five regions: every Walt Disney World and Disneyland park, Universal Orlando, Hollywood and Japan, Six Flags, LEGOLAND, Busch Gardens, SeaWorld, Cedar Point, Europa-Park, Efteling, Everland, Lotte World and more. <a href="/parks">See the full list</a>.</p></details>
     <details><summary>Is it a subscription?</summary>
-      <p>No. Passes are one-time purchases &mdash; a day, a week, a month, six months or a year &mdash; and nothing auto-renews. Full refund within 14 days if the pass hasn't been materially used.</p></details>
+      <p>No. Passes are one-time purchases &mdash; a day, a trip, a season or a year &mdash; and nothing auto-renews. Full refund within 14 days if the pass hasn't been materially used.</p></details>
+    <details><summary>Can it plan around my child&rsquo;s height?</summary>
+      <p>Yes. Give your child&rsquo;s height once and any ride they would be turned away from is left out of the plan entirely &mdash; so you never queue for something they cannot board. Mixed groups still get the big rides: ParkPulse knows which attractions run rider switch, so one adult rides while the other waits with the little one, then they swap.</p></details>
+    <details><summary>Does the plan change for the weather?</summary>
+      <p>It does. A hot afternoon moves you onto water rides and into air-conditioned attractions at the peak hour instead of leaving you in an exposed queue; rain pulls the plan towards indoor rides and shows, and tells you to pack the poncho. It also knows when sunset is, because the half hour before it is the best light you will get for photographs.</p></details>
+    <details><summary>We are going with grandparents &mdash; does that change anything?</summary>
+      <p>Yes. An older guest in the group slows the walking pace between stops, builds a real sit-down into the afternoon, and moves gentler rides and shows up the running order &mdash; without taking the thrill rides away from everyone else. The same applies in reverse for a group of teenagers.</p></details>
     <details><summary>What is a touring plan?</summary>
       <p>An hour-by-hour running order for a park day: what to ride first, when to eat, when the lines dip. ParkPulse publishes <a href="/plans">500+ free touring plans</a> &mdash; for families with little ones, thrill seekers, rainy days and more &mdash; and each one opens live in the app, where it re-times itself against today's actual waits.</p></details>
   </div>
@@ -757,7 +824,10 @@
    {"@type":"Question","name":"What is Mila?","acceptedAnswer":{"@type":"Answer","text":"Mila is ParkPulse's AI park fairy. She builds your whole day in one tap around live waits and crowd forecasts, re-plans when the day changes, answers questions like 'is the skip pass worth it today?' — and tells you when to keep your money."}},
    {"@type":"Question","name":"How accurate are the wait times?","acceptedAnswer":{"@type":"Answer","text":"Live waits are the parks' own posted times via Queue-Times.com, refreshed about every minute. Forecasts are built from historical patterns per ride and hour — they are estimates, and we publish our accuracy record openly at parkpulse.fun/accuracy."}},
    {"@type":"Question","name":"Which parks does ParkPulse cover?","acceptedAnswer":{"@type":"Answer","text":"65 parks across five regions: every Walt Disney World and Disneyland park, Universal Orlando, Hollywood and Japan, Six Flags, LEGOLAND, Busch Gardens, SeaWorld, Cedar Point, Europa-Park, Efteling, Everland, Lotte World and more."}},
-   {"@type":"Question","name":"Is it a subscription?","acceptedAnswer":{"@type":"Answer","text":"No. Passes are one-time purchases — a day, a week, a month, six months or a year — and nothing auto-renews. Full refund within 14 days if the pass hasn't been materially used."}},
+   {"@type":"Question","name":"Is it a subscription?","acceptedAnswer":{"@type":"Answer","text":"No. Passes are one-time purchases — a day, a trip, a season or a year — and nothing auto-renews. Full refund within 14 days if the pass hasn't been materially used."}},
+   {"@type":"Question","name":"Can it plan around my child's height?","acceptedAnswer":{"@type":"Answer","text":"Yes. Give your child's height once and any ride they would be turned away from is left out of the plan entirely — so you never queue for something they cannot board. Mixed groups still get the big rides: ParkPulse knows which attractions run rider switch, so one adult rides while the other waits with the little one, then they swap."}},
+   {"@type":"Question","name":"Does the plan change for the weather?","acceptedAnswer":{"@type":"Answer","text":"It does. A hot afternoon moves you onto water rides and into air-conditioned attractions at the peak hour instead of leaving you in an exposed queue; rain pulls the plan towards indoor rides and shows, and tells you to pack the poncho. It also knows when sunset is, because the half hour before it is the best light you will get for photographs."}},
+   {"@type":"Question","name":"We are going with grandparents — does that change anything?","acceptedAnswer":{"@type":"Answer","text":"Yes. An older guest in the group slows the walking pace between stops, builds a real sit-down into the afternoon, and moves gentler rides and shows up the running order — without taking the thrill rides away from everyone else. The same applies in reverse for a group of teenagers."}},
    {"@type":"Question","name":"What is a touring plan?","acceptedAnswer":{"@type":"Answer","text":"An hour-by-hour running order for a park day: what to ride first, when to eat, when the lines dip. ParkPulse publishes 500+ free touring plans — for families with little ones, thrill seekers, rainy days and more — and each one opens live in the app, where it re-times itself against today's actual waits."}}
   ]}
   </script>
