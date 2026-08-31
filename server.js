@@ -1823,6 +1823,18 @@ const AI_BUDGET_FREE = Number(process.env.AI_BUDGET_FREE || 0.20);
 const AI_GLOBAL_DAILY_USD = Number(process.env.AI_GLOBAL_DAILY_USD || 50);
 
 function aiBudgetFor(user) {
+  // The admin bypass was only ever half-built. hasAccess() waves an operator
+  // through the gate, and then this put them straight back on the free tier's
+  // twenty cents -- about two of Mila's reads -- so the person who owns the
+  // product was the likeliest person in it to be told she had given them
+  // everything she had for today. It reads as "Mila is broken" and it is not:
+  // it is a budget written for strangers being applied to the operator.
+  //
+  // The 'dev' allowance has been sitting in the table for exactly this and
+  // nothing ever assigned it.
+  if (user && user.verified && user.email && ADMIN_EMAILS.has(user.email)) {
+    return AI_BUDGET_USD.dev + (user.ai_credit_usd || 0);
+  }
   const base = (user && accountPassActive(user) && AI_BUDGET_USD[user.plan] !== undefined)
     ? AI_BUDGET_USD[user.plan] : AI_BUDGET_FREE;
   return base + (user?.ai_credit_usd || 0);

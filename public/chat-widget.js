@@ -398,17 +398,17 @@
         // allowance, and telling them to go and buy the thing they already
         // own would be nonsense.
         if (res.status === 402 && data.milaRest) {
-          const err = new Error(data.error || 'Mila needs a rest.');
+          const err = new Error(data.error || T()('Mila needs a rest.'));
           err.milaRest = data.milaRest;
           err.topUp = Boolean(data.topUp);
           throw err;
         }
-        if (res.status === 402) throw new Error('This is a Trip Pass feature — see /#pricing to unlock everything.');
+        if (res.status === 402) throw new Error(T()('This is a Trip Pass feature — see /#pricing to unlock everything.'));
         throw new Error(data.error || 'error');
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buf = '', streamError = null;
+      let buf = '', streamError = null, stale = false;
       const actions = [];
       for (;;) {
         const { done, value } = await reader.read();
@@ -427,6 +427,9 @@
           const payload = JSON.parse(data);
           if (event === 'delta' && payload.text) appendDelta(payload.text);
           else if (event === 'action') actions.push(payload);
+          // Her read of this same plan, replayed because she could not be
+          // reached. Unlabelled it would read as something she just wrote.
+          else if (event === 'stale') stale = true;
           else if (event === 'error') streamError = payload.error;
         }
       }
@@ -441,6 +444,9 @@
         actions.forEach(renderAction); // actions already happened server-side
         return;
       }
+      if (stale) {
+        out.innerHTML = renderMd(replyText + '\n\n_' + T()("Mila couldn't be reached just now — this is her read of this exact plan, from earlier. The live waits may have moved since.") + '_');
+      }
       state.history.push({ role: 'assistant', content: replyText });
       for (const a of actions) if (a.type === 'plan') state.history.push({ role: 'action', action: a });
       saveHistory();
@@ -448,8 +454,14 @@
       feedbackRow(replyText);
     } catch (e) {
       out.classList.remove('ppc-typing');
+      // The server writes these in English -- the spending cap, the dead key,
+      // the empty balance -- and they used to land here verbatim, so a
+      // Portuguese reader met "Mila has given you everything she has for
+      // today." in the middle of their own language. T() returns its input
+      // untouched when there is no entry, so a string already translated
+      // passes straight through.
       out.textContent = (e.message && e.message.length < 130 && e.message !== 'empty reply')
-        ? e.message
+        ? T()(e.message)
         : T()('Your magical fairy is having a moment — try again shortly.');
       // Out of her day's time, and more can be bought: offer it right here
       // rather than leaving a refusal on screen with nowhere to go.

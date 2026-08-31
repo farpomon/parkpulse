@@ -35,6 +35,7 @@ const SHARED_SERVER = [
   ['partyshape', 'test/party-shape.mjs'],
   ['party', 'test/party-change.mjs'],
   ['ll', 'test/lightning-lane.mjs'],
+  ['chati18n', 'test/chat-i18n.mjs'],
 ];
 const OWN_SERVER = [
   ['adminai', 'test/admin-ai-spend.cjs'],

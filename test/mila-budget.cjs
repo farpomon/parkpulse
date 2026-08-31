@@ -12,6 +12,7 @@ process.env.PASS_SECRET = 'testsecret';
 process.env.AI_BUDGET_FREE = '0.20';
 process.env.AI_GLOBAL_DAILY_USD = '3';
 process.env.AI_BUDGETS = JSON.stringify({ 'week-pass': 1.00 });
+process.env.ADMIN_EMAILS = 'boss@test.dev';
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -104,6 +105,29 @@ function tokenFor(email) {
     check('a billed answer draws the credit down', db.users.get(ME).ai_credit_usd === Math.round((before - 0.1) * 100) / 100,
       `${before} -> ${db.users.get(ME).ai_credit_usd}`);
     check('and credit never goes negative', (db.users.spendAiCredit(ME, 999), db.users.get(ME).ai_credit_usd === 0), String(db.users.get(ME).ai_credit_usd));
+  }
+
+  console.log('\n[the operator is not a stranger]');
+  {
+    // Reported from production: the owner of the site, signed in as himself,
+    // was told "Mila has given you everything she has for today" after a
+    // couple of questions -- in English, in the middle of a Portuguese app.
+    // Nothing was broken. hasAccess() waved him through the gate and then the
+    // budget put him back on the free tier's twenty cents, which is about two
+    // of Mila's reads. An admin who cannot use the product cannot check it.
+    const ADMIN = 'boss@test.dev';
+    db.users.create(ADMIN, 's', 'x', 1);
+    db.users.markVerified(ADMIN);
+    const atok = tokenFor(ADMIN);
+    const b = await fetch(`${B}/api/mila/budget`, { headers: { 'x-session': atok } }).then((r) => r.json());
+    check('an admin is not on the free tier allowance', b.budget > 0.20, JSON.stringify(b));
+    check('but on the dev allowance', b.budget === 25, JSON.stringify(b));
+    check('and Mila will answer them', b.ok === true, JSON.stringify(b));
+
+    // Still a ceiling, not a blank cheque -- an admin loop is still a bill.
+    db.aispend.add(ADMIN, today(), 30);
+    const after = await fetch(`${B}/api/mila/budget`, { headers: { 'x-session': atok } }).then((r) => r.json());
+    check('the operator is still capped, just far higher', after.ok === false && after.reason === 'account', JSON.stringify(after));
   }
 
   console.log('\n[the global backstop does not care whose spending it was]');
