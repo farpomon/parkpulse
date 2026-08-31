@@ -19,10 +19,14 @@ const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== u
 
 const consultant = require('../consultant.js');
 let aiMode = 'ok';                       // steered per case below
-consultant._setClient({ beta: { messages: { create: async () => {
-  if (aiMode === 'ok') return { model: 'claude-sonnet-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 9, output_tokens: 2 } };
-  const e = new Error(aiMode === 'key' ? 'invalid x-api-key' : aiMode === 'credit' ? 'your credit balance is too low' : 'upstream exploded');
-  e.status = aiMode === 'key' ? 401 : aiMode === 'credit' ? 400 : 503;
+let asked = null;                        // the model the probe actually asked for
+consultant._setClient({ beta: { messages: { create: async (args) => {
+  asked = args.model;
+  if (aiMode === 'ok') return { model: args.model, stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 9, output_tokens: 2 } };
+  const e = new Error(aiMode === 'key' ? 'invalid x-api-key'
+    : aiMode === 'credit' ? 'your credit balance is too low'
+    : aiMode === 'tier' ? `model: ${args.model} not found` : 'upstream exploded');
+  e.status = aiMode === 'key' ? 401 : aiMode === 'credit' ? 400 : aiMode === 'tier' ? 404 : 503;
   throw e;
 } } } });
 const db = require('../db.js');
@@ -125,7 +129,13 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     aiMode = 'ok'; server._clearMilaPingCache();
     let m = (await ops()).mila;
     check('a working model reports answering', m.ok === true, JSON.stringify(m));
-    check('and names the model that answered', /sonnet/.test(m.model || ''), String(m.model));
+    // The probe has to ask on the tier the ADVISOR speaks on. Model access is
+    // granted per model, so a key can hold the catalogue tier and not this
+    // one: probe the cheap tier and the dashboard goes green while every real
+    // question a visitor asks fails. That is the exact blindness this panel
+    // exists to end, so it is worth a standing test.
+    check('it asks on the tier Mila herself answers on', asked === 'claude-opus-5', String(asked));
+    check('and names the model that answered', /opus/.test(m.model || ''), String(m.model));
     check('with today\'s spend against the cap', typeof m.spentToday === 'number' && m.dailyCap > 0, JSON.stringify({ s: m.spentToday, c: m.dailyCap }));
 
     // The three failures that look identical to a reader and are not:
@@ -141,6 +151,13 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     aiMode = 'down'; server._clearMilaPingCache();
     m = (await ops()).mila;
     check('and an upstream failure from both', m.ok === false && m.reason === 'upstream down', JSON.stringify(m));
+
+    // A valid key that is simply not allowed this tier. It comes back as "not
+    // found", which reads like our bug and is not -- it is a permission, and
+    // it is fixed in the Anthropic console, so it gets named on its own.
+    aiMode = 'tier'; server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('a key without access to her tier is named', m.ok === false && m.reason === 'model unavailable', JSON.stringify(m));
 
     // Asking costs money, so it is billed like anything else -- a health check
     // that hid its own cost would be lying in the one report meant to show costs.

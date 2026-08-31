@@ -3091,7 +3091,13 @@
       $('planbase-h').style.display = 'none';
       if (!msg) return;
       state.textContent = '';
-      body.innerHTML = `<p class="planai-off"><img class="mila-mini" src="/img/mila/mila-nervous-160.webp" alt=""> ${esc(msg)}</p>`;
+      // The server writes its own failures, in English, and they land here
+      // verbatim: the money gate, the dead key, the empty balance. Those are
+      // the words a visitor reads on the one day nothing works, so they go
+      // through the dictionary like everything else. tr() returns its input
+      // untouched when there is no entry, so a string already translated above
+      // passes straight through.
+      body.innerHTML = `<p class="planai-off"><img class="mila-mini" src="/img/mila/mila-nervous-160.webp" alt=""> ${esc(tr(msg))}</p>`;
       $('planai-act').innerHTML = upsell ? `<button class="btn planai-cta" id="planai-up">${tr('See what a pass includes')}</button>` : '';
       const up = document.getElementById('planai-up');
       if (up) up.addEventListener('click', () => showUpsell());

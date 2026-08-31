@@ -904,13 +904,19 @@ async function rideTags(parkName, rideNames) {
 // Is the model actually answering? Asked on purpose, because every other
 // signal we have is indirect: a key that has been revoked, a balance that has
 // run out and a model that is simply slow all look identical from outside
-// until somebody's question fails. Deliberately tiny -- a handful of tokens on
-// the cheap tier -- and the caller caches it, so the cost of knowing is a
-// rounding error against the cost of not knowing.
+// until somebody's question fails.
+//
+// It asks MODEL -- the tier the advisor itself speaks on -- and that is the
+// whole point of the check. Access is granted per model, so a key can hold
+// the catalogue tier and not this one: ask on the cheap tier and the answer
+// comes back fine while every real question a visitor asks fails, which is
+// precisely the blindness this was built to end. Eight tokens, and only when
+// somebody opens the dashboard, so the cost of knowing stays a rounding error
+// against the cost of not knowing.
 async function ping() {
   const started = Date.now();
   const msg = await client.beta.messages.create({
-    model: CATALOG_MODEL,
+    model: MODEL,
     max_tokens: 8,
     system: 'Reply with the single word: ok',
     messages: [{ role: 'user', content: 'ping' }],
@@ -919,7 +925,7 @@ async function ping() {
   // lying in the one report that exists to show costs.
   noteUsage('health-ping', msg);
   const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-  return { model: msg.model || CATALOG_MODEL, ms: Date.now() - started, replied: Boolean(text) };
+  return { model: msg.model || MODEL, ms: Date.now() - started, replied: Boolean(text) };
 }
 
 module.exports = { enabled, init, consult, ping, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

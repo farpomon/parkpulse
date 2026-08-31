@@ -186,6 +186,42 @@ await visit('plan (built)', async () => {
   await page.waitForTimeout(300);
   await page.evaluate(() => (document.getElementById('plan-hero-btn') || document.getElementById('build'))?.click());
 }, 3000);
+// The two screens a visitor gets on the day Mila is broken. Both are written
+// by the SERVER, in English, and handed straight to the panel -- the money
+// gate ("Mila is having a little rest") and the upstream failures (a dead key,
+// an empty balance). Nothing here is display:none: the panel simply never
+// fails while a test is stubbing success, which is how a whole class of copy
+// stayed unread in nineteen languages. Failing on purpose is the only way to
+// see it.
+const rebuildWith = async (fulfil) => {
+  await page.unroute('**/api/consultant');
+  await page.route('**/api/consultant', fulfil);
+  // Her read is cached per park-day, and a park-day already asked is offered
+  // rather than asked again -- so a rebuild alone would replay the successful
+  // answer above and never reach the failure at all.
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch {} });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2500);
+  await closeOverlays();
+  await page.evaluate(() => document.querySelector('.tabbar button[data-tab="today"]')?.click());
+  await page.waitForTimeout(200);
+  await page.evaluate(() => document.querySelectorAll('#rides input[type=checkbox][data-name]').forEach((c) => { if (!c.disabled && !c.checked) c.click(); }));
+  await page.evaluate(() => document.querySelector('.tabbar button[data-tab="plan"]')?.click());
+  await page.waitForTimeout(300);
+  await page.evaluate(() => (document.getElementById('plan-hero-btn') || document.getElementById('build'))?.click());
+};
+await visit('plan · Mila out of budget', async () => {
+  await rebuildWith((r) => r.fulfill({ status: 402, contentType: 'application/json', body: JSON.stringify({
+    error: 'Mila is having a little rest — everything else still works. Try her again shortly.',
+    milaRest: 'global', spent: 50, budget: 50 }) }));
+}, 3000);
+await visit('plan · Mila upstream failure', async () => {
+  await rebuildWith((r) => r.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' },
+    body: `event: error\ndata: ${JSON.stringify({ error: "Mila's key isn't being accepted right now — the operator has been told." })}\n\n` }));
+}, 3000);
+// Put the working advisor back for the screens below.
+await page.unroute('**/api/consultant');
+await page.route('**/api/consultant', (r) => r.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: 'event: delta\ndata: {"text":"Um comentario da Mila."}\n\nevent: done\ndata: {}\n\n' }));
 await visit('skip-pass sheet', async () => {
   await page.evaluate(() => [...document.querySelectorAll('#plan-out button')].find((x) => /🎟/.test(x.textContent))?.click());
 });

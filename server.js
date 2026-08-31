@@ -3234,6 +3234,11 @@ async function milaStatus() {
       reason: status === 401 || status === 403 ? 'key rejected'
         : status === 429 ? 'rate limited'
         : status === 400 && /credit|balance|quota/i.test(err.message || '') ? 'out of credit'
+        // A key can be perfectly valid and still not be allowed the tier the
+        // advisor speaks on. It reads as "not found", which sounds like our
+        // bug and is not -- it is a permission, and it is fixed in the
+        // Anthropic console, so say so rather than filing it under 'failed'.
+        : status === 404 || (/model/i.test(err.message || '') && /not.?found|access|permission/i.test(err.message || '')) ? 'model unavailable'
         : status >= 500 ? 'upstream down' : 'failed',
       detail: String(err.message).slice(0, 160),
     };
@@ -5111,6 +5116,9 @@ ${sections}
               : status === 401 || status === 403 ? "Mila's key isn't being accepted right now — the operator has been told."
               : status === 429 ? 'Mila is at her limit for the moment — try again shortly.'
               : status === 400 && /credit|balance|quota/i.test(err.message || '') ? "Mila's account needs topping up — the operator has been told."
+              // Not a wobble that will pass: the key is fine and simply is not
+              // allowed her tier, so "try again shortly" would be a lie.
+              : status === 404 ? "Mila can't reach her magic right now — the operator has been told."
               : status >= 500 ? 'Your magical fairy is having trouble — try again shortly.'
               : 'Your magical fairy is having a moment — try again shortly.';
             send('error', { error: friendly });
