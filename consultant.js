@@ -938,17 +938,26 @@ async function rideTags(parkName, rideNames) {
 // run out and a model that is simply slow all look identical from outside
 // until somebody's question fails.
 //
-// It asks MODEL -- the tier the advisor itself speaks on -- and that is the
-// whole point of the check. Access is granted per model, so a key can hold
-// the catalogue tier and not this one: ask on the cheap tier and the answer
-// comes back fine while every real question a visitor asks fails, which is
-// precisely the blindness this was built to end. Eight tokens, and only when
-// somebody opens the dashboard, so the cost of knowing stays a rounding error
-// against the cost of not knowing.
-async function ping() {
+// It asks EVERY tier, one tiny call each, and that is the whole point.
+// Access is granted per MODEL, so a key can hold one tier and not another --
+// and the three tiers carry different features. Probing one and reporting
+// "Anthropic" is how the dining guide came to fail on every park for days
+// while the dashboard stayed green: the advisor was answering, so nothing
+// looked wrong, and the catalogue tier that writes the guides was refused
+// every single time.
+//
+// Eight tokens each, and only when somebody opens the dashboard, so the cost
+// of knowing stays a rounding error against the cost of not knowing.
+const TIERS = [
+  ['advisor', () => MODEL, 'Mila herself — every question a visitor asks'],
+  ['catalogue', () => CATALOG_MODEL, 'dining guides and ride tags'],
+  ['light', () => LIGHT_MODEL, 'ride blurbs and name matching'],
+];
+
+async function pingTier(model) {
   const started = Date.now();
   const msg = await client.beta.messages.create({
-    model: MODEL,
+    model,
     max_tokens: 8,
     system: 'Reply with the single word: ok',
     messages: [{ role: 'user', content: 'ping' }],
@@ -957,7 +966,28 @@ async function ping() {
   // lying in the one report that exists to show costs.
   noteUsage('health-ping', msg);
   const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-  return { model: msg.model || MODEL, ms: Date.now() - started, replied: Boolean(text) };
+  return { model: msg.model || model, ms: Date.now() - started, replied: Boolean(text) };
 }
 
-module.exports = { enabled, init, consult, ping, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+async function ping() {
+  const out = [];
+  for (const [tier, modelOf, does] of TIERS) {
+    const model = modelOf();
+    try {
+      out.push({ tier, does, ok: true, ...(await pingTier(model)) });
+    } catch (err) {
+      out.push({ tier, does, ok: false, model, status: err?.status || err?.statusCode || null, error: String(err?.message || err).slice(0, 160) });
+    }
+  }
+  // The advisor's own line stays at the top level so the existing readout and
+  // its callers keep working unchanged; `tiers` is the whole picture.
+  const advisor = out.find((t) => t.tier === 'advisor');
+  if (!advisor.ok) { const e = new Error(advisor.error); e.status = advisor.status; e.tiers = out; throw e; }
+  return { ...advisor, tiers: out };
+}
+
+// The three tiers by name, so the caller can label health and spend by the
+// entitlement that actually failed rather than by one word for all of them.
+const models = { advisor: MODEL, catalogue: CATALOG_MODEL, light: LIGHT_MODEL };
+
+module.exports = { enabled, init, consult, ping, models, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

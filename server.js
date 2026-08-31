@@ -1784,10 +1784,21 @@ function priceUsage(model, usage) {
 // catalogue jobs -- ride blurbs, dining guides, map placement -- are written
 // once per park and shared by everybody, so they belong to the product rather
 // than to whoever happened to trigger them, and they pass nothing.
+const CATALOG_MODEL_NAME = consultant.models.catalogue;
+const LIGHT_MODEL_NAME = consultant.models.light;
+// Which tier a model belongs to. Access is granted per model, so these three
+// succeed and fail independently -- and reporting them under one name meant a
+// working advisor wiped the catalogue's failures off the panel on every single
+// question a visitor asked. The dining guide was refused for days behind a
+// green tick.
+const AI_TIER = (model) => (model === LIGHT_MODEL_NAME ? 'anthropic · light'
+  : model === CATALOG_MODEL_NAME ? 'anthropic · catalogue'
+  : 'anthropic · advisor');
+
 function recordUsage(feature, model, usage, billTo) {
   // A billed call is a call that worked, which is the only success signal the
   // AI upstream gives us without asking it something on purpose.
-  upstream.service('anthropic', true);
+  upstream.service(AI_TIER(model), true);
   const priced = priceUsage(model, usage);
   try { db.aiusage.add(etNow().date, feature, model, priced); }
   catch (err) { console.log(`usage record failed: ${err.message}`); }
@@ -3152,7 +3163,7 @@ consultant.init({
   noteFallback: (from, to, status, detail) => {
     lastFallback = { at: Date.now(), from, to, status, detail: String(detail || '').slice(0, 160) };
     console.log(`consultant fallback: ${from} -> ${to} after ${status ?? 'none'}: ${detail}`);
-    upstream.service('anthropic', false, `${from} unavailable (${status ?? 'none'}) — answered on ${to}`);
+    upstream.service(AI_TIER(null), false, `${from} unavailable (${status ?? 'none'}) — answered on ${to}`);
   },
 });
 // The most recent tier drop, for the dashboard. Deliberately not persisted: it
@@ -3289,7 +3300,7 @@ async function milaStatus() {
   let out;
   try {
     const r = await consultant.ping();
-    out = { ok: true, model: r.model, ms: r.ms };
+    out = { ok: true, model: r.model, ms: r.ms, tiers: r.tiers || null };
   } catch (err) {
     const status = err.status || err.statusCode || null;
     out = {
@@ -3304,6 +3315,10 @@ async function milaStatus() {
         : status === 404 || (/model/i.test(err.message || '') && /not.?found|access|permission/i.test(err.message || '')) ? 'model unavailable'
         : status >= 500 ? 'upstream down' : 'failed',
       detail: String(err.message).slice(0, 160),
+      // Even when the advisor itself is down, say what the other tiers did --
+      // "everything is broken" and "one entitlement is missing" need very
+      // different fixes.
+      tiers: err.tiers || null,
     };
   }
   milaPingCache = { at: Date.now(), val: out };
@@ -4036,7 +4051,7 @@ ${sections}
           // The health panel exists to make exactly this visible: nothing
           // errors loudly when a catalogue job stops working, the feature
           // just quietly never fills in.
-          upstream.service('anthropic', false, err.message);
+          upstream.service(AI_TIER(CATALOG_MODEL_NAME), false, err.message);
         })
         .finally(() => diningJobs.delete(jobKey));
       diningJobs.set(jobKey, job);
@@ -4113,7 +4128,7 @@ ${sections}
       return sendJson(res, 200, { tags });
     } catch (err) {
       console.log(`ride-tags error: ${err.message}`);
-      upstream.service('anthropic', false, err.message);
+      upstream.service(AI_TIER(CATALOG_MODEL_NAME), false, err.message);
       return sendJson(res, 502, { error: 'no tags' });
     }
   }
@@ -5178,7 +5193,7 @@ ${sections}
             // The catalogue jobs reported their failures here and the advisor
             // never did, so Mila could be failing every question while the
             // health panel showed nothing at all.
-            upstream.service('anthropic', false, `${status ?? 'none'}: ${err.message}`);
+            upstream.service(AI_TIER(null), false, `${status ?? 'none'}: ${err.message}`);
             const friendly = err.code === 'bad_request' ? 'invalid messages'
               : status === 401 || status === 403 ? "Mila's key isn't being accepted right now — the operator has been told."
               : status === 429 ? 'Mila is at her limit for the moment — try again shortly.'
@@ -5425,6 +5440,7 @@ server.listen(PORT, bootBanner);
 // belief that somebody is watching.
 module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
+  _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.

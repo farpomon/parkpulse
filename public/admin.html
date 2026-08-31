@@ -376,6 +376,25 @@ function renderOps(d) {
   // to a console nobody reads.
   const mi = d.mila || {};
   const capLeft = (mi.dailyCap || 0) - (mi.spentToday || 0);
+  // Every tier, named. One of these failing while the others answer is the
+  // case that used to be invisible: the dining guide was refused for days
+  // behind a green tick, because a working advisor reset the failure count on
+  // every question a visitor asked.
+  const tiers = Array.isArray(mi.tiers) ? mi.tiers : [];
+  const broken = tiers.filter((t) => !t.ok);
+  const tierLine = tiers.length
+    ? `<p style="font-size:.8rem;margin:.35rem 0 0">` + tiers.map((t) =>
+        `<span class="${t.ok ? 'ok' : 'no'}">${t.ok ? '\u25cf' : '\u25cf'}</span> `
+        + `<b>${esc(t.tier)}</b> <span class="muted">${esc(t.model || '')}`
+        + (t.ok ? ` \u00b7 ${t.ms}ms` : ` \u2014 ${esc(String(t.status || ''))} ${esc(t.error || '')}`)
+        + `</span>`).join('<br>') + `</p>`
+    : '';
+  const tierWarn = broken.length
+    ? `<p style="font-size:.85rem;margin:.5rem 0 0"><span class="warn">\u25cf</span> `
+      + `<b>${broken.length} model tier${broken.length === 1 ? '' : 's'} refused</b> \u2014 `
+      + esc(broken.map((t) => `${t.tier} (${t.does})`).join(', '))
+      + `. Those features fail every time while the rest of the app looks fine.</p>`
+    : '';
   $('mila-status').innerHTML = !mi.ok
     ? `<span class="no">\u25cf</span> <b>Mila cannot answer</b> \u2014 ${esc(mi.reason || 'unknown')}. ${esc(mi.detail || '')}`
     : capLeft <= 0
@@ -389,6 +408,7 @@ function renderOps(d) {
           + `${esc(mi.fallback.detail || '')}`
         : `<span class="ok">\u25cf</span> Mila answering \u00b7 ${esc(mi.model || '')} in ${mi.ms}ms \u00b7 `
           + `${usd(mi.spentToday)} of ${usd(mi.dailyCap)} spent today`;
+  $('mila-status').innerHTML += tierWarn + tierLine;
 
   // The pre-launch strip, said out loud. Everyone who works on the site
   // dismissed it on day one and stops seeing it, so the only place it can be

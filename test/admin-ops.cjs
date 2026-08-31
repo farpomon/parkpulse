@@ -137,6 +137,24 @@ function adminSession() {
     check('the summary adds up to every park', Object.values(h.summary).reduce((a, b) => a + b, 0) === h.parks.length,
       `${JSON.stringify(h.summary)} vs ${h.parks.length}`);
     check('it says how long this process has been up', typeof h.uptimeMin === 'number', String(h.uptimeMin));
+
+    // The failure that hid a dead dining guide for days. Anthropic access is
+    // granted PER MODEL, so the three tiers succeed and fail independently --
+    // but they were all filed under one name, and any success zeroed the
+    // failure count. Every question a visitor asked Mila wiped the catalogue's
+    // refusals off the panel, so a feature that had never once worked showed a
+    // green tick.
+    server._noteUpstream('anthropic · catalogue', false, 'model: claude-sonnet-5 not found');
+    server._noteUpstream('anthropic · advisor', true);
+    const svc = (await ops()).health.services || {};
+    check('the tiers are listed separately', Object.keys(svc).filter((k) => /anthropic/.test(k)).length >= 2,
+      JSON.stringify(Object.keys(svc)));
+    check('a working advisor does not erase the catalogue\'s failure',
+      svc['anthropic · catalogue'] && svc['anthropic · catalogue'].fails > 0, JSON.stringify(svc));
+    check('and the refused tier still carries its reason',
+      /not found/.test(svc['anthropic · catalogue']?.error || ''), String(svc['anthropic · catalogue']?.error));
+    check('while the advisor reads healthy on its own line',
+      svc['anthropic · advisor'] && svc['anthropic · advisor'].fails === 0, JSON.stringify(svc['anthropic · advisor']));
   }
 
   console.log('\n[rate limiting]');

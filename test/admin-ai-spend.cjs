@@ -19,9 +19,14 @@ const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== u
 
 const consultant = require('../consultant.js');
 let aiMode = 'ok';                       // steered per case below
-let asked = null;                        // the model the probe actually asked for
+const asked = [];                        // every model the probe actually asked for
+// Models this stubbed key is NOT entitled to. Empty means "all of them work".
+let refused = new Set();
 consultant._setClient({ beta: { messages: { create: async (args) => {
-  asked = args.model;
+  asked.push(args.model);
+  if (refused.has(args.model)) {
+    const e = new Error(`model: ${args.model} not found`); e.status = 404; throw e;
+  }
   if (aiMode === 'ok') return { model: args.model, stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 9, output_tokens: 2 } };
   const e = new Error(aiMode === 'key' ? 'invalid x-api-key'
     : aiMode === 'credit' ? 'your credit balance is too low'
@@ -126,7 +131,7 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     const server = require('../server.js');
     const ops = () => fetch(B + '/api/admin/ops', { headers: { 'x-session': session } }).then((r) => r.json());
 
-    aiMode = 'ok'; server._clearMilaPingCache();
+    aiMode = 'ok'; asked.length = 0; server._clearMilaPingCache();
     let m = (await ops()).mila;
     check('a working model reports answering', m.ok === true, JSON.stringify(m));
     // The probe has to ask on the tier the ADVISOR speaks on. Model access is
@@ -134,7 +139,10 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     // one: probe the cheap tier and the dashboard goes green while every real
     // question a visitor asks fails. That is the exact blindness this panel
     // exists to end, so it is worth a standing test.
-    check('it asks on the tier Mila herself answers on', asked === 'claude-opus-5', String(asked));
+    // The advisor's tier is asked FIRST and by name. Probing the cheap tier
+    // and calling it "Anthropic" is what let a dead advisor read as healthy.
+    check('it asks on the tier Mila herself answers on', asked[0] === consultant.models.advisor, JSON.stringify(asked));
+    check('and on every other tier too', asked.length === 3, JSON.stringify(asked));
     check('and names the model that answered', /opus/.test(m.model || ''), String(m.model));
     check('with today\'s spend against the cap', typeof m.spentToday === 'number' && m.dailyCap > 0, JSON.stringify({ s: m.spentToday, c: m.dailyCap }));
 
@@ -176,6 +184,25 @@ const etDay = (back = 0) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Americ
     server._noteFallbackForTest('claude-opus-5', 'claude-sonnet-5', 404, 'model not found');
     server._clearMilaPingCache();
     m = (await ops()).mila;
+    // Reported from production: the dining guide failed on every park for
+    // days while the dashboard stayed green. Dining runs on the catalogue
+    // tier and Mila on the advisor tier, and a key can hold one and not the
+    // other -- so probing only Mila's tier, and filing all three under one
+    // name, made a dead feature look perfectly healthy.
+    refused = new Set([consultant.models.catalogue]);
+    server._clearMilaPingCache();
+    m = (await ops()).mila;
+    check('the advisor still reports as answering', m.ok === true, JSON.stringify(m).slice(0, 120));
+    const tiers = m.tiers || [];
+    check('every tier is probed, not just the advisor\'s', tiers.length === 3, JSON.stringify(tiers.map((t) => t.tier)));
+    check('and the refused one is named', tiers.find((t) => t.tier === 'catalogue')?.ok === false,
+      JSON.stringify(tiers.map((t) => [t.tier, t.ok])));
+    check('while the working ones are not', tiers.filter((t) => t.ok).map((t) => t.tier).sort().join(',') === 'advisor,light',
+      JSON.stringify(tiers.map((t) => [t.tier, t.ok])));
+    check('the reader is told what that tier does', /dining/i.test(tiers.find((t) => t.tier === 'catalogue')?.does || ''),
+      String(tiers.find((t) => t.tier === 'catalogue')?.does));
+    refused = new Set();
+
     check('a tier drop is reported even though she is answering',
       m.ok === true && m.fallback && m.fallback.to === 'claude-sonnet-5' && m.fallback.status === 404,
       JSON.stringify(m.fallback));
