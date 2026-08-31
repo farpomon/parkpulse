@@ -22,7 +22,7 @@ const DAYS = Array.from({ length: 7 }, (_, i) => ({
 }));
 const TODAY = DAYS[0].date, TARGET = DAYS[3].date, PAST = iso(-2), BEYOND = iso(30);
 
-async function open(query) {
+async function open(query, keep = false) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(e.message));
@@ -52,6 +52,7 @@ async function open(query) {
     url: location.pathname + location.search,
     startHour: document.getElementById('start-hour')?.value,
   }));
+  if (keep) return { state, errs, page, ctx };
   await ctx.close();
   return { state, errs };
 }
@@ -83,6 +84,39 @@ console.log('\n[no date at all]');
 {
   const { state } = await open('/app?park=magic-kingdom');
   check('the old link still works', state.park === 'magic-kingdom' && (state.day === '' || state.day === TODAY), `${state.park} / "${state.day}"`);
+}
+
+console.log('\n[the day belongs to the trip, not to the park]');
+{
+  // Choosing a day and then comparing two parks for it used to put the reader
+  // back on today -- twice -- and the board they were comparing then described
+  // the wrong day. The date is a fact about the holiday; the park is not.
+  const { page, ctx } = await open('/app?park=magic-kingdom', true);
+  const pick = DAYS[3].date;
+  await page.selectOption('#plan-day-sel', pick);
+  await page.waitForTimeout(700);
+  const chosen = await page.evaluate(() => document.getElementById('plan-day-sel')?.value);
+  check('a future day can be chosen', chosen === pick, `${chosen} vs ${pick}`);
+
+  const swap = async (name) => {
+    await page.evaluate((n) => {
+      const t = [...document.querySelectorAll('#tabs button')].find((e) => new RegExp(n, 'i').test(e.textContent || ''));
+      if (t) t.click();
+    }, name);
+    await page.waitForTimeout(2200);
+    return page.evaluate(() => ({
+      day: document.getElementById('plan-day-sel')?.value,
+      park: localStorage.getItem('pp-park'),
+    }));
+  };
+  const away = await swap('EPCOT');
+  check('switching park actually switched it', away.park === 'epcot', away.park);
+  check('and the chosen day came with it', away.day === pick, `${away.day} vs ${pick}`);
+
+  const back = await swap('Magic Kingdom');
+  check('coming back switches park again', back.park === 'magic-kingdom', back.park);
+  check('and the day is still the one chosen', back.day === pick, `${back.day} vs ${pick}`);
+  await ctx.close();
 }
 
 console.log(fail ? `\n=== ${fail} failures ===` : '\n=== the emailed link restores the day it was written for ===');

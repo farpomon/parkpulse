@@ -2096,6 +2096,10 @@
       if (!res.ok) { el.innerHTML = ''; return; }
       const f = await res.json();
       lastForecast = f;
+      // A date carried from another park has to exist in this one's forecast.
+      // Without this the picker showed Today while planDate still held the old
+      // date, and the board and the plan described different days.
+      if (planDate && !(f.days || []).slice(0, planHorizonDays()).some((d) => d.date === planDate)) planDate = null;
       renderDayOptions();
       applyPendingPlanDate();
       el.innerHTML = `<div class="fcast">
@@ -3987,7 +3991,10 @@
       if ($('plan-out').querySelector('.plan')) rememberPlanDay(plannerPark, planDate);
       $('plan-out').innerHTML = '';
       planOrder = []; planStops = [];
-      planDate = null;
+      // planDate deliberately survives: the day being planned belongs to the
+      // trip, not to the park. Clearing it here meant that comparing two parks
+      // for the Tuesday of a holiday put the reader back on today, twice, and
+      // the board they were comparing was then describing the wrong day.
       if (document.body.classList.contains('pane-plan')) setViewMode('rides');
     }
     if (plannerPark !== current) { setupPlanner(); restorePicks(current); loadLl(); plannerPark = current; }
@@ -4055,8 +4062,11 @@
       if (planStash[current] && rides.length && !$('plan-out').innerHTML.trim() && !pendingPlanDate) {
         // A tab left open overnight stashes "Thursday" and then Thursday
         // arrives: a stashed date at or before today collapses to Today.
+        // A day carried in from the park just left wins: it is what the
+        // reader currently has selected. This park's own remembered day is
+        // only the fallback for arriving with nothing chosen.
         const stashed = planStash[current].last || null;
-        planDate = stashed && stashed > parkDay() ? stashed : null;
+        if (!planDate) planDate = stashed && stashed > parkDay() ? stashed : null;
         renderDayOptions();
         buildPlan({ quiet: true });
       }
