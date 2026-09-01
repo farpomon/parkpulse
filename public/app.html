@@ -280,6 +280,22 @@
      ground and a brand edge against the plain list beneath it. */
   .planai { background: linear-gradient(180deg, var(--brand-soft, rgba(91,61,245,.09)), transparent 70%);
     border: 1px solid var(--brand); border-radius: 14px; padding: .85rem 1rem; margin: .3rem 0 1rem; }
+  /* The one question, asked once, after the day has earned it. Lives in its
+     own slot under the plan so a rebuild of the plan does not wipe it. */
+  .npscard { border: 1px solid var(--border); background: var(--card); border-radius: 14px; padding: .9rem 1rem; margin: 0 0 1rem; position: relative; }
+  .npscard .nps-q { display: flex; align-items: flex-start; gap: .6rem; margin: 0 1.6rem .7rem 0; font-weight: 700; font-size: .95rem; }
+  .npscard .nps-q img { flex: 0 0 auto; border-radius: 99px; }
+  .npscard .nps-x { position: absolute; top: .55rem; right: .6rem; background: none; border: 0; cursor: pointer; color: var(--muted); font-size: 1rem; line-height: 1; padding: .2rem .3rem; }
+  .npscard .nps-row { display: grid; grid-template-columns: repeat(11, 1fr); gap: .25rem; }
+  .npscard .nps-row button { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .5rem 0; font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; min-width: 0; }
+  .npscard .nps-row button:hover { border-color: var(--brand); color: var(--brand); }
+  .npscard .nps-row button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .npscard .nps-ends { display: flex; justify-content: space-between; font-size: .74rem; color: var(--muted); margin-top: .3rem; }
+  .npscard textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .6rem .7rem; font: inherit; font-size: .95rem; min-height: 4.2rem; resize: vertical; margin: .5rem 0; }
+  .npscard .nps-btns { display: flex; gap: .5rem; align-items: center; }
+  .npscard .nps-btns .btn { padding: .5rem 1rem; }
+  .npscard .nps-skip { background: none; border: 0; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; padding: .5rem .6rem; }
+  .npscard .nps-thanks { font-weight: 700; display: flex; align-items: center; gap: .5rem; }
   .planhero { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; width: 100%;
     background: linear-gradient(135deg, var(--brand), #7c5cff); color: #fff;
     border-radius: 14px; padding: 1rem 1.1rem; margin: 0 0 .9rem; box-shadow: 0 6px 18px rgba(91,61,245,.25); }
@@ -1152,6 +1168,7 @@
     <button class="pc-btn" id="pick-card-btn">Choose attractions →</button>
   </div>
   <div id="plan-out"></div>
+  <div id="nps-slot"></div>
   <!-- Filled by renderMoreCard() from the selected park's live board, so it
        follows the park picker without a fetch of its own. -->
   <div class="morecard" id="more-card"></div>
@@ -2356,6 +2373,64 @@
       setTimeout(() => span.remove(), 1800);
     }));
     return span;
+  }
+
+  // --- The one question ------------------------------------------------------
+  // "How likely are you to recommend ParkPulse to a friend?" -- the Net
+  // Promoter question, asked the way the method says to: once, after the
+  // product has delivered something, and not again for a quarter. The moment
+  // is the third ride ticked off the plan. By then the day has been planned,
+  // lived and found useful (or not), and the person is in a park with thirty
+  // seconds between queues -- which is exactly why it is one tap and never a
+  // sheet. Dismissing counts as an answer for the purposes of not nagging.
+  const NPS_EVERY_DAYS = 90;
+  const NPS_AFTER_RIDES = 3;
+  const npsDue = () => {
+    let last = 0;
+    try { last = Number(localStorage.getItem('pp-nps-at') || 0); } catch {}
+    return Date.now() - last > NPS_EVERY_DAYS * 86400000;
+  };
+  const npsMark = () => { try { localStorage.setItem('pp-nps-at', String(Date.now())); } catch {} };
+  function maybeAskNps() {
+    if (doneOrder.length < NPS_AFTER_RIDES || !npsDue()) return;
+    const slot = $('nps-slot');
+    if (!slot || slot.firstChild) return;
+    npsMark();  // asked is asked, whatever happens next
+    const card = document.createElement('div');
+    card.className = 'npscard';
+    card.setAttribute('role', 'group');
+    card.innerHTML = `<button class="nps-x" type="button" aria-label="${esc(tr('Dismiss'))}">✕</button>
+      <div class="nps-q"><img src="/img/mila/mila-thumbs-160.webp" alt="" width="34" height="34"><span>${esc(tr('Quick one — how likely are you to recommend ParkPulse to a friend?'))}</span></div>
+      <div class="nps-row">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-s="${i}">${i}</button>`).join('')}</div>
+      <div class="nps-ends"><span>${esc(tr('Not likely'))}</span><span>${esc(tr('Very likely'))}</span></div>`;
+    slot.appendChild(card);
+    const send = (body) => api('/api/nps', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...body, park: current, device: deviceId, lang: window.PP_LANG || 'en' }) }).catch(() => {});
+    card.querySelector('.nps-x').addEventListener('click', () => card.remove());
+    card.querySelectorAll('.nps-row button').forEach((b) => b.addEventListener('click', () => {
+      const score = Number(b.dataset.s);
+      card.querySelectorAll('.nps-row button').forEach((x) => x.classList.toggle('on', x === b));
+      send({ score });
+      // One follow-up, worded for the answer. A promoter is asked what to keep;
+      // everyone else what to fix. The comments are the part worth reading.
+      const ask = score >= 9 ? tr('What did we get right?') : tr("What's the one thing we could do better?");
+      let fu = card.querySelector('.nps-fu');
+      if (!fu) {
+        fu = document.createElement('div');
+        fu.className = 'nps-fu';
+        card.appendChild(fu);
+      }
+      fu.innerHTML = `<textarea maxlength="600" placeholder="${esc(ask)}" aria-label="${esc(ask)}"></textarea>
+        <div class="nps-btns"><button class="btn" type="button">${esc(tr('Send'))}</button><button class="nps-skip" type="button">${esc(tr('Skip'))}</button></div>`;
+      const thanks = () => { card.innerHTML = `<div class="nps-thanks"><img src="/img/mila/mila-celebrate-160.webp" alt="" width="34" height="34" style="border-radius:99px"><span>${esc(tr("Thank you — that helps more than you'd think ✨"))}</span></div>`; setTimeout(() => card.remove(), 4000); };
+      fu.querySelector('.btn').addEventListener('click', () => {
+        const comment = fu.querySelector('textarea').value.trim();
+        if (comment) send({ score, comment });
+        thanks();
+      });
+      fu.querySelector('.nps-skip').addEventListener('click', thanks);
+      fu.querySelector('textarea').focus();
+    }));
   }
 
   const WAND_MSG = () => tr('My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.');
@@ -4041,6 +4116,7 @@
       if (i === -1) doneOrder.push(name); else doneOrder.splice(i, 1);
       saveDone();
       const nowDone = i === -1;
+      if (nowDone) maybeAskNps();
       b.closest('.step').classList.toggle('done', nowDone);
       b.title = nowDone ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off');
       if (nowDone) {

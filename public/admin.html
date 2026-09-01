@@ -178,6 +178,7 @@
     <div class="card"><h2>Signups · last 30 days</h2><div class="chart" id="signup-chart"></div><div class="axis" id="signup-axis"></div></div>
     <div class="card"><h2>Park demand · live-wait requests, 30 days</h2><div class="overflow"><table id="parks-table"></table></div></div>
     <div class="card"><h2>Top pages · 30 days</h2><div class="overflow"><table id="pages-table"></table></div></div>
+    <div class="card" id="nps-card"><h2>Would they recommend it? · NPS, 90 days</h2><div id="nps"></div></div>
     <div class="card"><h2>AI advisor feedback · 30 days</h2><div class="fb" id="fb"></div><div id="fb-down"></div></div>
     <div class="card"><h2>Newest accounts</h2><div class="overflow"><table id="users-table"></table></div></div>
     <div class="card" id="limits-card">
@@ -265,6 +266,21 @@ function render(d) {
   barChart($('signup-chart'), $('signup-axis'), fillDays(d.users.signupsByDay30d, 30));
   meterTable($('parks-table'), d.traffic.topParks30d, 'park', 'Park');
   meterTable($('pages-table'), d.traffic.pages30d.slice(0, 10).map((r) => ({ path: r.path, n: r.n })), 'path', 'Page');
+
+  // Net Promoter Score: promoters (9-10) minus detractors (0-6), as a share of
+  // everyone who answered. Above 0 is more fans than critics; above 50 is
+  // excellent for consumer software. Shown with its n, because 100 from three
+  // people is a rounding error and 30 from three hundred is a business.
+  const np = d.nps90d || { n: 0 };
+  const share = (k) => (np.n ? Math.round(np[k] / np.n * 100) : 0);
+  const band = (s) => (s >= 9 ? 'ok' : s <= 6 ? 'no' : 'muted');
+  $('nps').innerHTML = !np.n
+    ? '<p class="muted" style="font-size:.85rem">Nobody has been asked yet. The question appears in the app after the third ride ticked off a plan, once per person per quarter.</p>'
+    : `<div class="tiles" style="margin:0 0 .6rem"><div class="tile"><div class="num ${np.score > 0 ? 'ok' : np.score < 0 ? 'no' : ''}">${np.score > 0 ? '+' : ''}${np.score}</div><div class="lbl">NPS</div><div class="sub">${np.n} answer${np.n === 1 ? '' : 's'}</div></div></div>`
+      + `<div class="fb"><span class="ok">😍 ${share('promoters')}% promoters</span><span class="muted">😐 ${share('passives')}% passive</span><span class="no">😕 ${share('detractors')}% detractors</span></div>`
+      + `<div class="overflow" style="margin:.5rem 0"><table><tr>${Array.from({ length: 11 }, (_, i) => `<th style="text-align:center">${i}</th>`).join('')}</tr>`
+      + `<tr>${Array.from({ length: 11 }, (_, i) => `<td class="${band(i)}" style="text-align:center">${np.byScore[i] || ''}</td>`).join('')}</tr></table></div>`
+      + (np.recent || []).map((r) => `<div class="quote"><b class="${band(r.score)}">${r.score}</b> ${esc(r.comment)} <span class="muted">— ${esc(r.park || 'no park')}${r.lang ? ', ' + esc(r.lang) : ''}, ${fmtDay(r.at.slice(0, 10))}</span></div>`).join('');
 
   const votes = Object.fromEntries((d.advisorFeedback30d.votes || []).map((v) => [v.vote, v.n]));
   $('fb').innerHTML = `<span class="ok">👍 ${votes.up || 0}</span><span class="no">👎 ${votes.down || 0}</span>`;

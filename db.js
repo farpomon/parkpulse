@@ -136,6 +136,17 @@ db.exec(`
     message TEXT,
     at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS nps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    who TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    comment TEXT,
+    park TEXT,
+    lang TEXT,
+    at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS nps_who ON nps (who, at);
   CREATE TABLE IF NOT EXISTS daystate (
     email TEXT PRIMARY KEY,
     data TEXT NOT NULL,
@@ -527,6 +538,48 @@ const advisor = {
   },
 };
 
+// "How likely are you to recommend ParkPulse to a friend?", 0 to 10, asked
+// once a park day has actually delivered something. One answer per person per
+// quarter: a second tap inside the window updates the row rather than adding
+// one, so the follow-up comment lands on the score it belongs to and nobody is
+// counted twice. Anonymous visitors answer under their device id -- NPS from
+// account holders only would be NPS from the people who already liked it
+// enough to sign up.
+const NPS_WINDOW_DAYS = 90;
+const nps = {
+  set: ({ who, kind, score, comment, park, lang }) => {
+    const since = new Date(Date.now() - NPS_WINDOW_DAYS * 86400000).toISOString();
+    const open = db.prepare('SELECT id FROM nps WHERE who = ? AND at >= ? ORDER BY id DESC LIMIT 1').get(who, since);
+    if (open) {
+      db.prepare('UPDATE nps SET score = ?, comment = COALESCE(?, comment), park = COALESCE(?, park) WHERE id = ?')
+        .run(score, comment ?? null, park ?? null, open.id);
+      return { id: open.id, updated: true };
+    }
+    const r = db.prepare('INSERT INTO nps (who, kind, score, comment, park, lang, at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(who, kind, score, comment ?? null, park ?? null, lang ?? null, new Date().toISOString());
+    return { id: Number(r.lastInsertRowid), updated: false };
+  },
+  // The score as the method defines it: promoters (9-10) minus detractors
+  // (0-6) as percentages of everyone who answered; passives (7-8) count in
+  // the denominator and nowhere else. Null until somebody has answered --
+  // zero would read as "neutral", and no data is not neutral.
+  summary: (days) => {
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const rows = db.prepare('SELECT score, COUNT(*) AS n FROM nps WHERE at >= ? GROUP BY score').all(since);
+    const n = rows.reduce((a, r) => a + r.n, 0);
+    const promoters = rows.filter((r) => r.score >= 9).reduce((a, r) => a + r.n, 0);
+    const detractors = rows.filter((r) => r.score <= 6).reduce((a, r) => a + r.n, 0);
+    const passives = n - promoters - detractors;
+    return {
+      n, promoters, passives, detractors,
+      score: n ? Math.round((promoters - detractors) / n * 100) : null,
+      byScore: Object.fromEntries(Array.from({ length: 11 }, (_, i) => [i, rows.find((r) => r.score === i)?.n || 0])),
+      recent: db.prepare("SELECT score, comment, park, lang, at FROM nps WHERE at >= ? AND comment IS NOT NULL AND comment != '' ORDER BY id DESC LIMIT 12").all(since),
+    };
+  },
+  clearUser: (email) => db.prepare("DELETE FROM nps WHERE who = ? AND kind = 'email'").run(email),
+};
+
 // Server-side sessions: one row per login, revocable, device-tagged. The
 // signed token carries the row id; a missing row means signed-out/evicted.
 const sessions = {
@@ -677,6 +730,7 @@ const accounts = {
       run('daystate', 'DELETE FROM daystate WHERE email = ?');
       run('savedPlans', 'DELETE FROM saved_plans WHERE email = ?');
       run('rideRatings', 'DELETE FROM ride_ratings WHERE email = ?');
+      run('nps', "DELETE FROM nps WHERE who = ? AND kind = 'email'");
       run('whatsappLinks', 'DELETE FROM wa_links WHERE email = ?');
       run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
       run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
@@ -923,4 +977,4 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, nps, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

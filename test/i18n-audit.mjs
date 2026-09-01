@@ -293,6 +293,17 @@ await visit('chat', async () => {
 }, 1500);
 await visit('you', async () => { await page.evaluate(() => document.querySelector('.tabbar button[data-tab="you"]')?.click()); });
 
+// The one question, after the third ride ticked off. Appears once and only
+// after real use, so no other screen in this walk would ever show it.
+await visit('plan · the NPS question', async () => {
+  await page.evaluate(() => { try { localStorage.removeItem('pp-nps-at'); } catch {} });
+  await page.evaluate(() => document.querySelector('.tabbar button[data-tab="plan"]')?.click());
+  await page.evaluate(() => document.getElementById('build')?.click());
+  await page.waitForTimeout(1500);
+  for (let i = 0; i < 3; i++) { await page.evaluate((k) => document.querySelectorAll('#plan-out .stepdone')[k]?.click(), i); await page.waitForTimeout(150); }
+  await page.evaluate(() => [...document.querySelectorAll('#nps-slot .nps-row button')].find((b) => b.textContent === '5')?.click());
+}, 1200);
+
 // The board a visitor gets when Queue-Times is down: the last waits we
 // recorded, with the hour they were taken. It exists only on failure, which is
 // precisely the kind of screen that has shipped untranslated before -- the

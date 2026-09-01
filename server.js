@@ -3772,6 +3772,7 @@ async function stripePriceCheck() {
           .map((r) => ({ park: parkName(r), n: r.n })),
       },
       advisorFeedback30d: db.advisor.feedbackSummary(30),
+      nps90d: db.nps.summary(90),
       recentLeads: db.admin.recentLeads(10),
       sharingSignals: sharingSignals.slice(-20).map(({ ts, ...rest }) => rest),
     });
@@ -5372,6 +5373,32 @@ ${sections}
         db.plans.remove(s2.email, parsed.park, parsed.date);
         return sendJson(res, 200, { ok: true });
       }
+      // "How likely are you to recommend ParkPulse to a friend?" Asked by the
+      // app once a park day has delivered something; answered by anyone, under
+      // their account if they have one and their device if not. The score
+      // arrives first and the optional comment a moment later, as a second
+      // call that lands on the same row.
+      if (url.pathname === '/api/nps') {
+        if (ipLimited(req, 'nps', 30)) return sendJson(res, 429, { error: 'too many from this connection' });
+        // A number, not something that coerces to one: Number(null) is 0,
+        // and 0 is a detractor. A missing score must be refused, not counted.
+        const score = parsed.score;
+        if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 10) return sendJson(res, 400, { error: 'score must be 0-10' });
+        const s2 = sessionUser(req);
+        const device = typeof parsed.device === 'string' ? parsed.device.trim().slice(0, 64) : '';
+        if (!s2 && !/^[A-Za-z0-9-]{8,64}$/.test(device)) return sendJson(res, 400, { error: 'no way to tell who is answering' });
+        const comment = typeof parsed.comment === 'string' ? parsed.comment.trim().slice(0, 600) : '';
+        const out = db.nps.set({
+          who: s2 ? s2.email : device,
+          kind: s2 ? 'email' : 'device',
+          score,
+          comment: comment || undefined,
+          park: PARKS[parsed.park] ? parsed.park : undefined,
+          lang: typeof parsed.lang === 'string' ? parsed.lang.slice(0, 8) : undefined,
+        });
+        return sendJson(res, 200, { ok: true, ...out });
+      }
+
       // One-tap ride verdicts and durable favorites — the collection half of
       // age-band ratings and "also liked", which surface once volume exists.
       // Logged-in only: person-level rows are the whole point.
