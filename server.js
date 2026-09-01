@@ -2572,7 +2572,10 @@ async function buildParkGeo(park) {
   return { rides, status };
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// Five minutes is the courtesy interval Queue-Times asks for. Settable so a
+// test can watch what happens on the very next request instead of waiting.
+const CACHE_TTL_MS = Number.isFinite(Number(process.env.WAITS_CACHE_MS))
+  ? Number(process.env.WAITS_CACHE_MS) : 5 * 60 * 1000;
 const waitsCache = new Map();
 
 // --- History collection ------------------------------------------------------
@@ -2596,6 +2599,53 @@ async function collectHistory() {
 if (process.env.HISTORY !== 'off') {
   setTimeout(collectHistory, 20 * 1000); // first pass shortly after boot
   setInterval(collectHistory, COLLECT_MS);
+}
+
+// --- Last known good ---------------------------------------------------------
+// Queue-Times goes quiet -- a 403, a timeout, a bad gateway -- and when it does
+// only four of the sixty-five parks have anything behind them, because only
+// four were ever given a hand-written sample. Everyone else got an empty board
+// and a day Mila could not build, which is what a visitor actually sees when
+// the feed blinks.
+//
+// So every healthy read is kept, one row per park, and handed back when the
+// feed is down: real ride names and real waits with the hour they were taken,
+// rather than nothing. It goes in the database rather than in memory because
+// the outage a visitor notices is usually the one that follows a restart.
+//
+// Only a park that was RUNNING is worth keeping. At closing time the feed
+// reports every ride shut, and a backup made of that is worse than no backup
+// at all -- it would tell tomorrow morning that the park is closed.
+const STORED_MAX_MS = 24 * 60 * 60 * 1000;   // beyond a day it stops being useful
+const STORED_WRITE_MS = 10 * 60 * 1000;      // one write per park per ten minutes
+const STORED_MIN_OPEN = 3;                   // a picture of an open park, not a closed one
+const storedWrittenAt = new Map();
+
+function keepLastGood(slug, data) {
+  if (data.rides.filter((r) => r.open).length < STORED_MIN_OPEN) return;
+  if (Date.now() - (storedWrittenAt.get(slug) || 0) < STORED_WRITE_MS) return;
+  storedWrittenAt.set(slug, Date.now());
+  try { db.kv.set(`lastgood:${slug}`, JSON.stringify(data)); }
+  catch (err) { console.log(`lastgood ${slug}: ${err.message}`); }
+}
+
+function lastGood(slug) {
+  let data = null;
+  try { data = JSON.parse(db.kv.get(`lastgood:${slug}`) || 'null'); } catch { return null; }
+  if (!data || !Array.isArray(data.rides) || !data.rides.length) return null;
+  const age = Date.now() - new Date(data.updatedAt).getTime();
+  if (!Number.isFinite(age) || age < 0 || age > STORED_MAX_MS) return null;
+  // updatedAt is left exactly as it was: the screen says how old this is, and
+  // it can only say so if the timestamp is the moment the waits were real.
+  return { ...data, source: 'stored', attribution: 'Last waits we recorded — the live feed is quiet' };
+}
+
+// How much of a safety net is actually there, for the dashboard.
+function storedAgeMin(slug) {
+  let data = null;
+  try { data = JSON.parse(db.kv.get(`lastgood:${slug}`) || 'null'); } catch { return null; }
+  const age = data && Date.now() - new Date(data.updatedAt).getTime();
+  return Number.isFinite(age) && age >= 0 ? Math.round(age / 60000) : null;
 }
 
 async function getWaits(slug) {
@@ -2627,9 +2677,15 @@ async function getWaits(slug) {
       rides: rides.map((r) => ({ name: r.name, wait: r.wait_time, open: r.is_open, land: r.land, typical: typicalFor(slug, r.name) })),
     };
     waitsCache.set(slug, { at: Date.now(), data });
+    keepLastGood(slug, data);
     upstream.note(slug, 'live');
     return data;
   } catch (err) {
+    const stored = lastGood(slug);
+    if (stored) {
+      upstream.note(slug, 'stored', err.message);
+      return stored;
+    }
     if (!SAMPLE[slug]) {
       upstream.note(slug, 'unavailable', err.message);
       return { park: park.name, source: 'unavailable', attribution: '', updatedAt: new Date().toISOString(), rides: [] };
@@ -3424,6 +3480,8 @@ async function stripePriceCheck() {
         idResolved: p.id != null,
         ageMin: u?.at ? Math.round((now - u.at) / 60000) : null,
         okAgeMin: u?.okAt ? Math.round((now - u.okAt) / 60000) : null,
+        // Whether this park has a net under it at all, and how old it is.
+        backupAgeMin: storedAgeMin(p.slug),
         error: u?.error || null,
       };
     });

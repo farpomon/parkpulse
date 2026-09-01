@@ -2648,7 +2648,8 @@
     // adjective order is a property of the language, not of the string concat.
     if (planDay && planDay.level >= 5) risks.push(`👥 ${tr('A Packed day — expect every queue to run long; the order below matters more than usual')}`);
     else if (planDay && planDay.level === 4) risks.push(`👥 ${tr('A Busy day — stick to the order; the margin for detours is thin')}`);
-    if (!planDate && lastData && lastData.source !== 'live') risks.push(`📶 ${tr("The park's live feed is quiet — this plan runs on typical patterns, so check waits as you go")}`);
+    if (!planDate && lastData && lastData.source === 'stored') risks.push(`📶 ${tr("The park's live feed is quiet — this plan runs on the last waits we recorded, so check the queues as you go")}`);
+    else if (!planDate && lastData && lastData.source !== 'live') risks.push(`📶 ${tr("The park's live feed is quiet — this plan runs on typical patterns, so check waits as you go")}`);
     return { risks, wetHours, hotHours };
   }
 
@@ -3402,8 +3403,15 @@
   function updatedLabel() {
     if (!lastData) return '';
     const mins = Math.round((Date.now() - new Date(lastData.updatedAt)) / 60000);
-    const age = mins <= 0 ? tr('just now') : `${mins} ${tr('min ago')}`;
-    return `${lastData.source === 'live' ? tr('Live') : tr('Typical (demo)')} · ${age}`;
+    // A stored board can be hours old, and "412 min ago" is a number nobody
+    // reads as a time. Live waits are never old enough for this to show.
+    const age = mins <= 0 ? tr('just now')
+      : mins < 90 ? `${mins} ${tr('min ago')}`
+      : `${Math.round(mins / 60)} ${tr('h ago')}`;
+    const what = lastData.source === 'live' ? tr('Live')
+      : lastData.source === 'stored' ? tr('Last recorded')
+      : tr('Typical (demo)');
+    return `${what} · ${age}`;
   }
 
   // Visible only when the device and the park disagree — a local visitor

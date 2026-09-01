@@ -293,6 +293,25 @@ await visit('chat', async () => {
 }, 1500);
 await visit('you', async () => { await page.evaluate(() => document.querySelector('.tabbar button[data-tab="you"]')?.click()); });
 
+// The board a visitor gets when Queue-Times is down: the last waits we
+// recorded, with the hour they were taken. It exists only on failure, which is
+// precisely the kind of screen that has shipped untranslated before -- the
+// audit stubs success everywhere else, so nothing here would ever be walked.
+// Last, because it changes the board for every screen after it.
+await page.unroute('**/api/waits/**');
+await page.route('**/api/waits/**', (r) => r.fulfill(json({
+  park: 'x', source: 'stored', attribution: 'Last waits we recorded — the live feed is quiet',
+  updatedAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), rides: RIDES,
+})));
+await visit('attractions · the live feed is down', async () => {
+  await page.evaluate(() => document.querySelector('.tabbar button[data-tab="today"]')?.click());
+  await page.evaluate(() => document.getElementById('refresh')?.click());
+}, 1800);
+await visit('plan · on a stored board', async () => {
+  await page.evaluate(() => document.querySelector('.tabbar button[data-tab="plan"]')?.click());
+  await page.evaluate(() => document.getElementById('build')?.click());
+}, 2500);
+
 // --- report -----------------------------------------------------------------
 console.log(`\nlanguage: ${LANG} · screens walked: ${screens.length} · ${EN_WORDS.length}/${EN_CANDIDATES.length} candidate words are English-only here`);
 for (const s of screens) console.log(`  · ${s}`);

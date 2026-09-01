@@ -471,17 +471,26 @@ function renderOps(d) {
       }).join('')
     : '<p class="muted" style="font-size:.85rem">No upstream calls yet this process.</p>';
   const sum = h.summary || {};
-  $('health-summary').textContent = `Parks: ${sum.live || 0} live · ${sum.sample || 0} on typical waits · `
-    + `${sum.unavailable || 0} unavailable · ${sum.unknown || 0} not asked for yet. Process up ${h.uptimeMin}m — this resets on restart.`;
+  // How many parks have a net under them at all. The verdicts above reset on
+  // restart; this one does not, because it is read from the database, so it is
+  // the honest answer to "what happens if Queue-Times goes down right now".
+  const netted = h.parks.filter((p) => p.backupAgeMin != null).length;
+  const fresh = h.parks.filter((p) => p.backupAgeMin != null && p.backupAgeMin < 24 * 60).length;
+  $('health-summary').textContent = `Parks: ${sum.live || 0} live · ${sum.stored || 0} on their last recorded board · `
+    + `${sum.sample || 0} on typical waits · ${sum.unavailable || 0} unavailable · ${sum.unknown || 0} not asked for yet. `
+    + `Process up ${h.uptimeMin}m — this resets on restart. `
+    + `Backup: ${fresh} of ${h.parks.length} parks could be served from a board recorded in the last day`
+    + (netted > fresh ? ` (${netted - fresh} more have one, too old to serve).` : '.');
   // Only the parks worth looking at: anything not currently serving live data.
   const bad = h.parks.filter((p) => p.source !== 'live' && p.source !== 'unknown');
   const noId = h.parks.filter((p) => !p.idResolved);
   $('health-table').innerHTML = bad.length || noId.length
-    ? '<tr><th>Park</th><th>Serving</th><th>Last good</th><th>Why</th></tr>'
+    ? '<tr><th>Park</th><th>Serving</th><th>Last good</th><th>Backup</th><th>Why</th></tr>'
       + bad.map((p) => `<tr><td>${esc(p.name)}</td><td class="${p.source === 'unavailable' ? 'no' : ''}">${esc(p.source)}</td>`
         + `<td>${p.okAgeMin == null ? '<span class="muted">never</span>' : esc(p.okAgeMin + 'm ago')}</td>`
+        + `<td class="${p.backupAgeMin == null ? 'no' : ''}">${p.backupAgeMin == null ? 'none' : esc(p.backupAgeMin + 'm old')}</td>`
         + `<td class="muted">${esc(p.error || '')}</td></tr>`).join('')
-      + (noId.length ? `<tr><td colspan="4" class="muted">${noId.length} park${noId.length === 1 ? '' : 's'} still have no upstream id resolved.</td></tr>` : '')
+      + (noId.length ? `<tr><td colspan="5" class="muted">${noId.length} park${noId.length === 1 ? '' : 's'} still have no upstream id resolved.</td></tr>` : '')
     : '<tr><td class="muted">Every park that has been asked for is serving live data.</td></tr>';
 
   // Traffic. The panel that answers "1,645 views of what, from where".
