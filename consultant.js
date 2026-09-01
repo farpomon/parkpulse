@@ -676,9 +676,11 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
     // is not the same as proposing an order). Her prose is already on screen,
     // so this turn's text is swallowed -- what we want from it is the tool
     // call she skipped.
-    // Not on the plan panel: there she is reviewing an order that already
-    // exists, and leaving it alone is a perfectly good answer, so a repair
-    // turn would be bought on every review that agreed with Pip.
+    // This runs on the plan panel too. A review that disagrees with Pip IS a
+    // proposal, and it is the one place a reader is already looking at an
+    // order they want changed -- prose alone leaves them retyping her
+    // suggestion by hand. The turn is wasted only when she agreed, and the
+    // nudge below gives her SKIP for exactly that case.
     if (cardExpected && !planned && repairs < 1 && ridesNamedIn(replyText, waits.rides) >= 3) {
       repairs += 1;
       silent = true;

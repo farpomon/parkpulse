@@ -27,6 +27,7 @@ const SHARED_SERVER = [
   ['datelink', 'test/plan-date-link.mjs'],
   ['tabkeep', 'test/tab-persists.mjs'],
   ['emptyday', 'test/empty-day.mjs'],
+  ['applybtn', 'test/apply-button.mjs'],
   ['grouplabel', 'test/group-label.mjs'],
   ['parksearch', 'test/park-search.mjs'],
   ['picker', 'test/park-picker.mjs'],

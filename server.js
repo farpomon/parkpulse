@@ -5173,10 +5173,19 @@ ${sections}
           try {
             await consultant.consult({
               park: PARKS[park], waits, name: firstName, messages, favorites, excluded, planPicks, profile, done, lanePasses,
-              // The plan panel is a critique of an order that already exists;
-              // the chat is where she offers one, and where a promise with no
-              // card behind it leaves the reader nothing to press.
-              cardExpected: !planReview,
+              // Reported with a screenshot: on the plan panel she wrote out a
+              // full reorder -- swap the coasters out of the 39-degree hour,
+              // start at Morocco, save the water ride for the heat peak -- and
+              // there was no way to take any of it. The panel was excluded from
+              // the repair turn on the theory that a review only ever critiques
+              // an order that already exists. It does not: a review IS a
+              // proposal whenever she disagrees with Pip, and that is precisely
+              // when the reader most needs a button.
+              //
+              // The saving was a turn on reviews that agreed with him. That
+              // turn reads cached input and answers with one word, and losing
+              // an actionable reorder costs far more than it ever saved.
+              cardExpected: true,
               subscription: subscription && typeof subscription.endpoint === 'string' ? subscription : null,
               email: s?.email || null,
               memory, trip,

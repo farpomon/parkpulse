@@ -77,6 +77,49 @@ const ORDER = "Start with Seven Dwarfs Mine Train at rope drop, then Peter Panâ€
     check('and no repair turn is bought', r.turns === 2, `${r.turns} turns`);
   }
 
+  // Reported with a screenshot. On the PLAN PANEL she wrote out a full
+  // reorder in prose -- swap the coasters out of the 39-degree hour, start at
+  // Morocco, save the water ride for the heat peak -- and no card came with
+  // it, so the reader had no way to take any of it. The panel had been
+  // excluded from the repair turn on the theory that a review only critiques
+  // an order that already exists. A review that disagrees with Pip IS a
+  // proposal, and it is the one screen where the reader is already looking at
+  // the order they want changed.
+  console.log('\n[the plan panel: she disagrees with Pip and rewrites the day]');
+  {
+    const r = await run(
+      [{ text: ORDER }, { plan: ['Jungle Cruise', 'Haunted Mansion', 'Space Mountain'] }],
+      { cardExpected: true, messages: [{ role: 'user', content: 'This is the running order the auto-planner drafted. What would you change?' }] },
+    );
+    check('her reorder comes with a card to take it', r.cards.length === 1, JSON.stringify(r.cards));
+    check('carrying the order she wrote, not Pip\'s', r.cards[0]?.rides.length >= 3, JSON.stringify(r.cards[0]?.rides));
+    check('the reader still sees only her review', r.text === ORDER, JSON.stringify(r.text.slice(-50)));
+    check('bought with exactly one repair turn', r.turns === 3, `${r.turns} turns`);
+  }
+
+  console.log('\n[the plan panel: she agrees with Pip and changes nothing]');
+  {
+    // The turn the old behaviour was protecting. It still costs one, and the
+    // nudge answers SKIP â€” what must NOT happen is a card inventing a reorder
+    // she never proposed.
+    const r = await run(
+      [{ text: 'Honestly, that order is right. Space Mountain early is the call.' }, { text: 'SKIP' }],
+      { cardExpected: true, messages: [{ role: 'user', content: 'This is the running order the auto-planner drafted. What would you change?' }] },
+    );
+    check('no card is invented when she agreed', r.cards.length === 0, JSON.stringify(r.cards));
+    check('and the reader sees her verdict untouched', /that order is right/.test(r.text), JSON.stringify(r.text));
+  }
+
+  console.log('\n[the plan panel: she calls the tool herself]');
+  {
+    const r = await run(
+      [{ plan: ['Jungle Cruise', 'Haunted Mansion'] }, { text: 'Swapped the two hot-hour rides.' }],
+      { cardExpected: true, messages: [{ role: 'user', content: 'This is the running order the auto-planner drafted. What would you change?' }] },
+    );
+    check('one card', r.cards.length === 1, JSON.stringify(r.cards));
+    check('and no repair turn is bought', r.turns === 2, `${r.turns} turns`);
+  }
+
   console.log('\n[a reply that was never a plan]');
   {
     const r = await run([{ text: 'Space Mountain is rougher than TRON Lightcycle Run, and Haunted Mansion is the gentlest of the three.' }, { text: 'SKIP' }]);
@@ -92,11 +135,17 @@ const ORDER = "Start with Seven Dwarfs Mine Train at rope drop, then Peter Panâ€
     check('and no card appears', r.cards.length === 0);
   }
 
-  console.log('\n[the plan panel, where leaving the order alone is a real answer]');
+  console.log('\n[nothing may switch the guard off again]');
   {
-    const r = await run([{ text: ORDER }], { cardExpected: false });
-    check('no repair turn is bought there', r.turns === 1, `${r.turns} turns`);
-    check('and her review is untouched', r.text === ORDER);
+    // This case used to assert the opposite: that the plan panel bought no
+    // repair turn. That is what the bug WAS -- a review that rewrote the whole
+    // day arrived as prose with no way to take it. The behaviour is still
+    // reachable through the option, so the guard now watches the only caller
+    // that matters instead of pinning the shape that lost the card.
+    const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
+    const calls = [...src.matchAll(/cardExpected:\s*([^,\n]+)/g)].map((m) => m[1].trim());
+    check('the server asks for a card on every consult', calls.length > 0 && calls.every((v) => v === 'true'),
+      calls.join(' | ') || 'no cardExpected found â€” did the option get renamed?');
   }
 
   console.log(fail ? `\n=== ${fail} failures ===` : '\n=== the card follows the offer ===');
