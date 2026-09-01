@@ -115,6 +115,10 @@ for (const [label, status, error, want] of [
   ['not logged in', 401, 'Your free daily plan is waiting — log in (free) so Mila knows who she is planning for.', /plano diário gratuito está esperando/],
   ['not configured', 503, 'Mila is not switched on here yet — the plan below still stands.', /ainda não está ativada aqui/],
   ['upstream refused', 502, 'Your magical fairy is having a moment — try again shortly.', /fada mágica/i],
+  // The paywall. With PRO_GATE on and the free tier limited to one park, this
+  // is what every visitor planning anywhere else meets — the upsell moment,
+  // which used to read "pass required".
+  ['behind the paywall', 402, "Mila's read of your plan comes with any pass.", /leitura da Mila sobre o seu plano vem com qualquer passe/],
 ]) {
   const r = await visit('/app?park=magic-kingdom', (rt) => rt.fulfill({
     status, contentType: 'application/json', body: JSON.stringify({ error }),

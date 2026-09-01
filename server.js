@@ -5069,7 +5069,12 @@ ${sections}
         if (!hasAccess(req)) {
           const freePark = typeof parsed.park === 'string' && parsed.park === FREE_PARK;
           const today = !(typeof parsed.planDate === 'string' && parsed.planDate);
-          if (!freePark || !today) return sendJson(res, 402, { error: 'pass required' });
+          // Shown to the reader verbatim by the plan panel, so it has to be a
+          // sentence and not a status. With the paywall on and the free tier
+          // limited to one park, this is what every visitor planning anywhere
+          // else meets -- the upsell moment, which was reading "pass required".
+          // Already in all nineteen dictionaries, so it arrives translated.
+          if (!freePark || !today) return sendJson(res, 402, { error: "Mila's read of your plan comes with any pass." });
           const s2 = sessionUser(req);
           if (!s2) return sendJson(res, 401, { error: 'Your free daily plan is waiting — log in (free) so Mila knows who she is planning for.' });
           // Neither checked nor spent yet. Both wait until we know this is a
