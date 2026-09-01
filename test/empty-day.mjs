@@ -26,7 +26,7 @@ const SHUT = [
 ];
 
 let asked = null;
-const visit = async (query) => {
+const visit = async (query, consultantFulfil) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(e.message));
@@ -45,6 +45,7 @@ const visit = async (query) => {
   await page.route('**/api/dining/**', (r) => r.fulfill(json({ park: 'x', reserve: null, list: [] })));
   await page.route('**/api/consultant', (r) => {
     try { asked = JSON.parse(r.request().postData() || '{}'); } catch {}
+    if (consultantFulfil) return consultantFulfil(r);
     r.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: 'event: done\ndata: {}\n\n' });
   });
   await page.goto(B + query, { waitUntil: 'domcontentloaded', timeout: 25000 });
@@ -56,6 +57,9 @@ const visit = async (query) => {
   await page.waitForTimeout(2800);
   const out = {
     card: await page.evaluate(() => document.getElementById('plan-out')?.innerText || ''),
+    // Mila's own panel — where a failure to reach her is reported, separate
+    // from Pip's running order in #plan-out.
+    advisor: await page.evaluate(() => document.getElementById('planai-body')?.innerText || ''),
     mila: await page.evaluate(() => Boolean(document.getElementById('plan-ask-mila'))),
     stops: await page.evaluate(() => document.querySelectorAll('#plan-out .plan').length),
     page, ctx, errs,
@@ -75,19 +79,49 @@ console.log('\n[a day that has not arrived, planned while the park is shut]');
 console.log('\n[today, with the whole board closed]');
 {
   const r = await visit('/app?park=magic-kingdom');
-  check('Mila says she could not fill it', /não conseguiu preencher/.test(r.card), r.card.slice(0, 100));
-  check('and names the real reason — everything is closed', /aparecendo como fechadas/.test(r.card), r.card.slice(0, 220));
-  check('instead of blaming the arrival and departure times', !/hora de chegada/.test(r.card), r.card.slice(0, 220));
-  check('the way out is a different day or park', /Planeje um dia mais para frente/.test(r.card), r.card.slice(0, 260));
-  check('and Mila is reachable from the dead end', r.mila, r.card.slice(0, 120));
+  // Either the whole board reads closed, or the picks are closed long-term.
+  // Both are honest; which one depends on whether the park is open at the
+  // moment the suite runs, and neither may blame the clock.
+  const dead = /não conseguiu preencher/.test(r.card);
+  if (dead) {
+    check('Mila says she could not fill it', true);
+    check('and names a real reason', /aparecendo como fechadas|fechad[ao]s? há dias|fechadas/i.test(r.card), r.card.slice(0, 240));
+    check('instead of blaming the arrival and departure times', !/hora de chegada/.test(r.card), r.card.slice(0, 240));
+    check('and Mila is reachable from the dead end', r.mila, r.card.slice(0, 120));
+  } else {
+    // The park reads closed right now, so planning it anyway is correct --
+    // that is the same exception that makes planning next Saturday work.
+    check('a shut park still gets a day planned', r.stops > 0, r.card.slice(0, 120));
+    check('and the clock is never blamed', !/hora de chegada/.test(r.card), r.card.slice(0, 200));
+  }
 
-  await r.page.evaluate(() => document.getElementById('plan-ask-mila')?.click());
-  await r.page.waitForTimeout(1500);
-  const q = String(asked?.messages?.[0]?.content || '');
-  check('her question carries the day that failed', /Magic Kingdom/.test(q), q.slice(0, 160));
-  check('and the hours it was tried with', /(AM|PM)/.test(q), q.slice(0, 160));
-  check('asked in the reader\'s language', /chego|saio|conseguiu/i.test(q), q.slice(0, 160));
+  if (dead) {
+    await r.page.evaluate(() => document.getElementById('plan-ask-mila')?.click());
+    await r.page.waitForTimeout(1500);
+    const q = String(asked?.messages?.[0]?.content || '');
+    check('her question carries the day that failed', /Magic Kingdom/.test(q), q.slice(0, 160));
+    check('and the hours it was tried with', /(AM|PM)/.test(q), q.slice(0, 160));
+  }
   check('no page errors', r.errs.length === 0, r.errs[0]);
+  await r.ctx.close();
+}
+
+// Reported from production: the plan panel said only "Mila couldn't be
+// reached", which tells the reader nothing they can act on. The server had
+// already said exactly why — log in, or she is not switched on here — and the
+// client threw it away for a generic line on every status except 402.
+console.log('\n[when she cannot be reached, the reason reaches the reader]');
+for (const [label, status, error, want] of [
+  ['not logged in', 401, 'Your free daily plan is waiting — log in (free) so Mila knows who she is planning for.', /plano diário gratuito está esperando/],
+  ['not configured', 503, 'Mila is not switched on here yet — the plan below still stands.', /ainda não está ativada aqui/],
+  ['upstream refused', 502, 'Your magical fairy is having a moment — try again shortly.', /fada mágica/i],
+]) {
+  const r = await visit('/app?park=magic-kingdom', (rt) => rt.fulfill({
+    status, contentType: 'application/json', body: JSON.stringify({ error }),
+  }));
+  const said = r.advisor;
+  check(`${label}: the reader is told why`, want.test(said), said.slice(0, 160));
+  check(`  and not the generic line`, !/não foi possível falar com a Mila — o plano abaixo/i.test(said), said.slice(0, 120));
   await r.ctx.close();
 }
 

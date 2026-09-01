@@ -5033,7 +5033,9 @@ ${sections}
       }
 
       if (url.pathname === '/api/consultant') {
-        if (!consultant.enabled()) return sendJson(res, 503, { error: 'consultant not configured' });
+        // Reaches the reader now that the client shows what the server said,
+        // so it has to read like something a person wrote.
+        if (!consultant.enabled()) return sendJson(res, 503, { error: 'Mila is not switched on here yet — the plan below still stands.' });
         // Every turn here is a paid model call and nothing capped them. Forty
         // an hour is far more than a day in a park produces and far less than
         // a loop costs.

@@ -3169,8 +3169,16 @@
       }
       if (res.status === 429) return fail(tr('Mila is catching her breath — your plan below still stands.'));
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
-        console.warn('advisor unavailable:', res.status);
-        return fail(tr("Mila couldn't be reached — the plan below still stands."));
+        // The server says WHY -- "log in (free) so Mila knows who she is
+        // planning for", "consultant not configured", a rejected key -- and
+        // this used to throw all of it away for one generic line, so the one
+        // screen that could have told the reader what to do instead told them
+        // nothing. The 402 branch above already reads the body; every other
+        // status deserves the same.
+        let msg = null;
+        try { msg = (await res.json()).error; } catch {}
+        console.warn('advisor unavailable:', res.status, msg || '');
+        return fail(msg ? tr(msg) : tr("Mila couldn't be reached — the plan below still stands."));
       }
 
       state.textContent = '';
