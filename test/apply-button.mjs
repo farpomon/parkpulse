@@ -79,15 +79,26 @@ console.log('\n[she proposes an order the reader can take]');
   check('her prose is on screen too', /flip it/.test(await page.evaluate(() => document.getElementById('planai-body')?.innerText || '')), 'prose missing');
 }
 
-console.log('\n[pressing it actually changes the day]');
+console.log('\n[pressing it adopts her order]');
 {
   const before = await order();
+  const creditBefore = await page.evaluate(() => document.getElementById('planby')?.textContent.trim() || '');
   await page.evaluate(() => document.getElementById('planai-apply')?.click());
   await page.waitForTimeout(2600);
   const after = await order();
-  console.log(`      before: ${JSON.stringify(before)}\n      after:  ${JSON.stringify(after)}`);
-  check('the running order changed', JSON.stringify(after) !== JSON.stringify(before), JSON.stringify({ before, after }));
-  check('and it is hers, headliner first', after[0] === 'Space Mountain', JSON.stringify(after));
+  const credit = await page.evaluate(() => document.getElementById('planby')?.textContent.trim() || '');
+  console.log(`      before: ${JSON.stringify(before.slice(0, 3))}\n      after:  ${JSON.stringify(after.slice(0, 3))}\n      credit: ${JSON.stringify(credit)}`);
+
+  // NOT "the order changed". Pip scores rides against the hour's crowd curve,
+  // so at some hours he independently arrives at the same sequence Mila
+  // proposes -- and then adopting it correctly changes nothing. Asserting a
+  // difference made this test pass or fail by the clock, which is no kind of
+  // test. What must always be true is that the day now runs in HER order and
+  // that the plan says so.
+  check('the day now runs in her order', JSON.stringify(after.slice(0, HER_ORDER.length)) === JSON.stringify(HER_ORDER),
+    JSON.stringify(after.slice(0, HER_ORDER.length)));
+  check('and the plan credits her for it', /Mila chose this order/.test(credit), JSON.stringify({ creditBefore, credit }));
+  check('which it did not before', !/Mila chose this order/.test(creditBefore), JSON.stringify(creditBefore));
   check('no page errors', errs.length === 0, errs[0]);
 }
 
