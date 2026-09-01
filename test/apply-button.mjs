@@ -28,11 +28,19 @@ const HER_ORDER = ['Space Mountain', 'Haunted Mansion', 'Jungle Cruise'];
 const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
 const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+// Ten in the morning, park time, with the park held open. Pip fits rides into
+// the hours left in the day; late enough in the evening only two of the three
+// fit, and "the day runs in her order" then compares three names against two.
+// That made this file pass by day and fail at night -- a fact about the wall
+// clock, not about the button.
+const TODAY_ET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+await page.clock.setFixedTime(new Date(`${TODAY_ET}T14:00:00Z`));   // 10:00 ET
 await page.addInitScript(() => { localStorage.setItem('pp-onboarded', '1'); localStorage.setItem('pp-park', 'magic-kingdom'); });
 const json = (b) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
 await page.route('**/api/config', async (r) => {
   const o = await r.fetch(); const c = await o.json();
   c.proGate = false; c.consultant = true; c.consultantAccess = true;
+  for (const p of Object.values(c.parks || {})) { p.open = 0; p.close = 24; }
   r.fulfill(json(c));
 });
 await page.route('**/api/forecast/**', (r) => r.fulfill(json({ park: 'x', days: DAYS, best: 'Mon', measuredDays: 0 })));
