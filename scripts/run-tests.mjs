@@ -26,6 +26,7 @@ const SHARED_SERVER = [
   ['projected', 'test/projected-waits.mjs'],
   ['storedboard', 'test/stored-board.mjs'],
   ['npscard', 'test/nps-card.mjs'],
+  ['headers', 'test/headers.mjs'],
   ['datelink', 'test/plan-date-link.mjs'],
   ['tabkeep', 'test/tab-persists.mjs'],
   ['emptyday', 'test/empty-day.mjs'],
