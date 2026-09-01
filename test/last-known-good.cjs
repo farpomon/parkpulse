@@ -40,6 +40,8 @@ consultant._setClient({ beta: { messages: { create: async () => ({ model: 'x', s
 // of the four with a hand-written sample, so it proves which of the two wins.
 // EPCOT is only ever seen shut.
 const ID = { 'magic-kingdom': 6, disneyland: 16, epcot: 5 };
+// A park the directory has never listed here, given an id only by memory.
+const REMEMBERED = { slug: 'everland', id: 999 };
 const OPEN = { 'Space Mountain': 45, 'Haunted Mansion': 25, 'Jungle Cruise': 30, 'Peter Pan': 60 };
 const SHUT = Object.fromEntries(Object.keys(OPEN).map((n) => [n, null]));
 const BOARD = (w) => ({
@@ -51,6 +53,7 @@ const BOARD = (w) => ({
 
 // The upstream, scripted per park. A board, or a status to refuse with.
 let feedFor = (id) => (id === ID.epcot ? SHUT : OPEN);
+const server = { current: null };
 const realFetch = global.fetch;
 global.fetch = async (url, opts) => {
   const u = String(url);
@@ -91,7 +94,7 @@ function adminSession() {
 }
 
 (async () => {
-  require('../server.js');
+  server.current = require('../server.js');
   for (let i = 0; i < 80 && !(await fetch(`${B}/api/config`).then((r) => r.ok).catch(() => false)); i++) {
     await new Promise((r) => setTimeout(r, 200));
   }
@@ -152,6 +155,26 @@ function adminSession() {
   check('a park with a net reports how old it is', dl && typeof dl.backupAgeMin === 'number', JSON.stringify(dl));
   check('a park without one says so', ep && ep.backupAgeMin === null, JSON.stringify(ep));
   check('and the run is counted as served from store', summary.stored >= 1, JSON.stringify(summary));
+
+  console.log('\n[the ids themselves are kept, for a boot where the directory is down]');
+  // The directory has answered 403 at boot. Without a memory of the last
+  // resolution, every park not hard-coded in the registry -- fifty-two of
+  // them -- had no id and therefore no board until the retries got through.
+  let ids = null;
+  try { ids = JSON.parse(db.kv.get('qtids') || 'null'); } catch {}
+  check('the resolved ids were written down', ids && ids.disneyland === ID.disneyland && ids.epcot === ID.epcot, JSON.stringify(ids));
+  // Pretend a previous boot had resolved a park this directory does not list,
+  // then apply memory the way boot does: it fills the gap, and the feed for
+  // that id is what the park then shows.
+  db.kv.set('qtids', JSON.stringify({ ...ids, [REMEMBERED.slug]: REMEMBERED.id }));
+  feedFor = (id) => (id === REMEMBERED.id ? OPEN : 503);
+  const beforeApply = await waits(REMEMBERED.slug);
+  check('a park with no id has no board', beforeApply.source !== 'live', beforeApply.source);
+  const applied = server.current._applyStoredIds();
+  check('memory fills the gap', applied >= 1, `${applied} applied`);
+  const afterApply = await waits(REMEMBERED.slug);
+  check('and the park is live off the remembered id', afterApply.source === 'live' && open(afterApply).length === 4, afterApply.source);
+  feedFor = () => 503;
 
   console.log('\n[and it expires]');
   // Aged in place rather than deleted: what matters is that an old board stops

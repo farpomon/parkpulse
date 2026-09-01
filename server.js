@@ -941,6 +941,12 @@ async function resolveParkIds(attempt = 1) {
       ambiguous, relaxed,
     };
     console.log(`Park ids: ${matched}/${REGISTRY.length} resolved from the queue-times directory`);
+    // Kept, so that the next boot does not depend on the directory being up.
+    // It has answered 403 at boot more than once; without this, fifty-two of
+    // the sixty-five parks had no id until the retry loop got through, and a
+    // park with no id shows an empty board no matter how healthy its feed is.
+    try { db.kv.set('qtids', JSON.stringify(Object.fromEntries(REGISTRY.filter((e) => e.id != null).map((e) => [e.slug, e.id])))); }
+    catch (err) { console.log(`park ids: could not be kept (${err.message})`); }
     if (unresolved.length) {
       console.log(`  UNRESOLVED (${unresolved.length}) — these parks will show an empty board: ${unresolved.map((e) => e.slug).join(', ')}`);
     }
@@ -964,6 +970,21 @@ async function resolveParkIds(attempt = 1) {
     }
   }
 }
+// The ids the last successful resolution found, applied before the first
+// live attempt. Only fills gaps: a static id in the registry and a fresh live
+// answer both outrank a remembered one.
+function applyStoredIds() {
+  let stored = null;
+  try { stored = JSON.parse(db.kv.get('qtids') || 'null'); } catch { return 0; }
+  if (!stored || typeof stored !== 'object') return 0;
+  let applied = 0;
+  for (const entry of REGISTRY) {
+    if (entry.id == null && Number.isInteger(stored[entry.slug])) { entry.id = stored[entry.slug]; applied += 1; }
+  }
+  if (applied) console.log(`Park ids: ${applied} restored from the last successful resolution`);
+  return applied;
+}
+applyStoredIds();
 resolveParkIds();
 setInterval(resolveParkIds, 24 * 60 * 60 * 1000);
 
@@ -3285,6 +3306,20 @@ function visitSource(req, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const host = String(req.headers.host || '').toLowerCase();
+  // On every response, set here so a later writeHead() merges rather than
+  // replaces them. No Content-Security-Policy: the app is one file with its
+  // scripts inline, and a policy loose enough to allow that protects nothing.
+  //   * HSTS: a year, subdomains included. Ignored over plain http, which is
+  //     what the platform speaks internally, so it costs nothing to send always.
+  //   * nosniff: a JSON answer is never run as a script.
+  //   * DENY: nothing here is meant to be framed, and a framed login is a
+  //     clickjacked one.
+  //   * referrer: the path of a plan or a reset link stays on this site.
+  res.setHeader('strict-transport-security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('x-content-type-options', 'nosniff');
+  res.setHeader('x-frame-options', 'DENY');
+  res.setHeader('referrer-policy', 'strict-origin-when-cross-origin');
+  res.setHeader('permissions-policy', 'camera=(), microphone=(), payment=()');
   // The platform health probe arrives on an internal hostname, which is by
   // definition not the canonical one -- so the redirect below answered it with
   // a 301. A health check counts anything outside 2xx as a failure, and enough
@@ -5549,6 +5584,7 @@ server.listen(PORT, bootBanner);
 module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
+  _applyStoredIds: applyStoredIds,
   _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.
