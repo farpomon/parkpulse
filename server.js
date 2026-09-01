@@ -2405,7 +2405,14 @@ function localizeLanding(html, lang) {
   // behind the CTA -- follow along instead of resetting to English. Runs in the
   // head so it lands before anything reads the value.
   const carry = lang === 'en' ? '' : `<script>try{localStorage.setItem('pp-lang','${lang}')}catch(e){}</script>`;
-  const head = `\n<link rel="canonical" href="https://www.parkpulse.fun${lang === 'en' ? '/' : '/' + lang}">\n${landingAlternates()}\n${carry}\n`;
+  // This page is written in exactly one language, and the URL is what chose it.
+  // Saying so stops the client dictionary from picking a different one off the
+  // browser and translating pieces of the page underneath the copy: a Brazilian
+  // phone on "/" was getting Mila's speech bubble in Portuguese over English
+  // marketing. Declared, never stored -- the visitor's own choice of app
+  // language is theirs, and it still opens the app behind the CTA in it.
+  const pin = `<script>window.PP_PAGE_LANG='${lang}'</script>`;
+  const head = `\n<link rel="canonical" href="https://www.parkpulse.fun${lang === 'en' ? '/' : '/' + lang}">\n${landingAlternates()}\n${pin}${carry}\n`;
   out = out.replace('<title>', head + '<title>');
   // The picker sits with the nav links.
   // Anchored on the sign-in link's exact markup: if that class changes and

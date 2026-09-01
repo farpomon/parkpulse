@@ -35,11 +35,20 @@
   // Pinned to the top of the picker; everything else follows alphabetically.
   const TOP = ['en', 'zh', 'hi', 'es', 'fr'];
 
-  let lang = 'en';
+  // What the visitor themselves reads in: their saved choice, else the browser.
+  let own = 'en';
   try {
-    lang = localStorage.getItem('pp-lang') || (navigator.language || 'en').slice(0, 2).toLowerCase();
+    own = localStorage.getItem('pp-lang') || (navigator.language || 'en').slice(0, 2).toLowerCase();
   } catch {}
-  if (!LANGS[lang]) lang = 'en';
+  if (!LANGS[own]) own = 'en';
+
+  // A server-rendered page declares the language it was written in, and that
+  // wins for everything drawn on it. "/" is the English landing page even on a
+  // Portuguese phone, and /pt stays Portuguese for an English one; each has its
+  // own URL so nobody has to watch half a page change language under them.
+  // Only where no page declares one -- the app -- does the visitor's choice decide.
+  const pinned = typeof window.PP_PAGE_LANG === 'string' ? window.PP_PAGE_LANG.slice(0, 2).toLowerCase() : '';
+  const lang = LANGS[pinned] ? pinned : own;
 
   let dict = {};
   let ready = Promise.resolve();
@@ -83,6 +92,11 @@
 
   window.PP_LANG = lang;
   window.PP_LANG_NAME = LANGS[lang].name;
+  // The page's language and the reader's are not always the same one. Chrome
+  // follows the page; a conversation follows the person, so somebody who opens
+  // the English landing page and writes to Mila in Portuguese is answered in it.
+  window.PP_USER_LANG = own;
+  window.PP_USER_LANG_NAME = LANGS[own].name;
   window.PP_LANGS = Object.fromEntries(
     [...TOP.filter((c) => LANGS[c]), ...Object.keys(LANGS).filter((c) => !TOP.includes(c))]
       .map((c) => [c, LANGS[c].native]),

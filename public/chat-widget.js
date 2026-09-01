@@ -389,7 +389,7 @@
       const res = await fetch('/api/consultant', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ park: state.opts.getPark(), messages: historyWindow(), lang: window.PP_LANG_NAME || 'English', ...context }),
+        body: JSON.stringify({ park: state.opts.getPark(), messages: historyWindow(), lang: window.PP_USER_LANG_NAME || window.PP_LANG_NAME || 'English', ...context }),
       });
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         const data = await res.json().catch(() => ({}));
