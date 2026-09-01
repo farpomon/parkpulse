@@ -25,8 +25,18 @@ const SHUT = [
   { name: 'Haunted Mansion', land: 'B', wait: 0, open: false, typical: 105 },
 ];
 
+// The same park with its rides running. The board these tests need depends on
+// what they are asking about: whether a dead end is explained honestly needs a
+// dead end, and whether a failure to reach Mila is explained honestly needs a
+// plan for her to have failed on.
+const RUNNING = [
+  { name: 'Space Mountain', land: 'A', wait: 45, open: true, typical: 120 },
+  { name: 'Haunted Mansion', land: 'B', wait: 25, open: true, typical: 105 },
+  { name: 'Jungle Cruise', land: 'B', wait: 30, open: true, typical: 60 },
+];
+
 let asked = null;
-const visit = async (query, consultantFulfil) => {
+const visit = async (query, consultantFulfil, rides = SHUT) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, userAgent: UA, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', (e) => errs.push(e.message));
@@ -40,7 +50,7 @@ const visit = async (query, consultantFulfil) => {
     r.fulfill(json(c));
   });
   await page.route('**/api/forecast/**', (r) => r.fulfill(json({ park: 'x', days: DAYS, best: 'Mon', measuredDays: 0 })));
-  await page.route('**/api/waits/**', (r) => r.fulfill(json({ park: 'x', source: 'live', attribution: 's', updatedAt: new Date().toISOString(), rides: SHUT })));
+  await page.route('**/api/waits/**', (r) => r.fulfill(json({ park: 'x', source: 'live', attribution: 's', updatedAt: new Date().toISOString(), rides })));
   for (const p of ['**/api/ride-tags/**', '**/api/closures/**', '**/api/weather/**', '**/api/geo/**', '**/api/trip']) await page.route(p, (r) => r.fulfill(json({})));
   await page.route('**/api/dining/**', (r) => r.fulfill(json({ park: 'x', reserve: null, list: [] })));
   await page.route('**/api/consultant', (r) => {
@@ -120,9 +130,14 @@ for (const [label, status, error, want] of [
   // which used to read "pass required".
   ['behind the paywall', 402, "Mila's read of your plan comes with any pass.", /leitura da Mila sobre o seu plano vem com qualquer passe/],
 ]) {
+  // A running board on purpose. Mila is only asked to read a plan once there
+  // is one, so on a shut board this panel is empty and these four checks
+  // become a statement about what time the suite ran -- which is how they
+  // passed when they were written and failed the same evening.
   const r = await visit('/app?park=magic-kingdom', (rt) => rt.fulfill({
     status, contentType: 'application/json', body: JSON.stringify({ error }),
-  }));
+  }), RUNNING);
+  check(`${label}: there is a plan for her to have failed on`, r.stops > 0, `${r.stops} stops`);
   const said = r.advisor;
   check(`${label}: the reader is told why`, want.test(said), said.slice(0, 160));
   check(`  and not the generic line`, !/não foi possível falar com a Mila — o plano abaixo/i.test(said), said.slice(0, 120));
