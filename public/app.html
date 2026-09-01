@@ -202,7 +202,16 @@
   .sheet p { margin: 0 0 .8rem; color: var(--muted); font-size: .88rem; }
   .sheet-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
   .sheet-opts button { border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .6rem .2rem; font-weight: 700; cursor: pointer; font-size: .9rem; }
-  .sheet .cancel { margin-top: .8rem; width: 100%; border: none; background: none; color: var(--muted); cursor: pointer; padding: .5rem; font-size: .9rem; }
+  /* Shaped like the buttons it sits under -- same pill, same radius, same
+     padding -- so the bottom of a sheet reads as one set of choices rather
+     than two buttons and an afterthought. It stays the quietest of the three:
+     a neutral outline instead of the brand, because closing should never
+     compete with what the sheet is actually asking for. */
+  .sheet .cancel { margin-top: .8rem; width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+    background: var(--bg); color: var(--muted); cursor: pointer; padding: .65rem 1.3rem;
+    font-weight: 800; font-size: .95rem; transition: border-color .12s ease, color .12s ease, transform .12s ease; }
+  .sheet .cancel:hover { border-color: var(--muted); color: var(--ink); }
+  .sheet .cancel:active { transform: scale(.97); }
   .sheet input[type=text], .sheet input[type=email], .sheet input[type=password] { width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--ink); border-radius: 10px; padding: .65rem .9rem; font-size: 1rem; margin-bottom: .6rem; }
   .sheet .wide { width: 100%; }
   .sheet .err { color: var(--red); font-size: .85rem; min-height: 1.2em; margin: 0 0 .4rem; }

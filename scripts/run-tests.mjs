@@ -33,6 +33,7 @@ const SHARED_SERVER = [
   ['picker', 'test/park-picker.mjs'],
   ['langs', 'test/landing-languages.mjs'],
   ['onelang', 'test/one-language.mjs'],
+  ['sheetclose', 'test/sheet-close.mjs'],
   ['staledict', 'test/stale-dictionary.mjs'],
   ['langpromo', 'test/language-promo.mjs'],
   ['skipsheet', 'test/skip-sheet.mjs'],
