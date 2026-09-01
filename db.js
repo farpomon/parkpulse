@@ -977,4 +977,17 @@ const invites = {
   list: (limit = 50) => db.prepare('SELECT * FROM invites ORDER BY created_at DESC LIMIT ?').all(limit),
 };
 
-module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, nps, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+// A consistent copy of the live file, made by SQLite itself. VACUUM INTO
+// writes a compacted, transaction-consistent database to a new path while
+// readers and writers carry on -- the right way to copy a database that is in
+// use, where a plain file copy can catch the WAL mid-write.
+const backup = {
+  to: (dest) => {
+    // The path goes into SQL as a string literal; the only character that
+    // needs care in one is the quote itself.
+    db.exec(`VACUUM INTO '${String(dest).replace(/'/g, "''")}'`);
+    return fs.statSync(dest).size;
+  },
+};
+
+module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, nps, backup, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };

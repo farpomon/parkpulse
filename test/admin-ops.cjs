@@ -222,6 +222,33 @@ function adminSession() {
     check('and it is only said once a day', db.kv.get(marker) === '1', String(db.kv.get(marker)));
   }
 
+  console.log('\n[the database, looked after]');
+  {
+    const d = await ops();
+    const su = d.setup || {};
+    check('the dashboard says whether PASS_SECRET is set', su.passSecret === true, JSON.stringify(su));
+    check('and where the database lives, and how big it is', su.db && su.db.file === process.env.DB_FILE && su.db.bytes > 0, JSON.stringify(su.db));
+    check('and whether that path outlives a redeploy', typeof (su.db || {}).persistent === 'boolean');
+    // The daily copy: a real SQLite file beside the live one.
+    const copy = server._copyDatabase();
+    check('a copy can be made while the database is open', copy && copy.bytes > 0, JSON.stringify(copy));
+    const magic = copy && fs.readFileSync(copy.dest).subarray(0, 15).toString();
+    check('and it is a SQLite database, not a partial file', magic === 'SQLite format 3', JSON.stringify(magic));
+    const after = (await ops()).setup.db;
+    check('the dashboard reports the copy', after.copies >= 1 && after.lastCopy && after.lastCopy.bytes === copy.bytes, JSON.stringify(after));
+    // The download: admin only, a real database, nothing left behind.
+    const anon = await fetch(`${B}/api/admin/backup`);
+    check('the download is closed without an admin session', anon.status === 403, String(anon.status));
+    const dl = await fetch(`${B}/api/admin/backup`, { headers: { 'x-session': session } });
+    const body = Buffer.from(await dl.arrayBuffer());
+    check('an admin gets the file', dl.status === 200 && /attachment; filename="parkpulse-\d{4}-\d{2}-\d{2}\.sqlite"/.test(dl.headers.get('content-disposition') || ''), `${dl.status} ${dl.headers.get('content-disposition')}`);
+    check('which is a SQLite database', body.subarray(0, 15).toString() === 'SQLite format 3', JSON.stringify(body.subarray(0, 15).toString()));
+    check('the size matches what was promised', Number(dl.headers.get('content-length')) === body.length, `${dl.headers.get('content-length')} vs ${body.length}`);
+    await new Promise((r) => setTimeout(r, 200));
+    const leftovers = fs.readdirSync(require('node:path').dirname(process.env.DB_FILE)).filter((f) => f.startsWith('parkpulse-download-'));
+    check('and the temporary file is gone', leftovers.length === 0, leftovers.join(', '));
+  }
+
   console.log(`\n=== ${fail ? fail + ' failed' : 'the dashboard answers the operator questions'} ===`);
   process.exit(fail ? 1 : 0);
 })();

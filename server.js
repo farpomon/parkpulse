@@ -3303,6 +3303,50 @@ function visitSource(req, url) {
   return { source: host.slice(0, 60), medium: 'referral', campaign };
 }
 
+// --- The database, looked after ----------------------------------------------
+// The SQLite file is the business: accounts, passes, answers, the wait
+// archive. Two things stand between it and a bad day.
+//
+//   * A copy on the volume, once a day, seven of them in rotation. Made by
+//     SQLite itself (VACUUM INTO), so it is consistent even mid-write. This
+//     survives a bad deploy or a corrupting bug; it does not survive losing
+//     the volume, which is what the download is for.
+//   * A download, from the dashboard, for an off-site copy in a click.
+const DB_DIR_LIVE = path.dirname(db.DB_FILE);
+const DB_PERSISTENT = !db.DB_FILE.startsWith(path.join(__dirname, 'data'));
+const COPY_EVERY_MS = 24 * 60 * 60 * 1000;
+function copyDatabase() {
+  const dest = path.join(DB_DIR_LIVE, `parkpulse-copy-${new Date().getUTCDay()}.sqlite`);
+  try {
+    try { fs.unlinkSync(dest); } catch {}
+    const bytes = db.backup.to(dest);
+    db.kv.set('backup:last', JSON.stringify({ at: new Date().toISOString(), bytes, file: path.basename(dest) }));
+    console.log(`database copy: ${path.basename(dest)} (${(bytes / 1024).toFixed(0)}KB)`);
+    return { dest, bytes };
+  } catch (err) {
+    console.log(`database copy failed: ${err.message}`);
+    return null;
+  }
+}
+if (process.env.DB_COPIES !== 'off') {
+  const t = setTimeout(copyDatabase, 2 * 60 * 1000);
+  if (typeof t.unref === 'function') t.unref();
+  const i = setInterval(copyDatabase, COPY_EVERY_MS);
+  if (typeof i.unref === 'function') i.unref();
+}
+// What an operator needs to know before launch, without reading a deploy log.
+function setupFacts() {
+  let bytes = null, copies = 0, last = null;
+  try { bytes = fs.statSync(db.DB_FILE).size; } catch {}
+  try { copies = fs.readdirSync(DB_DIR_LIVE).filter((f) => /^parkpulse-copy-\d\.sqlite$/.test(f)).length; } catch {}
+  try { last = JSON.parse(db.kv.get('backup:last') || 'null'); } catch {}
+  return {
+    // A permanent secret, or passes stop validating on every restart.
+    passSecret: Boolean(process.env.PASS_SECRET),
+    db: { file: db.DB_FILE, bytes, persistent: DB_PERSISTENT, copies, lastCopy: last },
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const host = String(req.headers.host || '').toLowerCase();
@@ -3494,6 +3538,29 @@ async function stripePriceCheck() {
     });
   }
 
+  // The database, as a file, for an off-site copy. A consistent snapshot made
+  // by SQLite into a temporary file beside the live one, streamed, removed.
+  if (req.method === 'GET' && url.pathname === '/api/admin/backup') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const tmp = path.join(DB_DIR_LIVE, `parkpulse-download-${process.pid}-${Date.now()}.sqlite`);
+    try {
+      const bytes = db.backup.to(tmp);
+      res.writeHead(200, {
+        'content-type': 'application/vnd.sqlite3',
+        'content-length': bytes,
+        'content-disposition': `attachment; filename="parkpulse-${new Date().toISOString().slice(0, 10)}.sqlite"`,
+        'cache-control': 'no-store',
+      });
+      const stream = fs.createReadStream(tmp);
+      stream.on('close', () => { try { fs.unlinkSync(tmp); } catch {} });
+      stream.on('error', () => { try { fs.unlinkSync(tmp); } catch {} res.end(); });
+      return stream.pipe(res);
+    } catch (err) {
+      try { fs.unlinkSync(tmp); } catch {}
+      return sendJson(res, 500, { error: `could not snapshot the database: ${err.message}` });
+    }
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/admin/ops') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
     const aiDay = etNow().date;
@@ -3548,6 +3615,7 @@ async function stripePriceCheck() {
         }])),
         uptimeMin: Math.round(process.uptime() / 60),
       },
+      setup: setupFacts(),
       traffic: (() => {
         const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
         const t = db.visits.totals(since);
@@ -5585,6 +5653,7 @@ module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _applyStoredIds: applyStoredIds,
+  _copyDatabase: copyDatabase,
   _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.

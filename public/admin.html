@@ -140,6 +140,8 @@
     <div class="card" id="health-card">
       <p id="coming-soon" style="font-size:.85rem;margin:0 0 .9rem"></p>
       <p id="mila-status" style="font-size:.85rem;margin:0 0 .9rem"></p>
+      <h2>Before launch</h2>
+      <div id="setup" style="font-size:.85rem;margin:0 0 1rem"></div>
       <h2>Upstream health</h2>
       <div id="health-services"></div>
       <p class="muted" style="font-size:.8rem;margin:.9rem 0 .3rem" id="health-summary"></p>
@@ -471,6 +473,41 @@ function renderOps(d) {
       + '</table></div>'
       + '<p class="muted" style="font-size:.8rem;margin:.6rem 0 0">A Stripe Price set in the dashboard overrides the catalogue amount, so editing a price in the code moves the label and not the charge. Checked hourly.</p>';
   }
+
+  // The two facts that used to live only in the deploy log. PASS_SECRET,
+  // because without it every pass stops validating on each restart; and the
+  // database -- where it is, whether that path survives a redeploy, when it
+  // was last copied, and a button that hands you the whole thing.
+  const setup = d.setup || {};
+  const dbi = setup.db || {};
+  const kb = (n) => (n == null ? '?' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB');
+  $('setup').innerHTML = [
+    setup.passSecret
+      ? '<span class="ok">✓ PASS_SECRET is set</span> — passes survive a restart.'
+      : '<span class="no">✗ PASS_SECRET is not set</span> — a fresh key is generated each boot, so <b>every pass stops working on every restart</b>. Add a permanent PASS_SECRET variable in Railway before launch.',
+    dbi.persistent
+      ? `<span class="ok">✓ Database on a persistent path</span> — <code>${esc(dbi.file || '')}</code>, ${kb(dbi.bytes)}.`
+      : `<span class="no">✗ Database inside the deploy</span> — <code>${esc(dbi.file || '')}</code> is wiped on every redeploy. Mount a volume and point DB_FILE at it.`,
+    dbi.lastCopy
+      ? `<span class="ok">✓ Daily on-volume copy</span> — last ${esc(dbi.lastCopy.file)} at ${esc(dbi.lastCopy.at.replace('T', ' ').slice(0, 16))} UTC, ${kb(dbi.lastCopy.bytes)}; ${dbi.copies} of 7 in rotation. Guards against a bad deploy, not against losing the volume.`
+      : '<span class="muted">· Daily on-volume copy</span> — first one two minutes after boot.',
+    `<button id="dl-backup" class="btn" style="margin-top:.4rem">⬇ Download the database</button> <span class="muted">a consistent snapshot, for an off-site copy — keep one somewhere that is not Railway.</span>`,
+  ].map((l) => `<div style="margin:.25rem 0">${l}</div>`).join('');
+  $('dl-backup').addEventListener('click', async () => {
+    const b = $('dl-backup'); b.disabled = true; b.textContent = 'Snapshotting…';
+    try {
+      // A plain link cannot carry the session header, so fetch it and hand
+      // the bytes to the browser as a file.
+      const r = await fetch('/api/admin/backup', { headers: { 'x-session': localStorage.getItem(KEY) || '' } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const name = (r.headers.get('content-disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'parkpulse.sqlite';
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      b.textContent = `⬇ Downloaded ${name}`;
+    } catch (e) { b.textContent = `Download failed: ${e.message}`; }
+    setTimeout(() => { b.disabled = false; b.textContent = '⬇ Download the database'; }, 6000);
+  });
 
   // Upstream health. "unknown" is honest: nobody has asked for that park yet.
   const h = d.health;
