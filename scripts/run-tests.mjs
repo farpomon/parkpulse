@@ -49,6 +49,7 @@ const SHARED_SERVER = [
   ['npscard', 'test/nps-card.mjs'],
   ['headers', 'test/headers.mjs'],
   ['rowctl', 'test/row-controls.mjs'],
+  ['formscope', 'test/form-scoping.mjs'],
   ['adminpage', 'test/admin-renders.mjs'],
   ['datelink', 'test/plan-date-link.mjs'],
   ['tabkeep', 'test/tab-persists.mjs'],

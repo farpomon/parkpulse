@@ -1419,12 +1419,19 @@
     </div>
     <p class="switch" style="margin-top:1rem"><a id="acct-del-open" data-i18n="Delete my account" style="color:var(--red)">Delete my account</a></p>
     <div id="acct-del" style="display:none;margin-top:.6rem;border:1px solid var(--red);background:var(--red-soft);border-radius:12px;padding:.85rem">
+    <!-- A password field outside a <form> makes Chrome invent a login form out
+         of every loose text box on the page and offer saved credentials in the
+         ride search. Its own form, with the account it belongs to as a hidden
+         username, keeps the browser's attention where it belongs. -->
+    <form id="acct-del-form" autocomplete="off">
+    <input type="email" name="username" id="acct-del-user" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" readonly>
       <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--ink)"><span data-i18n-html="&lt;b&gt;This schedules your account for deletion.&lt;/b&gt; You have &lt;b&gt;7 days&lt;/b&gt; to change your mind — we'll email you a cancel link, and logging back in cancels it too. After that your trips, plans, advisor history and alerts are erased for good."><b style="color:var(--red)">This schedules your account for deletion.</b> You have <b>7 days</b> to change your mind — we'll email you a cancel link, and logging back in cancels it too. After that your trips, plans, advisor history and alerts are erased for good.</span></p>
       <input type="password" id="acct-del-pw" placeholder="Confirm your password" data-i18n-attr="placeholder" autocomplete="current-password"
         style="width:100%;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:10px;padding:.6rem .8rem;font-size:1rem;margin-bottom:.5rem">
       <p class="err" id="acct-del-err"></p>
       <button class="btn wide" id="acct-del-go" data-i18n="Delete my account" style="background:var(--red-btn)">Delete my account</button>
       <p class="switch" style="margin:.5rem 0 0"><a id="acct-del-cancel" data-i18n="Keep my account">Keep my account</a></p>
+    </form>
     </div>
   </div>
   <button class="cancel" id="acct-cancel">Close</button>
@@ -6981,6 +6988,10 @@
     $('acct-del-pw').focus();
   });
   $('acct-del-cancel').addEventListener('click', (e) => { e.preventDefault(); $('acct-del').style.display = 'none'; });
+  $('acct-del-form').addEventListener('submit', (e) => { e.preventDefault(); $('acct-del-go').click(); });
+  // The hidden username is the signed-in address, so a saved password lands
+  // on the right account and Chrome stops looking for a username elsewhere.
+  $('acct-del-open').addEventListener('click', () => { try { $('acct-del-user').value = localStorage.getItem('pp-email') || ''; } catch {} });
   $('acct-del-go').addEventListener('click', async () => {
     const pw = $('acct-del-pw').value;
     if (!pw) { $('acct-del-err').textContent = tr('Enter your password to confirm.'); return; }
