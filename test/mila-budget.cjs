@@ -135,7 +135,8 @@ function tokenFor(email) {
     db.kv.del(`topups:${PASSER}`);
     // The operator's own passes have no such ceiling.
     const BOSS = 'boss@test.dev';
-    db.users.create(BOSS, 's', 'x', 1); db.users.markVerified(BOSS);
+    if (!db.users.get(BOSS)) db.users.create(BOSS, 's', 'x', 1);
+    db.users.markVerified(BOSS);
     const btok = tokenFor(BOSS);
     const bb = await fetch(`${B}/api/mila/budget`, { headers: { 'x-session': btok } }).then((r) => r.json());
     check('the operator has no pass cap', bb.passBudget == null && bb.ok, JSON.stringify(bb));
@@ -214,7 +215,7 @@ function tokenFor(email) {
     // budget put him back on the free tier's twenty cents, which is about two
     // of Mila's reads. An admin who cannot use the product cannot check it.
     const ADMIN = 'boss@test.dev';
-    db.users.create(ADMIN, 's', 'x', 1);
+    if (!db.users.get(ADMIN)) db.users.create(ADMIN, 's', 'x', 1);
     db.users.markVerified(ADMIN);
     const atok = tokenFor(ADMIN);
     const b = await fetch(`${B}/api/mila/budget`, { headers: { 'x-session': atok } }).then((r) => r.json());
