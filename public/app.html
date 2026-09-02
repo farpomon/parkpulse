@@ -184,8 +184,10 @@
   @media (prefers-reduced-motion: reduce) { .delta.below { animation: none; } }
   .delta.above { color: var(--red); }
   .delta.even { color: var(--muted); font-weight: 500; }
-  .star { border: none; background: none; font-size: 1.25rem; cursor: pointer; color: var(--border); padding: .2rem; flex-shrink: 0; }
-  .star.on { color: var(--star); }
+  /* "Left out" sits where the star used to, before the name: ruling a ride out
+     is a decision about the plan, and it belongs with the checkbox that puts
+     rides in, not among the after-the-fact controls on the right. */
+  .ride > .skip { flex-shrink: 0; padding: .2rem; }
   .bell { border: none; background: none; font-size: 1.05rem; cursor: pointer; padding: .2rem; flex-shrink: 0; filter: grayscale(1); opacity: .45; }
   .bell.on { filter: none; opacity: 1; }
   .rode { border: 1.5px solid var(--border); background: none; color: var(--muted); width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .9rem; font-weight: 800; line-height: 1; cursor: pointer; flex-shrink: 0; padding: 0; }
@@ -1311,7 +1313,7 @@
          translates whole text units and a bare text node beside an <i> is not
          one. The italic example keeps its own span for the same reason. -->
     <div class="ob-step"><span>📡</span><div><b>See every wait, live</b><span class="ob-t">Pick your park up top. Waits refresh every minute, grouped by land, with hints like</span> <i class="ob-t">"▼ 20 min below typical — go now"</i> <span class="ob-t">so you catch the steals.</span></div></div>
-    <div class="ob-step"><span>⭐</span><div><b>Star your must-dos</b><span class="ob-t">Favorites float to the top. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</span></div></div>
+    <div class="ob-step"><span>🚫</span><div><b>Rule out what's not for you</b><span class="ob-t">Left-out rides sink to the bottom and stay out of the plan. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.</span></div></div>
     <div class="ob-step"><span>🗓️</span><div><b>Tap "Plan my day"</b><span class="ob-t">One tap builds a smart route — nearby rides together, crowds dodged. Most families win back an hour or more of line time.</span></div></div>
     <div class="ob-step"><span>💬</span><div><b>Ask your magical fairy</b><span class="ob-t">"Is Lightning Lane worth it today?" Honest advice from live data — including when to keep your money. Log in and she remembers your trip.</span></div></div>
     <button class="btn wide" id="onboard-go">Let's beat the lines →</button>
@@ -2535,10 +2537,9 @@
     return `
       <div class="ride${rode ? ' isdone' : ''}${skips.has(r.name) ? ' isskip' : ''}">
         <input type="checkbox" data-name="${encodeURIComponent(r.name)}" ${pickedNames.has(r.name) ? 'checked' : ''} ${pickable && !skips.has(r.name) ? '' : 'disabled'} aria-label="${tr('Add to plan:')} ${esc(r.name)}">
-        <button class="star ${favs.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" aria-label="${tr('Favorite:')} ${esc(r.name)}">★</button>
+        <button class="skip ${skips.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${skips.has(r.name) ? tr('Left out — tap to put it back') : tr("Not for us — keep it out of the plan")}" aria-label="${skips.has(r.name) ? tr('Left out — tap to put it back') : tr("Not for us — keep it out of the plan")}: ${esc(r.name)}">🚫</button>
         <span class="mid" data-ride="${encodeURIComponent(r.name)}"><span class="name">${esc(r.name)}</span>${deltaHtml(r)}${heightChips(r)}</span>
         <button class="rode ${rode ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}" aria-label="${rode ? tr('Ridden — tap to undo') : tr('Ridden it? Tick it off')}">✓</button>
-        <button class="skip ${skips.has(r.name) ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${skips.has(r.name) ? tr('Left out — tap to put it back') : tr("Not for us — keep it out of the plan")}" aria-label="${skips.has(r.name) ? tr('Left out — tap to put it back') : tr("Not for us — keep it out of the plan")}: ${esc(r.name)}">🚫</button>
         <button class="bell ${myAlerts[r.name] ? 'on' : ''}" data-name="${encodeURIComponent(r.name)}" title="${myAlerts[r.name] ? `${tr('Alert set:')} ${tr('under')} ${myAlerts[r.name]} ${tr('min')} (${tr('tap to remove')})` : tr('Alert me when the wait drops')}" aria-label="${tr('Wait alert for:')} ${esc(r.name)}">🔔</button>
         <span class="wait ${waitClass(r)}">${waitCell(r)}</span>
         ${openDesc.has(r.name) ? `<div class="ride-desc">${esc(descCache[current + '|' + r.name]) || '…'}${rideMetaLine(r)}</div>` : ''}
@@ -2626,16 +2627,6 @@
       cb.checked ? pickedNames.add(name) : pickedNames.delete(name);
       updatePlanbar();
       if (srAvailable(name)) renderRides();
-    }));
-    $('rides').querySelectorAll('.star').forEach((btn) => btn.addEventListener('click', () => {
-      const name = decodeURIComponent(btn.dataset.name);
-      const adding = !favs.has(name);
-      adding ? favs.add(name) : favs.delete(name);
-      saveFavs();
-      // Favorites double as taste data for "also liked" — one durable row per
-      // account per ride, latest state wins.
-      sendRating(name, adding ? 1 : -1, 'fav');
-      renderRides();
     }));
     $('rides').querySelectorAll('.rode').forEach((btn) => btn.addEventListener('click', () => {
       const name = decodeURIComponent(btn.dataset.name);

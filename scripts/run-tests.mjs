@@ -27,6 +27,7 @@ const SHARED_SERVER = [
   ['storedboard', 'test/stored-board.mjs'],
   ['npscard', 'test/nps-card.mjs'],
   ['headers', 'test/headers.mjs'],
+  ['rowctl', 'test/row-controls.mjs'],
   ['adminpage', 'test/admin-renders.mjs'],
   ['datelink', 'test/plan-date-link.mjs'],
   ['tabkeep', 'test/tab-persists.mjs'],
