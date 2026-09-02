@@ -1,0 +1,26 @@
+{
+  "name": "prenotami-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Watch prenotami.esteri.it for an open carta d'identita appointment and alert you. Never books on your behalf.",
+  "bin": {
+    "prenotami-monitor": "./bin/prenotami-monitor.mjs"
+  },
+  "scripts": {
+    "check": "node bin/prenotami-monitor.mjs check",
+    "watch": "node bin/prenotami-monitor.mjs watch",
+    "probe": "node bin/prenotami-monitor.mjs probe",
+    "report": "node bin/prenotami-monitor.mjs report",
+    "test-notify": "node bin/prenotami-monitor.mjs test-notify",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/booking.browser.mjs",
+    "test:discord": "node test/discord.browser.mjs"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  }
+}

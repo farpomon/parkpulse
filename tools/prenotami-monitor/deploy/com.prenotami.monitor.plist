@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent — keeps the monitor running across crashes and logins on macOS.
+
+  Install:
+    cp deploy/com.prenotami.monitor.plist ~/Library/LaunchAgents/
+    # edit the two paths below to match your clone and your node
+    launchctl load -w ~/Library/LaunchAgents/com.prenotami.monitor.plist
+
+  Watch it:  tail -f ~/Library/Logs/prenotami-monitor.log
+  Stop it:   launchctl unload -w ~/Library/LaunchAgents/com.prenotami.monitor.plist
+
+  Note: a sleeping Mac is not monitoring anything. Either run this on a machine
+  that stays awake, or `caffeinate -s` alongside it.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.prenotami.monitor</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>bin/prenotami-monitor.mjs</string>
+    <string>watch</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/CHANGEME/parkpulse/tools/prenotami-monitor</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>60</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/CHANGEME/Library/Logs/prenotami-monitor.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/CHANGEME/Library/Logs/prenotami-monitor.log</string>
+</dict>
+</plist>
