@@ -215,6 +215,11 @@ await visit('plan · Mila out of budget', async () => {
     error: 'Mila is having a little rest — everything else still works. Try her again shortly.',
     milaRest: 'global', spent: 50, budget: 50 }) }));
 }, 3000);
+await visit('plan · Mila out of pass', async () => {
+  await rebuildWith((r) => r.fulfill({ status: 402, contentType: 'application/json', body: JSON.stringify({
+    error: 'Mila is having a little rest — everything else still works. Try her again shortly.',
+    milaRest: 'global', spent: 50, budget: 50 }) }));
+}, 3000);
 // Her read of the same plan, replayed because she could not be reached. The
 // label is the only part of it we write, and it is the part a reader needs.
 await visit('plan · Mila replayed read', async () => {

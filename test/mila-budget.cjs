@@ -91,6 +91,56 @@ function tokenFor(email) {
     check('no model call was made', calls === 0, String(calls));
   }
 
+  console.log('\n[a pass has a ceiling of its own, and it is a fifth of the price]');
+  {
+    // A Trip Pass: $17.99, ten days, $0.90 a day. Ten days at $0.90 is $9 --
+    // half the price -- and nothing used to stop it. The pass cap is $3.60.
+    const PASSER = 'trip@test.dev';
+    db.users.create(PASSER, 's', 'x', 1); db.users.markVerified(PASSER);
+    const DAY = 86400000;
+    db.users.grant(PASSER, 'trip-pass', Date.now() + 7 * DAY);   // bought three days ago
+    const d = (n) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(Date.now() + n * DAY));
+    const ptok = tokenFor(PASSER);
+    const pbudget = () => fetch(`${B}/api/mila/budget`, { headers: { 'x-session': ptok } }).then((r) => r.json());
+    let b = await pbudget();
+    check('the cap is a fifth of the price', b.passBudget === 3.6, JSON.stringify(b));
+    check('and nothing has been spent against it', b.passSpent === 0 && b.ok, JSON.stringify(b));
+    // Spend spread over the pass's days, each under the daily ceiling, and a
+    // big day from BEFORE the pass that must not count.
+    db.aispend.add(PASSER, d(-10), 5.00);               // a week before the pass began
+    db.aispend.add(PASSER, d(-2), 0.85);
+    db.aispend.add(PASSER, d(-1), 0.85);
+    db.aispend.add(PASSER, d(0), 0.85);
+    b = await pbudget();
+    check('spend before the pass began does not count', b.passSpent === 2.55, JSON.stringify(b));
+    check('under the pass cap she still answers, even with today under the daily one', b.ok === true, JSON.stringify(b));
+    db.aispend.add(PASSER, d(-3), 1.05);                 // and now the pass is used up
+    b = await pbudget();
+    check('over the pass cap she stops, though today is under the daily cap', b.ok === false && b.reason === 'pass', JSON.stringify(b));
+    const res = await fetch(`${B}/api/consultant`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-session': ptok },
+      body: JSON.stringify({ park: 'magic-kingdom', messages: [{ role: 'user', content: 'hi' }] }) });
+    const body = await res.json();
+    check('Mila declines', res.status === 402, String(res.status));
+    check('saying it was the pass, not the day', /came with this pass/.test(body.error || ''), body.error);
+    check('and the reply names the pass figures', body.spent === 3.6 && body.budget === 3.6, JSON.stringify(body));
+    // Bought time counts on top of what came with the pass.
+    db.users.addAiCredit(PASSER, 2.00);
+    db.kv.set(`topups:${PASSER}`, JSON.stringify([{ at: d(0), usd: 2.00 }]));
+    b = await pbudget();
+    check('a top-up lifts the pass cap by what was bought', b.passBudget === 5.6 && b.ok === true, JSON.stringify(b));
+    // A top-up from before this pass is not this pass's.
+    db.kv.set(`topups:${PASSER}`, JSON.stringify([{ at: d(-30), usd: 2.00 }]));
+    b = await pbudget();
+    check('but not a top-up bought before the pass', b.passBudget === 3.6 && b.ok === false, JSON.stringify(b));
+    db.kv.del(`topups:${PASSER}`);
+    // The operator's own passes have no such ceiling.
+    const BOSS = 'boss@test.dev';
+    db.users.create(BOSS, 's', 'x', 1); db.users.markVerified(BOSS);
+    const btok = tokenFor(BOSS);
+    const bb = await fetch(`${B}/api/mila/budget`, { headers: { 'x-session': btok } }).then((r) => r.json());
+    check('the operator has no pass cap', bb.passBudget == null && bb.ok, JSON.stringify(bb));
+  }
+
   console.log('\n[bought time is spent first, and it lifts the cap]');
   {
     db.users.addAiCredit(ME, 1.50);

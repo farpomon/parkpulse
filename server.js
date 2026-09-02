@@ -1905,6 +1905,46 @@ function aiBudgetFor(user) {
 
 // Why Mila cannot answer right now, or null if she can. Split from the route so
 // the same answer can be given before a turn and shown on the account sheet.
+// How much of Mila a whole pass may buy. The daily ceilings above bound a
+// day; nothing bounded the pass, and a pass is made of days. At $0.35 a day
+// the Annual Pass carried $127 of allowance behind a $49.99 price -- a margin
+// that could go to minus a hundred and fifty percent on paper, and the only
+// thing between that and reality was the global wall, which protects the
+// business by switching Mila off for everybody else.
+//
+// So every pass carries a lifetime cap of a fifth of its price. Twenty percent
+// buys a Trip Pass seventy of Mila's reads and an Annual Pass two hundred;
+// nobody reaches it, and the floor it puts under the margin is 76% whatever
+// anyone does. Bought time counts on top: a top-up is the customer paying for
+// more of her, and it would be absurd to sell it and then decline to serve it.
+//
+// The pass started when it will end minus how long it runs: the grant stores
+// only the expiry. Comp and dev passes have no lifetime cap -- they are the
+// operator and the operator's guests -- and so does any plan the catalogue
+// no longer knows, which is the safe way to be wrong.
+const PASS_LIFETIME_SHARE = 0.20;
+const PASS_DAYS = Object.assign(Object.create(null),
+  Object.fromEntries(PLAN_CATALOG.map((c) => [c.id, c.days])),
+  { 'week-pass': 7, 'month-pass': 30, 'half-year-pass': 182, 'pro-annual': 365 });
+const PASS_PRICE = Object.assign(Object.create(null),
+  Object.fromEntries(PLAN_CATALOG.map((c) => [c.id, Number(c.usd)])),
+  // What the retired passes sold for, so a holder keeps the cap they bought.
+  { 'week-pass': 49.99, 'month-pass': 69.99, 'half-year-pass': 129.99, 'pro-annual': 199.99 });
+function passLifetime(user) {
+  if (!user || !accountPassActive(user)) return null;
+  const days = PASS_DAYS[user.plan];
+  const price = PASS_PRICE[user.plan];
+  if (!days || !price) return null;
+  const since = new Date(user.plan_exp - days * 86400000).toISOString().slice(0, 10);
+  let bought = 0;
+  try {
+    for (const t of JSON.parse(db.kv.get(`topups:${user.email}`) || '[]')) {
+      if (t && t.at >= since) bought += Number(t.usd) || 0;
+    }
+  } catch {}
+  return { since, cap: Math.round((price * PASS_LIFETIME_SHARE + bought) * 100) / 100 };
+}
+
 function aiBudgetState(email) {
   const day = etNow().date;
   const globalSpent = db.aiusage.totalOn(day);
@@ -1912,10 +1952,17 @@ function aiBudgetState(email) {
     return { ok: false, reason: 'global', spent: globalSpent, budget: AI_GLOBAL_DAILY_USD };
   }
   const user = email ? db.users.get(email) : null;
+  const credit = user?.ai_credit_usd || 0;
+  const life = passLifetime(user);
+  const passSpent = life ? db.aispend.since(email, life.since).usd : 0;
+  const pass = life ? { passSpent, passBudget: life.cap } : {};
+  if (life && passSpent >= life.cap) {
+    return { ok: false, reason: 'pass', spent: passSpent, budget: life.cap, credit, ...pass };
+  }
   const budget = aiBudgetFor(user);
   const spent = email ? db.aispend.on(email, day).usd : 0;
-  if (spent >= budget) return { ok: false, reason: 'account', spent, budget, credit: user?.ai_credit_usd || 0 };
-  return { ok: true, spent, budget, credit: user?.ai_credit_usd || 0 };
+  if (spent >= budget) return { ok: false, reason: 'account', spent, budget, credit, ...pass };
+  return { ok: true, spent, budget, credit, ...pass };
 }
 
 const usd = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
@@ -3538,6 +3585,7 @@ async function stripePriceCheck() {
       spent: Math.round(b.spent * 100) / 100,
       budget: Math.round(b.budget * 100) / 100,
       credit: Math.round((b.credit || 0) * 100) / 100,
+      ...(b.passBudget != null && { passSpent: Math.round(b.passSpent * 100) / 100, passBudget: b.passBudget }),
       topUp: MILA_TOPUP_ENABLED ? { usd: MILA_TOPUP_USD, label: MILA_TOPUP_LABEL } : null,
     });
   }
@@ -5083,6 +5131,14 @@ ${sections}
           }
           db.kv.set(spentKey, buyer.email);
           db.users.addAiCredit(buyer.email, MILA_TOPUP_USD);
+          // Written down with its date, because the pass cap counts what was
+          // bought during the pass on top of what came with it.
+          try {
+            const k = `topups:${buyer.email}`;
+            const list = JSON.parse(db.kv.get(k) || '[]');
+            list.push({ at: etNow().date, usd: MILA_TOPUP_USD });
+            db.kv.set(k, JSON.stringify(list.slice(-50)));
+          } catch {}
           const credit = db.users.get(buyer.email)?.ai_credit_usd || 0;
           console.log(`mila top-up: ${buyer.email} +${usd(MILA_TOPUP_USD)}`);
           return sendJson(res, 200, { credit: Math.round(credit * 100) / 100 });
@@ -5224,11 +5280,13 @@ ${sections}
             return sendJson(res, 402, {
               error: budget.reason === 'global'
                 ? 'Mila is having a little rest — everything else still works. Try her again shortly.'
-                : 'Mila has given you everything she has for today.',
+                : budget.reason === 'pass'
+                  ? 'Mila has given you everything that came with this pass ✨ A top-up keeps her going.'
+                  : 'Mila has given you everything she has for today.',
               milaRest: budget.reason,
               spent: Math.round(budget.spent * 100) / 100,
               budget: Math.round(budget.budget * 100) / 100,
-              topUp: budget.reason === 'account' && MILA_TOPUP_ENABLED,
+              topUp: (budget.reason === 'account' || budget.reason === 'pass') && MILA_TOPUP_ENABLED,
             });
           }
         }
