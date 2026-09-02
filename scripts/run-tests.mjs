@@ -20,6 +20,27 @@ const PORT = Number(process.env.PP_TEST_PORT || 9695);
 const BASE = `http://127.0.0.1:${PORT}`;
 const DB = `/tmp/pp-suite-${process.pid}.db`;
 
+// One suite at a time. The .cjs tests listen on fixed ports and use fixed
+// /tmp/pp-*.db files, and the browser tests share one server: two runners at
+// once knock random tests over in each other -- five red in one run, five
+// different red in the other, none of them real. It happened three times in
+// one afternoon. So the runner holds a lock while it works and refuses to
+// start while another holds it; a lock left by a runner that died is ignored.
+const LOCK = '/tmp/pp-run-tests.lock';
+try {
+  const other = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
+  let alive = false;
+  try { process.kill(other.pid, 0); alive = true; } catch {}
+  if (alive && other.pid !== process.pid) {
+    console.error(`Another suite is running (pid ${other.pid}, started ${other.at}). Refusing to start a second one -- wait for it, or remove ${LOCK} if it is truly gone.`);
+    process.exit(2);
+  }
+} catch {}
+fs.writeFileSync(LOCK, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }));
+process.on('exit', () => {
+  try { if (JSON.parse(fs.readFileSync(LOCK, 'utf8')).pid === process.pid) fs.unlinkSync(LOCK); } catch {}
+});
+
 // Slow ones last, so a quick mistake surfaces in the first thirty seconds
 // rather than four minutes in.
 const SHARED_SERVER = [
