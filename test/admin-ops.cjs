@@ -265,6 +265,19 @@ function adminSession() {
     check('and each one is named for its pass', (sel.match(/Pass</g) || []).length === offered.length, sel.replace(/\s+/g, ' ').slice(0, 200));
   }
 
+  console.log('\n[an invite says when it was made]');
+  {
+    const before = Date.now();
+    const made = await fetch(`${B}/api/admin/invite`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-session': session },
+      body: JSON.stringify({ channel: 'link', days: 10 }) }).then((r) => r.json());
+    check('an invite can be created', made && made.token, JSON.stringify(made).slice(0, 120));
+    const list = await fetch(`${B}/api/admin/invites`, { headers: { 'x-session': session } }).then((r) => r.json());
+    const row = (list.invites || []).find((i) => i.token === made.token);
+    const at = row && Date.parse(row.created_at);
+    check('and the list carries the moment it was made', Number.isFinite(at) && at >= before - 1000 && at <= Date.now() + 1000, JSON.stringify(row && row.created_at));
+    check('with nothing redeemed yet', row && row.redeemed_at == null);
+  }
+
   console.log(`\n=== ${fail ? fail + ' failed' : 'the dashboard answers the operator questions'} ===`);
   process.exit(fail ? 1 : 0);
 })();
