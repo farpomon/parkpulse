@@ -13,6 +13,9 @@ process.env.AI_BUDGET_FREE = '0.20';
 process.env.AI_GLOBAL_DAILY_USD = '3';
 process.env.AI_BUDGETS = JSON.stringify({ 'week-pass': 1.00 });
 process.env.ADMIN_EMAILS = 'boss@test.dev';
+// A Stripe key and NO dashboard Price for the top-up: the offer must still be
+// on, sold at an inline amount, the way the passes are.
+process.env.STRIPE_SECRET_KEY = 'sk_test_stub';
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -30,6 +33,20 @@ consultant._setClient({
   } },
 });
 const db = require('../db.js');
+
+// Stripe, scripted: the balance probe the key triggers, and the checkout the
+// top-up creates -- whose parameters are kept so the test can read them.
+const realFetch = global.fetch;
+let checkoutParams = null;
+global.fetch = async (url, opts) => {
+  const u = String(url);
+  if (u.startsWith('https://api.stripe.com/v1/balance')) return { ok: true, status: 200, json: async () => ({ livemode: false, available: [] }) };
+  if (u.startsWith('https://api.stripe.com/v1/checkout/sessions')) {
+    checkoutParams = Object.fromEntries(new URLSearchParams(String(opts?.body || '')));
+    return { ok: true, status: 200, json: async () => ({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' }) };
+  }
+  return realFetch(url, opts);
+};
 
 const B = 'http://127.0.0.1:9685';
 const ME = 'budget@test.dev';
@@ -123,6 +140,15 @@ function tokenFor(email) {
     check('Mila declines', res.status === 402, String(res.status));
     check('saying it was the pass, not the day', /came with this pass/.test(body.error || ''), body.error);
     check('and the reply names the pass figures', body.spent === 3.6 && body.budget === 3.6, JSON.stringify(body));
+    check('and offers more of her, since a top-up lifts a pass cap too', body.topUp === true, JSON.stringify(body.topUp));
+    // The offer leads somewhere: a checkout at an inline amount, no dashboard
+    // Price required, granting credit and not a pass.
+    const tu = await fetch(`${B}/api/mila/topup`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-session': ptok }, body: '{}' });
+    const tub = await tu.json();
+    check('the top-up checkout opens without a Stripe Price id', tu.status === 200 && /checkout\.stripe\.com/.test(tub.url || ''), `${tu.status} ${JSON.stringify(tub)}`);
+    check('charged inline at $4.99', checkoutParams && checkoutParams['line_items[0][price_data][unit_amount]'] === '499', JSON.stringify(checkoutParams));
+    check('as a top-up, not a pass', checkoutParams && checkoutParams['metadata[kind]'] === 'mila-topup');
+    check('and the budget endpoint says what it costs and what it buys', (await pbudget()).topUp?.charge === 4.99 && (await pbudget()).topUp?.usd === 1, JSON.stringify((await pbudget()).topUp));
     // Bought time counts on top of what came with the pass.
     db.users.addAiCredit(PASSER, 2.00);
     db.kv.set(`topups:${PASSER}`, JSON.stringify([{ at: d(0), usd: 2.00 }]));

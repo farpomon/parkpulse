@@ -104,9 +104,16 @@ const CHECKOUT_ENABLED = Boolean(STRIPE_KEY);
 // of questions, because that is what it actually is -- and it means a short
 // question costs them less than a long one, which is the honest way round.
 const MILA_TOPUP_PRICE = process.env.STRIPE_PRICE_MILA_TOPUP || '';
-const MILA_TOPUP_USD = Number(process.env.MILA_TOPUP_USD || 2.00);      // credit granted
+// What a top-up costs and what it buys. Priced like the passes -- the buyer
+// gets a fifth of the charge as model time, which at about five cents a read
+// is twenty more of Mila's answers for $4.99 -- and, like the passes, sold
+// with an inline amount when no dashboard Price is set. It used to need one,
+// which meant the offer was silently off everywhere until somebody created a
+// Price in Stripe and pasted its id into an env var, and nobody had.
+const MILA_TOPUP_CHARGE_USD = Number(process.env.MILA_TOPUP_CHARGE_USD || 4.99);   // what is charged
+const MILA_TOPUP_USD = Number(process.env.MILA_TOPUP_USD || 1.00);                 // credit granted
 const MILA_TOPUP_LABEL = process.env.MILA_TOPUP_LABEL || 'More time with Mila';
-const MILA_TOPUP_ENABLED = Boolean(STRIPE_KEY && MILA_TOPUP_PRICE);
+const MILA_TOPUP_ENABLED = Boolean(STRIPE_KEY);
 // MUST be set in production — the ephemeral default invalidates all passes on restart.
 const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
 // Developer bypass: redeeming this exact code in the app grants a 10-year pass.
@@ -3586,7 +3593,7 @@ async function stripePriceCheck() {
       budget: Math.round(b.budget * 100) / 100,
       credit: Math.round((b.credit || 0) * 100) / 100,
       ...(b.passBudget != null && { passSpent: Math.round(b.passSpent * 100) / 100, passBudget: b.passBudget }),
-      topUp: MILA_TOPUP_ENABLED ? { usd: MILA_TOPUP_USD, label: MILA_TOPUP_LABEL } : null,
+      topUp: MILA_TOPUP_ENABLED ? { usd: MILA_TOPUP_USD, charge: MILA_TOPUP_CHARGE_USD, label: MILA_TOPUP_LABEL } : null,
     });
   }
 
@@ -5093,7 +5100,14 @@ ${sections}
         try {
           const session = await stripeApi('/v1/checkout/sessions', {
             mode: 'payment',
-            'line_items[0][price]': MILA_TOPUP_PRICE,
+            ...(MILA_TOPUP_PRICE
+              ? { 'line_items[0][price]': MILA_TOPUP_PRICE }
+              : {
+                'line_items[0][price_data][currency]': 'usd',
+                'line_items[0][price_data][unit_amount]': String(Math.round(MILA_TOPUP_CHARGE_USD * 100)),
+                'line_items[0][price_data][product_data][name]': `ParkPulse — ${MILA_TOPUP_LABEL}`,
+                'line_items[0][price_data][product_data][description]': 'More of Mila, on top of your pass — one-time, no subscription.',
+              }),
             'line_items[0][quantity]': '1',
             'metadata[kind]': 'mila-topup',
             'metadata[email]': buyer.email,

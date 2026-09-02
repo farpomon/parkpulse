@@ -129,14 +129,22 @@ for (const [label, status, error, want] of [
   // is what every visitor planning anywhere else meets — the upsell moment,
   // which used to read "pass required".
   ['behind the paywall', 402, "Mila's read of your plan comes with any pass.", /leitura da Mila sobre o seu plano vem com qualquer passe/],
+  // Same status, different "no": a pass-holder who has used up the pass's
+  // share of Mila. They are offered more of her, not a pass they already own.
+  ['out of the pass', 402, { error: 'Mila has given you everything that came with this pass ✨ A top-up keeps her going.', milaRest: 'pass', topUp: true }, /tudo o que vinha com este passe/],
 ]) {
   // A running board on purpose. Mila is only asked to read a plan once there
   // is one, so on a shut board this panel is empty and these four checks
   // become a statement about what time the suite ran -- which is how they
   // passed when they were written and failed the same evening.
   const r = await visit('/app?park=magic-kingdom', (rt) => rt.fulfill({
-    status, contentType: 'application/json', body: JSON.stringify({ error }),
+    status, contentType: 'application/json', body: JSON.stringify(typeof error === 'string' ? { error } : error),
   }), RUNNING);
+  if (typeof error === 'object') {
+    const acts = await r.page.evaluate(() => document.getElementById('planai-act')?.innerText || '');
+    check(`${label}: is offered more of Mila`, /mais tempo com a Mila/i.test(acts), acts);
+    check(`${label}: and not a pass they already hold`, !/passe inclui|inclui um passe/i.test(acts), acts);
+  }
   check(`${label}: there is a plan for her to have failed on`, r.stops > 0, `${r.stops} stops`);
   const said = r.advisor;
   check(`${label}: the reader is told why`, want.test(said), said.slice(0, 160));

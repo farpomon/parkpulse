@@ -3204,7 +3204,7 @@
   async function streamAdvice(question, signal, box, planDayKey) {
     const state = $('planai-state');
     const body = $('planai-body');
-    const fail = (msg, upsell) => {
+    const fail = (msg, upsell, topUp) => {
       // A read that never arrived was not a read. Hand the park-day back so
       // the next plan tries again by itself, rather than leaving the visitor
       // to discover a button they never saw work.
@@ -3222,9 +3222,24 @@
       // untouched when there is no entry, so a string already translated above
       // passes straight through.
       body.innerHTML = `<p class="planai-off"><img class="mila-mini" src="/img/mila/mila-nervous-160.webp" alt=""> ${esc(tr(msg))}</p>`;
-      $('planai-act').innerHTML = upsell ? `<button class="btn planai-cta" id="planai-up">${tr('See what a pass includes')}</button>` : '';
+      // Two different "no", two different next steps. No pass: show what one
+      // includes. Out of Mila's time on a pass they hold: sell more of her,
+      // right here, rather than a pass they already own.
+      $('planai-act').innerHTML = topUp
+        ? `<button class="btn planai-cta" id="planai-topup">${tr('✨ Buy more time with Mila')}</button>`
+        : upsell ? `<button class="btn planai-cta" id="planai-up">${tr('See what a pass includes')}</button>` : '';
       const up = document.getElementById('planai-up');
       if (up) up.addEventListener('click', () => showUpsell());
+      const more = document.getElementById('planai-topup');
+      if (more) more.addEventListener('click', async () => {
+        more.disabled = true;
+        try {
+          const r = await api('/api/mila/topup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+          const d = await r.json().catch(() => ({}));
+          if (d.url) location.href = d.url;
+          else { more.disabled = false; more.textContent = tr('Could not start that — try again.'); }
+        } catch { more.disabled = false; }
+      });
     };
     try {
       const res = await fetch('/api/consultant', {
@@ -3248,9 +3263,11 @@
         }),
       });
       if (res.status === 402) {
-        let msg = null;
-        try { msg = (await res.json()).error; } catch {}
-        return fail(msg || tr("Mila's read of your plan comes with any pass."), true);
+        // A 402 is one of two things: the paywall, or a pass-holder out of
+        // Mila's time (milaRest says which). Only the first wants the upsell.
+        let d = {};
+        try { d = await res.json(); } catch {}
+        return fail(d.error || tr("Mila's read of your plan comes with any pass."), !d.milaRest, Boolean(d.topUp));
       }
       if (res.status === 429) return fail(tr('Mila is catching her breath — your plan below still stands.'));
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {

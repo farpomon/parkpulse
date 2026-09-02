@@ -465,7 +465,9 @@
         : T()('Your magical fairy is having a moment — try again shortly.');
       // Out of her day's time, and more can be bought: offer it right here
       // rather than leaving a refusal on screen with nowhere to go.
-      if (e.milaRest === 'account' && e.topUp) {
+      // Out of the day, or out of the pass: either way more can be bought,
+      // and the pass-cap decline was left with nowhere to go.
+      if ((e.milaRest === 'account' || e.milaRest === 'pass') && e.topUp) {
         const b = document.createElement('button');
         b.className = 'ppc-topup';
         b.type = 'button';
