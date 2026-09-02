@@ -78,10 +78,10 @@ const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
 // ladder made every buyer translate a trip into a duration, which landed them
 // on Month whether they needed thirty days or twelve.
 const PLAN_CATALOG = [
-  { id: 'day-pass', days: 1, usd: '24.99', label: 'Day Pass', per: '1 day' },
-  { id: 'trip-pass', days: 10, usd: '59.99', label: 'Trip Pass', per: '10 days', badge: 'MOST POPULAR' },
-  { id: 'season-pass', days: 90, usd: '99.99', label: 'Season Pass', per: '90 days' },
-  { id: 'year-pass', days: 365, usd: '199.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
+  { id: 'day-pass', days: 1, usd: '6.99', label: 'Day Pass', per: '1 day' },
+  { id: 'trip-pass', days: 10, usd: '17.99', label: 'Trip Pass', per: '10 days', badge: 'MOST POPULAR' },
+  { id: 'season-pass', days: 90, usd: '29.99', label: 'Season Pass', per: '90 days' },
+  { id: 'year-pass', days: 365, usd: '49.99', label: 'Annual Pass', per: '12 months', badge: 'BEST VALUE' },
 ];
 const STRIPE_PRICES = {
   'day-pass': process.env.STRIPE_PRICE_DAY || '',
@@ -1855,7 +1855,11 @@ const AI_DEFAULTS = {
 };
 
 const AI_BUDGET_USD = Object.assign(Object.create(null), {
-  'day-pass': 2.50, 'trip-pass': 0.90, 'season-pass': 0.45, 'year-pass': 0.35,
+  // These are DAILY ceilings, and the long passes have a lot of days in them.
+  // A year at $0.35 a day is $127 of allowance behind a $49.99 pass -- so the
+  // long tiers came down when the prices did. Nobody reaches these: one of
+  // Mila's reads costs about five cents, so $0.20 is four a day, every day.
+  'day-pass': 2.50, 'trip-pass': 0.90, 'season-pass': 0.30, 'year-pass': 0.20,
   // Retired plans, so somebody mid-pass keeps the allowance they bought.
   'week-pass': 1.00, 'month-pass': 0.50, 'half-year-pass': 0.40, 'pro-annual': 0.35,
   // A guest is somebody being shown the product on purpose. Giving them half

@@ -1281,7 +1281,7 @@
       <li><span>🗓️</span><div data-i18n="Plan any day up to 60 out, with weather and events baked in">Plan any day up to 60 out, with weather and events baked in</div></li>
       <li><span>📧</span><div data-i18n="Your plan emailed, with Mila's read on the day">Your plan emailed, with Mila's read on the day</div></li>
     </ul>
-    <a class="gate-cta" id="gate-cta" href="/#pricing">See passes — one-time, from $24.99</a>
+    <a class="gate-cta" id="gate-cta" href="/#pricing">See passes — one-time, from $6.99</a>
     <button class="gate-later" id="gate-later" data-i18n="Keep previewing">Keep previewing</button>
   </div>
 </div>
@@ -2436,7 +2436,7 @@
   const WAND_MSG = () => tr('My wand only grants one free wish a day ✨ With a ParkPulse pass, the magic never runs out — unlimited plans, every park, and me by your side all day.');
   function showUpsell() {
     $('plan-out').innerHTML = `<div class="upsell"><img class="mila-up" src="/img/mila/mila-cool-160.webp" alt="Mila, arms crossed, confident"><strong>65 parks worldwide — Disney, Universal, Six Flags, Cedar Point &amp; more — plus the plan builder, all in every ParkPulse pass.</strong><br>
-      From $24.99 for a park day — the price of one person's Lightning Lane, covering your whole family's devices.<br><br>
+      From $6.99 for a park day — the price of one person's Lightning Lane, covering your whole family's devices.<br><br>
       <a href="/#pricing">See passes →</a><br>
       <a href="#" id="redeem-link" style="font-weight:400;font-size:.85rem;opacity:.85">Have a pass code?</a></div>`;
     $('redeem-link').addEventListener('click', async (e) => {
@@ -3633,7 +3633,7 @@
       // not a second wish, so it passes the once-a-day gate.
       if (used === parkDay() && !opts.finaleOverride) {
         $('plan-out').innerHTML = `<div class="upsell"><img class="mila-up" src="/img/mila/mila-nervous-160.webp" alt="Mila, apologetic"><strong>${WAND_MSG()}</strong><br><br>
-          <a class="btn wide" href="/#pricing" style="display:block;text-align:center;text-decoration:none">${tr('See passes — from $24.99')}</a></div>`;
+          <a class="btn wide" href="/#pricing" style="display:block;text-align:center;text-decoration:none">${tr('See passes — from $6.99')}</a></div>`;
         syncPlanHero();
         if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
         requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -4201,7 +4201,7 @@
         <img src="/img/mila/mila-cool-160.webp" alt="" width="56" height="56">
         <b>${esc(parks[current].name)} ${tr('live is a pass feature')}</b>
         <span>${tr('The real board updates every minute — waits, plans, Mila, alerts. This one is yesterday-ish, and blurry on purpose.')}</span>
-        <a class="btn" href="/#pricing">${tr('See passes — from $24.99')}</a>
+        <a class="btn" href="/#pricing">${tr('See passes — from $6.99')}</a>
         <button class="cancel" id="preview-back">${tr('Back to Magic Kingdom — free today')}</button>
       </div></div>`;
     document.getElementById('preview-back').addEventListener('click', () => {
@@ -6218,13 +6218,13 @@
   // One question, one recommendation, honest math — anchored against what a
   // family already pays per person, per day, for a skip-the-line pass.
   const PASS_TIERS = [
-    { chip: '1 park day', id: 'day-pass', label: 'Day Pass', usd: '24.99',
+    { chip: '1 park day', id: 'day-pass', label: 'Day Pass', usd: '6.99',
       math: "One day, the whole family covered — the price of one person's Lightning Lane." },
-    { chip: 'A holiday 🧳', id: 'trip-pass', label: 'Trip Pass', usd: '59.99', badge: 'MOST POPULAR',
+    { chip: 'A holiday 🧳', id: 'trip-pass', label: 'Trip Pass', usd: '17.99', badge: 'MOST POPULAR',
       math: 'Ten days — longer than almost any trip — for about $6 a day.' },
-    { chip: 'A whole season', id: 'season-pass', label: 'Season Pass', usd: '99.99',
+    { chip: 'A whole season', id: 'season-pass', label: 'Season Pass', usd: '29.99',
       math: 'Ninety days, so a summer or two trips are one purchase.' },
-    { chip: "We're locals 🏰", id: 'year-pass', label: 'Annual Pass', usd: '199.99', badge: 'BEST VALUE',
+    { chip: "We're locals 🏰", id: 'year-pass', label: 'Annual Pass', usd: '49.99', badge: 'BEST VALUE',
       math: 'Under 55¢ a day, every park, all year long.' },
   ];
   function closePassPick() {

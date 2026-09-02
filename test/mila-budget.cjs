@@ -118,8 +118,12 @@ function tokenFor(email) {
       ['an invited guest', 'comp', 0.90],
       ['a Trip Pass', 'trip-pass', 0.90],
       ['a Day Pass', 'day-pass', 2.50],
-      ['a Season Pass', 'season-pass', 0.45],
-      ['a Year Pass', 'year-pass', 0.35],
+      // The long passes carry the most days, so their daily ceiling is the one
+      // that decides whether a pass can cost more in AI than it sold for. At
+      // $0.20 a day a year of allowance is $73 -- still more than the $49.99
+      // pass, which is why the real guard is the per-pass cap, not this.
+      ['a Season Pass', 'season-pass', 0.30],
+      ['a Year Pass', 'year-pass', 0.20],
     ]) {
       const e = `tbl-${plan}@test.dev`;
       db.users.create(e, 's', 'x', 1); db.users.markVerified(e);

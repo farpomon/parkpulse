@@ -54,7 +54,7 @@ function adminSession() {
     // Two real sales, one dev pass, one retired plan id with no price.
     // The retired one is read off the live catalogue rather than hardcoded:
     // this test used to name 'trip-pass' as the priceless example, and then
-    // trip-pass became the $59.99 Trip Pass and the assertion quietly meant
+    // trip-pass became the $17.99 Trip Pass and the assertion quietly meant
     // something else.
     const cfg = await (await fetch(`${B}/api/config`)).json();
     const sold = cfg.plans.map((p) => p.id);

@@ -125,14 +125,14 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const MILA_HOVER_MSGS = [
   'This is just a sprinkle ✨ With a pass you get the whole spell — live waits, unlimited plans, and me by your side all day.',
   'Want this day to be even more magical? ✨ My wand never runs out with a pass — every park, every plan, me all day.',
-  "I know a shortcut past every line here ✨ Grab a pass and let's make some magic — from $24.99.",
+  "I know a shortcut past every line here ✨ Grab a pass and let's make some magic — from $6.99.",
   "I can dodge every queue and stay with you till the fireworks ✨ Get a pass and let's go!",
   'Second star to the right, straight past the queues ✨ A pass unlocks every park — shall we fly?',
   "The lines don't know I exist ✨ With a pass, neither will you — unlimited plans, all 65 parks.",
   "I read the queues like a storybook ✨ Get a pass and I'll read yours all day long.",
   "One pass, every kingdom ✨ I'll plan each day to the minute — you just bring the snacks.",
   'Believe in magic? I run on data ✨ A pass gives you both, all day, in every park.',
-  'Your feet will thank me, your kids will high-five you ✨ Passes start at $24.99.',
+  'Your feet will thank me, your kids will high-five you ✨ Passes start at $6.99.',
   'I saved families whole hours of queueing today ✨ Want yours back too? A pass makes it official.',
   'Why wait in line when you can walk with a fairy? ✨ Unlock every park with a pass.',
 ];

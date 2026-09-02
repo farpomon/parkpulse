@@ -85,7 +85,7 @@ console.log('\n[nothing from the wrong alphabet]');
 // --- prices ------------------------------------------------------------------
 // The landing page advertised "for $19.99" in every language for as long as
 // the section existed. Nothing sells for $19.99 -- the cheapest pass is
-// $24.99, which the FAQ two sections below said correctly, and so did the
+// $6.99, which the FAQ two sections below said correctly, and so did the
 // JSON-LD Google reads. The page contradicted itself and nobody noticed,
 // because prices live in three places and none of them checked each other.
 //
