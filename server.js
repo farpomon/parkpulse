@@ -4571,7 +4571,10 @@ ${sections}
         const adm = adminUser(req);
         if (!adm) return sendJson(res, 403, { error: 'admin account required' });
         const channel = ['email', 'phone', 'link'].includes(parsed.channel) ? parsed.channel : 'link';
-        const days = [7, 30, 90, 365].includes(parsed.days) ? parsed.days : 30;
+        // A comp is one of the passes we sell, for the length we sell it. Anything
+        // else asked for becomes a Trip Pass -- the one most guests are shown.
+        const SOLD_DAYS = PLAN_CATALOG.map((c) => c.days);
+        const days = SOLD_DAYS.includes(parsed.days) ? parsed.days : (PLAN_CATALOG.find((c) => c.id === 'trip-pass')?.days ?? SOLD_DAYS[1]);
         const note = typeof parsed.note === 'string' ? parsed.note.trim().slice(0, 200) : '';
         let target = null;
         if (channel === 'email') {

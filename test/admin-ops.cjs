@@ -249,6 +249,22 @@ function adminSession() {
     check('and the temporary file is gone', leftovers.length === 0, leftovers.join(', '));
   }
 
+  console.log('\n[a guest pass is one of the passes we sell]');
+  {
+    // The invite form offered 7 / 30 / 90 / 365 days while the catalogue sold
+    // 1 / 10 / 90 / 365. A comp is a pass somebody is being shown on purpose;
+    // it should be one of the passes that exist, so the form reads its
+    // lengths off the same catalogue the till does.
+    const cfg = await fetch(`${B}/api/config`).then((r) => r.json());
+    const sold = (cfg.plans || []).map((p) => Number(p.days)).filter(Boolean).sort((a, b) => a - b);
+    const html = fs.readFileSync(require('node:path').join(__dirname, '..', 'public', 'admin.html'), 'utf8');
+    const sel = html.match(/<select id="inv-days"[\s\S]*?<\/select>/)?.[0] || '';
+    const offered = [...sel.matchAll(/<option value="(\d+)"/g)].map((m) => Number(m[1])).sort((a, b) => a - b);
+    check('the catalogue has day lengths to compare', sold.length >= 3, JSON.stringify(sold));
+    check('the invite form offers exactly those lengths', JSON.stringify(offered) === JSON.stringify(sold), `${JSON.stringify(offered)} vs ${JSON.stringify(sold)}`);
+    check('and each one is named for its pass', (sel.match(/Pass</g) || []).length === offered.length, sel.replace(/\s+/g, ' ').slice(0, 200));
+  }
+
   console.log(`\n=== ${fail ? fail + ' failed' : 'the dashboard answers the operator questions'} ===`);
   process.exit(fail ? 1 : 0);
 })();
