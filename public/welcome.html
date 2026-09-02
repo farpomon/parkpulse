@@ -38,6 +38,13 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'claim failed');
       localStorage.setItem('pp-pass', data.token);
+      // The sale, reported to Google Ads once. The checkout session id is the
+      // transaction id, so a refresh of this page cannot count it twice.
+      try {
+        if (data.conversion && typeof gtag === 'function') {
+          gtag('event', 'conversion', { send_to: data.conversion, value: Number(data.usd) || 0, currency: 'USD', transaction_id: sessionId });
+        }
+      } catch {}
       const until = new Date(data.exp).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
       const hasAccount = Boolean(localStorage.getItem('pp-email'));
       card.innerHTML = `<h1>You're in! 🎉</h1>

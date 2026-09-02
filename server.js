@@ -113,6 +113,35 @@ const MILA_TOPUP_PRICE = process.env.STRIPE_PRICE_MILA_TOPUP || '';
 const MILA_TOPUP_CHARGE_USD = Number(process.env.MILA_TOPUP_CHARGE_USD || 4.99);   // what is charged
 const MILA_TOPUP_USD = Number(process.env.MILA_TOPUP_USD || 1.00);                 // credit granted
 const MILA_TOPUP_LABEL = process.env.MILA_TOPUP_LABEL || 'More time with Mila';
+
+// --- Google Ads ---------------------------------------------------------------
+// The base tag on every page, and a conversion at the two moments that matter:
+// a pass bought and an account verified. Set GOOGLE_ADS_ID (AW-...) to switch
+// it on; without it nothing is injected, so dev and test never fire real
+// conversions. The labels are per-conversion ids from Google Ads (Goals ->
+// Conversions -> the conversion's tag setup); without a label the base tag
+// still runs but the moment is not reported. Injected server-side so it is in
+// one place and reaches every page, including the ones without a <head>.
+const GOOGLE_ADS_ID = (process.env.GOOGLE_ADS_ID || '').trim();
+const GOOGLE_ADS_PURCHASE = process.env.GOOGLE_ADS_PURCHASE_LABEL ? `${GOOGLE_ADS_ID}/${process.env.GOOGLE_ADS_PURCHASE_LABEL.trim()}` : null;
+const GOOGLE_ADS_SIGNUP = process.env.GOOGLE_ADS_SIGNUP_LABEL ? `${GOOGLE_ADS_ID}/${process.env.GOOGLE_ADS_SIGNUP_LABEL.trim()}` : null;
+const ADS_CONFIG = GOOGLE_ADS_ID ? { id: GOOGLE_ADS_ID, purchase: GOOGLE_ADS_PURCHASE, signup: GOOGLE_ADS_SIGNUP } : null;
+function adsTag(id = GOOGLE_ADS_ID) {
+  if (!/^AW-\d{6,}$/.test(id)) return '';
+  return `<!-- Google tag (gtag.js) --><script async src="https://www.googletagmanager.com/gtag/js?id=${id}"></script>`
+    + `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${id}');</script>`;
+}
+function withAds(html, id = GOOGLE_ADS_ID) {
+  const tag = adsTag(id);
+  if (!tag || html.includes('googletagmanager.com/gtag/js')) return html;
+  // After <head> where there is one; some pages open straight with <meta>,
+  // so after the doctype there; failing both, at the very top.
+  const m = html.match(/<head[^>]*>/i);
+  if (m) return html.slice(0, m.index + m[0].length) + tag + html.slice(m.index + m[0].length);
+  const d = html.match(/<!doctype[^>]*>/i);
+  if (d) return html.slice(0, d.index + d[0].length) + tag + html.slice(d.index + d[0].length);
+  return tag + html;
+}
 const MILA_TOPUP_ENABLED = Boolean(STRIPE_KEY);
 // MUST be set in production — the ephemeral default invalidates all passes on restart.
 const PASS_SECRET = process.env.PASS_SECRET || crypto.randomBytes(32).toString('hex');
@@ -3271,10 +3300,15 @@ function serveStatic(res, urlPath) {
   const candidates = [filePath, `${filePath}.html`];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-      res.writeHead(200, { 'content-type': MIME[path.extname(candidate)] || 'application/octet-stream' });
-      // The landing page carries the full park index so every one of the
-      // parks we cover is one click from the front door, for readers and
-      // crawlers alike. Injected here so the list has a single source.
+      const type = MIME[path.extname(candidate)] || 'application/octet-stream';
+      // HTML is read rather than streamed, so the ads tag can go in. Every
+      // other kind of file streams as before.
+      if (GOOGLE_ADS_ID && path.extname(candidate) === '.html') {
+        const body = withAds(fs.readFileSync(candidate, 'utf8'));
+        res.writeHead(200, { 'content-type': type, 'content-length': Buffer.byteLength(body) });
+        return res.end(body);
+      }
+      res.writeHead(200, { 'content-type': type });
       return fs.createReadStream(candidate).pipe(res);
     }
   }
@@ -3746,6 +3780,7 @@ async function stripePriceCheck() {
       paymentLink: PAYMENT_LINK,
       proGate: PRO_GATE,
       checkout: CHECKOUT_ENABLED,
+      ads: ADS_CONFIG,
       plans: PLAN_CATALOG,
       consultant: consultant.enabled(),
       // Whether THIS caller may actually use the advisor. `consultant` only
@@ -3976,7 +4011,7 @@ async function stripePriceCheck() {
       .replace('<!--PARK_GUIDES-->', () => parkGuides(REGISTRY))
       .replace('<!--LANGUAGES-->', () => languageCards())
       .replace('<!--SHOTS-->', () => productShots());
-    html = localizeLanding(html, landingLang);
+    html = withAds(localizeLanding(html, landingLang));
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     return res.end(html);
   }
@@ -4141,7 +4176,7 @@ ${sections}
     const park = PARKS[parkPage[1]];
     if (!park) return sendJson(res, 404, { error: 'unknown park' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' });
-    return res.end(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null, ACTUAL_WAITS[park.slug] || null, CLOSURES[park.slug] || null));
+    return res.end(withAds(pages.renderParkPage(park, SAMPLE[park.slug] || null, REGISTRY, CROWD_BANDS[park.slug] || null, HOURLY_CURVES[park.slug] || null, ACTUAL_WAITS[park.slug] || null, CLOSURES[park.slug] || null)));
   }
   // Premade touring plans: the free library. /plans hub, per-park index,
   // one page per persona, and the JSON the app's deep link consumes.
@@ -5181,7 +5216,7 @@ ${sections}
           const s = sessionUser(req);
           if (s) grantToUser(s.email, plan, verifyPass(token).exp);
           recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null });
-          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp: verifyPass(token).exp });
+          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp: verifyPass(token).exp, usd: Number(PLAN_CATALOG.find((c) => c.id === plan)?.usd || 0) || null, conversion: GOOGLE_ADS_PURCHASE });
         } catch (err) {
           return sendJson(res, 502, { error: 'could not verify payment' });
         }
@@ -5733,6 +5768,7 @@ module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _applyStoredIds: applyStoredIds,
   _copyDatabase: copyDatabase,
+  _withAds: withAds,
   _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.

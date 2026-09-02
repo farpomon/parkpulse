@@ -6922,6 +6922,10 @@
       if (!res.ok) { $('verify-err').textContent = data.error || tr('Wrong code.'); return; }
       const wasSignup = acctMode === 'signup';
       applyAuth(data);
+      // A verified account, reported to Google Ads if a label is configured.
+      if (wasSignup && typeof gtag === 'function') {
+        fetch('/api/config').then((r) => r.json()).then((c) => { if (c.ads && c.ads.signup) gtag('event', 'conversion', { send_to: c.ads.signup }); }).catch(() => {});
+      }
       $('acct-pw').value = '';
       hideVerify();
       closeAcct();
