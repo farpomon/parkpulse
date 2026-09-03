@@ -38,7 +38,7 @@ const get = (slug = 'magic-kingdom', lang = 'en') => fetch(`${B}/api/dining/${sl
 const settle = () => new Promise((r) => setTimeout(r, 350));
 
 (async () => {
-  require('../server.js');
+  const server = require('../server.js');
   for (let i = 0; i < 60 && !(await fetch(`${B}/api/config`).then((r) => r.ok).catch(() => false)); i++) {
     await new Promise((r) => setTimeout(r, 200));
   }
@@ -123,6 +123,35 @@ const settle = () => new Promise((r) => setTimeout(r, 350));
     check('and without the advisor tier\'s refusal fallback', args.fallbacks === undefined, JSON.stringify(args.fallbacks));
     check('nor its beta flag', args.betas === undefined, JSON.stringify(args.betas));
   }
+  console.log('\n[where "Book a table" goes]');
+  {
+    const REG = JSON.parse(fs.readFileSync(require('node:path').join(__dirname, '..', 'data', 'parks.json'), 'utf8'));
+    const byGroup = {};
+    for (const p of REG) (byGroup[p.group] ||= []).push(p);
+    const links = REG.map((p) => ({ p, r: server._reserveFor(p) })).filter((x) => x.r);
+    // The resorts whose pages were checked by hand. A park in any of these
+    // must have a link; a resort dropped from the table shows up here.
+    const VERIFIED = ['Walt Disney World', 'Disneyland (California)', 'Universal Orlando', 'Universal Hollywood', 'Disneyland Paris', 'Tokyo Disney Resort', 'Hong Kong Disneyland', 'Shanghai Disneyland', 'Universal Studios Japan', 'Europa-Park', 'Efteling'];
+    const uncovered = REG.filter((p) => VERIFIED.includes(p.group) && !server._reserveFor(p)).map((p) => p.slug);
+    check('every park of a verified resort has somewhere to send people', uncovered.length === 0, uncovered.join(', '));
+    check('and that is nineteen parks across eleven resorts', links.length === 19 && new Set(links.map((x) => x.p.group)).size === 11, `${links.length} parks, ${new Set(links.map((x) => x.p.group)).size} resorts`);
+    check('every link is https', links.every((x) => /^https:\/\//.test(x.r.url)), links.filter((x) => !/^https:\/\//.test(x.r.url)).map((x) => x.p.slug).join(', '));
+    // A resort with several parks must send each park to its own page --
+    // the resort-wide list is the "incorrect filters" a visitor reported.
+    const shared = server._reserveSharedGroups;
+    const offenders = [];
+    for (const [group, parks] of Object.entries(byGroup)) {
+      if (parks.length < 2 || shared.has(group)) continue;
+      for (const p of parks) { const r = server._reserveFor(p); if (r && !r.scoped) offenders.push(p.slug); }
+    }
+    check('every park in a multi-park resort has its own dining page', offenders.length === 0, offenders.join(', '));
+    check('and the parks that share one are the known exception only', [...shared].join(',') === 'Universal Orlando', [...shared].join(','));
+    // Two parks never point at the same park page.
+    const scoped = links.filter((x) => x.r.scoped).map((x) => x.r.url);
+    check('no two parks share a park page', new Set(scoped).size === scoped.length);
+    check('Hollywood goes to the reservations page, not the hub', /reservations/.test(server._reserveFor(REG.find((p) => p.slug === 'universal-studios-hollywood')).url));
+  }
+
 
   console.log(`\n=== ${fail ? fail + ' failed' : 'a guide that cannot be written is asked for once, not twenty-two times'} ===`);
   process.exit(fail ? 1 : 0);

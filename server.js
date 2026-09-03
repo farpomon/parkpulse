@@ -3450,6 +3450,51 @@ function setupFacts() {
   };
 }
 
+// Where "Book a table" goes, per resort and -- where the resort has one --
+// per park. The resort-wide page dumps every restaurant in the resort, which
+// is useless when you are standing in one park, so a park page wins when it
+// exists. Every URL here was checked against the operator's own site.
+//
+// Universal Orlando is the known gap: its dining hub is one page with a filter
+// panel, and the per-park filter is not addressable from a URL we have been
+// able to verify (the site is not reachable from where this is developed).
+// Until it is, Orlando's three parks share the hub, labelled as such.
+const RESERVE = {
+  'Walt Disney World': { url: 'https://disneyworld.disney.go.com/dining/', note: 'Reservations open 60 days ahead at 6:00 AM ET' },
+  'Disneyland (California)': { url: 'https://disneyland.disney.go.com/dining/', note: 'Reservations open 60 days ahead' },
+  'Universal Orlando': { url: 'https://www.universalorlando.com/web/en/us/things-to-do/dining', note: 'Most spots are walk-up or same-week' },
+  'Universal Hollywood': { url: 'https://www.universalstudioshollywood.com/web/en/us/plan-your-visit/dining-experiences/reservations', note: 'Table restaurants take reservations; the rest is walk-up' },
+  'Disneyland Paris': { url: 'https://www.disneylandparis.com/en-usd/restaurants/', note: 'Reservations open 2 months ahead' },
+  'Tokyo Disney Resort': { url: 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html', note: 'Priority Seating opens 1 month ahead, 9:00 AM JST' },
+  'Hong Kong Disneyland': { url: 'https://www.hongkongdisneyland.com/dining/', note: 'Table restaurants take reservations on the official site' },
+  'Shanghai Disneyland': { url: 'https://www.shanghaidisneyresort.com/en/dining/', note: 'Table restaurants take reservations on the official site' },
+  'Universal Studios Japan': { url: 'https://www.usj.co.jp/web/en/us/restaurants', note: 'Priority Seating for table restaurants, on the official site' },
+  'Europa-Park': { url: 'https://www.europapark.de/en/theme-park/gastronomy', note: 'Mostly walk-up; a few restaurants take reservations' },
+  'Efteling': { url: 'https://www.efteling.com/en/park/restaurants', note: 'Mostly walk-up; table restaurants can be reserved on the site' },
+};
+const RESERVE_PARK = {
+  'magic-kingdom': 'https://disneyworld.disney.go.com/dining/magic-kingdom/',
+  'epcot': 'https://disneyworld.disney.go.com/dining/epcot/',
+  'hollywood-studios': 'https://disneyworld.disney.go.com/dining/hollywood-studios/',
+  'animal-kingdom': 'https://disneyworld.disney.go.com/dining/animal-kingdom/',
+  'disneyland': 'https://disneyland.disney.go.com/dining/disneyland/',
+  'california-adventure': 'https://disneyland.disney.go.com/dining/disney-california-adventure/',
+  'disneyland-paris': 'https://www.disneylandparis.com/en-usd/restaurants/disneyland-park/',
+  'walt-disney-studios-paris': 'https://www.disneylandparis.com/en-usd/restaurants/walt-disney-studios-park/',
+  'tokyo-disneyland': 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html',
+  'tokyo-disneysea': 'https://www.tokyodisneyresort.jp/en/tds/restaurant.html',
+  'hong-kong-disneyland': 'https://www.hongkongdisneyland.com/dining/hong-kong-disneyland-park/',
+  'shanghai-disneyland': 'https://www.shanghaidisneyresort.com/en/dining/theme-park/',
+};
+// The groups whose parks share the resort page on purpose, for the test that
+// insists every other multi-park resort sends people to their own park.
+const RESERVE_SHARED_GROUPS = new Set(['Universal Orlando']);
+function reserveFor(park) {
+  const group = RESERVE[park.group] || null;
+  if (!group) return null;
+  return { ...group, url: RESERVE_PARK[park.slug] || group.url, scoped: Boolean(RESERVE_PARK[park.slug]) };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const host = String(req.headers.host || '').toLowerCase();
@@ -4267,32 +4312,7 @@ ${sections}
     if (!PARKS[slug]) return sendJson(res, 404, { error: 'unknown park' });
     if (slug !== FREE_PARK && !hasAccess(req)) return sendJson(res, 402, { error: 'pass required' });
     const park = PARKS[slug];
-    const RESERVE = {
-      'Walt Disney World': { url: 'https://disneyworld.disney.go.com/dining/', note: 'Reservations open 60 days ahead at 6:00 AM ET' },
-      'Disneyland (California)': { url: 'https://disneyland.disney.go.com/dining/', note: 'Reservations open 60 days ahead' },
-      'Universal Orlando': { url: 'https://www.universalorlando.com/web/en/us/things-to-do/dining', note: 'Most spots are walk-up or same-week' },
-      'Universal Hollywood': { url: 'https://www.universalstudioshollywood.com/web/en/us/things-to-do/dining', note: 'Mostly walk-up' },
-      'Disneyland Paris': { url: 'https://www.disneylandparis.com/en-usd/restaurants/', note: 'Reservations open 2 months ahead' },
-      'Tokyo Disney Resort': { url: 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html', note: 'Priority Seating opens 1 month ahead, 9:00 AM JST' },
-    };
-    // Per-park dining pages: the resort-wide link dumps every restaurant in
-    // the whole resort, which is useless when you're standing in one park.
-    const RESERVE_PARK = {
-      'magic-kingdom': 'https://disneyworld.disney.go.com/dining/magic-kingdom/',
-      'epcot': 'https://disneyworld.disney.go.com/dining/epcot/',
-      'hollywood-studios': 'https://disneyworld.disney.go.com/dining/hollywood-studios/',
-      'animal-kingdom': 'https://disneyworld.disney.go.com/dining/animal-kingdom/',
-      'disneyland': 'https://disneyland.disney.go.com/dining/disneyland/',
-      'california-adventure': 'https://disneyland.disney.go.com/dining/disney-california-adventure/',
-      'disneyland-paris': 'https://www.disneylandparis.com/en-usd/restaurants/disneyland-park/',
-      'walt-disney-studios-paris': 'https://www.disneylandparis.com/en-usd/restaurants/walt-disney-studios-park/',
-      'tokyo-disneyland': 'https://www.tokyodisneyresort.jp/en/tdl/restaurant.html',
-      'tokyo-disneysea': 'https://www.tokyodisneyresort.jp/en/tds/restaurant.html',
-    };
-    const groupReserve = RESERVE[park.group] || null;
-    const reserve = groupReserve
-      ? { ...groupReserve, url: RESERVE_PARK[slug] || groupReserve.url, scoped: Boolean(RESERVE_PARK[slug]) }
-      : null;
+    const reserve = reserveFor(park);
     const cached = db.dining.get(slug, langCode);
     if (cached) return sendJson(res, 200, { park: park.name, reserve, list: JSON.parse(cached) });
     if (!consultant.enabled()) return sendJson(res, 503, { error: 'not available' });
@@ -5786,6 +5806,7 @@ module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend
   _applyStoredIds: applyStoredIds,
   _copyDatabase: copyDatabase,
   _withAds: withAds,
+  _reserveFor: reserveFor, _reserveSharedGroups: RESERVE_SHARED_GROUPS,
   _noteFallbackForTest: (from, to, status, detail) => { lastFallback = { at: Date.now(), from, to, status, detail }; },
   // The status is cached for five minutes, which a test walking through every
   // Stripe answer in turn has to be able to step past.
