@@ -96,7 +96,9 @@ function dbAll() { return db.nps.summary(365); }
   check('passives are 7 and 8', only.passives === 2, String(only.passives));
   check('detractors are 0 to 6', only.detractors === 2, String(only.detractors));
   check('and the score is promoters minus detractors, in percent', before.score === Math.round((7 - 2) / 11 * 100), String(before.score));
-  check('nothing answered is null, not zero', db.nps.summary(0).score === null && db.nps.summary(0).n === 0);
+  // A window that starts tomorrow: unambiguously empty. A zero-day window's
+  // "since" is this very millisecond, and a row written in it passes ">=".
+  check('nothing answered is null, not zero', db.nps.summary(-1).score === null && db.nps.summary(-1).n === 0);
 
   console.log('\n[the dashboard carries it]');
   const boss = session('boss@example.com');
