@@ -1091,6 +1091,14 @@ async function checkAlerts() {
 // so saved WDW trips with a push subscription get pinged the evening before
 // their window opens — with morning-of and already-open fallbacks in case the
 // evening pass was missed. One reminder per saved trip; re-saving re-arms it.
+// The calendar day, Eastern, of any instant. The spend ledger is kept in these
+// days, so anything that draws a line across it has to draw it in the same
+// calendar -- a window computed in UTC is a day off for four hours every night.
+const etDate = (ms) => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(ms));
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+};
 const etNow = () => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date());
   const get = (t) => parts.find((p) => p.type === t).value;
@@ -1971,7 +1979,7 @@ function passLifetime(user) {
   const days = PASS_DAYS[user.plan];
   const price = PASS_PRICE[user.plan];
   if (!days || !price) return null;
-  const since = new Date(user.plan_exp - days * 86400000).toISOString().slice(0, 10);
+  const since = etDate(user.plan_exp - days * 86400000);   // Eastern, like the ledger it is compared with
   let bought = 0;
   try {
     for (const t of JSON.parse(db.kv.get(`topups:${user.email}`) || '[]')) {
