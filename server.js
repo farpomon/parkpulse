@@ -3459,8 +3459,8 @@ function setupFacts() {
 // panel IS addressable: the park rides in the filters parameter as a venue
 // code -- uor.usf for Universal Studios Florida, taken from a URL the owner
 // copied off the site with that park selected; uor.ioa follows the site's own
-// code for Islands of Adventure. Epic Universe has no code we have seen, so
-// it still shares the hub, labelled as such.
+// code for Islands of Adventure; uor.eu for Epic Universe, likewise copied
+// off the site. All three Orlando parks land on their own list.
 const RESERVE = {
   'Walt Disney World': { url: 'https://disneyworld.disney.go.com/dining/', note: 'Reservations open 60 days ahead at 6:00 AM ET' },
   'Disneyland (California)': { url: 'https://disneyland.disney.go.com/dining/', note: 'Reservations open 60 days ahead' },
@@ -3489,10 +3489,12 @@ const RESERVE_PARK = {
   'shanghai-disneyland': 'https://www.shanghaidisneyresort.com/en/dining/theme-park/',
   'universal-studios-florida': 'https://www.universalorlando.com/web/en/us/search-results/filtered?attraction_experience=dining&filters=uor.venues;uor.usf,uor.place_types;dining',
   'islands-of-adventure': 'https://www.universalorlando.com/web/en/us/search-results/filtered?attraction_experience=dining&filters=uor.venues;uor.ioa,uor.place_types;dining',
+  'epic-universe': 'https://www.universalorlando.com/web/en/us/search-results/filtered?attraction_experience=dining&filters=uor.venues;uor.eu,uor.place_types;dining',
 };
 // The groups whose parks share the resort page on purpose, for the test that
-// insists every other multi-park resort sends people to their own park.
-const RESERVE_SHARED_GROUPS = new Set(['Universal Orlando']);
+// insists every multi-park resort sends people to their own park. Empty:
+// every resort with more than one park now has a page per park.
+const RESERVE_SHARED_GROUPS = new Set();
 function reserveFor(park) {
   const group = RESERVE[park.group] || null;
   if (!group) return null;

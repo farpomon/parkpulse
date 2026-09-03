@@ -145,7 +145,7 @@ const settle = () => new Promise((r) => setTimeout(r, 350));
       for (const p of parks) { const r = server._reserveFor(p); if (r && !r.scoped) offenders.push(p.slug); }
     }
     check('every park in a multi-park resort has its own dining page', offenders.length === 0, offenders.join(', '));
-    check('and the parks that share one are the known exception only', [...shared].join(',') === 'Universal Orlando', [...shared].join(','));
+    check('and no resort is excused from that any more', shared.size === 0, [...shared].join(','));
     // Two parks never point at the same park page.
     const scoped = links.filter((x) => x.r.scoped).map((x) => x.r.url);
     check('no two parks share a park page', new Set(scoped).size === scoped.length);
@@ -154,7 +154,7 @@ const settle = () => new Promise((r) => setTimeout(r, 350));
     const uo = (slug) => server._reserveFor(REG.find((p) => p.slug === slug));
     check('Universal Studios Florida is filtered to its own venue', uo('universal-studios-florida').scoped && /filters=uor\.venues;uor\.usf,/.test(uo('universal-studios-florida').url) && /attraction_experience=dining/.test(uo('universal-studios-florida').url));
     check('Islands of Adventure likewise', uo('islands-of-adventure').scoped && /uor\.venues;uor\.ioa,/.test(uo('islands-of-adventure').url));
-    check('Epic Universe still shares the hub, labelled as such', !uo('epic-universe').scoped);
+    check('and Epic Universe', uo('epic-universe').scoped && /uor\.venues;uor\.eu,/.test(uo('epic-universe').url));
   }
 
 
