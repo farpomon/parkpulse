@@ -3455,10 +3455,12 @@ function setupFacts() {
 // is useless when you are standing in one park, so a park page wins when it
 // exists. Every URL here was checked against the operator's own site.
 //
-// Universal Orlando is the known gap: its dining hub is one page with a filter
-// panel, and the per-park filter is not addressable from a URL we have been
-// able to verify (the site is not reachable from where this is developed).
-// Until it is, Orlando's three parks share the hub, labelled as such.
+// Universal Orlando's dining hub is one page with a filter panel, and the
+// panel IS addressable: the park rides in the filters parameter as a venue
+// code -- uor.usf for Universal Studios Florida, taken from a URL the owner
+// copied off the site with that park selected; uor.ioa follows the site's own
+// code for Islands of Adventure. Epic Universe has no code we have seen, so
+// it still shares the hub, labelled as such.
 const RESERVE = {
   'Walt Disney World': { url: 'https://disneyworld.disney.go.com/dining/', note: 'Reservations open 60 days ahead at 6:00 AM ET' },
   'Disneyland (California)': { url: 'https://disneyland.disney.go.com/dining/', note: 'Reservations open 60 days ahead' },
@@ -3485,6 +3487,8 @@ const RESERVE_PARK = {
   'tokyo-disneysea': 'https://www.tokyodisneyresort.jp/en/tds/restaurant.html',
   'hong-kong-disneyland': 'https://www.hongkongdisneyland.com/dining/hong-kong-disneyland-park/',
   'shanghai-disneyland': 'https://www.shanghaidisneyresort.com/en/dining/theme-park/',
+  'universal-studios-florida': 'https://www.universalorlando.com/web/en/us/search-results/filtered?attraction_experience=dining&filters=uor.venues;uor.usf,uor.place_types;dining',
+  'islands-of-adventure': 'https://www.universalorlando.com/web/en/us/search-results/filtered?attraction_experience=dining&filters=uor.venues;uor.ioa,uor.place_types;dining',
 };
 // The groups whose parks share the resort page on purpose, for the test that
 // insists every other multi-park resort sends people to their own park.

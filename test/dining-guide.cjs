@@ -150,6 +150,11 @@ const settle = () => new Promise((r) => setTimeout(r, 350));
     const scoped = links.filter((x) => x.r.scoped).map((x) => x.r.url);
     check('no two parks share a park page', new Set(scoped).size === scoped.length);
     check('Hollywood goes to the reservations page, not the hub', /reservations/.test(server._reserveFor(REG.find((p) => p.slug === 'universal-studios-hollywood')).url));
+    // Orlando: the park is a venue code inside the hub's filter parameter.
+    const uo = (slug) => server._reserveFor(REG.find((p) => p.slug === slug));
+    check('Universal Studios Florida is filtered to its own venue', uo('universal-studios-florida').scoped && /filters=uor\.venues;uor\.usf,/.test(uo('universal-studios-florida').url) && /attraction_experience=dining/.test(uo('universal-studios-florida').url));
+    check('Islands of Adventure likewise', uo('islands-of-adventure').scoped && /uor\.venues;uor\.ioa,/.test(uo('islands-of-adventure').url));
+    check('Epic Universe still shares the hub, labelled as such', !uo('epic-universe').scoped);
   }
 
 
