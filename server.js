@@ -661,7 +661,7 @@ async function stripeApi(endpoint, params) {
 }
 
 function recordPass(entry) {
-  try { db.passes.add(entry.plan, entry.session, entry.email); } catch {}
+  try { db.passes.add(entry.plan, entry.session, entry.email, entry.usd); } catch {}
 }
 
 // Lookup tables indexed by request-supplied strings. Null-prototype, because a
@@ -2082,7 +2082,10 @@ function revenueOf(rows) {
   for (const r of rows) {
     const price = PLAN_PRICE[r.plan];
     if (price === undefined) { comped += r.n; continue; }
-    usd += price * r.n;
+    // Rows that know what the till took use it; the rest -- sales from
+    // before that was recorded -- are priced from the catalogue.
+    const priced = r.priced || 0;
+    usd += (r.paid || 0) + price * (r.n - priced);
     sold += r.n;
   }
   return { usd: Math.round(usd * 100) / 100, sold, comped };
@@ -5223,8 +5226,14 @@ ${sections}
           const token = signPass(plan);
           const s = sessionUser(req);
           if (s) grantToUser(s.email, plan, verifyPass(token).exp);
-          recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null });
-          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp: verifyPass(token).exp, usd: Number(PLAN_CATALOG.find((c) => c.id === plan)?.usd || 0) || null, conversion: GOOGLE_ADS_PURCHASE });
+          // What was actually paid, after any promotion code -- for the
+          // revenue ledger and for the value reported to Google Ads. A sale
+          // with a 30% code is a 30%-smaller sale in both places, not a
+          // catalogue-price sale.
+          const paid = Number.isFinite(session.amount_total) ? Math.round(session.amount_total) / 100
+            : Number(PLAN_CATALOG.find((c) => c.id === plan)?.usd || 0) || null;
+          recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null, usd: paid });
+          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp: verifyPass(token).exp, usd: paid, conversion: GOOGLE_ADS_PURCHASE });
         } catch (err) {
           return sendJson(res, 502, { error: 'could not verify payment' });
         }

@@ -231,6 +231,7 @@ db.exec(`
 // new signups insert 0 explicitly until they confirm their email code.
 for (const ddl of [
   "ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 1",
+  "ALTER TABLE passes ADD COLUMN usd REAL",
   "ALTER TABLE users ADD COLUMN name TEXT",
   "ALTER TABLE users ADD COLUMN verify_code TEXT",
   "ALTER TABLE users ADD COLUMN verify_exp INTEGER",
@@ -489,15 +490,20 @@ const alerts = {
 };
 
 const passes = {
-  add: (plan, stripeSession, email) =>
-    db.prepare('INSERT INTO passes (plan, stripe_session, email, at) VALUES (?, ?, ?, ?)').run(plan, stripeSession ?? null, email ?? null, new Date().toISOString()),
+  // usd is what the till actually took, after any promotion code. Null for a
+  // comp, a redeemed code, or a sale from before this was recorded -- those
+  // the caller prices from the catalogue.
+  add: (plan, stripeSession, email, usd) =>
+    db.prepare('INSERT INTO passes (plan, stripe_session, email, at, usd) VALUES (?, ?, ?, ?, ?)').run(plan, stripeSession ?? null, email ?? null, new Date().toISOString(), Number.isFinite(usd) ? usd : null),
   // Sold passes in a window, by plan. The caller prices them: the catalogue
   // lives in server.js and only it knows which ids are real money. Anything
   // priceless -- a dev pass, a legacy id retired before the current catalogue
   // -- has to be counted somewhere rather than quietly dropped, so this hands
   // back every plan and lets the caller split them.
-  soldSince: (iso) => db.prepare('SELECT plan, COUNT(*) AS n FROM passes WHERE at >= ? GROUP BY plan').all(iso),
-  soldByDay: (iso) => db.prepare('SELECT substr(at, 1, 10) AS day, plan, COUNT(*) AS n FROM passes WHERE at >= ? GROUP BY day, plan ORDER BY day').all(iso),
+  // n is every row; priced is how many carry what the till took, and paid
+  // is that sum. The caller prices the rest from the catalogue.
+  soldSince: (iso) => db.prepare('SELECT plan, COUNT(*) AS n, COUNT(usd) AS priced, COALESCE(SUM(usd), 0) AS paid FROM passes WHERE at >= ? GROUP BY plan').all(iso),
+  soldByDay: (iso) => db.prepare('SELECT substr(at, 1, 10) AS day, plan, COUNT(*) AS n, COUNT(usd) AS priced, COALESCE(SUM(usd), 0) AS paid FROM passes WHERE at >= ? GROUP BY day, plan ORDER BY day').all(iso),
 };
 
 const leads = {
