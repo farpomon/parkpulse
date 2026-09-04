@@ -271,6 +271,11 @@ for (const ddl of [
   "ALTER TABLE users ADD COLUMN signup_source TEXT",
   "ALTER TABLE users ADD COLUMN signup_medium TEXT",
   "ALTER TABLE users ADD COLUMN signup_campaign TEXT",
+  // One Stripe checkout is one sale. The claim endpoint already refuses to
+  // bank the same session twice; this is the floor under it, so no future
+  // caller can inflate the revenue dashboard by replaying a receipt link.
+  // Fails harmlessly (and leaves the table as it was) if duplicates predate it.
+  "CREATE UNIQUE INDEX IF NOT EXISTS passes_session ON passes (stripe_session) WHERE stripe_session IS NOT NULL",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`

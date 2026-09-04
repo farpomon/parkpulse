@@ -36,6 +36,13 @@
         body: JSON.stringify({ session_id: sessionId }),
       });
       const data = await res.json();
+      // This link lives in a Stripe receipt forever, so it will be opened
+      // again long after the pass it bought has run out. Say that plainly
+      // instead of sending them round the "wait and refresh" loop below.
+      if (res.status === 410) {
+        card.innerHTML = '<h1>This pass has expired</h1><p>The pass you bought here has run out. Grab another whenever you are heading back to the parks.</p><a class="btn" href="/#pricing">See passes →</a>';
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'claim failed');
       localStorage.setItem('pp-pass', data.token);
       // The sale, reported to Google Ads once. The checkout session id is the

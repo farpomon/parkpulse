@@ -293,7 +293,23 @@ const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '';
 const WA_VERIFY = process.env.WHATSAPP_VERIFY_TOKEN || '';
 const WA_NUMBER = (process.env.WHATSAPP_NUMBER || '').replace(/[^\d]/g, ''); // digits only, for wa.me links
 const WA_API_BASE = process.env.WHATSAPP_API_BASE || 'https://graph.facebook.com/v21.0';
-const WA_ENABLED = Boolean(WA_TOKEN && WA_PHONE_ID && WA_VERIFY);
+// Meta signs every webhook delivery with the app secret. Without checking it,
+// the webhook URL is a public endpoint that accepts "a message from any phone
+// number" from anyone who guesses it -- enough to unlink someone's number, or
+// to spend our AI budget a message at a time. The secret is therefore part of
+// what it means for the concierge to be configured at all: unset, the whole
+// feature stays dormant rather than running unauthenticated.
+const WA_APP_SECRET = process.env.WHATSAPP_APP_SECRET || '';
+const WA_ENABLED = Boolean(WA_TOKEN && WA_PHONE_ID && WA_VERIFY && WA_APP_SECRET);
+
+// X-Hub-Signature-256 over the exact bytes Meta sent, compared in constant time.
+function waSignatureValid(rawBody, header) {
+  if (typeof header !== 'string' || !header.startsWith('sha256=')) return false;
+  const got = header.slice(7);
+  const expected = crypto.createHmac('sha256', WA_APP_SECRET).update(rawBody, 'utf8').digest('hex');
+  if (got.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+}
 
 async function sendWhatsApp(to, text) {
   // WhatsApp caps a text body at 4096 chars; split long replies politely.
@@ -3501,7 +3517,25 @@ function reserveFor(park) {
   return { ...group, url: RESERVE_PARK[park.slug] || group.url, scoped: Boolean(RESERVE_PARK[park.slug]) };
 }
 
-const server = http.createServer(async (req, res) => {
+// Anything that throws while answering a request must cost that one request,
+// not the process. Node's default for an unhandled rejection is to kill the
+// server, and the very first line of the handler is enough to trigger one: a
+// request whose Host header is not a legal hostname makes `new URL` throw
+// before any of our code has looked at anything. That is one curl away, from
+// anyone, with no account -- and it took every other visitor down with it.
+function failRequest(req, res, err) {
+  console.log(`request failed: ${req.method} ${req.url} \u2014 ${err && err.message ? err.message : err}`);
+  try {
+    if (res.headersSent || res.writableEnded) { if (!res.writableEnded) res.end(); return; }
+    sendJson(res, 500, { error: 'server error' });
+  } catch {}
+}
+
+const server = http.createServer((req, res) => {
+  handleRequest(req, res).catch((err) => failRequest(req, res, err));
+});
+
+async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const host = String(req.headers.host || '').toLowerCase();
   // On every response, set here so a later writeHead() merges rather than
@@ -4580,9 +4614,14 @@ ${sections}
   }
 
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; if (body.length > 65536) req.destroy(); });
-    req.on('end', async () => {
+    // Bytes, not string concatenation: `body += chunk` decodes each chunk on
+    // its own, and an emoji split across two TCP reads becomes two question
+    // marks -- which breaks both the JSON and the webhook signature over it.
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => { size += chunk.length; if (size > 65536) return req.destroy(); chunks.push(chunk); });
+    req.on('end', () => { (async () => {
+      const body = Buffer.concat(chunks).toString('utf8');
       let parsed;
       try { parsed = JSON.parse(body || '{}'); } catch { return sendJson(res, 400, { error: 'bad request' }); }
 
@@ -4590,6 +4629,10 @@ ${sections}
       // happens after we answer, so a slow model turn can't time the hook out.
       if (url.pathname === '/api/whatsapp/webhook') {
         if (!WA_ENABLED) return sendJson(res, 503, { error: 'whatsapp not configured' });
+        if (!waSignatureValid(body, req.headers['x-hub-signature-256'])) {
+          console.log('whatsapp webhook: bad signature, ignored');
+          return sendJson(res, 403, { error: 'bad signature' });
+        }
         sendJson(res, 200, { ok: true });
         try {
           const msg = parsed.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -5247,19 +5290,36 @@ ${sections}
           if (session.payment_status !== 'paid' || !PLAN_DAYS[plan] || plan === 'dev') {
             return sendJson(res, 402, { error: 'payment not completed' });
           }
-          // Idempotent by design: re-claiming the same paid session re-issues a
-          // pass, which is how a buyer activates a second device.
-          const token = signPass(plan);
+          // Re-claiming the same paid session must still hand back a pass --
+          // that is how a buyer activates a second device, and how someone who
+          // reopens their Stripe receipt link gets back in. What it must not do
+          // is mint a *fresh* full-length pass each time: the session id stays
+          // in the welcome URL forever, so a $6.99 Day Pass reloaded once a day
+          // would never expire, and every reload added another sale to the
+          // revenue ledger. So the expiry is decided once, on the first claim,
+          // and every later claim re-signs that same instant.
+          const claimKey = `pass:${sessionId}`;
+          let first = null;
+          try { first = JSON.parse(db.kv.get(claimKey) || 'null'); } catch {}
+          if (first && first.exp <= Date.now()) return sendJson(res, 410, { error: 'this pass has expired' });
+          const exp = first?.exp || Date.now() + PLAN_DAYS[plan] * 86400000;
+          const token = signPass(plan, exp);
           const s = sessionUser(req);
-          if (s) grantToUser(s.email, plan, verifyPass(token).exp);
+          if (s) grantToUser(s.email, plan, exp);
           // What was actually paid, after any promotion code -- for the
           // revenue ledger and for the value reported to Google Ads. A sale
           // with a 30% code is a 30%-smaller sale in both places, not a
           // catalogue-price sale.
           const paid = Number.isFinite(session.amount_total) ? Math.round(session.amount_total) / 100
             : Number(PLAN_CATALOG.find((c) => c.id === plan)?.usd || 0) || null;
-          recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null, usd: paid });
-          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp: verifyPass(token).exp, usd: paid, conversion: GOOGLE_ADS_PURCHASE });
+          if (!first) {
+            db.kv.set(claimKey, JSON.stringify({ plan, exp }));
+            recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null, usd: paid });
+          }
+          // The conversion is reported to Google Ads once, on the sale. A
+          // second device activating the same purchase is not a second sale.
+          return sendJson(res, 200, { token, plan, label: PLAN_LABELS[plan] || plan, exp, usd: paid,
+            ...(first ? { already: true } : { conversion: GOOGLE_ADS_PURCHASE }) });
         } catch (err) {
           return sendJson(res, 502, { error: 'could not verify payment' });
         }
@@ -5760,12 +5820,12 @@ ${sections}
       }
 
       sendJson(res, 404, { error: 'not found' });
-    });
+    })().catch((err) => failRequest(req, res, err)); });
     return;
   }
 
   serveStatic(res, url.pathname);
-});
+}
 
 // A deployment can look completely healthy while silently losing every account
 // on each redeploy. Print the two settings that decide that, at boot, where
@@ -5792,6 +5852,11 @@ function bootBanner() {
   } else if (h.files < 21) {
     lines.push(`     day-of-week factors reach full weight at 21 days (${21 - h.files} to go).`);
   }
+  if (WA_TOKEN && WA_PHONE_ID && WA_VERIFY && !WA_APP_SECRET) {
+    lines.push('  !! WhatsApp concierge OFF — WHATSAPP_APP_SECRET is unset, so');
+    lines.push('     webhook deliveries cannot be proved to come from Meta.');
+    lines.push('     Set it (Meta app dashboard → Settings → Basic → App secret).');
+  }
   lines.push(process.env.PASS_SECRET
     ? '  PASS_SECRET set'
     : '  !! PASS_SECRET unset — a fresh random key is generated each boot, so\n     every issued pass stops validating on restart. Set a permanent one.');
@@ -5799,6 +5864,18 @@ function bootBanner() {
 }
 
 refreshAccuracy();
+
+// Staying up beats dying quietly. Every request is already wrapped, so what
+// reaches here comes from a timer or a detached callback -- a background
+// refresh, a push send -- and none of them justify dropping every open
+// connection. It is logged loudly instead, so it is fixed rather than lived
+// with.
+process.on('unhandledRejection', (err) => {
+  console.log(`unhandled rejection: ${err && err.stack ? err.stack : err}`);
+});
+process.on('uncaughtException', (err) => {
+  console.log(`uncaught exception: ${err && err.stack ? err.stack : err}`);
+});
 
 server.listen(PORT, bootBanner);
 

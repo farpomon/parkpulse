@@ -70,6 +70,7 @@ const SHARED_SERVER = [
   ['chati18n', 'test/chat-i18n.mjs'],
 ];
 const OWN_SERVER = [
+  ['hardening', 'test/hardening.cjs'],
   ['lastgood', 'test/last-known-good.cjs'],
   ['nps', 'test/nps.cjs'],
   ['googletag', 'test/google-tag.cjs'],
