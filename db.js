@@ -940,6 +940,10 @@ const daystate = {
       ON CONFLICT(email) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`)
       .run(email, JSON.stringify(data), new Date().toISOString()),
   delete: (email) => db.prepare('DELETE FROM daystate WHERE email = ?').run(email),
+  // Every account's day, for the sweep that watches planned rides go down.
+  all: () => db.prepare('SELECT email, data FROM daystate').all().map((r) => {
+    try { return { email: r.email, ...JSON.parse(r.data) }; } catch { return null; }
+  }).filter(Boolean),
 };
 
 const wa = {

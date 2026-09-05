@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "Henüz kimse yok — bağlantını paylaş!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Benimle sıraları atla — 65 park için canlı bekleme süreleri ve yapay zekâ planlayıcı.",
   "goes down about {n}× a day": "günde yaklaşık {n} kez arızalanır",
-  "usually around {h}": "genellikle {h} civarında"
+  "usually around {h}": "genellikle {h} civarında",
+  "{ride} just went down.": "{ride} az önce durdu.",
+  "{ride} is back.": "{ride} yeniden açıldı.",
+  "It's in today's plan.": "Bugünkü planda var.",
+  "Slot it back into today's plan?": "Bugünkü plana geri eklensin mi?",
+  "Replan without it": "Onsuz yeniden planla",
+  "Replan with it": "Onunla yeniden planla",
+  "Not now": "Şimdi değil"
 }

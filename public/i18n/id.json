@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "Belum ada — bagikan tautanmu!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Lewati antrean bersamaku — waktu tunggu langsung dan perencana AI untuk 65 taman.",
   "goes down about {n}× a day": "mati sekitar {n}× sehari",
-  "usually around {h}": "biasanya sekitar {h}"
+  "usually around {h}": "biasanya sekitar {h}",
+  "{ride} just went down.": "{ride} baru saja berhenti.",
+  "{ride} is back.": "{ride} sudah kembali.",
+  "It's in today's plan.": "Ada di rencana hari ini.",
+  "Slot it back into today's plan?": "Masukkan lagi ke rencana hari ini?",
+  "Replan without it": "Rencanakan ulang tanpanya",
+  "Replan with it": "Rencanakan ulang dengannya",
+  "Not now": "Nanti saja"
 }

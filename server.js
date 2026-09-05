@@ -1159,6 +1159,63 @@ async function checkAlerts() {
     } catch (err) { console.log(`alert check failed for ${slug}: ${err.message}`); }
   }
 }
+// --- A planned ride goes down ------------------------------------------------
+// The alerts above watch the rides people asked to be told about. This
+// watches the rides people are actually planning to ride today: when one of
+// them goes down, the phone gets "X just went down -- tap for a new order",
+// and when it comes back, "X is back". Once per ride per day each way, and
+// only to accounts whose day state says they are in that park today with
+// that ride still ahead of them. Tapping lands in the app with the ride named,
+// where the replan is one deliberate tap away rather than automatic -- a
+// rebuild can spend a model call, and nobody asked for one yet.
+const planRideState = new Map();   // "slug|ride" -> open?
+async function checkPlanBreakdowns() {
+  let states = [];
+  try { states = db.daystate.all(); } catch { return; }
+  const byPark = new Map();
+  for (const s of states) {
+    if (!s.sub || !s.park || !PARKS[s.park] || !(s.picked || []).length) continue;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[s.park].tz });
+    if (s.day !== today) continue;
+    (byPark.get(s.park) || byPark.set(s.park, []).get(s.park)).push({ ...s, today });
+  }
+  for (const [slug, people] of byPark) {
+    try {
+      const data = await getWaits(slug);
+      if (data.source !== 'live') continue;
+      const changed = [];
+      for (const r of data.rides) {
+        const key = `${slug}|${normName(r.name)}`;
+        const prev = planRideState.get(key);
+        if (prev !== undefined && prev !== r.open) changed.push(r);
+        planRideState.set(key, r.open);
+      }
+      for (const ride of changed) {
+        for (const p of people) {
+          const done = new Set((p.done || []).map(normName));
+          if (!p.picked.some((n) => normName(n) === normName(ride.name)) || done.has(normName(ride.name))) continue;
+          const kind = ride.open ? 'back' : 'down';
+          const dedupe = `replan:${kind}:${p.email}|${p.today}|${normName(ride.name)}`;
+          if (db.kv.get(dedupe)) continue;
+          db.kv.set(dedupe, '1');
+          const payload = JSON.stringify(ride.open
+            ? { title: `${ride.name} is back ✅`, body: `${ride.wait} min right now — tap to slot it back into your day.`, url: `/app?replan=${encodeURIComponent(ride.name)}&back=1`, tag: `plan-${normName(ride.name)}` }
+            : { title: `${ride.name} just went down ⚠️`, body: "It's in today's plan — tap for a new order that skips it.", url: `/app?replan=${encodeURIComponent(ride.name)}`, tag: `plan-${normName(ride.name)}` });
+          try {
+            await webpush.sendNotification(p.sub, payload);
+            note(p.email, ride.open ? 'told a planned ride is back' : 'told a planned ride went down', ride.name);
+          } catch (err) {
+            if (err.statusCode === 404 || err.statusCode === 410) {
+              // The phone is gone; stop trying until the app hands us a new one.
+              try { const cur = db.daystate.get(p.email); if (cur) db.daystate.set(p.email, { ...cur, sub: null }); } catch {}
+            }
+          }
+        }
+      }
+    } catch (err) { console.log(`plan breakdown check failed for ${slug}: ${err.message}`); }
+  }
+}
+
 // Booking-window reminders: Walt Disney World is the only chain with an
 // advance Lightning Lane race (7 days on-site / 3 days off-site, 7:00 AM ET),
 // so saved WDW trips with a push subscription get pinged the evening before
@@ -2391,7 +2448,7 @@ function sweepDeletedAccounts() {
 // Cached plan reviews outlive their longest TTL by a day and are then dead
 // weight -- a plan for a past date will never be asked for again.
 const sweepPlanAdvice = () => { try { db.planadvice.prune(36 * 60 * 60 * 1000); } catch {} };
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepTripNudges().catch((e) => console.log(`trip nudges: ${e.message}`)); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkPlanBreakdowns().catch((e) => console.log(`plan breakdowns: ${e.message}`)); checkBookingReminders().catch(() => {}); sweepTripNudges().catch((e) => console.log(`trip nudges: ${e.message}`)); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
 
 // --- Night-before plan emails ------------------------------------------------
 // Zero taps during the trip: the evening before a saved plan's date (18:00 to
@@ -5055,6 +5112,10 @@ ${sections}
           // than suggesting nothing.
           excluded: strList(d.excluded, 40),
           lanePasses: strList(d.lanePasses, 30),
+          // The phone's push endpoint, so a ride in today's plan going down
+          // can reach the person standing in the park. Whatever the browser
+          // holds right now, or nothing.
+          sub: d.sub && typeof d.sub === 'object' && typeof d.sub.endpoint === 'string' && d.sub.endpoint.startsWith('https://') && JSON.stringify(d.sub).length <= 4000 ? d.sub : null,
           // Whitelisted like everything else: a plain date or nothing.
           planDate: typeof d.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.planDate) ? d.planDate : null,
         });
@@ -6113,6 +6174,7 @@ server.listen(PORT, bootBanner);
 // belief that somebody is watching.
 module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
   _sweepTripNudges: sweepTripNudges,
+  _checkPlanBreakdowns: checkPlanBreakdowns,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _applyStoredIds: applyStoredIds,

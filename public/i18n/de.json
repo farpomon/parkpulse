@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "Noch niemand — teile deinen Link!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Überspring die Schlangen mit mir — Live-Wartezeiten und ein KI-Planer für 65 Parks.",
   "goes down about {n}× a day": "fällt etwa {n}× am Tag aus",
-  "usually around {h}": "meist gegen {h}"
+  "usually around {h}": "meist gegen {h}",
+  "{ride} just went down.": "{ride} ist gerade ausgefallen.",
+  "{ride} is back.": "{ride} läuft wieder.",
+  "It's in today's plan.": "Sie steht im heutigen Plan.",
+  "Slot it back into today's plan?": "Wieder in den heutigen Plan aufnehmen?",
+  "Replan without it": "Ohne sie neu planen",
+  "Replan with it": "Mit ihr neu planen",
+  "Not now": "Jetzt nicht"
 }

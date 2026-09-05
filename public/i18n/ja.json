@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "まだ誰もいません — リンクをシェアしましょう！",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "一緒に行列を回避しよう — 65パークのリアルタイム待ち時間とAIプランナー。",
   "goes down about {n}× a day": "1日あたり約{n}回停止",
-  "usually around {h}": "たいてい{h}頃"
+  "usually around {h}": "たいてい{h}頃",
+  "{ride} just went down.": "{ride}が停止しました。",
+  "{ride} is back.": "{ride}が再開しました。",
+  "It's in today's plan.": "今日のプランに入っています。",
+  "Slot it back into today's plan?": "今日のプランに戻しますか？",
+  "Replan without it": "外して再プラン",
+  "Replan with it": "入れて再プラン",
+  "Not now": "あとで"
 }

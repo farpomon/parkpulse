@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "لا أحد بعد — شارك رابطك!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "تخطَّ الطوابير معي — أوقات انتظار مباشرة ومخطط ذكي لـ65 حديقة ملاهٍ.",
   "goes down about {n}× a day": "يتعطل نحو {n} مرة يوميًا",
-  "usually around {h}": "عادةً حوالي {h}"
+  "usually around {h}": "عادةً حوالي {h}",
+  "{ride} just went down.": "توقف {ride} للتو.",
+  "{ride} is back.": "عاد {ride} للعمل.",
+  "It's in today's plan.": "إنها ضمن خطة اليوم.",
+  "Slot it back into today's plan?": "هل نعيدها إلى خطة اليوم؟",
+  "Replan without it": "أعد التخطيط بدونها",
+  "Replan with it": "أعد التخطيط معها",
+  "Not now": "ليس الآن"
 }

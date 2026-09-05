@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "Пока никого — поделитесь ссылкой!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Обходите очереди со мной — время ожидания в реальном времени и ИИ‑планировщик для 65 парков.",
   "goes down about {n}× a day": "ломается примерно {n} раза в день",
-  "usually around {h}": "обычно около {h}"
+  "usually around {h}": "обычно около {h}",
+  "{ride} just went down.": "{ride} только что остановился.",
+  "{ride} is back.": "{ride} снова работает.",
+  "It's in today's plan.": "Он есть в плане на сегодня.",
+  "Slot it back into today's plan?": "Вернуть его в план на сегодня?",
+  "Replan without it": "Перепланировать без него",
+  "Replan with it": "Перепланировать с ним",
+  "Not now": "Не сейчас"
 }

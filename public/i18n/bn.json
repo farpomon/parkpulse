@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "এখনো কেউ নেই — লিঙ্ক শেয়ার করুন!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "আমার সাথে লাইন এড়ান — ৬৫টি পার্কের লাইভ অপেক্ষার সময় ও AI প্ল্যানার।",
   "goes down about {n}× a day": "দিনে প্রায় {n} বার বন্ধ হয়",
-  "usually around {h}": "সাধারণত {h} নাগাদ"
+  "usually around {h}": "সাধারণত {h} নাগাদ",
+  "{ride} just went down.": "{ride} এইমাত্র বন্ধ হয়েছে।",
+  "{ride} is back.": "{ride} আবার চালু হয়েছে।",
+  "It's in today's plan.": "এটি আজকের প্ল্যানে আছে।",
+  "Slot it back into today's plan?": "আজকের প্ল্যানে ফিরিয়ে আনবেন?",
+  "Replan without it": "এটা ছাড়া আবার প্ল্যান করুন",
+  "Replan with it": "এটা নিয়ে আবার প্ল্যান করুন",
+  "Not now": "এখন নয়"
 }

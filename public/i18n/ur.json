@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "ابھی کوئی نہیں — اپنا لنک شیئر کریں!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "میرے ساتھ لائنیں چھوڑیں — 65 پارکس کے لائیو انتظار کے اوقات اور AI پلانر۔",
   "goes down about {n}× a day": "دن میں تقریباً {n} بار بند ہوتی ہے",
-  "usually around {h}": "عموماً {h} کے قریب"
+  "usually around {h}": "عموماً {h} کے قریب",
+  "{ride} just went down.": "{ride} ابھی بند ہو گئی ہے۔",
+  "{ride} is back.": "{ride} واپس چل پڑی ہے۔",
+  "It's in today's plan.": "یہ آج کے پلان میں ہے۔",
+  "Slot it back into today's plan?": "اسے آج کے پلان میں واپس شامل کریں؟",
+  "Replan without it": "اس کے بغیر دوبارہ پلان کریں",
+  "Replan with it": "اس کے ساتھ دوبارہ پلان کریں",
+  "Not now": "ابھی نہیں"
 }

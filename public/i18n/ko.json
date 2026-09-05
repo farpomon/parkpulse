@@ -984,5 +984,12 @@
   "Nobody yet — share your link!": "아직 없어요 — 링크를 공유해 보세요!",
   "Skip the lines with me — live wait times and an AI planner for 65 parks.": "나와 함께 줄 서지 마세요 — 65개 파크의 실시간 대기시간과 AI 플래너.",
   "goes down about {n}× a day": "하루 약 {n}회 중단",
-  "usually around {h}": "주로 {h}쯤"
+  "usually around {h}": "주로 {h}쯤",
+  "{ride} just went down.": "{ride}이(가) 방금 중단됐어요.",
+  "{ride} is back.": "{ride}이(가) 다시 운행해요.",
+  "It's in today's plan.": "오늘 계획에 들어 있어요.",
+  "Slot it back into today's plan?": "오늘 계획에 다시 넣을까요?",
+  "Replan without it": "빼고 다시 계획",
+  "Replan with it": "넣고 다시 계획",
+  "Not now": "나중에"
 }

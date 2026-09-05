@@ -1577,6 +1577,7 @@
     if (!sub) {
       if ((await Notification.requestPermission()) !== 'granted') throw new Error('denied');
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(pushKey) });
+      try { pushSub = sub.toJSON(); scheduleSync(); } catch {}
     }
     return sub;
   }
@@ -2113,6 +2114,15 @@
 
   // Mirror today's choices to the account (debounced) so the WhatsApp agent —
   // and a reinstalled app — can see the park, group, picks and done list.
+  // The push endpoint this phone holds, mirrored into the day state so a
+  // planned ride going down can reach it. Read once the worker is ready and
+  // again whenever alerts hand us a fresh one.
+  let pushSub = null;
+  try {
+    navigator.serviceWorker?.ready.then((reg) => reg.pushManager.getSubscription()).then((s) => {
+      if (s) { pushSub = s.toJSON(); scheduleSync(); }
+    }).catch(() => {});
+  } catch {}
   let syncTimer = null;
   function scheduleSync() {
     try { if (!localStorage.getItem('pp-email')) return; } catch { return; }
@@ -2125,6 +2135,7 @@
           park: current,
           day: parkDay(),
           lang: window.PP_LANG || 'en',
+          sub: pushSub,
           profile: profile ? { party: profile.party, counts: profile.counts, ages: profile.ages, vibes: profile.vibes, onsite: profile.onsite, kids: profile.kids } : null,
           picked: [...pickedNames],
           done: [...doneOrder],
@@ -3654,6 +3665,33 @@
     requestAnimationFrame(() => $('plan-out').scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
+  // The notification said a planned ride went down (or came back). Nothing
+  // is rebuilt on its own -- a rebuild can spend a model call -- but the
+  // rebuild is one tap away, with the ride already ruled out or back in.
+  let pendingReplan = null;
+  function showBreakdownBanner({ ride, back }) {
+    pendingReplan = null;
+    const old = document.getElementById('bkdn'); if (old) old.remove();
+    const el = document.createElement('div');
+    el.id = 'bkdn';
+    el.className = 'clnote';
+    el.innerHTML = `${back ? '✅' : '⚠️'} <b>${esc(back ? trf('{ride} is back.', { ride }) : trf('{ride} just went down.', { ride }))}</b> <span class="cl-sub">${tr(back ? "Slot it back into today's plan?" : "It's in today's plan.")}</span>
+      <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+        <button class="btn" id="bkdn-go">${tr(back ? 'Replan with it' : 'Replan without it')}</button>
+        <button class="btn" id="bkdn-no" style="background:var(--bg);color:var(--muted);border:1px solid var(--border)">${tr('Not now')}</button>
+      </div>`;
+    $('plan-out').insertAdjacentElement('beforebegin', el);
+    el.querySelector('#bkdn-no').onclick = () => el.remove();
+    el.querySelector('#bkdn-go').onclick = () => {
+      if (back) { skips.delete(ride); pickedNames.add(ride); }
+      else { skips.add(ride); pickedNames.delete(ride); }
+      saveSkips(); savePicks(current); updatePlanbar(); renderRides();
+      $('start-hour').value = 'now';
+      buildPlan();
+      el.remove();
+    };
+  }
+
   function buildPlan(opts = {}) {
     // Free tier: one plan per day, for the free park, for today. The server
     // enforces the matching consultant allowance; this is the polite half.
@@ -4174,6 +4212,7 @@
       document.getElementById('replan').style.display = doneOrder.length ? 'inline-block' : 'none';
     }));
     document.getElementById('replan').addEventListener('click', () => { $('start-hour').value = 'now'; buildPlan(); });
+
     document.getElementById('plan-mail').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       if (!localStorage.getItem('pp-email')) { openAcct(); return; }
@@ -7434,6 +7473,10 @@
       // Params are consumed once, then cleaned off the address bar.
       const qs = new URLSearchParams(location.search);
       const qPark = qs.get('park'), qPremade = qs.get('premade'), qDate = qs.get('date');
+      // From the "X just went down" notification: the ride it named, and
+      // whether it has come back since.
+      const qReplan = qs.get('replan');
+      if (qReplan) pendingReplan = { ride: qReplan.slice(0, 120), back: qs.get('back') === '1' };
       // ?join=pass: hovering Mila on the public pages sent them here to get
       // a pass. Remember the intent — the picker opens once they're signed
       // in (or right away if they already are).
@@ -7443,7 +7486,7 @@
         dest = parks[qPark].group;
         localStorage.setItem('pp-park', qPark);
       }
-      if (qPark || qPremade || qDate || qs.get('join')) history.replaceState(null, '', '/app');
+      if (qPark || qPremade || qDate || qs.get('join') || qReplan) history.replaceState(null, '', '/app');
       if (qPremade && (isPro || current === FREE_PARK)) pendingPremade = qPremade;
       // The plan email is written for one particular day, so its link has to
       // restore that day too -- landing on today with tomorrow's running
@@ -7462,6 +7505,7 @@
     // and the rail and board already share one scroll.
     if (!matchMedia('(min-width: 1080px)').matches) { setPane('plan', { scroll: false }); syncTabs('plan'); }
     load();
+    if (pendingReplan) showBreakdownBanner(pendingReplan);
     // Back from buying more of Mila's time. Credited here rather than by
     // webhook so the visitor sees it land, and guarded server-side against
     // being claimed twice -- credit is money, and unlike a pass, granting it

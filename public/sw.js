@@ -1,7 +1,7 @@
 // ParkPulse service worker: static assets cache-first, wait times
 // network-first with cache fallback so the app still shows the last
 // known waits on spotty park connectivity.
-const CACHE = 'parkpulse-v159';
+const CACHE = 'parkpulse-v160';
 const TILES = 'pp-tiles-v1'; // OSM map tiles, capped, survives app-cache bumps
 const STATIC_ASSETS = ['/', '/app', '/guide', '/icon.svg', '/manifest.json', '/chat-widget.js', '/i18n.js', '/vendor/leaflet.js', '/vendor/leaflet.css'];
 
@@ -24,15 +24,23 @@ self.addEventListener('push', (e) => {
     body: data.body,
     icon: '/icon.svg',
     badge: '/icon.svg',
-    tag: 'parkpulse-alert',
+    // One tag per planned ride, so "down" is replaced by "back" rather than
+    // stacking; everything else shares the old one.
+    tag: data.tag || 'parkpulse-alert',
+    // Where a tap should land: the app, or a spot in it.
+    data: { url: typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/app' },
   }));
 });
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/app';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
     const existing = wins.find((w) => new URL(w.url).pathname === '/app');
-    return existing ? existing.focus() : clients.openWindow('/app');
+    if (!existing) return clients.openWindow(url);
+    // An open app is sent to the spot rather than merely focused, so a
+    // "went down" tap lands on the ride it names.
+    return (url !== '/app' && existing.navigate ? existing.navigate(url) : Promise.resolve(existing)).then((w) => (w || existing).focus());
   }));
 });
 
