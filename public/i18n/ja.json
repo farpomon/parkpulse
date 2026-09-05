@@ -974,5 +974,13 @@
   "Thank you — that helps more than you'd think ✨": "ありがとうございます——思っている以上に役立ちます ✨",
   "Mila has given you everything that came with this pass ✨ A top-up keeps her going.": "このパスに含まれていた分は、ミラがすべて使い切りました ✨ チャージすれば続けられます。",
   "Rule out what's not for you": "合わないものは外す",
-  "Left-out rides sink to the bottom and stay out of the plan. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.": "外したアトラクションは下に下がり、プランに入りません。🔔をタップすると、待ち時間が減った瞬間にお知らせします。"
+  "Left-out rides sink to the bottom and stay out of the plan. Tap the 🔔 on any ride and we'll ping your phone the moment its wait drops.": "外したアトラクションは下に下がり、プランに入りません。🔔をタップすると、待ち時間が減った瞬間にお知らせします。",
+  "Give a friend ParkPulse": "友達にParkPulseを贈る",
+  "When a friend buys their first pass from your link, the same number of days is added to yours — up to 10.": "友達があなたのリンクから初めてパスを購入すると、同じ日数があなたのパスに追加されます（最大10日）。",
+  "Copy": "コピー",
+  "Copied!": "コピーしました！",
+  "Share": "共有",
+  "Days earned: {n} · Friends joined: {m}": "獲得日数：{n} · 参加した友達：{m}",
+  "Nobody yet — share your link!": "まだ誰もいません — リンクをシェアしましょう！",
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "一緒に行列を回避しよう — 65パークのリアルタイム待ち時間とAIプランナー。"
 }

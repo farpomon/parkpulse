@@ -251,6 +251,30 @@ function adminUser(req) {
   return s && s.user.verified && ADMIN_EMAILS.has(s.email) ? s : null;
 }
 
+// The referral bargain. When a friend who signed up from your link buys their
+// first pass, you get the same number of days -- a Day Pass earns a day, a
+// Trip Pass ten -- capped at ten, so a Season Pass or an Annual Pass earns ten
+// as well. Paid once per friend, on their first purchase only, never on a
+// replayed claim. The days go on the end of a live pass or start a Guest
+// Pass from now.
+const REFERRAL_MAX_DAYS = 10;
+function rewardReferrer(friendEmail, plan) {
+  const friend = db.users.get(friendEmail);
+  if (!friend?.referred_by || !PLAN_DAYS[plan]) return null;
+  const referrer = db.users.get(friend.referred_by);
+  if (!referrer) return null;
+  if (!db.users.payReferral(friendEmail)) return null;
+  const days = Math.min(PLAN_DAYS[plan], REFERRAL_MAX_DAYS);
+  const live = accountPassActive(referrer);
+  db.users.grant(referrer.email, live ? referrer.plan : 'comp', (live ? referrer.plan_exp : Date.now()) + days * 86400000);
+  db.users.addRefDays(referrer.email, days);
+  const label = PLAN_LABELS[plan] || plan;
+  note(referrer.email, 'earned referral days', `${days} day${days === 1 ? '' : 's'} — a friend bought a ${label}`);
+  note(friendEmail, 'referral paid out', `${days} day${days === 1 ? '' : 's'} to the friend who invited them`);
+  sendReferralEmail(referrer.email, days, label).catch((err) => console.log(`referral email failed: ${err.message}`));
+  return days;
+}
+
 // Attach an entitlement to an account, keeping whichever expires later.
 function grantToUser(email, plan, exp) {
   const u = db.users.get(email);
@@ -483,6 +507,13 @@ const sendInviteEmail = (origin, email, token, days, note) => {
      <p>Or open this link: ${link}</p>`,
     `Invite for ${email} (no RESEND_API_KEY set) — link: ${link}`);
 };
+
+const sendReferralEmail = (email, days, label) => sendEmail(email,
+  `A friend joined ParkPulse — ${days} day${days === 1 ? '' : 's'} added to your pass 🎁`,
+  `<p>Someone you invited just bought a <b>${label}</b>. As promised, <b>${days} day${days === 1 ? '' : 's'}</b> ${days === 1 ? 'has' : 'have'} been added to your pass.</p>
+<p>Keep sharing your link from <b>👤 Account</b> in the app — every friend's first pass earns you the same number of days, up to ten.</p>
+<p>— ParkPulse</p>`,
+  `Referral email skipped for ${email} (no RESEND_API_KEY set): +${days} days`);
 
 const sendWelcomeEmail = (email) => sendEmail(email, 'Welcome to ParkPulse 🎢',
   `<p>Your account is verified — you're in!</p>
@@ -2279,6 +2310,58 @@ async function checkBookingReminders() {
     db.trips.markNotified(t.email); // once per saved trip, even if the endpoint died
   }
 }
+// --- Trip countdown nudges ---------------------------------------------------
+// A week out and the evening before: the two moments someone with a saved
+// trip is most ready to build a plan -- and, on the free tier, to buy the pass.
+// Once each per trip, never repeated: the trip row remembers which it has
+// had, and is marked before the send so a crash mid-send cannot repeat it.
+// Push if the phone gave us an endpoint, email otherwise. Times are the first
+// park's own clock.
+const TRIP_NUDGES = [
+  { tag: '7', ahead: 7, fromHour: 9, toHour: 20 },
+  { tag: '1', ahead: 1, fromHour: 16, toHour: 21 },
+];
+const sendTripNudgeEmail = (email, title, body) => sendEmail(email, `${title} 🎢`,
+  `<p>${esc(body)}</p>
+<p><a href="https://${CANONICAL_HOST || 'www.parkpulse.fun'}/app" style="display:inline-block;background:#5b3df5;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Build my plan</a></p>
+<p>— ParkPulse</p>`,
+  `Trip nudge skipped for ${email} (no RESEND_API_KEY set): ${title}`);
+async function sweepTripNudges(now = new Date()) {
+  let rows = [];
+  try { rows = db.trips.forNudges(addDays(now.toISOString().slice(0, 10), -1)); } catch { return; }
+  for (const t of rows) {
+    let plan = []; try { plan = JSON.parse(t.plan); } catch {}
+    const firstDay = plan.find((d) => d && PARKS[d.park]) || null;
+    const park = firstDay ? PARKS[firstDay.park] : null;
+    const tz = park ? park.tz : 'America/New_York';
+    const today = now.toLocaleDateString('en-CA', { timeZone: tz });
+    const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(now)) % 24;
+    const had = String(t.nudged || '').split(',').filter(Boolean);
+    for (const n of TRIP_NUDGES) {
+      if (had.includes(n.tag) || addDays(today, n.ahead) !== t.start || hour < n.fromHour || hour > n.toHour) continue;
+      had.push(n.tag);
+      db.trips.setNudged(t.email, had.join(','));
+      let level = null;
+      try { if (park) level = forecastFor(park.slug, 9).days.find((d) => d.date === t.start)?.label || null; } catch {}
+      const where = park ? park.name : t.dest;
+      const when = new Date(`${t.start}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+      const title = n.ahead === 7 ? `${where} in one week` : `${where} is tomorrow`;
+      const body = level
+        ? `${when} is looking ${level.toLowerCase()} at ${where}. Build your plan now — it takes two minutes.`
+        : `${when} at ${where}. Build your plan now — it takes two minutes.`;
+      let via = null;
+      if (t.push_sub) {
+        try { await webpush.sendNotification(JSON.parse(t.push_sub), JSON.stringify({ title, body })); via = 'push'; }
+        catch (err) { console.log(`trip nudge push failed for ${t.email}: ${err.statusCode || err.message}`); }
+      }
+      if (!via) {
+        try { const r = await sendTripNudgeEmail(t.email, title, body); if (r.sent) via = 'email'; }
+        catch (err) { console.log(`trip nudge email failed for ${t.email}: ${err.message}`); }
+      }
+      note(t.email, 'nudged about the trip', `${n.ahead === 7 ? 'a week' : 'the day'} before · ${via || 'not delivered'}`);
+    }
+  }
+}
 // Accounts whose grace period has run out are purged for real.
 function sweepDeletedAccounts() {
   for (const email of db.accounts.due(Date.now())) {
@@ -2293,7 +2376,7 @@ function sweepDeletedAccounts() {
 // Cached plan reviews outlive their longest TTL by a day and are then dead
 // weight -- a plan for a past date will never be asked for again.
 const sweepPlanAdvice = () => { try { db.planadvice.prune(36 * 60 * 60 * 1000); } catch {} };
-setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkBookingReminders().catch(() => {}); sweepTripNudges().catch((e) => console.log(`trip nudges: ${e.message}`)); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
 
 // --- Night-before plan emails ------------------------------------------------
 // Zero taps during the trip: the evening before a saved plan's date (18:00 to
@@ -3579,6 +3662,17 @@ async function handleRequest(req, res) {
     return res.end();
   }
 
+  // A friend's referral link. Straight into the app rather than the landing
+  // page: the app IS the demo, the free board is the pitch, and the code and
+  // the source ride along in the query for the first-touch capture there.
+  // An unknown code is just the front door.
+  if (req.method === 'GET' && /^\/r\/[A-Za-z0-9]{4,12}$/.test(url.pathname)) {
+    const code = url.pathname.slice(3).toUpperCase();
+    const known = db.users.byRefCode(code);
+    res.writeHead(302, { location: known ? `/app?ref=${code}&utm_source=referral&utm_medium=friend` : '/', 'cache-control': 'no-store' });
+    return res.end();
+  }
+
   // Meta's webhook handshake: echo hub.challenge when the verify token matches.
   if (req.method === 'GET' && url.pathname === '/api/whatsapp/webhook') {
     if (WA_ENABLED && url.searchParams.get('hub.mode') === 'subscribe' &&
@@ -3957,6 +4051,9 @@ async function stripePriceCheck() {
       plan: active ? s.user.plan : null,
       exp: active ? s.user.plan_exp : null,
       passToken: active ? signPass(s.user.plan, s.user.plan_exp) : null,
+      refCode: db.users.refCode(s.email),
+      refDays: s.user.ref_days || 0,
+      referrals: db.users.referrals(s.email).length,
     });
   }
 
@@ -4982,6 +5079,14 @@ ${sections}
           }
           const ft = firstTouchOf(parsed.src);
           if (ft) { try { db.admin.attribute(email, ft.source, ft.medium, ft.campaign); } catch {} }
+          // The referral code the app has been carrying since the link was
+          // opened. Recorded once; a code that is your own, or nobody's, is
+          // ignored rather than refused -- the signup itself is not at stake.
+          const refCode = typeof parsed.ref === 'string' ? parsed.ref.trim().toUpperCase().slice(0, 12) : '';
+          if (refCode) {
+            const referrer = db.users.byRefCode(refCode);
+            if (referrer && referrer !== email && db.users.setReferredBy(email, referrer)) note(referrer, 'a friend signed up from your link');
+          }
           db.users.setName(email, asked.name);
           // Written once, on first acceptance, and never overwritten: what
           // matters later is the version they agreed to at the time, not the
@@ -5367,6 +5472,7 @@ ${sections}
             db.kv.set(claimKey, JSON.stringify({ plan, exp }));
             recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null, usd: paid });
             note(s?.email, 'bought a pass', `${PLAN_LABELS[plan] || plan}${paid ? ' · ' + usd(paid) : ''}`);
+            if (s) { try { rewardReferrer(s.email, plan); } catch (err) { console.log(`referral reward failed: ${err.message}`); } }
           }
           // The conversion is reported to Google Ads once, on the sale. A
           // second device activating the same purchase is not a second sale.
@@ -5947,6 +6053,7 @@ server.listen(PORT, bootBanner);
 // fires is worse than no alert at all -- it is the same silence, with the
 // belief that somebody is watching.
 module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
+  _sweepTripNudges: sweepTripNudges,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _applyStoredIds: applyStoredIds,

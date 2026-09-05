@@ -288,6 +288,17 @@ for (const ddl of [
   // caller can inflate the revenue dashboard by replaying a receipt link.
   // Fails harmlessly (and leaves the table as it was) if duplicates predate it.
   "CREATE UNIQUE INDEX IF NOT EXISTS passes_session ON passes (stripe_session) WHERE stripe_session IS NOT NULL",
+  // Referrals. ref_code is the account's own share code; referred_by is who
+  // sent them; referral_paid flips once, on their first purchase, so the
+  // referrer is paid once per friend; ref_days is the running total earned.
+  "ALTER TABLE users ADD COLUMN ref_code TEXT",
+  "ALTER TABLE users ADD COLUMN referred_by TEXT",
+  "ALTER TABLE users ADD COLUMN referred_at TEXT",
+  "ALTER TABLE users ADD COLUMN referral_paid INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN ref_days INTEGER DEFAULT 0",
+  "CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users (ref_code) WHERE ref_code IS NOT NULL",
+  // Which countdown nudges a saved trip has already had ("7,1").
+  "ALTER TABLE trips ADD COLUMN nudged TEXT",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
@@ -451,6 +462,33 @@ const users = {
     db.prepare('UPDATE users SET verified = 1, verify_code = NULL, verify_exp = NULL WHERE email = ?').run(email),
   grant: (email, plan, exp) =>
     db.prepare('UPDATE users SET plan = ?, plan_exp = ? WHERE email = ?').run(plan, exp, email),
+  // The account's share code, minted on first ask. No 0/O or 1/I: it gets
+  // read out loud across a kitchen table.
+  refCode: (email) => {
+    const u = db.prepare('SELECT ref_code FROM users WHERE email = ?').get(email);
+    if (!u) return null;
+    if (u.ref_code) return u.ref_code;
+    const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const { randomInt } = require('node:crypto');
+    for (let tries = 0; tries < 8; tries++) {
+      const code = Array.from({ length: 7 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
+      try {
+        db.prepare('UPDATE users SET ref_code = ? WHERE email = ? AND ref_code IS NULL').run(code, email);
+        return db.prepare('SELECT ref_code FROM users WHERE email = ?').get(email)?.ref_code ?? null;
+      } catch {} // a collision on the unique index: draw again
+    }
+    return null;
+  },
+  byRefCode: (code) => db.prepare('SELECT email FROM users WHERE ref_code = ?').get(code)?.email ?? null,
+  // Once, and never to yourself.
+  setReferredBy: (email, referrer) =>
+    db.prepare('UPDATE users SET referred_by = ?, referred_at = ? WHERE email = ? AND referred_by IS NULL AND email != ?')
+      .run(referrer, new Date().toISOString(), email, referrer).changes,
+  // 1 the first time a referred account is paid out on, 0 ever after.
+  payReferral: (email) =>
+    db.prepare('UPDATE users SET referral_paid = 1 WHERE email = ? AND referred_by IS NOT NULL AND referral_paid = 0').run(email).changes,
+  addRefDays: (email, n) => db.prepare('UPDATE users SET ref_days = COALESCE(ref_days, 0) + ? WHERE email = ?').run(n, email),
+  referrals: (email) => db.prepare('SELECT email, referred_at, referral_paid FROM users WHERE referred_by = ? ORDER BY referred_at DESC').all(email),
   setResetToken: (email, token, exp) =>
     db.prepare('UPDATE users SET reset_token = ?, reset_exp = ? WHERE email = ?').run(token, exp, email),
   scheduleDeletion: (email, at, token) =>
@@ -689,9 +727,15 @@ const trips = {
   get: (email) => db.prepare('SELECT dest, start, days, plan, onsite FROM trips WHERE email = ?').get(email) ?? null,
   // Each save resets the reminder flag: a new/changed trip earns a fresh ping.
   set: (email, dest, start, days, plan, onsite = 0, pushSub = null) =>
-    db.prepare('INSERT INTO trips (email, dest, start, days, plan, onsite, push_sub, notified, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, onsite = excluded.onsite, push_sub = excluded.push_sub, notified = 0, updated_at = excluded.updated_at')
+    // A trip moved to new dates starts its countdown afresh; the same dates
+    // re-saved keep whatever nudges have already gone out.
+    db.prepare('INSERT INTO trips (email, dest, start, days, plan, onsite, push_sub, notified, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?) ON CONFLICT(email) DO UPDATE SET dest = excluded.dest, start = excluded.start, days = excluded.days, plan = excluded.plan, onsite = excluded.onsite, push_sub = excluded.push_sub, notified = 0, nudged = CASE WHEN trips.start = excluded.start THEN trips.nudged ELSE NULL END, updated_at = excluded.updated_at')
       .run(email, dest, start, days, plan, onsite, pushSub, new Date().toISOString()),
   pendingReminders: () => db.prepare('SELECT email, dest, start, onsite, push_sub FROM trips WHERE push_sub IS NOT NULL AND notified = 0').all(),
+  // Trips that have not started yet (a day of slack for timezones), with
+  // what they have already been nudged about.
+  forNudges: (fromDate) => db.prepare('SELECT email, dest, start, days, plan, push_sub, nudged FROM trips WHERE start >= ?').all(fromDate),
+  setNudged: (email, val) => db.prepare('UPDATE trips SET nudged = ? WHERE email = ?').run(val, email),
   markNotified: (email) => db.prepare('UPDATE trips SET notified = 1 WHERE email = ?').run(email),
   clear: (email) => db.prepare('DELETE FROM trips WHERE email = ?').run(email),
 };
