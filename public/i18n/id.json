@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "Masukkan lagi ke rencana hari ini?",
   "Replan without it": "Rencanakan ulang tanpanya",
   "Replan with it": "Rencanakan ulang dengannya",
-  "Not now": "Nanti saja"
+  "Not now": "Nanti saja",
+  "{n} rides today": "{n} wahana hari ini",
+  "{n} min in line": "{n} mnt antre",
+  "about {n} min under a typical day": "sekitar {n} mnt lebih cepat dari hari biasa",
+  "Share my day": "Bagikan hariku",
+  "My day at {park}": "Hariku di {park}",
+  "minutes in line": "menit antre",
+  "minutes saved vs a typical day": "menit lebih cepat dari hari biasa",
+  "Skip the lines with ParkPulse": "Lewati antrean dengan ParkPulse"
 }

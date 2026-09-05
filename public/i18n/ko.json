@@ -878,7 +878,7 @@
   "ride": "개",
   "ride picked so far": "개 어트랙션 선택함",
   "rider switch offered": "라이더 스위치 제공",
-  "rides": "개",
+  "rides": "탑승",
   "rides picked so far": "개 어트랙션 선택함",
   "rides planned": "개 어트랙션 예정",
   "rope drop and a tight order will make or break the day.": "개장 시간에 맞춰 들어가 순서를 지키는 게 이 날을 좌우해요.",
@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "오늘 계획에 다시 넣을까요?",
   "Replan without it": "빼고 다시 계획",
   "Replan with it": "넣고 다시 계획",
-  "Not now": "나중에"
+  "Not now": "나중에",
+  "{n} rides today": "오늘 {n}개 탑승",
+  "{n} min in line": "대기 {n}분",
+  "about {n} min under a typical day": "평소보다 약 {n}분 절약",
+  "Share my day": "오늘 공유하기",
+  "My day at {park}": "{park}에서의 하루",
+  "minutes in line": "분 대기",
+  "minutes saved vs a typical day": "분 절약 (평소 대비)",
+  "Skip the lines with ParkPulse": "ParkPulse와 함께 줄 서지 마세요"
 }

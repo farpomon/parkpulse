@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "Вернуть его в план на сегодня?",
   "Replan without it": "Перепланировать без него",
   "Replan with it": "Перепланировать с ним",
-  "Not now": "Не сейчас"
+  "Not now": "Не сейчас",
+  "{n} rides today": "{n} аттракционов сегодня",
+  "{n} min in line": "{n} мин в очереди",
+  "about {n} min under a typical day": "примерно на {n} мин меньше обычного",
+  "Share my day": "Поделиться днём",
+  "My day at {park}": "Мой день в {park}",
+  "minutes in line": "минут в очереди",
+  "minutes saved vs a typical day": "минут сэкономлено против обычного дня",
+  "Skip the lines with ParkPulse": "Обходите очереди с ParkPulse"
 }

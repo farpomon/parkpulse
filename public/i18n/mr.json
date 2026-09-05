@@ -878,7 +878,7 @@
   "ride": "राइड",
   "ride picked so far": "राइड आतापर्यंत निवडली",
   "rider switch offered": "रायडर स्विच उपलब्ध",
-  "rides": "राइड",
+  "rides": "राइड्स",
   "rides picked so far": "राइड आतापर्यंत निवडल्या",
   "rides planned": "राइड प्लॅनमध्ये",
   "rope drop and a tight order will make or break the day.": "उघडताच आत जाणं आणि क्रम पाळणं हेच हा दिवस ठरवेल.",
@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "आजच्या प्लॅनमध्ये परत घ्यायची?",
   "Replan without it": "तिच्याशिवाय पुन्हा प्लॅन करा",
   "Replan with it": "तिच्यासह पुन्हा प्लॅन करा",
-  "Not now": "आत्ता नाही"
+  "Not now": "आत्ता नाही",
+  "{n} rides today": "आज {n} राइड्स",
+  "{n} min in line": "रांगेत {n} मिनिटे",
+  "about {n} min under a typical day": "नेहमीच्या दिवसापेक्षा सुमारे {n} मिनिटे कमी",
+  "Share my day": "माझा दिवस शेअर करा",
+  "My day at {park}": "{park} मधील माझा दिवस",
+  "minutes in line": "मिनिटे रांगेत",
+  "minutes saved vs a typical day": "मिनिटे वाचली नेहमीच्या दिवसापेक्षा",
+  "Skip the lines with ParkPulse": "ParkPulse सह रांगा टाळा"
 }

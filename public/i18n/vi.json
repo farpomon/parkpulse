@@ -878,7 +878,7 @@
   "ride": "trò",
   "ride picked so far": "trò đã chọn",
   "rider switch offered": "có đổi người trông",
-  "rides": "trò",
+  "rides": "trò chơi",
   "rides picked so far": "trò đã chọn",
   "rides planned": "trò trong kế hoạch",
   "rope drop and a tight order will make or break the day.": "vào cổng ngay giờ mở cửa và bám sát thứ tự sẽ quyết định cả ngày.",
@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "Đưa nó trở lại kế hoạch hôm nay?",
   "Replan without it": "Lập lại kế hoạch không có nó",
   "Replan with it": "Lập lại kế hoạch có nó",
-  "Not now": "Để sau"
+  "Not now": "Để sau",
+  "{n} rides today": "{n} trò chơi hôm nay",
+  "{n} min in line": "{n} phút xếp hàng",
+  "about {n} min under a typical day": "ít hơn ngày thường khoảng {n} phút",
+  "Share my day": "Chia sẻ ngày của tôi",
+  "My day at {park}": "Ngày của tôi ở {park}",
+  "minutes in line": "phút xếp hàng",
+  "minutes saved vs a typical day": "phút tiết kiệm so với ngày thường",
+  "Skip the lines with ParkPulse": "Bỏ qua hàng chờ cùng ParkPulse"
 }

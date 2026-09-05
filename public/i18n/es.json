@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "¿La volvemos a meter en el plan de hoy?",
   "Replan without it": "Replanificar sin ella",
   "Replan with it": "Replanificar con ella",
-  "Not now": "Ahora no"
+  "Not now": "Ahora no",
+  "{n} rides today": "{n} atracciones hoy",
+  "{n} min in line": "{n} min en cola",
+  "about {n} min under a typical day": "unos {n} min menos que un día normal",
+  "Share my day": "Compartir mi día",
+  "My day at {park}": "Mi día en {park}",
+  "minutes in line": "minutos en cola",
+  "minutes saved vs a typical day": "minutos ahorrados frente a un día normal",
+  "Skip the lines with ParkPulse": "Sáltate las colas con ParkPulse"
 }

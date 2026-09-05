@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "今日のプランに戻しますか？",
   "Replan without it": "外して再プラン",
   "Replan with it": "入れて再プラン",
-  "Not now": "あとで"
+  "Not now": "あとで",
+  "{n} rides today": "今日は{n}アトラクション",
+  "{n} min in line": "待ち時間{n}分",
+  "about {n} min under a typical day": "平均より約{n}分短縮",
+  "Share my day": "今日をシェア",
+  "My day at {park}": "{park}での一日",
+  "minutes in line": "分の待ち時間",
+  "minutes saved vs a typical day": "分短縮（平均比）",
+  "Skip the lines with ParkPulse": "ParkPulseで行列を回避"
 }

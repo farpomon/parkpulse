@@ -878,7 +878,7 @@
   "ride": "Attraktion",
   "ride picked so far": "Attraktion bisher gewählt",
   "rider switch offered": "Fahrerwechsel möglich",
-  "rides": "Attraktionen",
+  "rides": "Fahrten",
   "rides picked so far": "Attraktionen bisher gewählt",
   "rides planned": "Attraktionen geplant",
   "rope drop and a tight order will make or break the day.": "zur Öffnung da sein und die Reihenfolge halten entscheidet über den Tag.",
@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "Wieder in den heutigen Plan aufnehmen?",
   "Replan without it": "Ohne sie neu planen",
   "Replan with it": "Mit ihr neu planen",
-  "Not now": "Jetzt nicht"
+  "Not now": "Jetzt nicht",
+  "{n} rides today": "{n} Fahrten heute",
+  "{n} min in line": "{n} Min. angestanden",
+  "about {n} min under a typical day": "etwa {n} Min. unter einem typischen Tag",
+  "Share my day": "Meinen Tag teilen",
+  "My day at {park}": "Mein Tag im {park}",
+  "minutes in line": "Minuten angestanden",
+  "minutes saved vs a typical day": "Minuten gespart gegenüber einem typischen Tag",
+  "Skip the lines with ParkPulse": "Mit ParkPulse an den Schlangen vorbei"
 }

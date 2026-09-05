@@ -878,7 +878,7 @@
   "ride": "రైడ్",
   "ride picked so far": "రైడ్ ఇప్పటివరకు ఎంపిక",
   "rider switch offered": "రైడర్ స్విచ్ ఉంది",
-  "rides": "రైడ్‌లు",
+  "rides": "రైడ్స్",
   "rides picked so far": "రైడ్‌లు ఇప్పటివరకు ఎంపిక",
   "rides planned": "రైడ్‌లు ప్లాన్‌లో",
   "rope drop and a tight order will make or break the day.": "తెరిచిన వెంటనే లోపలికి వెళ్లడం, క్రమాన్ని పాటించడమే ఈ రోజును నిర్ణయిస్తుంది.",
@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "నేటి ప్లాన్‌లో తిరిగి చేర్చాలా?",
   "Replan without it": "ఇది లేకుండా మళ్లీ ప్లాన్ చేయి",
   "Replan with it": "ఇది చేర్చి మళ్లీ ప్లాన్ చేయి",
-  "Not now": "ఇప్పుడు కాదు"
+  "Not now": "ఇప్పుడు కాదు",
+  "{n} rides today": "ఈరోజు {n} రైడ్స్",
+  "{n} min in line": "లైన్‌లో {n} నిమి",
+  "about {n} min under a typical day": "సాధారణ రోజు కంటే సుమారు {n} నిమి తక్కువ",
+  "Share my day": "నా రోజును షేర్ చేయి",
+  "My day at {park}": "{park}లో నా రోజు",
+  "minutes in line": "నిమిషాలు లైన్‌లో",
+  "minutes saved vs a typical day": "నిమిషాలు ఆదా (సాధారణ రోజుతో పోలిస్తే)",
+  "Skip the lines with ParkPulse": "ParkPulseతో లైన్లు దాటండి"
 }

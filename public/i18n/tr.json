@@ -878,7 +878,7 @@
   "ride": "atraksiyon",
   "ride picked so far": "atraksiyon seçildi",
   "rider switch offered": "sürücü değişimi var",
-  "rides": "atraksiyon",
+  "rides": "tur",
   "rides picked so far": "atraksiyon seçildi",
   "rides planned": "atraksiyon planlandı",
   "rope drop and a tight order will make or break the day.": "açılışta içeride olmak ve sıraya sadık kalmak bu günü belirleyecek.",
@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "Bugünkü plana geri eklensin mi?",
   "Replan without it": "Onsuz yeniden planla",
   "Replan with it": "Onunla yeniden planla",
-  "Not now": "Şimdi değil"
+  "Not now": "Şimdi değil",
+  "{n} rides today": "bugün {n} tur",
+  "{n} min in line": "{n} dk sırada",
+  "about {n} min under a typical day": "normal bir günden yaklaşık {n} dk az",
+  "Share my day": "Günümü paylaş",
+  "My day at {park}": "{park}’ta günüm",
+  "minutes in line": "dakika sırada",
+  "minutes saved vs a typical day": "dakika kazanç (normal güne göre)",
+  "Skip the lines with ParkPulse": "ParkPulse ile sıraları atla"
 }

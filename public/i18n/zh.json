@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "把它加回今天的计划？",
   "Replan without it": "去掉它重新规划",
   "Replan with it": "加上它重新规划",
-  "Not now": "暂不"
+  "Not now": "暂不",
+  "{n} rides today": "今天 {n} 个项目",
+  "{n} min in line": "排队 {n} 分钟",
+  "about {n} min under a typical day": "比平常少约 {n} 分钟",
+  "Share my day": "分享我的一天",
+  "My day at {park}": "我在{park}的一天",
+  "minutes in line": "分钟排队",
+  "minutes saved vs a typical day": "分钟，比平常节省",
+  "Skip the lines with ParkPulse": "用 ParkPulse 跳过排队"
 }

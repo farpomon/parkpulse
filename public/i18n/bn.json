@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "আজকের প্ল্যানে ফিরিয়ে আনবেন?",
   "Replan without it": "এটা ছাড়া আবার প্ল্যান করুন",
   "Replan with it": "এটা নিয়ে আবার প্ল্যান করুন",
-  "Not now": "এখন নয়"
+  "Not now": "এখন নয়",
+  "{n} rides today": "আজ {n}টি রাইড",
+  "{n} min in line": "লাইনে {n} মিনিট",
+  "about {n} min under a typical day": "সাধারণ দিনের চেয়ে প্রায় {n} মিনিট কম",
+  "Share my day": "আমার দিন শেয়ার করুন",
+  "My day at {park}": "{park}-এ আমার দিন",
+  "minutes in line": "মিনিট লাইনে",
+  "minutes saved vs a typical day": "মিনিট বাঁচল সাধারণ দিনের তুলনায়",
+  "Skip the lines with ParkPulse": "ParkPulse দিয়ে লাইন এড়ান"
 }

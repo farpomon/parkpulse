@@ -1180,6 +1180,7 @@
     <button class="pc-btn" id="pick-card-btn">Choose attractions →</button>
   </div>
   <div id="plan-out"></div>
+  <div id="recap-card"></div>
   <div id="nps-slot"></div>
   <!-- Filled by renderMoreCard() from the selected park's live board, so it
        follows the park picker without a fetch of its own. -->
@@ -2110,7 +2111,31 @@
   const doneKey = () => `pp-done-${current}-${parkDay()}`;
   let doneOrder = [];
   const loadDone = () => { try { doneOrder = JSON.parse(localStorage.getItem(doneKey()) || '[]'); } catch { doneOrder = []; } };
-  const saveDone = () => { try { localStorage.setItem(doneKey(), JSON.stringify(doneOrder.slice(-60))); } catch {} scheduleSync(); };
+  // What each tick cost. The posted wait at the moment a ride was ticked off
+  // is the best guess we have for what was stood in, until the person says
+  // otherwise on the wait-report card; the recap is built from these.
+  const ticksKey = () => `pp-ticks-${current}-${parkDay()}`;
+  const loadTicks = () => { try { return JSON.parse(localStorage.getItem(ticksKey()) || '{}'); } catch { return {}; } };
+  const noteTick = (name, patch) => {
+    try {
+      const t = loadTicks();
+      t[name] = { ...(t[name] || {}), ...patch };
+      localStorage.setItem(ticksKey(), JSON.stringify(t));
+    } catch {}
+  };
+  const saveDone = () => {
+    try { localStorage.setItem(doneKey(), JSON.stringify(doneOrder.slice(-60))); } catch {}
+    try {
+      const t = loadTicks();
+      for (const name of doneOrder) {
+        if (t[name]) continue;
+        const r = rides.find((x) => x.name === name);
+        noteTick(name, { t: Date.now(), posted: r && Number.isFinite(r.wait) ? r.wait : null, typical: r && Number.isFinite(r.typical) ? r.typical : null });
+      }
+    } catch {}
+    scheduleSync();
+    renderRecapCard();
+  };
 
   // Mirror today's choices to the account (debounced) so the WhatsApp agent —
   // and a reinstalled app — can see the park, group, picks and done list.
@@ -2639,6 +2664,7 @@
 
   function renderRides() {
     $('rides').classList.remove('skeleton');
+    renderRecapCard();
     const searching = Boolean(query.trim());
     const hasLands = rides.some((r) => r.land);
     if (searching || !hasLands) {
@@ -3446,6 +3472,8 @@
         const res = await api('/api/wait-report', { method: 'POST', body: JSON.stringify({ park: current, ride: name, actual: v }) });
         const d = await res.json().catch(() => ({}));
         if (res.ok) {
+          noteTick(name, { waited: v });
+          renderRecapCard();
           box.innerHTML = '<span class="wrep-q">' + (d.posted != null && d.delta !== 0
             ? tr('Thanks \u2014 the sign said') + ' ' + d.posted + ', ' + tr('you waited') + ' ' + v + '.'
             : tr('Thanks \u2014 that helps everyone here.')) + '</span>';
@@ -3690,6 +3718,85 @@
       buildPlan();
       el.remove();
     };
+  }
+
+  // --- The day, summed up ------------------------------------------------------
+  // Three rides in, the day is a story worth telling: how many, how long in
+  // line, and how that compares with a typical day here. Drawn as a picture
+  // for the phone's share sheet, because a picture with a real number on it
+  // is the one thing people forward.
+  function recapStats() {
+    const t = loadTicks();
+    const names = doneOrder.filter((n) => rides.some((r) => r.name === n) || t[n]);
+    if (names.length < 3) return null;
+    let waited = 0, typical = 0, known = 0;
+    for (const n of names) {
+      const k = t[n] || {};
+      const w = Number.isFinite(k.waited) ? k.waited : Number.isFinite(k.posted) ? k.posted : null;
+      const ty = Number.isFinite(k.typical) ? k.typical : (rides.find((r) => r.name === n) || {}).typical;
+      if (w != null) { waited += w; known += 1; }
+      if (Number.isFinite(ty)) typical += ty; else if (w != null) typical += w;
+    }
+    return { names, rides: names.length, waited, saved: Math.max(0, typical - waited), known };
+  }
+  function renderRecapCard() {
+    const slot = document.getElementById('recap-card');
+    if (!slot) return;
+    const s = planningAhead() ? null : recapStats();
+    if (!s) { slot.innerHTML = ''; return; }
+    slot.innerHTML = `<div class="clnote" id="recap">📸 <b>${esc(trf('{n} rides today', { n: s.rides }))}</b> · ${esc(trf('{n} min in line', { n: s.waited }))}${s.saved >= 10 ? ` · ${esc(trf('about {n} min under a typical day', { n: Math.round(s.saved / 5) * 5 }))}` : ''}
+      <div style="margin-top:.45rem"><button class="btn" id="recap-share">${esc(tr('Share my day'))}</button></div></div>`;
+    document.getElementById('recap-share').onclick = shareRecap;
+  }
+  function drawRecap(s) {
+    const W = 1080, H = 1350;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2c2154'); g.addColorStop(1, '#4a2f9a');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    // A few soft stars, so it is not a slab.
+    x.fillStyle = 'rgba(255,255,255,.08)';
+    for (let i = 0; i < 60; i++) { const r = 4 + ((i * 37) % 9); x.beginPath(); x.arc((i * 193) % W, (i * 271) % H, r, 0, 7); x.fill(); }
+    const font = (px, w = 700) => { x.font = `${w} ${px}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`; };
+    x.textBaseline = 'top';
+    x.fillStyle = '#ffd84d'; font(38, 800); x.fillText('PARKPULSE', 80, 80);
+    x.fillStyle = '#fff'; font(64, 800);
+    const title = trf('My day at {park}', { park: (parks[current] || {}).name || current });
+    x.fillText(title.length > 26 ? title.slice(0, 25) + '…' : title, 80, 140);
+    x.fillStyle = 'rgba(255,255,255,.75)'; font(34, 500);
+    x.fillText(new Date().toLocaleDateString(window.PP_LANG || undefined, { weekday: 'long', month: 'long', day: 'numeric' }), 80, 230);
+    const tile = (y, big, small) => {
+      x.fillStyle = 'rgba(255,255,255,.10)'; x.beginPath(); x.roundRect(80, y, W - 160, 190, 28); x.fill();
+      x.fillStyle = '#fff'; font(112, 800); x.fillText(String(big), 120, y + 24);
+      x.fillStyle = 'rgba(255,255,255,.85)'; font(36, 600);
+      const bw = x.measureText(String(big)).width;
+      x.fillText(small, 120 + (String(big).length * 66) + 20, y + 96);
+    };
+    tile(320, s.rides, tr('rides'));
+    tile(540, s.waited, tr('minutes in line'));
+    if (s.saved >= 10) tile(760, Math.round(s.saved / 5) * 5, tr('minutes saved vs a typical day'));
+    x.fillStyle = 'rgba(255,255,255,.9)'; font(34, 600);
+    let y = s.saved >= 10 ? 1000 : 780;
+    for (const n of s.names.slice(0, s.saved >= 10 ? 4 : 8)) { x.fillText('✓ ' + (n.length > 34 ? n.slice(0, 33) + '…' : n), 80, y); y += 52; }
+    x.fillStyle = '#ffd84d'; font(34, 700); x.fillText(tr('Skip the lines with ParkPulse'), 80, H - 130);
+    x.fillStyle = 'rgba(255,255,255,.7)'; font(30, 500); x.fillText('parkpulse.fun', 80, H - 80);
+    return c;
+  }
+  async function shareRecap() {
+    const s = recapStats();
+    if (!s) return;
+    const c = drawRecap(s);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+    if (!blob) return;
+    const file = new File([blob], 'parkpulse-day.png', { type: 'image/png' });
+    const text = trf('{n} rides today', { n: s.rides }) + ' · ' + trf('{n} min in line', { n: s.waited }) + ' — parkpulse.fun';
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'ParkPulse', text }); return; }
+    } catch (err) { if (err && err.name === 'AbortError') return; }
+    // No share sheet: open the picture, which every phone can save from.
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
 
   function buildPlan(opts = {}) {

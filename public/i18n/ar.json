@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "هل نعيدها إلى خطة اليوم؟",
   "Replan without it": "أعد التخطيط بدونها",
   "Replan with it": "أعد التخطيط معها",
-  "Not now": "ليس الآن"
+  "Not now": "ليس الآن",
+  "{n} rides today": "{n} ألعاب اليوم",
+  "{n} min in line": "{n} دقيقة في الطابور",
+  "about {n} min under a typical day": "أقل بنحو {n} دقيقة من يوم عادي",
+  "Share my day": "شارك يومي",
+  "My day at {park}": "يومي في {park}",
+  "minutes in line": "دقيقة في الطابور",
+  "minutes saved vs a typical day": "دقيقة موفَّرة مقارنة بيوم عادي",
+  "Skip the lines with ParkPulse": "تخطَّ الطوابير مع ParkPulse"
 }

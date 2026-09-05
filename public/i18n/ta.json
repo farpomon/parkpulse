@@ -991,5 +991,13 @@
   "Slot it back into today's plan?": "இன்றைய திட்டத்தில் மீண்டும் சேர்க்கவா?",
   "Replan without it": "இதை விட்டு மீண்டும் திட்டமிடு",
   "Replan with it": "இதைச் சேர்த்து மீண்டும் திட்டமிடு",
-  "Not now": "இப்போது வேண்டாம்"
+  "Not now": "இப்போது வேண்டாம்",
+  "{n} rides today": "இன்று {n} சவாரிகள்",
+  "{n} min in line": "வரிசையில் {n} நிமிடம்",
+  "about {n} min under a typical day": "வழக்கமான நாளை விட சுமார் {n} நிமிடம் குறைவு",
+  "Share my day": "என் நாளைப் பகிர்",
+  "My day at {park}": "{park}-இல் என் நாள்",
+  "minutes in line": "நிமிடம் வரிசையில்",
+  "minutes saved vs a typical day": "நிமிடம் சேமிப்பு (வழக்கமான நாளை விட)",
+  "Skip the lines with ParkPulse": "ParkPulse உடன் வரிசைகளைத் தவிருங்கள்"
 }

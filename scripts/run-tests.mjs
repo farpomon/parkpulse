@@ -63,6 +63,7 @@ const SHARED_SERVER = [
   ['sheetclose', 'test/sheet-close.mjs'],
   ['railfoot', 'test/rail-footer.mjs'],
   ['directory', 'test/park-directory.mjs'],
+  ['recap', 'test/recap-card.mjs'],
   ['staledict', 'test/stale-dictionary.mjs'],
   ['langpromo', 'test/language-promo.mjs'],
   ['skipsheet', 'test/skip-sheet.mjs'],
