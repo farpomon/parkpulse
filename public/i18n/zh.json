@@ -982,5 +982,7 @@
   "Share": "分享",
   "Days earned: {n} · Friends joined: {m}": "已获得天数：{n} · 已加入的朋友：{m}",
   "Nobody yet — share your link!": "还没有人——分享你的链接吧！",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "和我一起跳过排队——65 个乐园的实时等待时间和 AI 规划助手。"
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "和我一起跳过排队——65 个乐园的实时等待时间和 AI 规划助手。",
+  "goes down about {n}× a day": "每天约停运 {n} 次",
+  "usually around {h}": "通常在 {h} 左右"
 }

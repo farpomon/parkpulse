@@ -982,5 +982,7 @@
   "Share": "शेअर करा",
   "Days earned: {n} · Friends joined: {m}": "मिळवलेले दिवस: {n} · सामील मित्र: {m}",
   "Nobody yet — share your link!": "अजून कोणी नाही — तुमची लिंक शेअर करा!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "माझ्यासोबत रांगा टाळा — 65 पार्कसाठी लाइव्ह प्रतीक्षा वेळ आणि AI प्लॅनर."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "माझ्यासोबत रांगा टाळा — 65 पार्कसाठी लाइव्ह प्रतीक्षा वेळ आणि AI प्लॅनर.",
+  "goes down about {n}× a day": "दिवसातून सुमारे {n} वेळा बंद पडते",
+  "usually around {h}": "सहसा {h} च्या सुमारास"
 }

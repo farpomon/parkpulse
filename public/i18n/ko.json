@@ -982,5 +982,7 @@
   "Share": "공유",
   "Days earned: {n} · Friends joined: {m}": "적립된 일수: {n} · 가입한 친구: {m}",
   "Nobody yet — share your link!": "아직 없어요 — 링크를 공유해 보세요!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "나와 함께 줄 서지 마세요 — 65개 파크의 실시간 대기시간과 AI 플래너."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "나와 함께 줄 서지 마세요 — 65개 파크의 실시간 대기시간과 AI 플래너.",
+  "goes down about {n}× a day": "하루 약 {n}회 중단",
+  "usually around {h}": "주로 {h}쯤"
 }

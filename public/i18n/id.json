@@ -982,5 +982,7 @@
   "Share": "Bagikan",
   "Days earned: {n} · Friends joined: {m}": "Hari didapat: {n} · Teman bergabung: {m}",
   "Nobody yet — share your link!": "Belum ada — bagikan tautanmu!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Lewati antrean bersamaku — waktu tunggu langsung dan perencana AI untuk 65 taman."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Lewati antrean bersamaku — waktu tunggu langsung dan perencana AI untuk 65 taman.",
+  "goes down about {n}× a day": "mati sekitar {n}× sehari",
+  "usually around {h}": "biasanya sekitar {h}"
 }

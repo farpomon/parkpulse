@@ -982,5 +982,7 @@
   "Share": "பகிர்",
   "Days earned: {n} · Friends joined: {m}": "பெற்ற நாட்கள்: {n} · சேர்ந்த நண்பர்கள்: {m}",
   "Nobody yet — share your link!": "இன்னும் யாரும் இல்லை — உங்கள் இணைப்பைப் பகிருங்கள்!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "என்னுடன் வரிசைகளைத் தவிருங்கள் — 65 பூங்காக்களுக்கான நேரடி காத்திருப்பு நேரங்களும் AI திட்டமிடலும்."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "என்னுடன் வரிசைகளைத் தவிருங்கள் — 65 பூங்காக்களுக்கான நேரடி காத்திருப்பு நேரங்களும் AI திட்டமிடலும்.",
+  "goes down about {n}× a day": "ஒரு நாளில் சுமார் {n} முறை நின்றுவிடும்",
+  "usually around {h}": "பொதுவாக {h} மணியளவில்"
 }

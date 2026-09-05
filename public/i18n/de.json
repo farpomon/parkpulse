@@ -982,5 +982,7 @@
   "Share": "Teilen",
   "Days earned: {n} · Friends joined: {m}": "Verdiente Tage: {n} · Freunde dabei: {m}",
   "Nobody yet — share your link!": "Noch niemand — teile deinen Link!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Überspring die Schlangen mit mir — Live-Wartezeiten und ein KI-Planer für 65 Parks."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Überspring die Schlangen mit mir — Live-Wartezeiten und ein KI-Planer für 65 Parks.",
+  "goes down about {n}× a day": "fällt etwa {n}× am Tag aus",
+  "usually around {h}": "meist gegen {h}"
 }

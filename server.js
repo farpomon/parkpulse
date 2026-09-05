@@ -425,6 +425,7 @@ async function waAgentReply(link, text) {
   waits.today = today;
   waits.events = eventsFor(slug, wd ? wd.date : today);
   try { waits.tags = JSON.parse(db.ridetags.get(slug) || 'null') || undefined; } catch {}
+  waits.rel = RELIABILITY[slug] || undefined;
   const history = db.wa.history(link.phone);
   const messages = [...history, { role: 'user', content: String(text).trim().slice(0, 2000) }];
   while (messages.length && messages[0].role !== 'user') messages.shift();
@@ -799,6 +800,7 @@ let CROWD_BANDS = {};
 let HOURLY_CURVES = {};
 let ACCURACY = null;
 let CLOSURES = {};
+let RELIABILITY = {};   // slug -> ride -> { pct, perDay, hour, days }, from the archive
 // Twin of the HOURLY curve in public/app.html -- the hour-of-day crowd shape
 // the planner multiplies into every future-day wait. The backtest must use
 // the same curve or it would be scoring a model nobody is shown. Change one,
@@ -854,6 +856,7 @@ function refreshBaselines() {
     CROWD_BANDS = history.computeCrowdBands(normName);
     HOURLY_CURVES = history.computeHourlyCurves(normName, (slug) => PARKS[slug]?.tz);
     CLOSURES = history.computeClosures();
+    RELIABILITY = history.computeReliability((slug) => PARKS[slug]?.tz);
     refreshActualWaits();
     const parks = Object.keys(MEASURED).length;
     if (parks) console.log(`Baselines refreshed from history: ${parks} parks (${Object.keys(DOW_INDEX).length} with dow index, ${Object.keys(CROWD_BANDS).length} with crowd bands)`);
@@ -4629,7 +4632,12 @@ ${sections}
     const su = sessionUser(req);
     if (su) noteParkUse(su.email, slug);
     try { db.hits.bump(`park:${slug}`); } catch {} // per-park demand counter for /admin
-    return sendJson(res, 200, await getWaits(slug));
+    // What the archive knows about each ride's habit of going down, beside
+    // the live board it describes. A separate map like the tags, so the
+    // cached board itself is never touched.
+    const waits = await getWaits(slug);
+    const rel = RELIABILITY[slug];
+    return sendJson(res, 200, rel ? { ...waits, rel } : waits);
   }
 
   // --- Sign in with Google / Apple -------------------------------------------
@@ -5766,6 +5774,7 @@ ${sections}
           // a consult must never wait on a classification call; without tags the
           // advisor falls back to its own knowledge, as before.
           try { waits.tags = JSON.parse(db.ridetags.get(park) || 'null') || undefined; } catch {}
+          waits.rel = RELIABILITY[park] || undefined;
           waits.closures = (CLOSURES[park]?.rides || []).filter((r) => r.current).slice(0, 12);
           // Stream the reply over SSE: `delta` text chunks, `action` effects, `done`.
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
@@ -6107,6 +6116,7 @@ module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _applyStoredIds: applyStoredIds,
+  _refreshBaselines: refreshBaselines,
   _copyDatabase: copyDatabase,
   _withAds: withAds,
   _reserveFor: reserveFor, _reserveSharedGroups: RESERVE_SHARED_GROUPS,

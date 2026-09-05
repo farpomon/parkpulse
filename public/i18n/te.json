@@ -982,5 +982,7 @@
   "Share": "షేర్",
   "Days earned: {n} · Friends joined: {m}": "పొందిన రోజులు: {n} · చేరిన స్నేహితులు: {m}",
   "Nobody yet — share your link!": "ఇంకా ఎవరూ లేరు — మీ లింక్ షేర్ చేయండి!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "నాతో లైన్లు దాటండి — 65 పార్కులకు లైవ్ వెయిట్ టైమ్స్ మరియు AI ప్లానర్."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "నాతో లైన్లు దాటండి — 65 పార్కులకు లైవ్ వెయిట్ టైమ్స్ మరియు AI ప్లానర్.",
+  "goes down about {n}× a day": "రోజుకు సుమారు {n} సార్లు ఆగిపోతుంది",
+  "usually around {h}": "సాధారణంగా {h} సమయంలో"
 }

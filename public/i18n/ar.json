@@ -982,5 +982,7 @@
   "Share": "مشاركة",
   "Days earned: {n} · Friends joined: {m}": "الأيام المكتسبة: {n} · الأصدقاء المنضمون: {m}",
   "Nobody yet — share your link!": "لا أحد بعد — شارك رابطك!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "تخطَّ الطوابير معي — أوقات انتظار مباشرة ومخطط ذكي لـ65 حديقة ملاهٍ."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "تخطَّ الطوابير معي — أوقات انتظار مباشرة ومخطط ذكي لـ65 حديقة ملاهٍ.",
+  "goes down about {n}× a day": "يتعطل نحو {n} مرة يوميًا",
+  "usually around {h}": "عادةً حوالي {h}"
 }

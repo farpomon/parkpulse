@@ -568,4 +568,75 @@ function computeClosures() {
   return out;
 }
 
-module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, computeAccuracy, computeClosures, stats, HISTORY_DIR };
+// How often each ride goes down, and when. From the same snapshots as the
+// closures: a ride listed shut in a snapshot is down at that moment, and a
+// ride that was open in the previous snapshot and shut in this one has just
+// gone down. Counted per operating day -- a day with enough snapshots to
+// trust -- with the hour of each breakdown in the park's own clock, so the
+// app can say "goes down about once a day, usually around 10:00" and, just as
+// usefully, say nothing about the rides that never do.
+const RELIABILITY_MIN_DAYS = 5;
+const RELIABILITY_MIN_SNAPS = 40;
+function computeReliability(tzOf = () => 'UTC') {
+  // Snapshots per park, in time order: the files come back in directory
+  // order and a breakdown is a transition, which only means something in
+  // sequence.
+  const byPark = {};
+  eachLine((e, date) => {
+    if (!e.park || !e.t) return;
+    (byPark[e.park] ??= []).push({ t: e.t, date, rides: e.rides || {}, shut: e.shut || [] });
+  });
+  const fmts = {};
+  const hourIn = (iso, tz) => {
+    try {
+      const f = (fmts[tz] ??= new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }));
+      return Number(f.format(new Date(iso))) % 24;
+    } catch { return null; }
+  };
+  const out = {};
+  for (const [slug, snaps] of Object.entries(byPark)) {
+    snaps.sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
+    const perDay = new Map();
+    for (const s of snaps) perDay.set(s.date, (perDay.get(s.date) || 0) + 1);
+    const days = [...perDay.values()].filter((n) => n >= 3).length;
+    if (days < RELIABILITY_MIN_DAYS) continue;
+    const tz = tzOf(slug) || 'UTC';
+    const rides = new Map();
+    for (const s of snaps) {
+      const shut = new Set(s.shut);
+      for (const name of new Set([...Object.keys(s.rides), ...shut])) {
+        const r = rides.get(name) || { snaps: 0, downSnaps: 0, downs: 0, hours: new Array(24).fill(0), state: null, day: null };
+        // A ride open at closing time and shut in the next morning's first
+        // snapshot did not break down overnight: it never opened. The state
+        // only carries within a day.
+        if (r.day !== s.date) { r.state = null; r.day = s.date; }
+        const isDown = shut.has(name);
+        r.snaps += 1;
+        if (isDown) r.downSnaps += 1;
+        if (r.state === 'open' && isDown) {
+          r.downs += 1;
+          const h = hourIn(s.t, tz);
+          if (h != null) r.hours[h] += 1;
+        }
+        r.state = isDown ? 'shut' : 'open';
+        rides.set(name, r);
+      }
+    }
+    const park = {};
+    for (const [name, r] of rides) {
+      if (r.snaps < RELIABILITY_MIN_SNAPS) continue;
+      const pct = Math.round((r.downSnaps / r.snaps) * 100);
+      const rate = Math.round((r.downs / days) * 10) / 10;
+      // Only the rides worth a word. A ride that is down 3% of the time and
+      // breaks once a week is fine, and saying so on every row is noise.
+      if (rate < 0.25 && pct < 8) continue;
+      let hour = null;
+      if (r.downs >= 3) { let best = 0; r.hours.forEach((n, h) => { if (n > best) { best = n; hour = h; } }); }
+      park[name] = { pct, perDay: rate, hour, days };
+    }
+    if (Object.keys(park).length) out[slug] = park;
+  }
+  return out;
+}
+
+module.exports = { record, prune, computeBaselines, computeDowIndex, computeCrowdBands, computeHourlyCurves, computeAccuracy, computeClosures, computeReliability, stats, HISTORY_DIR };

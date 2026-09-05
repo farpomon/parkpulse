@@ -982,5 +982,7 @@
   "Share": "Chia sẻ",
   "Days earned: {n} · Friends joined: {m}": "Số ngày nhận được: {n} · Bạn bè đã tham gia: {m}",
   "Nobody yet — share your link!": "Chưa có ai — hãy chia sẻ liên kết của bạn!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Bỏ qua hàng chờ cùng tôi — thời gian chờ trực tiếp và trợ lý AI lập kế hoạch cho 65 công viên."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Bỏ qua hàng chờ cùng tôi — thời gian chờ trực tiếp và trợ lý AI lập kế hoạch cho 65 công viên.",
+  "goes down about {n}× a day": "ngừng hoạt động khoảng {n} lần mỗi ngày",
+  "usually around {h}": "thường vào khoảng {h}"
 }

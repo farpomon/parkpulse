@@ -982,5 +982,7 @@
   "Share": "شیئر کریں",
   "Days earned: {n} · Friends joined: {m}": "کمائے دن: {n} · شامل دوست: {m}",
   "Nobody yet — share your link!": "ابھی کوئی نہیں — اپنا لنک شیئر کریں!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "میرے ساتھ لائنیں چھوڑیں — 65 پارکس کے لائیو انتظار کے اوقات اور AI پلانر۔"
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "میرے ساتھ لائنیں چھوڑیں — 65 پارکس کے لائیو انتظار کے اوقات اور AI پلانر۔",
+  "goes down about {n}× a day": "دن میں تقریباً {n} بار بند ہوتی ہے",
+  "usually around {h}": "عموماً {h} کے قریب"
 }

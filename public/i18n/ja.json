@@ -982,5 +982,7 @@
   "Share": "共有",
   "Days earned: {n} · Friends joined: {m}": "獲得日数：{n} · 参加した友達：{m}",
   "Nobody yet — share your link!": "まだ誰もいません — リンクをシェアしましょう！",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "一緒に行列を回避しよう — 65パークのリアルタイム待ち時間とAIプランナー。"
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "一緒に行列を回避しよう — 65パークのリアルタイム待ち時間とAIプランナー。",
+  "goes down about {n}× a day": "1日あたり約{n}回停止",
+  "usually around {h}": "たいてい{h}頃"
 }

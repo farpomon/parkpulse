@@ -2493,12 +2493,19 @@
   // lives in the tap-to-expand description, where detail belongs.
   function rideMetaLine(r) {
     const tg = tagsCache[current] && tagsCache[current][r.name];
-    if (!tg) return '';
     const bits = [];
-    if (tg.dur > 0) bits.push(`⏱ ~${tg.dur} ${tr('min ride')}`);
-    if (tg.load) bits.push(tg.load === 'fast' ? tr('line moves fast') : tg.load === 'slow' ? tr('slow loader — the line crawls') : tr('steady loader'));
-    if (tg.seat) bits.push(esc(tg.seat));
-    if (tg.rs) bits.push(`⇄ ${tr('rider switch offered')}`);
+    if (tg) {
+      if (tg.dur > 0) bits.push(`⏱ ~${tg.dur} ${tr('min ride')}`);
+      if (tg.load) bits.push(tg.load === 'fast' ? tr('line moves fast') : tg.load === 'slow' ? tr('slow loader — the line crawls') : tr('steady loader'));
+      if (tg.seat) bits.push(esc(tg.seat));
+      if (tg.rs) bits.push(`⇄ ${tr('rider switch offered')}`);
+    }
+    // What the archive has watched this ride do: the one line nobody else
+    // can print, because nobody else has been keeping the snapshots.
+    const d = lastData && lastData.rel && lastData.rel[r.name];
+    if (d && d.perDay >= 0.25) {
+      bits.push(`⚠️ ${trf('goes down about {n}× a day', { n: d.perDay })}${d.hour != null ? ` · ${trf('usually around {h}', { h: `${String(d.hour).padStart(2, '0')}:00` })}` : ''}`);
+    }
     return bits.length ? `<div class="ride-meta">${bits.join(' · ')}</div>` : '';
   }
 

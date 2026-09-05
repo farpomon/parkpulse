@@ -273,8 +273,14 @@ function waitsBlock(park, waits) {
       return out;
     }
     : () => '';
+  // The archive's word on which rides break, so the order can hedge: the
+  // headliner that goes down most mornings is not the one to walk across the
+  // park for at rope drop.
+  const down = waits.rel
+    ? (n) => { const d = waits.rel[n]; return d && d.perDay >= 0.25 ? ` [goes down ~${d.perDay}x/day${d.hour != null ? `, usually around ${String(d.hour).padStart(2, '0')}:00` : ''}]` : ''; }
+    : () => '';
   const rides = waits.rides
-    .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}${shelter(r.name)}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
+    .map((r) => `- ${r.name}${r.land ? ` [${r.land}]` : ''}${shelter(r.name)}${down(r.name)}: ${r.open ? `${r.wait} min${r.typical != null ? ` (typical ${r.typical})` : ''}` : 'closed'}`)
     .join('\n');
 
   // The user can plan a day other than today. When they have, everything below

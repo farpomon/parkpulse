@@ -982,5 +982,7 @@
   "Share": "Paylaş",
   "Days earned: {n} · Friends joined: {m}": "Kazanılan gün: {n} · Katılan arkadaş: {m}",
   "Nobody yet — share your link!": "Henüz kimse yok — bağlantını paylaş!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Benimle sıraları atla — 65 park için canlı bekleme süreleri ve yapay zekâ planlayıcı."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Benimle sıraları atla — 65 park için canlı bekleme süreleri ve yapay zekâ planlayıcı.",
+  "goes down about {n}× a day": "günde yaklaşık {n} kez arızalanır",
+  "usually around {h}": "genellikle {h} civarında"
 }

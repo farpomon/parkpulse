@@ -982,5 +982,7 @@
   "Share": "Поделиться",
   "Days earned: {n} · Friends joined: {m}": "Заработано дней: {n} · Друзей присоединилось: {m}",
   "Nobody yet — share your link!": "Пока никого — поделитесь ссылкой!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Обходите очереди со мной — время ожидания в реальном времени и ИИ‑планировщик для 65 парков."
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "Обходите очереди со мной — время ожидания в реальном времени и ИИ‑планировщик для 65 парков.",
+  "goes down about {n}× a day": "ломается примерно {n} раза в день",
+  "usually around {h}": "обычно около {h}"
 }

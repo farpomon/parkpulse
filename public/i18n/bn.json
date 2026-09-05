@@ -982,5 +982,7 @@
   "Share": "শেয়ার",
   "Days earned: {n} · Friends joined: {m}": "অর্জিত দিন: {n} · যোগ দেওয়া বন্ধু: {m}",
   "Nobody yet — share your link!": "এখনো কেউ নেই — লিঙ্ক শেয়ার করুন!",
-  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "আমার সাথে লাইন এড়ান — ৬৫টি পার্কের লাইভ অপেক্ষার সময় ও AI প্ল্যানার।"
+  "Skip the lines with me — live wait times and an AI planner for 65 parks.": "আমার সাথে লাইন এড়ান — ৬৫টি পার্কের লাইভ অপেক্ষার সময় ও AI প্ল্যানার।",
+  "goes down about {n}× a day": "দিনে প্রায় {n} বার বন্ধ হয়",
+  "usually around {h}": "সাধারণত {h} নাগাদ"
 }
