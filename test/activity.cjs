@@ -8,7 +8,7 @@
 // -- and shown to the operator on the invite that let her in.
 process.env.ANTHROPIC_API_KEY = 'stub';
 process.env.DB_FILE = '/tmp/pp-activity.db';
-process.env.PORT = '9665';
+process.env.PORT = '9664';
 process.env.PASS_SECRET = 'testsecret';
 process.env.ADMIN_EMAILS = 'boss@example.com';
 process.env.HISTORY = 'off';
@@ -23,7 +23,7 @@ const check = (l, c, d) => { if (!c) { fail++; console.log(`  FAIL ${l}${d !== u
 const consultant = require('../consultant.js');
 consultant._setClient({ beta: { messages: { create: async () => ({ model: 'x', stop_reason: 'end_turn', content: [{ type: 'text', text: '.' }], usage: {} }) } } });
 const db = require('../db.js');
-const B = 'http://127.0.0.1:9665';
+const B = 'http://127.0.0.1:9664';
 
 function session(email) {
   try { db.users.create(email, 'salt', 'x', 1); db.users.markVerified(email); } catch {}

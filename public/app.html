@@ -28,7 +28,11 @@
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Nunito", "Segoe UI", system-ui, sans-serif; }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 0 1rem 10rem; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 1rem; }
+  /* The room under the last thing on the page, for the fixed plan bar and
+     the phone tab bar to sit over. It lives on the footer's own wrapper so
+     the grid above ends exactly where its last row ends -- see .rail. */
+  .wrap.foot { padding-bottom: 10rem; }
   /* Below the desktop breakpoint the two wrappers are inert: `display: contents`
      removes them from layout entirely, so the phone renders the same flat
      column it always did. */
@@ -59,8 +63,14 @@
       column-gap: 2rem;
       align-items: start;
     }
-    header, footer { grid-column: 1 / -1; }
+    header { grid-column: 1 / -1; }
+    .wrap.foot { display: block; }
     .rail, .main { display: flex; flex-direction: column; min-width: 0; }
+    /* Chromium lets a sticky grid item slide anywhere inside the grid
+       CONTAINER, not just its own cell. With the footer in the grid, a rail
+       taller than a short ride list slid straight down over it on a laptop.
+       The footer therefore has its own wrapper below, and the grid ends at
+       the bottom of this row, which is as far as the rail can go. */
     .rail { gap: .9rem; position: sticky; top: 1rem; }
     .main { gap: 0; }
     .planbar .inner { max-width: 1200px; }
@@ -1185,7 +1195,9 @@
   </div>
   <div id="rides" class="skeleton"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
   </div>
+</div>
 
+<div class="wrap foot">
   <footer>
     <span id="ft-data">Wait-time data powered by</span> <a href="https://queue-times.com">Queue-Times.com</a>. <span id="updated-ft"></span> <span id="ft-map">Map data</span> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://themeparks.wiki">ThemeParks.wiki</a>.
     <span id="ft-unofficial">Unofficial fan tool — not affiliated with any park operator.</span>
