@@ -224,6 +224,18 @@ db.exec(`
     redeemed_by TEXT,
     redeemed_at TEXT
   );
+  -- What one account actually did, in order. Every other table here is a
+  -- state (where they are now) or a total (how many, per day). Neither
+  -- answers "what does a real guest do after opening the invite?" -- that is
+  -- a sequence with times on it, and this is where it lives.
+  CREATE TABLE IF NOT EXISTS activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    at TEXT NOT NULL,
+    action TEXT NOT NULL,
+    detail TEXT
+  );
+  CREATE INDEX IF NOT EXISTS activity_email_at ON activity (email, at);
 `);
 
 // Guarded column additions (CREATE TABLE IF NOT EXISTS won't alter existing
@@ -745,6 +757,7 @@ const accounts = {
       run('whatsappLinks', 'DELETE FROM wa_links WHERE email = ?');
       run('advisorMemory', 'DELETE FROM advisor_memory WHERE email = ?');
       run('advisorChats', 'DELETE FROM advisor_chats WHERE email = ?');
+      run('activity', 'DELETE FROM activity WHERE email = ?');
       // Reported waits are deleted outright rather than de-identified. One
       // person's reports barely move a median, and matching the promise in
       // the privacy policy is worth more than the rows.
@@ -976,6 +989,24 @@ const aispend = {
 };
 
 // Admin-minted comp-access invites: single-use, optionally bound to an email.
+const activity = {
+  add: (email, action, detail) =>
+    db.prepare('INSERT INTO activity (email, at, action, detail) VALUES (?, ?, ?, ?)')
+      .run(email, new Date().toISOString(), action, detail ?? null),
+  forEmail: (email, limit = 200) =>
+    db.prepare('SELECT at, action, detail FROM activity WHERE email = ? ORDER BY at DESC, id DESC LIMIT ?').all(email, limit),
+  // One row per account: how much, and when last. What the invite table shows
+  // before anyone clicks through to the timeline.
+  summary: (emails) => {
+    const list = [...new Set(emails.filter(Boolean))];
+    if (!list.length) return {};
+    const rows = db.prepare(`SELECT email, COUNT(*) AS n, MIN(at) AS first, MAX(at) AS last
+      FROM activity WHERE email IN (${list.map(() => '?').join(',')}) GROUP BY email`).all(...list);
+    return Object.fromEntries(rows.map((r) => [r.email, { n: r.n, first: r.first, last: r.last }]));
+  },
+  purgeBefore: (iso) => db.prepare('DELETE FROM activity WHERE at < ?').run(iso).changes,
+};
+
 const invites = {
   create: (token, channel, target, days, note, createdBy) =>
     db.prepare('INSERT INTO invites (token, channel, target, days, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -1001,4 +1032,4 @@ const backup = {
   },
 };
 
-module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, nps, backup, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, geo, aiusage, DB_FILE };
+module.exports = { kv, users, identities, aispend, visits, accounts, sessions, alerts, passes, leads, hits, advisor, nps, backup, trips, plans, ratings, rideinfo, dining, parkflavor, ridetags, planadvice, waitreports, admin, daystate, wa, invites, activity, geo, aiusage, DB_FILE };

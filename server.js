@@ -196,8 +196,9 @@ const hashPassword = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex
 // Sessions are server-side rows (revocable) referenced by a signed token.
 // Each login registers a device; beyond MAX_DEVICES the least-recently-seen
 // device is signed out — family-sized, sharing-hostile.
-function issueSession(email, device, req) {
+function issueSession(email, device, req, how = 'signed in') {
   const dev = (typeof device === 'string' && device.trim() ? device.trim() : 'unknown').slice(0, 64);
+  note(email, how, dev);
   const known = db.sessions.devices(email);
   if (!known.some((d) => d.device === dev) && known.length >= MAX_DEVICES) {
     db.sessions.deleteByDevice(email, known[known.length - 1].device);
@@ -210,6 +211,12 @@ function issueSession(email, device, req) {
 // Which accounts this process has already written down as seen today, so an
 // active visitor costs one insert a day rather than one per request.
 const seenToday = new Set();
+// One line in the account's timeline. Never allowed to break the request it
+// is describing: a log that can take down a login is worse than no log.
+function note(email, action, detail) {
+  if (!email) return;
+  try { db.activity.add(email, action, detail == null ? null : String(detail).slice(0, 200)); } catch {}
+}
 function markSeen(email) {
   const day = new Date().toISOString().slice(0, 10);
   const key = `${email}|${day}`;
@@ -224,7 +231,11 @@ function sessionUser(req) {
   if (!p?.email || !p.sid) return null; // legacy stateless tokens are retired
   const row = db.sessions.get(p.sid);
   if (!row || row.email !== p.email) return null; // revoked or evicted
-  if (Date.now() - new Date(row.last_seen).getTime() > 10 * 60 * 1000) db.sessions.touch(p.sid);
+  const idle = Date.now() - new Date(row.last_seen).getTime();
+  if (idle > 10 * 60 * 1000) db.sessions.touch(p.sid);
+  // Half an hour of silence and then a request is, for practical purposes, a
+  // visit starting -- the closest thing a stateless API has to "opened the app".
+  if (idle > 30 * 60 * 1000) note(p.email, 'opened the app', row.device);
   const user = db.users.get(p.email);
   if (user) markSeen(p.email);
   return user ? { email: p.email, user, sid: p.sid } : null;
@@ -2353,6 +2364,7 @@ async function sweepEveningPlanMail() {
   }
   // Old plans expire quietly; the library shows upcoming days, not history.
   try { db.plans.purgeOld(addDays(new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date()), -30)); } catch {}
+  try { db.activity.purgeBefore(new Date(Date.now() - 180 * 86400000).toISOString()); } catch {}
 }
 setTimeout(sweepDeletedAccounts, 8000);
 setTimeout(() => checkBookingReminders().catch(() => {}), 5000);
@@ -3594,7 +3606,21 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && url.pathname === '/api/admin/invites') {
     if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
-    return sendJson(res, 200, { invites: db.invites.list(50) });
+    const invites = db.invites.list(50);
+    // "Did she use it?" is the question, and a redeemed row alone says only
+    // that she opened the link. How many things she did since, and when the
+    // last one was, is the answer -- one query for the whole table.
+    const activity = db.activity.summary(invites.map((i) => i.redeemed_by));
+    return sendJson(res, 200, { invites, activity });
+  }
+
+  // One account's timeline, newest first: the hour and the action, so the
+  // operator can watch how a real guest moves through the app.
+  if (req.method === 'GET' && url.pathname === '/api/admin/activity') {
+    if (!adminUser(req)) return sendJson(res, 403, { error: 'admin account required' });
+    const email = String(url.searchParams.get('email') || '').trim().toLowerCase().slice(0, 254);
+    if (!email) return sendJson(res, 400, { error: 'email required' });
+    return sendJson(res, 200, { email, events: db.activity.forEmail(email, 300) });
   }
 
   // Per-park map coverage, so "every ride is pinned" can be verified before
@@ -4745,6 +4771,7 @@ ${sections}
         if (!inv.redeemed_by) {
           db.invites.redeem(token, s.email);
           grantToUser(s.email, 'comp', Date.now() + inv.days * 86400000);
+          note(s.email, 'accepted invite', `${inv.days}-day guest pass`);
         }
         const u = db.users.get(s.email);
         const active = accountPassActive(u);
@@ -4809,6 +4836,7 @@ ${sections}
             : fmt(ts('Your {park} plan — {n} attractions'), { park: park.name, n: kpis.attractions });
           const r = await sendEmail(sess.email, subject, html,
             `Plan email for ${sess.email}: ${park.name}, ${kpis.attractions} stops`);
+          if (r.sent) note(sess.email, 'emailed the plan', park.name);
           return sendJson(res, 200, r.sent ? { sent: true, to: sess.email, kpis } : { sent: false, reason: r.reason, kpis });
         } catch (err) {
           return sendJson(res, 502, { sent: false, reason: err.message });
@@ -4820,6 +4848,7 @@ ${sections}
         const s = sessionUser(req);
         if (!s) return sendJson(res, 401, { error: 'log in first' });
         const code = mintWaCode(s.email);
+        note(s.email, 'asked for a WhatsApp link');
         return sendJson(res, 200, {
           code,
           number: WA_NUMBER,
@@ -4872,6 +4901,23 @@ ${sections}
         const s = sessionUser(req);
         if (!s) return sendJson(res, 401, { error: 'not logged in' });
         const d = parsed.state && typeof parsed.state === 'object' ? parsed.state : {};
+        // The sync fires on every change, so the timeline records the
+        // differences from the last sync, not the sync: a new park, a plan
+        // that grew or shrank, a ride ticked off, a lane pass applied.
+        let prev = null;
+        try { prev = db.daystate.get(s.email); } catch {}
+        {
+          const park = typeof d.park === 'string' && PARKS[d.park] ? d.park : null;
+          if (park && park !== prev?.park) note(s.email, 'opened a park', PARKS[park].name);
+          const picked = strList(d.picked, 30), was = strList(prev?.picked, 30);
+          if (picked.length !== was.length) note(s.email, picked.length > was.length ? 'added to plan' : 'removed from plan', `${picked.length} ride${picked.length === 1 ? '' : 's'} in plan`);
+          const done = strList(d.done, 40), doneWas = new Set(strList(prev?.done, 40));
+          for (const r of done.filter((x) => !doneWas.has(x)).slice(0, 5)) note(s.email, 'rode', r);
+          const lanes = strList(d.lanePasses, 30), lanesWas = new Set(strList(prev?.lanePasses, 30));
+          for (const r of lanes.filter((x) => !lanesWas.has(x)).slice(0, 5)) note(s.email, 'applied a lane pass', r);
+          const planDate = typeof d.planDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.planDate) ? d.planDate : null;
+          if (planDate && planDate !== prev?.planDate) note(s.email, 'planning a future day', planDate);
+        }
         db.daystate.set(s.email, {
           park: typeof d.park === 'string' && PARKS[d.park] ? d.park : null,
           day: typeof d.day === 'string' ? d.day.slice(0, 10) : null,
@@ -4969,7 +5015,7 @@ ${sections}
         const u = db.users.get(email);
         const active = accountPassActive(u);
         return sendJson(res, 200, {
-          session: issueSession(email, parsed.device, req),
+          session: issueSession(email, parsed.device, req, 'signed in'),
           email,
           deletionCancelled: wasPendingDeletion,
           plan: active ? u.plan : null,
@@ -5018,7 +5064,7 @@ ${sections}
         if (!u) return sendJson(res, 403, { error: 'account not found' });
         const active = accountPassActive(u);
         return sendJson(res, 200, {
-          session: issueSession(held.email, parsed.device, req),
+          session: issueSession(held.email, parsed.device, req, 'signed in with a social account'),
           email: held.email,
           // So the app can treat a first sign-in like a sign-up.
           created: Boolean(held.created),
@@ -5051,7 +5097,7 @@ ${sections}
         const fresh = db.users.get(email);
         const active = accountPassActive(fresh);
         return sendJson(res, 200, {
-          session: issueSession(email, parsed.device, req),
+          session: issueSession(email, parsed.device, req, 'verified email'),
           email,
           plan: active ? fresh.plan : null,
           exp: active ? fresh.plan_exp : null,
@@ -5148,7 +5194,7 @@ ${sections}
         const fresh = db.users.get(email);
         const active = accountPassActive(fresh);
         return sendJson(res, 200, {
-          session: issueSession(email, parsed.device, req),
+          session: issueSession(email, parsed.device, req, 'reset password'),
           email,
           plan: active ? fresh.plan : null,
           exp: active ? fresh.plan_exp : null,
@@ -5214,6 +5260,7 @@ ${sections}
         if (!MILA_TOPUP_ENABLED) return sendJson(res, 503, { error: 'top-ups not configured' });
         const buyer = sessionUser(req);
         if (!buyer) return sendJson(res, 401, { error: 'log in first' });
+        note(buyer.email, 'opened the top-up checkout');
         const origin = OAUTH_REDIRECT_BASE || `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
         try {
           const session = await stripeApi('/v1/checkout/sessions', {
@@ -5263,6 +5310,7 @@ ${sections}
           }
           db.kv.set(spentKey, buyer.email);
           db.users.addAiCredit(buyer.email, MILA_TOPUP_USD);
+          note(buyer.email, 'bought a top-up', usd(MILA_TOPUP_USD));
           // Written down with its date, because the pass cap counts what was
           // bought during the pass on top of what came with it.
           try {
@@ -5315,6 +5363,7 @@ ${sections}
           if (!first) {
             db.kv.set(claimKey, JSON.stringify({ plan, exp }));
             recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null, usd: paid });
+            note(s?.email, 'bought a pass', `${PLAN_LABELS[plan] || plan}${paid ? ' · ' + usd(paid) : ''}`);
           }
           // The conversion is reported to Google Ads once, on the sale. A
           // second device activating the same purchase is not a second sale.
@@ -5401,6 +5450,7 @@ ${sections}
         const day = new Date().toLocaleDateString('en-CA', { timeZone: PARKS[park].tz });
         try {
           db.waitreports.add({ park, ride, rideKey: normName(ride), actual: Math.round(actual), posted, hour, day, reporter });
+          note(sess?.email, 'reported a wait', `${ride}: ${Math.round(actual)} min`);
           // Cheap enough to redo per report, and it means a park crossing the
           // publication threshold lights up within the hour rather than at the
           // next six-hourly baseline pass.
@@ -5473,6 +5523,11 @@ ${sections}
         }
         const { park, messages, favorites, excluded, planPicks, subscription } = parsed;
         const lanePasses = strList(parsed.lanePasses, 30);
+        {
+          const asker = sessionUser(req);
+          const last = Array.isArray(messages) ? [...messages].reverse().find((m) => m && m.role === 'user' && typeof m.content === 'string') : null;
+          if (asker) note(asker.email, 'asked Mila', last ? last.content.trim().slice(0, 140) : (PARKS[park]?.name || null));
+        }
         // Set by the plan panel, never by the chat widget. Two things hang off
         // it: these are the only turns worth caching (one self-contained
         // question, no conversation behind it), and they must stay out of the
@@ -5684,6 +5739,7 @@ ${sections}
           return sendJson(res, 400, { error: 'plan library is full — delete a few old ones' });
         }
         db.plans.set(s2.email, park, date, JSON.stringify(stops), savedMin);
+        note(s2.email, 'saved a plan', `${PARKS[park].name} · ${date} · ${stops.filter((st) => st.name).length} stops`);
         return sendJson(res, 200, { ok: true });
       }
       if (url.pathname === '/api/plans/delete') {
@@ -5716,6 +5772,7 @@ ${sections}
           park: PARKS[parsed.park] ? parsed.park : undefined,
           lang: typeof parsed.lang === 'string' ? parsed.lang.slice(0, 8) : undefined,
         });
+        if (s2) note(s2.email, 'answered the NPS question', `${score}/10${comment ? ' · ' + comment.slice(0, 120) : ''}`);
         return sendJson(res, 200, { ok: true, ...out });
       }
 
@@ -5733,6 +5790,7 @@ ${sections}
         const BANDS = new Set(['toddler', 'kid', 'teen', 'adult', 'elderly']);
         const ages = Array.isArray(parsed.ages) ? parsed.ages.filter((a) => BANDS.has(a)).slice(0, 4) : [];
         db.ratings.set(s2.email, park, ride, kind, vote, JSON.stringify(ages));
+        note(s2.email, kind === 'fav' ? (vote === -1 ? 'left a ride out' : 'starred a ride') : (vote === -1 ? 'thumbs down' : 'thumbs up'), ride);
         return sendJson(res, 200, { ok: true });
       }
 
@@ -5786,6 +5844,7 @@ ${sections}
         const sub = parsed.sub && typeof parsed.sub.endpoint === 'string' && parsed.sub.endpoint.startsWith('https://')
           ? JSON.stringify(parsed.sub).slice(0, 4000) : null;
         db.trips.set(s.email, dest, start, days, JSON.stringify(plan), parsed.onsite ? 1 : 0, sub);
+        note(s.email, 'saved a trip', `${dest} · ${start} · ${days} day${days === 1 ? '' : 's'}`);
         return sendJson(res, 200, { ok: true, reminder: Boolean(sub) });
       }
 
@@ -5809,6 +5868,7 @@ ${sections}
         }
         // One alert per ride per device — add replaces any existing one.
         const id = db.alerts.add(subscription, park, ride.slice(0, 120), Math.round(threshold));
+        note(sessionUser(req)?.email, 'set a wait alert', `${ride.slice(0, 120)} under ${Math.round(threshold)} min`);
         return sendJson(res, 200, { ok: true, id: Number(id) });
       }
 

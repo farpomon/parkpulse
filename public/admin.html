@@ -704,14 +704,46 @@ async function loadInvites() {
     const d = new Date(iso);
     return `${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} · ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}`;
   };
-  const rows = (data.invites || []).map((i) => `<tr>
+  // A redeemed invite says the link was opened. Whether the guest then did
+  // anything is a different question, so each accepted row carries how many
+  // actions the account has taken and when the last one was, and opens into
+  // the timeline itself -- hour and action, newest first.
+  const act = data.activity || {};
+  const rows = (data.invites || []).map((i) => {
+    const a = i.redeemed_by ? act[i.redeemed_by] : null;
+    const used = a ? `${a.n} action${a.n === 1 ? '' : 's'} · last ${esc(when(a.last))}` : 'no activity yet';
+    return `<tr>
     <td>${esc(i.channel)}${i.target ? ` · ${esc(i.target)}` : ''}</td>
     <td class="muted" style="white-space:nowrap">${esc(when(i.created_at))}</td>
     <td>${i.days}d</td>
     <td>${i.redeemed_by ? `✅ ${esc(i.redeemed_by)}${i.redeemed_at ? `<div class="muted" style="font-size:.78rem">${esc(when(i.redeemed_at))}</div>` : ''}` : '⏳ open'}</td>
-    <td>${i.redeemed_by ? '' : `<a href="#" data-copy="${esc(i.token)}">copy link</a> · <a href="#" data-revoke="${esc(i.token)}" style="color:#e5484d">revoke</a>`}</td>
-  </tr>`).join('');
+    <td>${i.redeemed_by
+      ? `<a href="#" data-timeline="${esc(i.redeemed_by)}" style="white-space:nowrap">${used}</a>`
+      : `<a href="#" data-copy="${esc(i.token)}">copy link</a> · <a href="#" data-revoke="${esc(i.token)}" style="color:#e5484d">revoke</a>`}</td>
+  </tr>`;
+  }).join('');
   $('inv-table').innerHTML = rows ? `<tr><th>Invite</th><th>Created</th><th>Access</th><th>Status</th><th></th></tr>${rows}` : '<tr><td class="muted">No invites yet.</td></tr>';
+  $('inv-table').querySelectorAll('[data-timeline]').forEach((a) => a.onclick = async (e) => {
+    e.preventDefault();
+    const tr = a.closest('tr');
+    const open = tr.nextElementSibling?.classList.contains('timeline');
+    $('inv-table').querySelectorAll('tr.timeline').forEach((x) => x.remove());
+    if (open) return;
+    const holder = document.createElement('tr');
+    holder.className = 'timeline';
+    holder.innerHTML = `<td colspan="5" class="muted">Loading…</td>`;
+    tr.after(holder);
+    const r = await api(`/api/admin/activity?email=${encodeURIComponent(a.dataset.timeline)}`);
+    const ev = r.status === 200 ? (r.data.events || []) : [];
+    holder.innerHTML = `<td colspan="5" style="padding:.4rem .6rem .8rem 1.4rem;background:var(--bg)">
+      ${ev.length ? `<table style="width:auto;font-size:.85rem">${ev.map((x) => `<tr>
+        <td class="muted" style="white-space:nowrap;padding:.15rem .8rem .15rem 0">${esc(when(x.at))}</td>
+        <td style="padding:.15rem .8rem .15rem 0;white-space:nowrap"><b>${esc(x.action)}</b></td>
+        <td style="padding:.15rem 0">${esc(x.detail || '')}</td>
+      </tr>`).join('')}</table>`
+      : '<span class="muted">Nothing recorded for this account yet. Actions are logged from the moment they next open the app.</span>'}
+    </td>`;
+  });
   $('inv-table').querySelectorAll('[data-copy]').forEach((a) => a.onclick = (e) => {
     e.preventDefault();
     navigator.clipboard?.writeText(`${location.origin}/invite?t=${a.dataset.copy}`);

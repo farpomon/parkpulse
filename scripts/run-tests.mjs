@@ -71,6 +71,7 @@ const SHARED_SERVER = [
 ];
 const OWN_SERVER = [
   ['hardening', 'test/hardening.cjs'],
+  ['activity', 'test/activity.cjs'],
   ['lastgood', 'test/last-known-good.cjs'],
   ['nps', 'test/nps.cjs'],
   ['googletag', 'test/google-tag.cjs'],
