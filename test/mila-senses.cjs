@@ -135,6 +135,7 @@ const call = (path, body, sess) => fetch(`${B}${path}`, { method: body ? 'POST' 
   await server._sweepTripNudges(at(today, 12));
   const m = mails.find((x) => /in one week/.test(x.subject));
   check('the nudge carries her three lines', m && /Walk straight to Space Mountain/.test(m.html) && /Skip Lightning Lane/.test(m.html), m && m.html.slice(0, 200));
+  check('  as three lines, not one run-on paragraph', m && (m.html.match(/<br>/g) || []).length >= 3);
   const bc = calls.find((x) => /three-line briefing/.test(String(x.system)));
   check('  written in the account\'s language', bc && /"language":"Portuguese"/.test(bc.messages[0].content));
   check('  once', calls.filter((x) => /three-line briefing/.test(String(x.system))).length === 1);

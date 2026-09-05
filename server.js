@@ -2445,7 +2445,7 @@ const TRIP_NUDGES = [
   { tag: '1', ahead: 1, fromHour: 16, toHour: 21 },
 ];
 const sendTripNudgeEmail = (email, title, body) => sendEmail(email, `${title} 🎢`,
-  `<p>${esc(body)}</p>
+  `<p>${esc(body).replace(/\n/g, '<br>')}</p>
 <p><a href="https://${CANONICAL_HOST || 'www.parkpulse.fun'}/app" style="display:inline-block;background:#5b3df5;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Build my plan</a></p>
 <p>— ParkPulse</p>`,
   `Trip nudge skipped for ${email} (no RESEND_API_KEY set): ${title}`);
@@ -2484,7 +2484,10 @@ async function sweepTripNudges(now = new Date()) {
       }
       let via = null;
       if (t.push_sub) {
-        try { await webpush.sendNotification(JSON.parse(t.push_sub), JSON.stringify({ title, body })); via = 'push'; }
+        // A notification shows three or four lines; the briefing's first line
+        // and the call to action are the ones worth them.
+        const short = body.split('\n').length > 2 ? [body.split('\n')[0], body.split('\n')[1], body.split('\n').pop()].join(' ') : body;
+        try { await webpush.sendNotification(JSON.parse(t.push_sub), JSON.stringify({ title, body: short })); via = 'push'; }
         catch (err) { console.log(`trip nudge push failed for ${t.email}: ${err.statusCode || err.message}`); }
       }
       if (!via) {

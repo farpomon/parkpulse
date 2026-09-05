@@ -176,7 +176,7 @@
           <input id="ppc-input" autocomplete="off" maxlength="500">
           <button id="ppc-send" type="submit"></button>
           <button type="button" class="ppc-icon" id="ppc-voice" hidden>🔈</button>
-          <input type="file" id="ppc-file" accept="image/*" capture="environment" hidden>
+          <input type="file" id="ppc-file" accept="image/*" hidden>
         </form>
       </div>`;
     document.body.appendChild(root);
@@ -425,6 +425,10 @@
     set('ppc-close', (el) => el.setAttribute('aria-label', t('Close chat')));
     set('ppc-jump', (el) => { el.textContent = '↓ ' + t('Jump to latest'); });
     set('ppc-input', (el) => { el.placeholder = t('Ask about passes, plans, strategy…'); });
+    set('ppc-mic', (el) => { el.title = t('Talk to Mila'); el.setAttribute('aria-label', t('Talk to Mila')); });
+    set('ppc-cam', (el) => { el.title = t('Add a photo'); el.setAttribute('aria-label', t('Add a photo')); });
+    set('ppc-voice', (el) => { el.title = t('Read replies aloud'); el.setAttribute('aria-label', t('Read replies aloud')); });
+    root.querySelectorAll('#ppc-fun button').forEach((b) => { const s = b.querySelector('span'); if (s) s.textContent = t(b.dataset.fun === 'quiz' ? 'Ride quiz' : 'Story for the queue'); });
     set('ppc-send', (el) => { el.textContent = t('Send'); });
     syncChips();
   }
@@ -652,6 +656,7 @@
       if (state.voice || state.speakNext) speak(replyText);
       state.speakNext = false;
     } catch (e) {
+      state.speakNext = false;
       out.classList.remove('ppc-typing');
       // The server writes these in English -- the spending cap, the dead key,
       // the empty balance -- and they used to land here verbatim, so a
