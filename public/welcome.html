@@ -44,6 +44,27 @@
         return;
       }
       if (!res.ok) throw new Error(data.error || 'claim failed');
+      // A gift: nothing lands on this device. The buyer gets the link to
+      // forward, and a note of where it has already been sent.
+      if (data.gift) {
+        try {
+          if (data.conversion && typeof gtag === 'function') {
+            gtag('event', 'conversion', { send_to: data.conversion, value: Number(data.usd) || 0, currency: 'USD', transaction_id: sessionId });
+          }
+        } catch {}
+        const sent = data.to ? `<p class="ok">We've emailed it to <b>${data.to.replace(/[&<>]/g, '')}</b>.</p>` : '';
+        card.innerHTML = `<h1>Your gift is ready 🎁</h1>
+          <p class="ok">${data.label} · ${data.days} days</p>${sent}
+          <p>${data.to ? 'You can also send them this link yourself:' : 'Send them this link — it works once, and the days start counting when they open it:'}</p>
+          <input id="gift-link" readonly value="${data.link}" style="width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;padding:.6rem .8rem;font-size:.95rem;margin:.4rem 0">
+          <button class="btn" id="gift-copy">Copy link</button>
+          <p><a href="/app">Open ParkPulse →</a></p>`;
+        document.getElementById('gift-copy').onclick = () => {
+          try { navigator.clipboard?.writeText(data.link); } catch {}
+          document.getElementById('gift-copy').textContent = 'Copied!';
+        };
+        return;
+      }
       localStorage.setItem('pp-pass', data.token);
       // The sale, reported to Google Ads once. The checkout session id is the
       // transaction id, so a refresh of this page cannot count it twice.

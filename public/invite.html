@@ -40,8 +40,10 @@
       // Hold the token; the app claims it right after login/signup.
       try { localStorage.setItem('pp-invite', token); } catch {}
       const who = info.boundEmail ? `<p>This invite is for <b>${info.boundEmail}</b> — sign up or log in with that email.</p>` : '';
-      card.innerHTML = `<h1>You're invited! 🎢</h1>
-        <p class="ok">Full ParkPulse access for ${info.days} days</p>
+      const safe = (t) => String(t || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const noteLine = info.gift && info.note ? `<p><i>“${safe(info.note)}”</i></p>` : '';
+      card.innerHTML = `<h1>${info.gift ? 'Someone gave you ParkPulse 🎁' : "You're invited! 🎢"}</h1>
+        <p class="ok">${info.gift ? `A ${safe(info.label)} — ${info.days} days of full access` : `Full ParkPulse access for ${info.days} days`}</p>${noteLine}
         <p>Live waits for 65 parks worldwide, Mila's day planner and wait-drop alerts.</p>${who}
         <p>Open the app and log in (or create a free account) — your access unlocks automatically.</p>
         <a class="btn" href="/app">Open ParkPulse →</a>`;

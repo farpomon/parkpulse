@@ -239,6 +239,10 @@
   .plan .pn{margin:14px 0 20px;font-size:13px;line-height:1.55;color:var(--muted);flex:1}
   .plan .pbtn{text-align:center;padding:12px;border-radius:11px;font:inherit;font-size:14px;font-weight:650;cursor:pointer;background:var(--brand-soft);color:var(--brand);border:1px solid transparent;width:100%}
   .plan .pbtn:hover{background:var(--brand);color:#fff}
+  .plan .pgift{display:block;margin-top:8px;font-size:13px;color:var(--muted);text-decoration:none;text-align:center}
+  .plan .pgift:hover{color:var(--brand);text-decoration:underline}
+  .plan .pgift-form{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .plan .pgift-form input{font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line,#ddd);border-radius:10px;background:transparent;color:inherit;width:100%;box-sizing:border-box}
   .plan.hi{background:var(--deep);border:2px solid var(--brand);box-shadow:0 18px 46px -18px rgba(79,58,201,.65)}
   .plan.hi .pl,.plan.hi .pp{color:#fff}
   .plan.hi .pper,.plan.hi .pn{color:#b9b0dd}
@@ -935,9 +939,22 @@
         <div class="pl">${c.label || p.label}</div>
         <div class="pp">$${p.usd}</div><div class="pper">${c.per || p.per}</div>
         <p class="pn">${c.note || 'Everything included.'}</p>
-        <button class="pbtn" data-plan="${p.id}" type="button">${cta}</button>`;
+        <button class="pbtn" data-plan="${p.id}" type="button">${cta}</button>
+        ${p.free || !checkoutEnabled ? '' : `<a class="pgift" href="#" data-gift="${p.id}">🎁 Gift this pass</a>
+        <form class="pgift-form" data-gift-form="${p.id}" hidden>
+          <input type="email" name="to" placeholder="Their email (optional)" autocomplete="off">
+          <button class="pbtn" type="submit" data-plan="${p.id}" data-gift-buy="1">Buy as a gift</button>
+        </form>`}`;
       grid.appendChild(div);
       div.querySelector('button[data-plan]').addEventListener('click', p.free ? () => { location.href = '/app'; } : buyHandler);
+      // The gift is the same till with a flag: the pass becomes a link for
+      // somebody else, emailed to them if an address is given.
+      const giftLink = div.querySelector('[data-gift]');
+      if (giftLink) {
+        const form = div.querySelector('[data-gift-form]');
+        giftLink.addEventListener('click', (e) => { e.preventDefault(); form.hidden = !form.hidden; if (!form.hidden) form.querySelector('input').focus(); });
+        form.addEventListener('submit', (e) => { e.preventDefault(); buyHandler({ currentTarget: form.querySelector('[data-gift-buy]'), gift: true, to: form.querySelector('input').value.trim() }); });
+      }
     }
   }
   renderPlans(FALLBACK_PLANS);
@@ -1003,7 +1020,7 @@
     if (checkoutEnabled) {
       btn.disabled = true;
       try {
-        const res = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan: btn.dataset.plan }) });
+        const res = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan: btn.dataset.plan, ...(e.gift && { gift: true, to: e.to || undefined }) }) });
         const data = await res.json();
         // The till cannot take money -- no key, a key Stripe rejects, or a
         // test key on the live site. The server says so rather than opening a

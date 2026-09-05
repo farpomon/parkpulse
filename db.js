@@ -299,6 +299,9 @@ for (const ddl of [
   "CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users (ref_code) WHERE ref_code IS NOT NULL",
   // Which countdown nudges a saved trip has already had ("7,1").
   "ALTER TABLE trips ADD COLUMN nudged TEXT",
+  // A gift is an invite that was paid for: it carries the real plan, so the
+  // recipient's account says "Trip Pass", not "Guest Pass".
+  "ALTER TABLE invites ADD COLUMN plan TEXT",
 ]) { try { db.exec(ddl); } catch {} }
 
 db.exec(`
@@ -1052,9 +1055,9 @@ const activity = {
 };
 
 const invites = {
-  create: (token, channel, target, days, note, createdBy) =>
-    db.prepare('INSERT INTO invites (token, channel, target, days, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(token, channel, target, days, note, createdBy, new Date().toISOString()),
+  create: (token, channel, target, days, note, createdBy, plan = null) =>
+    db.prepare('INSERT INTO invites (token, channel, target, days, note, created_by, created_at, plan) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(token, channel, target, days, note, createdBy, new Date().toISOString(), plan),
   get: (token) => db.prepare('SELECT * FROM invites WHERE token = ?').get(token),
   redeem: (token, email) =>
     db.prepare('UPDATE invites SET redeemed_by = ?, redeemed_at = ? WHERE token = ? AND redeemed_by IS NULL')

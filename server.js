@@ -515,6 +515,18 @@ const sendReferralEmail = (email, days, label) => sendEmail(email,
 <p>— ParkPulse</p>`,
   `Referral email skipped for ${email} (no RESEND_API_KEY set): +${days} days`);
 
+const sendGiftEmail = (origin, email, token, label, days, note, from) => {
+  const link = `${origin}/invite?t=${token}`;
+  const safe = (t) => String(t || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  return sendEmail(email, `Someone gave you ParkPulse 🎁`,
+    `<p>${from ? `<b>${safe(from)}</b> has` : 'Someone has'} given you a <b>ParkPulse ${safe(label)}</b> — <b>${days} days</b> of live wait times for 65 parks worldwide, the AI day planner, Mila, and wait-drop alerts.</p>
+     ${note ? `<p><i>“${safe(note)}”</i></p>` : ''}
+     <p><a href="${link}" style="display:inline-block;background:#5b3df5;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Open your gift</a></p>
+     <p>Or open this link: ${link}</p>
+     <p>The days start counting when you open it, so save it for the trip.</p>`,
+    `Gift for ${email} (no RESEND_API_KEY set) — link: ${link}`);
+};
+
 const sendWelcomeEmail = (email) => sendEmail(email, 'Welcome to ParkPulse 🎢',
   `<p>Your account is verified — you're in!</p>
 <p>Three things worth trying on your next park day:</p>
@@ -3698,6 +3710,9 @@ async function handleRequest(req, res) {
       valid: !inv.redeemed_by,
       days: inv.days,
       boundEmail: inv.channel === 'email' ? inv.target : null,
+      gift: inv.channel === 'gift',
+      label: (inv.plan && PLAN_LABELS[inv.plan]) || 'Guest Pass',
+      note: inv.channel === 'gift' ? inv.note || null : null,
     });
   }
 
@@ -4870,8 +4885,9 @@ ${sections}
         }
         if (!inv.redeemed_by) {
           db.invites.redeem(token, s.email);
-          grantToUser(s.email, 'comp', Date.now() + inv.days * 86400000);
-          note(s.email, 'accepted invite', `${inv.days}-day guest pass`);
+          const plan = inv.plan && PLAN_DAYS[inv.plan] ? inv.plan : 'comp';
+          grantToUser(s.email, plan, Date.now() + inv.days * 86400000);
+          note(s.email, inv.channel === 'gift' ? 'opened a gift' : 'accepted invite', `${inv.days}-day ${PLAN_LABELS[plan] || plan}`);
         }
         const u = db.users.get(s.email);
         const active = accountPassActive(u);
@@ -5343,15 +5359,24 @@ ${sections}
         // Logged-in buyers get their email prefilled, and the claim on
         // /welcome attaches the pass to the same account.
         const buyer = sessionUser(req);
+        // A gift: the same till, but the pass is minted as a redeem link for
+        // somebody else instead of landing on the buyer. The recipient's
+        // address is optional -- without one the buyer gets the link to pass
+        // on -- and it rides in Stripe's metadata so the claim can finish the
+        // job with nothing else to remember.
+        const gift = parsed.gift === true;
+        const giftTo = gift && typeof parsed.to === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(parsed.to.trim()) ? parsed.to.trim().toLowerCase().slice(0, 254) : '';
+        const giftNote = gift && typeof parsed.note === 'string' ? parsed.note.trim().slice(0, 200) : '';
         try {
           const session = await stripeApi('/v1/checkout/sessions', {
             mode: 'payment',
             ...priceParams,
             'line_items[0][quantity]': '1',
             'metadata[plan]': plan,
+            ...(gift && { 'metadata[gift]': '1', ...(giftTo && { 'metadata[to]': giftTo }), ...(giftNote && { 'metadata[note]': giftNote }) }),
             allow_promotion_codes: 'true',
             ...(buyer && { customer_email: buyer.email }),
-            success_url: `${origin}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+            success_url: `${origin}/welcome?session_id={CHECKOUT_SESSION_ID}${gift ? '&gift=1' : ''}`,
             cancel_url: `${origin}/#pricing`,
           });
           return sendJson(res, 200, { url: session.url });
@@ -5457,6 +5482,31 @@ ${sections}
           const claimKey = `pass:${sessionId}`;
           let first = null;
           try { first = JSON.parse(db.kv.get(claimKey) || 'null'); } catch {}
+          // A gift. The pass becomes a redeem link for somebody else; the
+          // buyer gets nothing on their own account except the sale, the
+          // referral credit if they were referred, and the link to forward.
+          // Replaying the receipt link hands back the same gift, never a
+          // second one.
+          if (session.metadata?.gift === '1') {
+            const s = sessionUser(req);
+            const origin = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
+            const label = PLAN_LABELS[plan] || plan;
+            const to = session.metadata.to || null;
+            let token = first?.gift || null;
+            if (!token) {
+              token = crypto.randomBytes(16).toString('hex');
+              db.invites.create(token, 'gift', to, PLAN_DAYS[plan], session.metadata.note || null, s?.email || session.customer_details?.email || 'stripe', plan);
+              db.kv.set(claimKey, JSON.stringify({ plan, gift: token, exp: Date.now() + 365 * 86400000 }));
+              const paid = Number.isFinite(session.amount_total) ? Math.round(session.amount_total) / 100
+                : Number(PLAN_CATALOG.find((c) => c.id === plan)?.usd || 0) || null;
+              recordPass({ plan, session: sessionId, email: s?.email || session.customer_details?.email || null, usd: paid });
+              note(s?.email, 'bought a gift', `${label}${to ? ' for ' + to : ''}${paid ? ' · ' + usd(paid) : ''}`);
+              if (s) { try { rewardReferrer(s.email, plan); } catch (err) { console.log(`referral reward failed: ${err.message}`); } }
+              if (to) sendGiftEmail(origin, to, token, label, PLAN_DAYS[plan], session.metadata.note, s?.user?.name || null).catch((err) => console.log(`gift email failed: ${err.message}`));
+              return sendJson(res, 200, { gift: true, link: `${origin}/invite?t=${token}`, to, plan, label, days: PLAN_DAYS[plan], usd: paid, conversion: GOOGLE_ADS_PURCHASE });
+            }
+            return sendJson(res, 200, { gift: true, link: `${origin}/invite?t=${token}`, to, plan, label, days: PLAN_DAYS[plan], already: true });
+          }
           if (first && first.exp <= Date.now()) return sendJson(res, 410, { error: 'this pass has expired' });
           const exp = first?.exp || Date.now() + PLAN_DAYS[plan] * 86400000;
           const token = signPass(plan, exp);
