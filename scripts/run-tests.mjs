@@ -64,6 +64,7 @@ const SHARED_SERVER = [
   ['railfoot', 'test/rail-footer.mjs'],
   ['directory', 'test/park-directory.mjs'],
   ['recap', 'test/recap-card.mjs'],
+  ['sensesui', 'test/mila-senses.mjs'],
   ['staledict', 'test/stale-dictionary.mjs'],
   ['langpromo', 'test/language-promo.mjs'],
   ['skipsheet', 'test/skip-sheet.mjs'],
@@ -80,6 +81,7 @@ const OWN_SERVER = [
   ['gift', 'test/gift.cjs'],
   ['reliab', 'test/reliability.cjs'],
   ['replan', 'test/replan-push.cjs'],
+  ['senses', 'test/mila-senses.cjs'],
   ['lastgood', 'test/last-known-good.cjs'],
   ['nps', 'test/nps.cjs'],
   ['googletag', 'test/google-tag.cjs'],
@@ -129,7 +131,7 @@ async function waitForServer(ms = 30000) {
 // from something else takes one and the failure that follows says only
 // EADDRINUSE, three hundred lines up from the summary -- so say it here,
 // before anything runs, and name the port.
-const OWN_PORTS = { lastgood: 9659, nps: 9657, googletag: 9655, adminai: 9691, adminops: 9689, livestrip: 9687, milabudget: 9685, milafall: 9661, dining: 9681, traffic: 9675, soon: 9671, soonoff: 9670, stripe: 9667, stripenokey: 9666, activity: 9664, hardening: 9663, referral: 9672, nudges: 9673, gift: 9674, reliab: 9676, replan: 9677, oauth: 9693, cache: null, card: null, emaillinks: 9698 };
+const OWN_PORTS = { lastgood: 9659, nps: 9657, googletag: 9655, adminai: 9691, adminops: 9689, livestrip: 9687, milabudget: 9685, milafall: 9661, dining: 9681, traffic: 9675, soon: 9671, soonoff: 9670, stripe: 9667, stripenokey: 9666, activity: 9664, hardening: 9663, referral: 9672, nudges: 9673, gift: 9674, reliab: 9676, replan: 9677, senses: 9678, oauth: 9693, cache: null, card: null, emaillinks: 9698 };
 async function portFree(port) {
   try {
     await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(700) });

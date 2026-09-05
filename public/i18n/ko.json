@@ -999,5 +999,18 @@
   "My day at {park}": "{park}에서의 하루",
   "minutes in line": "분 대기",
   "minutes saved vs a typical day": "분 절약 (평소 대비)",
-  "Skip the lines with ParkPulse": "ParkPulse와 함께 줄 서지 마세요"
+  "Skip the lines with ParkPulse": "ParkPulse와 함께 줄 서지 마세요",
+  "Talk to Mila": "밀라에게 말하기",
+  "Listening…": "듣고 있어요…",
+  "Read replies aloud": "답변 읽어주기",
+  "Add a photo": "사진 추가",
+  "Photo attached": "사진 첨부됨",
+  "What do you see here?": "여기 뭐가 보여요?",
+  "Story for the queue": "줄 서는 동안 이야기",
+  "Ride quiz": "라이드 퀴즈",
+  "Tell us a story for the queue": "줄 서는 동안 이야기 하나 해줘",
+  "Quiz us on this ride": "이 라이드 퀴즈 내줘",
+  "Read my plan": "내 계획 읽어주기",
+  "Stop reading": "읽기 중지",
+  "{n} stops.": "{n}개 코스."
 }

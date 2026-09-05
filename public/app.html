@@ -4190,6 +4190,7 @@
         <img src="/img/mila/mila-celebrate-160.webp" alt="" width="44" height="44">
         <div class="mc-t"><b>${tr('Take this plan with you')}</b>${tr('One tap and it lands in your inbox — ready at the gate, no signal needed.')}</div>
         <button class="btn" id="plan-mail">📧 ${tr('Email me this plan')}</button>
+        ${'speechSynthesis' in window ? `<button class="btn" id="plan-say" style="margin-top:.4rem;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand)">🔊 ${tr('Read my plan')}</button>` : ''}
       </div>
       ${!isPro ? `<div class="mailcard" style="border:2px solid var(--brand)">
         <img src="/img/mila/mila-cool-160.webp" alt="" width="44" height="44">
@@ -4320,6 +4321,21 @@
     }));
     document.getElementById('replan').addEventListener('click', () => { $('start-hour').value = 'now'; buildPlan(); });
 
+    // The running order, read out: one hand on the stroller, eyes on the
+    // children, the phone in a pocket.
+    const say = document.getElementById('plan-say');
+    if (say) say.addEventListener('click', () => {
+      if (speechSynthesis.speaking) { speechSynthesis.cancel(); say.textContent = '🔊 ' + tr('Read my plan'); return; }
+      const stops = planStops.filter((s) => s.name);
+      if (!stops.length) return;
+      const text = trf('{n} stops.', { n: stops.length }) + ' ' + stops.map((s) => (s.time ? s.time + ', ' : '') + s.name).join('. ') + '.';
+      const u = new SpeechSynthesisUtterance(text.replace(/\p{Extended_Pictographic}/gu, ''));
+      u.lang = ({ en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', ru: 'ru-RU', ar: 'ar-SA', hi: 'hi-IN', bn: 'bn-IN', id: 'id-ID', mr: 'mr-IN', ta: 'ta-IN', te: 'te-IN', tr: 'tr-TR', ur: 'ur-PK', vi: 'vi-VN' })[window.PP_LANG] || 'en-US';
+      u.onend = () => { say.textContent = '🔊 ' + tr('Read my plan'); };
+      say.textContent = '⏹ ' + tr('Stop reading');
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    });
     document.getElementById('plan-mail').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       if (!localStorage.getItem('pp-email')) { openAcct(); return; }

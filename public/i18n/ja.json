@@ -999,5 +999,18 @@
   "My day at {park}": "{park}での一日",
   "minutes in line": "分の待ち時間",
   "minutes saved vs a typical day": "分短縮（平均比）",
-  "Skip the lines with ParkPulse": "ParkPulseで行列を回避"
+  "Skip the lines with ParkPulse": "ParkPulseで行列を回避",
+  "Talk to Mila": "ミラに話す",
+  "Listening…": "聞いています…",
+  "Read replies aloud": "返答を読み上げる",
+  "Add a photo": "写真を追加",
+  "Photo attached": "写真を添付しました",
+  "What do you see here?": "ここに何が見える？",
+  "Story for the queue": "待ち時間のおはなし",
+  "Ride quiz": "ライドクイズ",
+  "Tell us a story for the queue": "待ち時間におはなしをして",
+  "Quiz us on this ride": "このライドのクイズを出して",
+  "Read my plan": "プランを読み上げる",
+  "Stop reading": "読み上げを止める",
+  "{n} stops.": "{n}か所。"
 }

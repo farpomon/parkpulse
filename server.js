@@ -1159,6 +1159,57 @@ async function checkAlerts() {
     } catch (err) { console.log(`alert check failed for ${slug}: ${err.message}`); }
   }
 }
+// --- Rain on the way ---------------------------------------------------------
+// The hourly forecast already sits behind the weather card. When the chance
+// of rain climbs past sixty percent in the coming hour for someone in a park
+// today, the phone hears it before the sky does -- with the pivot Mila
+// would give: indoor rides and shows now, coasters after. Once per account per
+// day; a forecast does not get more certain by being repeated.
+async function sweepRainPivots(now = new Date()) {
+  let states = [];
+  try { states = db.daystate.all(); } catch { return; }
+  const byPark = new Map();
+  for (const s of states) {
+    if (!s.sub || !s.park || !PARKS[s.park]) continue;
+    const today = now.toLocaleDateString('en-CA', { timeZone: PARKS[s.park].tz });
+    if (s.day !== today || db.kv.get(`rain:${s.email}|${today}`)) continue;
+    (byPark.get(s.park) || byPark.set(s.park, []).get(s.park)).push({ ...s, today });
+  }
+  for (const [slug, people] of byPark) {
+    const park = PARKS[slug];
+    try {
+      const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: park.tz, hour: 'numeric', hour12: false }).format(now)) % 24;
+      if (park.open != null && (hour < park.open || hour >= park.close - 1)) continue;
+      const wx = await getWeather(park);
+      const day = (wx.days || []).find((d) => d.date === people[0].today);
+      if (!day) continue;
+      const nowH = day.hours.find((h) => h.hour === hour);
+      if (nowH && nowH.rain >= 60) continue;                         // already on them
+      // The coming hour, not the afternoon: "indoor rides now" is advice for
+      // the next forty minutes, and a shower two hours off is a different day.
+      const wet = day.hours.find((h) => h.hour === hour + 1 && h.rain >= 60);
+      if (!wet) continue;
+      const at = `${String(wet.hour).padStart(2, '0')}:00`;
+      const payload = JSON.stringify({
+        title: `Showers likely around ${at} ☔`,
+        body: 'Mila says: indoor rides and shows now, the coasters after — a shower empties the big lines for the best half hour of the day.',
+        url: '/app', tag: 'rain',
+      });
+      for (const p of people) {
+        db.kv.set(`rain:${p.email}|${p.today}`, '1');
+        try {
+          await webpush.sendNotification(p.sub, payload);
+          note(p.email, 'warned about rain', `${wet.rain}% around ${at}`);
+        } catch (err) {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            try { const cur = db.daystate.get(p.email); if (cur) db.daystate.set(p.email, { ...cur, sub: null }); } catch {}
+          }
+        }
+      }
+    } catch (err) { console.log(`rain check failed for ${slug}: ${err.message}`); }
+  }
+}
+
 // --- A planned ride goes down ------------------------------------------------
 // The alerts above watch the rides people asked to be told about. This
 // watches the rides people are actually planning to ride today: when one of
@@ -2418,9 +2469,19 @@ async function sweepTripNudges(now = new Date()) {
       const where = park ? park.name : t.dest;
       const when = new Date(`${t.start}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
       const title = n.ahead === 7 ? `${where} in one week` : `${where} is tomorrow`;
-      const body = level
+      let body = level
         ? `${when} is looking ${level.toLowerCase()} at ${where}. Build your plan now — it takes two minutes.`
         : `${when} at ${where}. Build your plan now — it takes two minutes.`;
+      // A week out, Mila adds her three lines: the rope-drop move, the thing
+      // to book, the thing to skip. One call per trip, in the account's own
+      // language; if she cannot be reached the plain nudge still goes.
+      if (n.ahead === 7 && park && consultant.enabled()) {
+        try {
+          const ds = db.daystate.get(t.email);
+          const brief = await consultant.tripBriefing({ parkName: park.name, date: when, level, lang: LANG_NAMES[ds?.lang] || 'English', profile: ds?.profile || null, billTo: t.email });
+          if (brief) body = `${when}${level ? ` is looking ${level.toLowerCase()}` : ''} at ${where}.\n${brief}\nBuild your plan now — it takes two minutes.`;
+        } catch (err) { console.log(`trip briefing failed for ${t.email}: ${err.message}`); }
+      }
       let via = null;
       if (t.push_sub) {
         try { await webpush.sendNotification(JSON.parse(t.push_sub), JSON.stringify({ title, body })); via = 'push'; }
@@ -2448,7 +2509,7 @@ function sweepDeletedAccounts() {
 // Cached plan reviews outlive their longest TTL by a day and are then dead
 // weight -- a plan for a past date will never be asked for again.
 const sweepPlanAdvice = () => { try { db.planadvice.prune(36 * 60 * 60 * 1000); } catch {} };
-setInterval(() => { checkAlerts().catch(() => {}); checkPlanBreakdowns().catch((e) => console.log(`plan breakdowns: ${e.message}`)); checkBookingReminders().catch(() => {}); sweepTripNudges().catch((e) => console.log(`trip nudges: ${e.message}`)); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
+setInterval(() => { checkAlerts().catch(() => {}); checkPlanBreakdowns().catch((e) => console.log(`plan breakdowns: ${e.message}`)); sweepRainPivots().catch((e) => console.log(`rain pivots: ${e.message}`)); checkBookingReminders().catch(() => {}); sweepTripNudges().catch((e) => console.log(`trip nudges: ${e.message}`)); sweepDeletedAccounts(); maybeSendAiCostEmail(); maybeAlertOnSpend().catch((e) => console.log(`spend alert: ${e.message}`)); sweepPlanAdvice(); sweepEveningPlanMail().catch((e) => console.log(`evening mail sweep: ${e.message}`)); }, ALERT_CHECK_MS);
 
 // --- Night-before plan emails ------------------------------------------------
 // Zero taps during the trip: the evening before a saved plan's date (18:00 to
@@ -3528,6 +3589,13 @@ consultant.init({
   tagsFor: (slug) => { try { return JSON.parse(db.ridetags.get(slug) || 'null'); } catch { return null; } },
   createAlert: (subscription, park, ride, threshold) => db.alerts.add(subscription, park, ride, threshold),
   saveMemory: (email, notes) => db.advisor.setMemory(email, notes),
+  // The dining catalogue in the visitor's language when it exists, English
+  // otherwise -- the tool takes the language NAME Mila was asked to write in.
+  dining: (slug, langName) => {
+    const code = Object.keys(LANG_NAMES).find((k) => LANG_NAMES[k] === langName) || 'en';
+    try { return JSON.parse(db.dining.get(slug, code) || db.dining.get(slug, 'en') || 'null'); } catch { return null; }
+  },
+  reserveFor: (park) => { try { return reserveFor(park); } catch { return null; } },
   // Mila dropped a tier to answer. The visitor got a real answer and does not
   // need telling; the operator does, because a fallback that nobody sees is a
   // top tier that has quietly stopped working -- and the bill changes shape
@@ -4825,7 +4893,10 @@ ${sections}
     // marks -- which breaks both the JSON and the webhook signature over it.
     const chunks = [];
     let size = 0;
-    req.on('data', (chunk) => { size += chunk.length; if (size > 65536) return req.destroy(); chunks.push(chunk); });
+    // A question to Mila may carry one downscaled photo; nothing else needs
+    // more than a few kilobytes, and nothing else gets more.
+    const cap = url.pathname === '/api/consultant' ? 2_600_000 : 65536;
+    req.on('data', (chunk) => { size += chunk.length; if (size > cap) return req.destroy(); chunks.push(chunk); });
     req.on('end', () => { (async () => {
       const body = Buffer.concat(chunks).toString('utf8');
       let parsed;
@@ -5458,6 +5529,32 @@ ${sections}
       // Buying more of Mila's time. Deliberately its own product rather than a
       // pass: it grants model credit, not access, and it must not extend a
       // pass's expiry by accident.
+      // Something for the queue: a short story or a ride quiz from Mila, on
+      // the light tier, for the family standing in a forty-minute line.
+      if (url.pathname === '/api/mila/story') {
+        if (!consultant.enabled()) return sendJson(res, 503, { error: 'Mila is not switched on here yet — the plan below still stands.' });
+        const s = sessionUser(req);
+        if (!s) return sendJson(res, 401, { error: 'Log in (free) and Mila will tell you a story.' });
+        if (!hasAccess(req) && parsed.park !== FREE_PARK) return sendJson(res, 402, { error: 'Stories in the queue come with any pass.' });
+        if (accountLimited(req, 'story', 12)) return sendJson(res, 429, { error: 'that is a lot of stories — give me a minute' });
+        const budget = aiBudgetState(s.email);
+        if (!budget.ok) return sendJson(res, 402, { error: 'Mila has given you everything she has for today.', milaRest: budget.reason, topUp: (budget.reason === 'account' || budget.reason === 'pass') && MILA_TOPUP_ENABLED });
+        const park = PARKS[parsed.park] || null;
+        const kind = parsed.kind === 'quiz' ? 'quiz' : 'story';
+        const ride = typeof parsed.ride === 'string' ? parsed.ride.trim().slice(0, 120) : '';
+        const ages = Array.isArray(parsed.ages) ? parsed.ages.map(Number).filter((a) => Number.isFinite(a) && a > 0 && a < 18).slice(0, 6) : [];
+        const lang = typeof parsed.lang === 'string' ? parsed.lang.slice(0, 40) : 'English';
+        try {
+          const text = await consultant.queueStory({ parkName: park ? park.name : 'the park', ride, kind, ages, lang, billTo: s.email });
+          if (!text) return sendJson(res, 502, { error: 'Mila lost her thread — try again.' });
+          note(s.email, kind === 'quiz' ? 'asked Mila for a quiz' : 'asked Mila for a story', ride || (park && park.name) || null);
+          return sendJson(res, 200, { text, kind });
+        } catch (err) {
+          console.log(`queue story: ${err.message}`);
+          return sendJson(res, 502, { error: 'Mila lost her thread — try again.' });
+        }
+      }
+
       if (url.pathname === '/api/mila/topup') {
         if (!MILA_TOPUP_ENABLED) return sendJson(res, 503, { error: 'top-ups not configured' });
         const buyer = sessionUser(req);
@@ -5753,8 +5850,10 @@ ${sections}
         const lanePasses = strList(parsed.lanePasses, 30);
         {
           const asker = sessionUser(req);
-          const last = Array.isArray(messages) ? [...messages].reverse().find((m) => m && m.role === 'user' && typeof m.content === 'string') : null;
-          if (asker) note(asker.email, 'asked Mila', last ? last.content.trim().slice(0, 140) : (PARKS[park]?.name || null));
+          const last = Array.isArray(messages) ? [...messages].reverse().find((m) => m && m.role === 'user') : null;
+          const asked = !last ? null : typeof last.content === 'string' ? last.content
+            : Array.isArray(last.content) ? '📷 ' + last.content.filter((b) => b && b.type === 'text').map((b) => String(b.text || '')).join(' ') : null;
+          if (asker) note(asker.email, 'asked Mila', asked ? asked.trim().slice(0, 140) : (PARKS[park]?.name || null));
         }
         // Set by the plan panel, never by the chat widget. Two things hang off
         // it: these are the only turns worth caching (one self-contained
@@ -6175,6 +6274,7 @@ server.listen(PORT, bootBanner);
 module.exports = { _defaults: AI_DEFAULTS, _maybeAlertOnSpend: maybeAlertOnSpend, _revenueReport: revenueReport,
   _sweepTripNudges: sweepTripNudges,
   _checkPlanBreakdowns: checkPlanBreakdowns,
+  _sweepRainPivots: sweepRainPivots,
   _clearMilaPingCache: () => { milaPingCache = { at: 0, val: null }; },
   _noteUpstream: (name, ok, error) => upstream.service(name, ok, error),
   _applyStoredIds: applyStoredIds,

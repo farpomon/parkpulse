@@ -131,6 +131,8 @@ YOUR TOOLS:
 - set_alert: creates a real wait-drop push alert on the user's device. Use it when they ask to be told when a ride's wait drops. If it fails because notifications are off, tell them to tap the bell icon on the ride instead.
 - propose_plan: puts a ride plan into the app, with a one-tap button directly under your reply that loads it into their plan builder. Call it whenever you give the user a plan, itinerary, or ride order for the park they're viewing, so the option is there — it changes nothing until they choose it. Build the ride list from their saved notes, starred favorites, and the live wait data supplied (which ranks relative popularity even when the visit is a future day); ride names must exactly match the wait data. NEVER name, quote or translate that button: its wording is chosen by the app, changes between visits, and is not the word "Apply". Offer the ORDER, not the control — "it's yours if you want it", never "tap X".
 - remember: saves durable notes about this traveler (trip dates, party size and ages, hotel, budget, must-dos, constraints) so future conversations start already informed. Works only for logged-in users. Use it quietly whenever a lasting trip fact comes up — no need to announce it beyond a brief aside.
+- find_food: the restaurants ParkPulse knows at a park, with the official reservation link. Call it for any question about eating, snacks, reservations or character meals rather than answering from memory, and pass the link on when a booking is involved.
+- If the user attaches a photo (a menu, a sign, a wait board, a park map), read it and answer about what is actually in it: name the dishes, prices or times you can read, flag anything that matters to the stated party (allergies, heights, ages), and say plainly when something is too small or blurry to read rather than guessing.
 
 ADVICE STYLE:
 - You are a continuing advisor, not a one-off chatbot. If saved traveler notes are provided, use them — greet returning context naturally ("since you're going with two kids under 8…") instead of re-asking. When the user shares new durable facts, update your notes with remember.
@@ -216,6 +218,18 @@ const TOOL_DEFS = [
         rides: { type: 'array', items: { type: 'string' }, description: 'Exact ride names from the wait data, in your recommended riding order' },
       },
       required: ['park', 'rides'],
+    },
+  },
+  {
+    name: 'find_food',
+    description: "Look up the restaurants ParkPulse knows at a park: name, quick-service or table-service or character meal, price band, a one-line blurb, whether it genuinely needs a reservation, and the official reservation link for that park. Use it whenever the user asks where or what to eat, wants a reservation, a snack, a character meal, or somewhere to sit down. The list does not carry which land each restaurant is in -- use your own knowledge of the park's layout to pick what is near the user, and say so.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        park: { type: 'string', description: 'Park slug (usually the park the user is viewing)' },
+        type: { type: 'string', enum: ['any', 'quick', 'table', 'character'], description: 'Narrow to a kind of place; any if unsure' },
+      },
+      required: ['park'],
     },
   },
   {
@@ -420,6 +434,20 @@ async function runTool(block, ctx) {
         unmatched.length ? ` NOTE: these names matched nothing in the wait data and were left out of the plan: ${unmatched.join(', ')}. If any of them matter, call propose_plan again with their exact names from the live data; otherwise do not mention them.` : ''
       }` };
     }
+    if (block.name === 'find_food') {
+      const park = resolvePark(input.park, ctx);
+      if (!park) return { text: `Unknown park slug "${input.park}".`, isError: true };
+      const list = deps.dining ? await deps.dining(park.slug, ctx.lang) : null;
+      if (!Array.isArray(list) || !list.length) {
+        return { text: `ParkPulse has no dining list for ${park.name} yet. Answer from your own knowledge, name only places you are sure exist, and say the list is not in the app yet.` };
+      }
+      const want = ['quick', 'table', 'character'].includes(input.type) ? input.type : 'any';
+      const rows = list.filter((r) => want === 'any' || r.type === want);
+      const reserve = deps.reserveFor ? deps.reserveFor(park) : null;
+      const lines = (rows.length ? rows : list).slice(0, 12).map((r) =>
+        `- ${r.name} — ${r.type === 'table' ? 'table service' : r.type === 'character' ? 'character meal' : 'quick service'}, ${r.price || '$$'}${r.mustBook ? ', BOOK AHEAD' : ''}: ${r.blurb || ''}`);
+      return { text: `Restaurants at ${park.name}${want !== 'any' && rows.length ? ` (${want} only)` : ''}:\n${lines.join('\n')}\n${reserve && reserve.url ? `Official reservation page for this park: ${reserve.url}${reserve.note ? ` (${reserve.note})` : ''}` : 'No reservation link on file for this park.'}\nLands are not in this list -- pick what is near the user from your own knowledge of the park layout and say which land it is in.` };
+    }
     if (block.name === 'remember') {
       const notes = typeof input.notes === 'string' ? input.notes.trim().slice(0, 1200) : '';
       if (!notes) return { text: 'Invalid notes (need a non-empty string).', isError: true };
@@ -437,11 +465,30 @@ async function runTool(block, ctx) {
 }
 
 // --- Request validation ------------------------------------------------------
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const IMAGE_MAX_B64 = 2_400_000;   // ~1.8 MB of JPEG: a phone photo downscaled by the widget
 function validateMessages(messages) {
   if (!Array.isArray(messages) || messages.length === 0 || messages.length > 24) return null;
   const clean = [];
-  for (const m of messages) {
-    if (!m || (m.role !== 'user' && m.role !== 'assistant') || typeof m.content !== 'string') return null;
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (!m || (m.role !== 'user' && m.role !== 'assistant')) return null;
+    // A photo -- a menu, a sign, a wait board -- may ride on the LAST user
+    // message only. History stays text, so a picture is paid for once, on
+    // the turn it was taken, and never again on every turn after.
+    if (Array.isArray(m.content)) {
+      if (i !== messages.length - 1 || m.role !== 'user') return null;
+      const images = m.content.filter((b) => b && b.type === 'image');
+      const texts = m.content.filter((b) => b && b.type === 'text');
+      if (images.length !== 1 || images.length + texts.length !== m.content.length) return null;
+      const src = images[0].source;
+      if (!src || src.type !== 'base64' || !IMAGE_TYPES.has(src.media_type) || typeof src.data !== 'string'
+          || src.data.length < 100 || src.data.length > IMAGE_MAX_B64 || !/^[A-Za-z0-9+/]+=*$/.test(src.data)) return null;
+      const text = texts.map((t) => String(t.text || '')).join(' ').trim().slice(0, 2000) || 'What do you make of this?';
+      clean.push({ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: src.media_type, data: src.data } }, { type: 'text', text }] });
+      continue;
+    }
+    if (typeof m.content !== 'string') return null;
     const content = m.content.trim().slice(0, 2000);
     if (!content) return null;
     clean.push({ role: m.role, content });
@@ -575,7 +622,7 @@ async function consult({ park, waits, messages, favorites, excluded, planPicks, 
     if (event === 'action' && data && data.type === 'plan') planned = true;
     send(event, data);
   };
-  const ctx = { subscription, email: email || null, park, channel: channel || 'app', send: watched };
+  const ctx = { subscription, email: email || null, park, channel: channel || 'app', send: watched, lang: lang || 'English' };
   let emittedText = false;
   let turnEmitted = false;
   let replyText = '';
@@ -792,6 +839,46 @@ async function liveNudge({ parkName, lang, headline, facts, name, billTo }) {
   return text ? text.replace(/\s+/g, ' ').slice(0, 200) : null;
 }
 
+// Something for the queue: a short story, or a quiz about the ride they are
+// about to board, from the light tier. Written for the children in the party
+// and for the grown-up reading it aloud in a forty-minute line, in the
+// family's own language; a fairy who knows the park, never a franchise.
+async function queueStory({ parkName, ride, kind, ages, lang, billTo }) {
+  const quiz = kind === 'quiz';
+  const msg = await client.beta.messages.create({
+    model: LIGHT_MODEL,
+    max_tokens: 700,
+    system: 'You are Mila, a warm and funny theme-park fairy, entertaining a family standing in a ride queue. '
+      + (quiz
+        ? 'Write a five-question quiz about the named ride and its park, for a grown-up to read aloud to children: each question numbered, three short answer options lettered A-C, then an "Answers:" line at the very end. Questions about the ride\'s story, speed, height, history, the park, or general theme-park fun facts. Never invent a fact you are not confident of -- prefer a fun general question over a made-up specific one.'
+        : 'Write ONE original short story, about 220-320 words, to be read aloud in three or four minutes: a small adventure that starts right there in the queue and borrows the ride\'s theme (pirates, space, jungle, haunted house, a mountain, a river) without using any franchise character, brand name, song lyric or film plot -- your own characters only. A gentle twist, a warm ending, one small joke.')
+      + ' Suit the youngest listed age; nothing scary or sad for small children. Plain prose, no markdown, no headers, no emoji. Write in the requested language as a native speaker would.',
+    messages: [{ role: 'user', content: JSON.stringify({ park: parkName, ride: ride || null, kind, childrenAges: ages && ages.length ? ages : null, language: lang || 'English' }) }],
+  }, { timeout: 30000, maxRetries: 1 });
+  noteUsage('queue-story', msg, billTo);
+  if (msg.stop_reason === 'refusal') return null;
+  const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+  return text ? text.slice(0, 3000) : null;
+}
+
+// Three lines for the week-before nudge: the rope-drop move, the one thing to
+// book, the one thing to skip. One call per trip, once; the nudge that used
+// to say "looking Busy, build your plan" now has a reason to be opened.
+async function tripBriefing({ parkName, date, level, lang, profile, billTo }) {
+  const msg = await client.beta.messages.create({
+    model: CATALOG_MODEL,
+    max_tokens: 260,
+    system: 'You are Mila, a warm theme-park fairy writing a three-line briefing for a family a week before their park day. '
+      + 'Exactly three short lines, each starting with a dash: 1) the rope-drop move -- which attraction to walk to first and why; 2) the one thing to book or reserve in advance and when the window opens, if this park has such a thing, otherwise the one timing to plan around; 3) the one thing to skip or save money on. '
+      + 'Under 70 words in total. Name real attractions at this park only; if unsure of a name, describe the type instead. No greeting, no sign-off, no markdown beyond the dashes, no emoji. Write in the requested language as a native speaker would.',
+    messages: [{ role: 'user', content: JSON.stringify({ park: parkName, date, expectedCrowds: level || null, party: profile || null, language: lang || 'English' }) }],
+  }, { timeout: 25000, maxRetries: 1 });
+  noteUsage('trip-briefing', msg, billTo);
+  if (msg.stop_reason === 'refusal') return null;
+  const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+  return text ? text.slice(0, 600) : null;
+}
+
 // The plan email's three authored flavour lines, moved into another language.
 // These are TRANSLATED rather than regenerated on purpose: the fact line makes
 // a factual claim about a real park and the secret is hand-checked advice, so
@@ -1002,4 +1089,4 @@ async function ping() {
 // entitlement that actually failed rather than by one word for all of them.
 const models = { advisor: MODEL, catalogue: CATALOG_MODEL, light: LIGHT_MODEL };
 
-module.exports = { enabled, init, consult, ping, models, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, _setClient, _internal: { runTool, waitsBlock, validateMessages } };
+module.exports = { enabled, init, consult, ping, models, throttled, promptFingerprint, describeRide, diningGuide, translateFlavor, rideTags, matchNames, geoEstimate, dayBriefing, liveNudge, queueStory, tripBriefing, _setClient, _internal: { runTool, waitsBlock, validateMessages } };

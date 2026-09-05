@@ -999,5 +999,18 @@
   "My day at {park}": "{park}’ta günüm",
   "minutes in line": "dakika sırada",
   "minutes saved vs a typical day": "dakika kazanç (normal güne göre)",
-  "Skip the lines with ParkPulse": "ParkPulse ile sıraları atla"
+  "Skip the lines with ParkPulse": "ParkPulse ile sıraları atla",
+  "Talk to Mila": "Mila ile konuş",
+  "Listening…": "Dinliyorum…",
+  "Read replies aloud": "Yanıtları sesli oku",
+  "Add a photo": "Fotoğraf ekle",
+  "Photo attached": "Fotoğraf eklendi",
+  "What do you see here?": "Burada ne görüyorsun?",
+  "Story for the queue": "Sıra için hikâye",
+  "Ride quiz": "Tur bilgi yarışması",
+  "Tell us a story for the queue": "Sırada bize bir hikâye anlat",
+  "Quiz us on this ride": "Bu tur hakkında bize soru sor",
+  "Read my plan": "Planımı oku",
+  "Stop reading": "Okumayı durdur",
+  "{n} stops.": "{n} durak."
 }

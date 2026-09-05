@@ -999,5 +999,18 @@
   "My day at {park}": "{park}-இல் என் நாள்",
   "minutes in line": "நிமிடம் வரிசையில்",
   "minutes saved vs a typical day": "நிமிடம் சேமிப்பு (வழக்கமான நாளை விட)",
-  "Skip the lines with ParkPulse": "ParkPulse உடன் வரிசைகளைத் தவிருங்கள்"
+  "Skip the lines with ParkPulse": "ParkPulse உடன் வரிசைகளைத் தவிருங்கள்",
+  "Talk to Mila": "மிலாவுடன் பேசுங்கள்",
+  "Listening…": "கேட்கிறேன்…",
+  "Read replies aloud": "பதில்களை உரக்கப் படிக்க",
+  "Add a photo": "புகைப்படம் சேர்",
+  "Photo attached": "புகைப்படம் இணைக்கப்பட்டது",
+  "What do you see here?": "இங்கே என்ன பார்க்கிறாய்?",
+  "Story for the queue": "வரிசைக்கு ஒரு கதை",
+  "Ride quiz": "சவாரி வினாடி வினா",
+  "Tell us a story for the queue": "வரிசைக்கு ஒரு கதை சொல்லு",
+  "Quiz us on this ride": "இந்த சவாரி பற்றி வினாடி வினா",
+  "Read my plan": "என் திட்டத்தைப் படி",
+  "Stop reading": "படிப்பதை நிறுத்து",
+  "{n} stops.": "{n} நிறுத்தங்கள்."
 }

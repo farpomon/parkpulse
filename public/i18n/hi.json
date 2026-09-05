@@ -999,5 +999,18 @@
   "My day at {park}": "{park} में मेरा दिन",
   "minutes in line": "मिनट लाइन में",
   "minutes saved vs a typical day": "मिनट बचे सामान्य दिन की तुलना में",
-  "Skip the lines with ParkPulse": "ParkPulse के साथ लाइनें छोड़ें"
+  "Skip the lines with ParkPulse": "ParkPulse के साथ लाइनें छोड़ें",
+  "Talk to Mila": "मिला से बात करें",
+  "Listening…": "सुन रही हूँ…",
+  "Read replies aloud": "जवाब ज़ोर से पढ़ें",
+  "Add a photo": "फ़ोटो जोड़ें",
+  "Photo attached": "फ़ोटो जुड़ गई",
+  "What do you see here?": "यहाँ क्या दिख रहा है?",
+  "Story for the queue": "लाइन के लिए कहानी",
+  "Ride quiz": "राइड क्विज़",
+  "Tell us a story for the queue": "लाइन के लिए एक कहानी सुनाओ",
+  "Quiz us on this ride": "इस राइड पर क्विज़ लो",
+  "Read my plan": "मेरी योजना पढ़ो",
+  "Stop reading": "पढ़ना रोकें",
+  "{n} stops.": "{n} स्टॉप।"
 }

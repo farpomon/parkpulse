@@ -71,6 +71,18 @@
     #ppc-input { flex: 1; border: 1px solid var(--ppc-border); background: var(--ppc-bg); color: var(--ppc-ink);
       border-radius: 11px; padding: .6rem .85rem; font-size: 16px; min-width: 0; }
     #ppc-send { border: none; border-radius: 11px; padding: .6rem 1rem; background: #4f3ac9; color: #fff; font-weight: 700; cursor: pointer; }
+    .ppc-icon { border: 1px solid var(--ppc-border); background: var(--ppc-bg); color: var(--ppc-ink); border-radius: 11px; width: 2.4rem; flex: 0 0 auto; font-size: 1.05rem; cursor: pointer; padding: 0; }
+    .ppc-icon[hidden] { display: none; }
+    .ppc-icon.on { background: #4f3ac9; color: #fff; border-color: #4f3ac9; }
+    .ppc-icon.listening { background: #e5484d; color: #fff; border-color: #e5484d; animation: ppc-pulse 1s infinite; }
+    @keyframes ppc-pulse { 50% { opacity: .6; } }
+    #ppc-fun { display: flex; gap: .4rem; padding: 0 .85rem .4rem; flex-shrink: 0; }
+    #ppc-fun button { border: 1px dashed var(--ppc-border); background: transparent; color: #7b5fe0; border-radius: 999px; padding: .28rem .7rem; font-size: .78rem; cursor: pointer; }
+    #ppc-thumb { display: flex; align-items: center; gap: .5rem; padding: .3rem .85rem; font-size: .8rem; color: var(--ppc-ink); }
+    #ppc-thumb[hidden] { display: none; }
+    #ppc-thumb img { width: 42px; height: 42px; object-fit: cover; border-radius: 8px; }
+    #ppc-thumb button { margin-left: auto; border: none; background: transparent; color: var(--ppc-ink); cursor: pointer; }
+    .ppc-user img.ppc-shot { display: block; max-width: 160px; max-height: 160px; border-radius: 10px; margin-bottom: .35rem; }
     #ppc-root { --ppc-bg: #f7f5ff; --ppc-card: #fff; --ppc-ink: #251d3d; --ppc-muted: #6b6485; --ppc-border: #e3dff2; }
     @media (prefers-color-scheme: dark) {
       #ppc-root { --ppc-bg: #17122b; --ppc-card: #221b3d; --ppc-ink: #efecfc; --ppc-muted: #a79fc4; --ppc-border: #362c5c; }
@@ -83,6 +95,16 @@
   // Trim the outgoing history window: newest messages first, capped by count
   // and total characters (the server rejects oversized bodies), and always
   // starting on a user turn (the API requires it).
+  // The last user turn carries the photo, as an image block ahead of the text.
+  function withPhoto(msgs, shot, text) {
+    if (!shot) return msgs;
+    const out = msgs.slice();
+    out[out.length - 1] = { role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: shot.media_type, data: shot.data } },
+      { type: 'text', text },
+    ] };
+    return out;
+  }
   function historyWindow() {
     const out = [];
     let chars = 0;
@@ -143,8 +165,19 @@
           <button data-q="What's the smartest plan for the rest of my day here?"></button>
           <button data-q="How do I do this park well without paying for any passes?"></button>
         </div>
-        <form id="ppc-form"><input id="ppc-input" autocomplete="off" maxlength="500">
-          <button id="ppc-send" type="submit"></button></form>
+        <div id="ppc-fun">
+          <button type="button" data-fun="story">📖 <span></span></button>
+          <button type="button" data-fun="quiz">❓ <span></span></button>
+        </div>
+        <div id="ppc-thumb" hidden><img alt=""><span></span><button type="button" id="ppc-thumb-x" aria-label="✕">✕</button></div>
+        <form id="ppc-form">
+          <button type="button" class="ppc-icon" id="ppc-cam" hidden>📷</button>
+          <button type="button" class="ppc-icon" id="ppc-mic" hidden>🎤</button>
+          <input id="ppc-input" autocomplete="off" maxlength="500">
+          <button id="ppc-send" type="submit"></button>
+          <button type="button" class="ppc-icon" id="ppc-voice" hidden>🔈</button>
+          <input type="file" id="ppc-file" accept="image/*" capture="environment" hidden>
+        </form>
       </div>`;
     document.body.appendChild(root);
     retextChrome();
@@ -162,6 +195,162 @@
       send(text);
     });
     root.querySelectorAll('#ppc-chips button').forEach((b) => b.addEventListener('click', () => send(window.PP_LANG && window.PP_LANG !== 'en' ? b.textContent : b.dataset.q)));
+    wireSenses();
+  }
+
+  // --- Ears, a voice, and eyes ------------------------------------------------
+  // Typing is the wrong interface for a park: one hand on a stroller, the
+  // other holding a churro. Speech in and out use the browser's own engines
+  // in the app's language; a photo is downscaled here so a menu or a sign
+  // costs one modest image, not a twelve-megapixel upload.
+  const BCP47 = { en: 'en-US', es: 'es-ES', pt: 'pt-BR', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', ru: 'ru-RU', ar: 'ar-SA', hi: 'hi-IN', bn: 'bn-IN', id: 'id-ID', mr: 'mr-IN', ta: 'ta-IN', te: 'te-IN', tr: 'tr-TR', ur: 'ur-PK', vi: 'vi-VN' };
+  const speechLang = () => BCP47[window.PP_LANG] || window.PP_LANG || 'en-US';
+  let pendingImage = null;   // { media_type, data, preview }
+  let recognizer = null;
+  function wireSenses() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const mic = $id('ppc-mic'), voice = $id('ppc-voice'), cam = $id('ppc-cam'), file = $id('ppc-file');
+    root.querBySel = null;
+    root.querySelectorAll('#ppc-fun button').forEach((b) => {
+      b.querySelector('span').textContent = T()(b.dataset.fun === 'quiz' ? 'Ride quiz' : 'Story for the queue');
+      b.addEventListener('click', () => story(b.dataset.fun));
+    });
+    if (SR) {
+      mic.hidden = false;
+      mic.title = mic.getAttribute('aria-label') || T()('Talk to Mila');
+      mic.setAttribute('aria-label', T()('Talk to Mila'));
+      mic.addEventListener('click', () => {
+        if (recognizer) { try { recognizer.stop(); } catch {} return; }
+        const rec = new SR();
+        recognizer = rec;
+        rec.lang = speechLang();
+        rec.interimResults = true;
+        rec.maxAlternatives = 1;
+        let finalText = '';
+        mic.classList.add('listening');
+        const input = $id('ppc-input');
+        const before = input.placeholder;
+        input.placeholder = T()('Listening…');
+        rec.onresult = (e) => {
+          let interim = '';
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalText += t; else interim += t;
+          }
+          input.value = (finalText + interim).trim();
+        };
+        rec.onerror = () => {};
+        rec.onend = () => {
+          recognizer = null;
+          mic.classList.remove('listening');
+          input.placeholder = before;
+          const text = (finalText || input.value || '').trim();
+          if (text) { state.speakNext = true; input.value = ''; send(text); }
+        };
+        try { rec.start(); } catch { recognizer = null; mic.classList.remove('listening'); }
+      });
+    }
+    if ('speechSynthesis' in window) {
+      voice.hidden = false;
+      try { state.voice = localStorage.getItem('pp-voice') === '1'; } catch {}
+      const paint = () => { voice.textContent = state.voice ? '🔊' : '🔈'; voice.classList.toggle('on', Boolean(state.voice)); voice.setAttribute('aria-label', T()('Read replies aloud')); voice.title = T()('Read replies aloud'); };
+      paint();
+      voice.addEventListener('click', () => {
+        state.voice = !state.voice;
+        try { localStorage.setItem('pp-voice', state.voice ? '1' : '0'); } catch {}
+        if (!state.voice) { try { speechSynthesis.cancel(); } catch {} }
+        paint();
+      });
+    }
+    if (window.File && window.FileReader && window.HTMLCanvasElement) {
+      cam.hidden = false;
+      cam.setAttribute('aria-label', T()('Add a photo'));
+      cam.title = T()('Add a photo');
+      cam.addEventListener('click', () => file.click());
+      file.addEventListener('change', async () => {
+        const f = file.files && file.files[0];
+        file.value = '';
+        if (!f) return;
+        try {
+          pendingImage = await shrink(f);
+          const thumb = $id('ppc-thumb');
+          thumb.querySelector('img').src = pendingImage.preview;
+          thumb.querySelector('span').textContent = T()('Photo attached');
+          thumb.hidden = false;
+          $id('ppc-input').focus();
+        } catch { pendingImage = null; }
+      });
+      $id('ppc-thumb-x').addEventListener('click', () => { pendingImage = null; $id('ppc-thumb').hidden = true; });
+    }
+  }
+  // A phone photo is 3-12 MB. The longest side goes to 1280 pixels and the
+  // JPEG to quality .72: a menu stays legible, and the request stays small.
+  function shrink(fileObj) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(fileObj);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const max = 1280;
+          const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          const preview = c.toDataURL('image/jpeg', 0.72);
+          URL.revokeObjectURL(url);
+          resolve({ media_type: 'image/jpeg', data: preview.split(',')[1], preview });
+        } catch (e) { URL.revokeObjectURL(url); reject(e); }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+      img.src = url;
+    });
+  }
+  // Markdown, emoji and links are for eyes; the ear gets the sentences.
+  function speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    const clean = String(text).replace(/\*\*/g, '').replace(/https?:\/\/\S+/g, '').replace(/\p{Extended_Pictographic}/gu, '').replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(clean.slice(0, 1200));
+      u.lang = speechLang();
+      u.rate = 1.02;
+      speechSynthesis.speak(u);
+    } catch {}
+  }
+  // A story or a quiz for the queue, from the light tier, outside the
+  // conversation proper -- and into it afterwards, so Mila knows what was told.
+  async function story(kind) {
+    if (state.busy) return;
+    syncPark();
+    state.busy = true;
+    const ask = T()(kind === 'quiz' ? 'Quiz us on this ride' : 'Tell us a story for the queue');
+    bubble('user', ask);
+    const out = bubble('bot', T()('Thinking…'));
+    out.classList.add('ppc-typing');
+    try {
+      const context = await state.opts.getContext();
+      const ages = (((context || {}).profile || {}).kids || []).map((k) => Number(k && k.age)).filter((a) => a > 0);
+      const ride = (context && (context.ride || (Array.isArray(context.planPicks) && context.planPicks[0]))) || '';
+      const res = await fetch('/api/mila/story', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ park: state.opts.getPark(), kind, ride, ages, lang: window.PP_USER_LANG_NAME || window.PP_LANG_NAME || 'English' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'error');
+      out.classList.remove('ppc-typing');
+      out.innerHTML = renderMd(data.text);
+      state.history.push({ role: 'user', content: ask }, { role: 'assistant', content: data.text });
+      saveHistory();
+      if (state.voice) speak(data.text);
+    } catch (e) {
+      out.classList.remove('ppc-typing');
+      out.textContent = (e.message && e.message.length < 130) ? T()(e.message) : T()('Your magical fairy is having a moment — try again shortly.');
+    } finally {
+      state.busy = false;
+      scrollDown();
+    }
   }
 
   // The advisor writes light markdown; render just **bold** safely and keep
@@ -369,12 +558,19 @@
   }
 
   async function send(text) {
-    if (state.busy || !text.trim()) return;
+    if (state.busy || (!text.trim() && !pendingImage)) return;
     syncPark();   // ask() can reach here without the panel ever being opened
     state.busy = true;
     $id('ppc-chips').style.display = 'none';
-    bubble('user', text);
-    state.history.push({ role: 'user', content: text });
+    const shot = pendingImage;
+    pendingImage = null;
+    const thumbEl = $id('ppc-thumb'); if (thumbEl) thumbEl.hidden = true;
+    if (shot && !text.trim()) text = T()('What do you see here?');
+    const mine = bubble('user', text);
+    if (shot) { const im = document.createElement('img'); im.className = 'ppc-shot'; im.src = shot.preview; im.alt = ''; mine.prepend(im); }
+    // The history keeps the words and a mark that a photo went with them;
+    // the picture itself is sent once, on this turn.
+    state.history.push({ role: 'user', content: shot ? '📷 ' + text : text });
     const out = bubble('bot', T()('Thinking…'));
     out.classList.add('ppc-typing');
     let replyText = '';
@@ -389,7 +585,7 @@
       const res = await fetch('/api/consultant', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ park: state.opts.getPark(), messages: historyWindow(), lang: window.PP_USER_LANG_NAME || window.PP_LANG_NAME || 'English', ...context }),
+        body: JSON.stringify({ park: state.opts.getPark(), messages: withPhoto(historyWindow(), shot, text), lang: window.PP_USER_LANG_NAME || window.PP_LANG_NAME || 'English', ...context }),
       });
       if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
         const data = await res.json().catch(() => ({}));
@@ -452,6 +648,9 @@
       saveHistory();
       actions.forEach(renderAction);
       feedbackRow(replyText);
+      // Asked out loud, or the speaker is on: the answer is read back.
+      if (state.voice || state.speakNext) speak(replyText);
+      state.speakNext = false;
     } catch (e) {
       out.classList.remove('ppc-typing');
       // The server writes these in English -- the spending cap, the dead key,
