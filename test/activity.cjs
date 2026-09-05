@@ -55,7 +55,7 @@ const call = (path, body, sess, method) => fetch(`${B}${path}`, {
   check('the guest accepts it', claim.status === 200 && claim.data.ok);
   check('and that is the first line of her timeline', actionsOf('amy@example.com').includes('accepted invite'));
   const first = db.activity.forEmail('amy@example.com').find((e) => e.action === 'accepted invite');
-  check('with the pass length on it', first && first.detail === '10-day guest pass', first && first.detail);
+  check('with the pass length on it', first && first.detail === '10-day Guest Pass', first && first.detail);
 
   console.log('\n  the day in the park');
   await call('/api/daystate', { state: { park: 'magic-kingdom', picked: ['Space Mountain', 'Haunted Mansion', 'Pirates of the Caribbean'] } }, guest);
