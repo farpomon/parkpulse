@@ -62,6 +62,7 @@ const SHARED_SERVER = [
   ['onelang', 'test/one-language.mjs'],
   ['sheetclose', 'test/sheet-close.mjs'],
   ['railfoot', 'test/rail-footer.mjs'],
+  ['directory', 'test/park-directory.mjs'],
   ['staledict', 'test/stale-dictionary.mjs'],
   ['langpromo', 'test/language-promo.mjs'],
   ['skipsheet', 'test/skip-sheet.mjs'],

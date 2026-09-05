@@ -3267,9 +3267,12 @@ try {
   PARK_MAGIC = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'park-magic.json'), 'utf8'));
 } catch (err) { console.log(`park magic lines unavailable: ${err.message}`); }
 
-// The landing page's editorial "Most popular" cards, and the parks its regional
-// columns therefore leave out. Deliberately eight and deliberately unchanged --
-// this row is a layout as much as a list.
+// The landing page's editorial "Most popular" cards. Deliberately eight and
+// deliberately unchanged -- this row is a layout as much as a list. The
+// regional columns below it still list these parks: the row is a shortcut,
+// the columns are the directory, and a directory with holes in it is how
+// "I can't see Disneyland under California" got reported from a phone that
+// had scrolled straight past the cards.
 const POPULAR_PARKS = [
   'magic-kingdom', 'disneyland', 'epic-universe', 'universal-studios-florida',
   'islands-of-adventure', 'epcot', 'tokyo-disneyland', 'disneyland-paris',
@@ -3303,7 +3306,7 @@ function parkGuides(registry) {
     ['US & Canada', 'US &amp; Canada'], ['Europe', 'Europe'], ['Asia', 'Asia'],
   ];
   const cols = regions.map(([key, label]) => {
-    const parks = registry.filter((p) => p.region === key && !POPULAR_PARKS.includes(p.slug));
+    const parks = registry.filter((p) => p.region === key);
     if (!parks.length) return '';
     return `<div class="pg-col"><div class="pg-head">${label}</div>${
       parks.map((p) => `<a href="/parks/${p.slug}"><span class="pg-n">${esc(p.name)}</span>${magicLine(p)}</a>`).join('')
